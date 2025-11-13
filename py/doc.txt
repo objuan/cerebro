@@ -1,0 +1,8 @@
+https://fbs.eu/it/analytics/tips/strategia-di-trading-opening-range-breakout-29252
+
+Storia della strategia ORB
+
+La strategia è stata inventata negli anni '60 dal famoso trader e investitore americano Arthur Merrill, che l'ha utilizzata per quasi 20 anni nel trading dell'indice Dow Jones Industrial Average. Sebbene la strategia sia stata leggermente modificata, la base rimane la stessa. Per trovare un intervallo di apertura alcuni trader utilizzano una media mobile a breve termine, di solito una media di tre giorni.
+
+Un altro noto trader, Sheldon Knight, utilizzava la percentuale della differenza tra il massimo di N-giorni e il minimo di N-giorni per trovare l'intervallo. Partiamo dal presupposto che sia meglio mantenere le cose il più semplici possibile. L'utilizzo di medie a breve termine o massimi e minimi di un determinato giorno è meno efficace rispetto all'utilizzo dell'azione del prezzo all'inizio della sessione di trading.
+

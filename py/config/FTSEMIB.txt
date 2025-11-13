@@ -1,0 +1,241 @@
+a2a
+
+A2A.MI
+	2,71	0,52%	
+	
+0,00,0
+amplifon
+
+AMP.MI
+	14,485	2,80%	
+	
+0,00,0
+azimut holding
+
+AZM.MI
+	36,02	0,59%	
+	
+0,00,0
+banca mediolanum
+
+BMED.MI
+	18,93	1,56%	
+	
+0,00,0
+banca mps
+
+BMPS.MI
+	8,425	2,98%	
+	
+0,00,0
+banco bpm
+
+BAMI.MI
+	13,27	0,61%	
+	
+0,00,0
+bp sondrio
+
+BPSO.MI
+	15,45	1,01%	
+	
+0,00,0
+bper banca
+
+BPE.MI
+	10,855	1,21%	
+	
+0,00,0
+brunello cucinelli
+
+BC.MI
+	91,96	5,34%	
+	
+0,00,0
+buzzi
+
+BZU.MI
+	50,5	-0,30%	
+	
+0,00,0
+campari
+
+CPR.MI
+	5,99	3,03%	
+	
+0,00,0
+diasorin
+
+DIA.MI
+	60,16	1,97%	
+	
+0,00,0
+enel
+
+ENEL.MI
+	8,955	0,58%	
+	
+0,00,0
+eni
+
+ENI.MI
+	16,464	1,94%	
+	
+0,00,0
+ferrari
+
+RACE.MI
+	364,1	2,05%	
+	
+0,00,0
+finecobank
+
+FBK.MI
+	21,56	1,03%	
+	
+0,00,0
+generali
+
+G.MI
+	33,53	1,48%	
+	
+0,00,0
+hera
+
+HER.MI
+	3,982	-0,65%	
+	
+0,00,0
+interpump group
+
+IP.MI
+	43,74	1,20%	
+	
+0,00,0
+intesa sanpaolo
+
+ISP.MI
+	5,847	1,33%	
+	
+0,00,0
+inwit
+
+INW.MI
+	8,33	-11,76%	
+	
+0,00,0
+italgas
+
+IG.MI
+	9,405	0,37%	
+	
+0,00,0
+iveco grp
+
+IVG.MI
+	18,43	-0,08%	
+	
+0,00,0
+leonardo
+
+LDO.MI
+	49,95	-1,67%	
+	
+0,00,0
+lottomatica gr
+
+LTMC.MI
+	20,22	-1,37%	
+	
+0,00,0
+mediobanca
+
+MB.MI
+	17,47	1,48%	
+	
+0,00,0
+moncler
+
+MONC.MI
+	57,6	2,09%	
+	
+0,00,0
+nexi
+
+NEXI.MI
+	4,12	2,36%	
+	
+0,00,0
+poste italiane
+
+PST.MI
+	21,1	0,72%	
+	
+0,00,0
+prysmian
+
+PRY.MI
+	84,3	0,89%	
+	
+0,00,0
+recordati
+
+REC.MI
+	52,2	3,67%	
+	
+0,00,0
+saipem n
+
+SPM.MI
+	2,323	3,94%	
+	
+0,00,0
+snam
+
+SRG.MI
+	5,64	0,00%	
+	
+0,00,0
+stellantis nv
+
+STLAM.MI
+	9,284	4,13%	
+	
+0,00,0
+stmicroelectronics
+
+STMMI.MI
+	20,64	1,25%	
+	
+0,00,0
+telecom italia
+
+TIT.MI
+	0,4958	0,75%	
+	
+0,00,0
+tenaris
+
+TEN.MI
+	17,89	1,50%	
+	
+0,00,0
+terna
+
+TRN.MI
+	9,046	0,58%	
+	
+0,00,0
+unicredit
+
+UCG.MI
+	66,64	1,59%	
+	
+0,00,0
+unipol
+
+UNI.MI
+	19,145	-0,03%	
+	
+0,00,0
+Fonte dati:Borsa Italiana

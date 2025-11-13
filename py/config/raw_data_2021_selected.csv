@@ -1,0 +1,2052 @@
+isin,stock_x,indicator_code,indicator_name,period,value
+IT0000062072,Generali Ass,balances_02,Total Assets,2021-12-31,586225000000
+IT0000062072,Generali Ass,balances_04,Investmentin Financial Assets,2021-12-31,33767000000
+IT0000062072,Generali Ass,balances_05,Other Intangible Assets,2021-12-31,2363000000
+IT0000062072,Generali Ass,balances_06,Goodwill,2021-12-31,7607000000
+IT0000062072,Generali Ass,balances_09,Accounts Receivable,2021-12-31,11618000000
+IT0000062072,Generali Ass,balances_10,Cash And Cash Equivalents,2021-12-31,8476000000
+IT0000062072,Generali Ass,balances_11,Total Capitalization,2021-12-31,45880000000
+IT0000062072,Generali Ass,income_01,Diluted EPS,2021-12-31,1.79
+IT0000062072,Generali Ass,income_02,Basic EPS,2021-12-31,1.81
+IT0000062072,Generali Ass,income_03,Total Revenue,2021-12-31,92819000000
+IT0000062072,Generali Ass,income_05,Operating Revenue,2021-12-31,92819000000
+IT0000062072,Generali Ass,income_06,Net Income,2021-12-31,2847000000
+IT0000062072,Generali Ass,income_07,EBIT,2021-12-31,5316000000
+IT0000066123,Bper Banca,balances_02,Total Assets,2021-12-31,136347873000
+IT0000066123,Bper Banca,balances_04,Investmentin Financial Assets,2021-12-31,28672602000
+IT0000066123,Bper Banca,balances_05,Other Intangible Assets,2021-12-31,254805000
+IT0000066123,Bper Banca,balances_06,Goodwill,2021-12-31,204392000
+IT0000066123,Bper Banca,balances_10,Cash And Cash Equivalents,2021-12-31,21772398000
+IT0000066123,Bper Banca,balances_11,Total Capitalization,2021-12-31,13696085000
+IT0000066123,Bper Banca,income_01,Diluted EPS,2021-12-31,0.363
+IT0000066123,Bper Banca,income_02,Basic EPS,2021-12-31,0.372
+IT0000066123,Bper Banca,income_03,Total Revenue,2021-12-31,3693528000
+IT0000066123,Bper Banca,income_05,Operating Revenue,2021-12-31,3693528000
+IT0000066123,Bper Banca,income_06,Net Income,2021-12-31,525123000
+IT0000072170,Finecobank,balances_02,Total Assets,2021-12-31,33867175000
+IT0000072170,Finecobank,balances_04,Investmentin Financial Assets,2021-12-31,24705209000
+IT0000072170,Finecobank,balances_05,Other Intangible Assets,2021-12-31,39084000
+IT0000072170,Finecobank,balances_06,Goodwill,2021-12-31,89602000
+IT0000072170,Finecobank,balances_10,Cash And Cash Equivalents,2021-12-31,1774606000
+IT0000072170,Finecobank,balances_11,Total Capitalization,2021-12-31,2224063000
+IT0000072170,Finecobank,income_01,Diluted EPS,2021-12-31,0.623
+IT0000072170,Finecobank,income_02,Basic EPS,2021-12-31,0.624
+IT0000072170,Finecobank,income_03,Total Revenue,2021-12-31,947640000
+IT0000072170,Finecobank,income_05,Operating Revenue,2021-12-31,947640000
+IT0000072170,Finecobank,income_06,Net Income,2021-12-31,380711000
+IT0000072618,Intesa Sanpaolo,balances_02,Total Assets,2021-12-31,1069003000000
+IT0000072618,Intesa Sanpaolo,balances_04,Investmentin Financial Assets,2021-12-31,170886000000
+IT0000072618,Intesa Sanpaolo,balances_05,Other Intangible Assets,2021-12-31,5768000000
+IT0000072618,Intesa Sanpaolo,balances_06,Goodwill,2021-12-31,3574000000
+IT0000072618,Intesa Sanpaolo,balances_10,Cash And Cash Equivalents,2021-12-31,145844000000
+IT0000072618,Intesa Sanpaolo,balances_11,Total Capitalization,2021-12-31,163603000000
+IT0000072618,Intesa Sanpaolo,income_01,Diluted EPS,2021-12-31,0.22
+IT0000072618,Intesa Sanpaolo,income_02,Basic EPS,2021-12-31,0.22
+IT0000072618,Intesa Sanpaolo,income_03,Total Revenue,2021-12-31,21898000000
+IT0000072618,Intesa Sanpaolo,income_05,Operating Revenue,2021-12-31,21898000000
+IT0000072618,Intesa Sanpaolo,income_06,Net Income,2021-12-31,4185000000
+IT0000076502,Danieli & C,balances_01,Current Liabilities,2021-06-30,2986595000
+IT0000076502,Danieli & C,balances_02,Total Assets,2021-06-30,5451472000
+IT0000076502,Danieli & C,balances_03,Total Non Current Assets,2021-06-30,1260489000
+IT0000076502,Danieli & C,balances_05,Other Intangible Assets,2021-06-30,30032000
+IT0000076502,Danieli & C,balances_06,Goodwill,2021-06-30,7928000
+IT0000076502,Danieli & C,balances_07,Current Assets,2021-06-30,4190983000
+IT0000076502,Danieli & C,balances_08,Inventory,2021-06-30,1380241000
+IT0000076502,Danieli & C,balances_09,Accounts Receivable,2021-06-30,843588000
+IT0000076502,Danieli & C,balances_10,Cash And Cash Equivalents,2021-06-30,1072869000
+IT0000076502,Danieli & C,balances_11,Total Capitalization,2021-06-30,2327155000
+IT0000076502,Danieli & C,income_01,Diluted EPS,2021-06-30,1.080481
+IT0000076502,Danieli & C,income_02,Basic EPS,2021-06-30,1.080481
+IT0000076502,Danieli & C,income_03,Total Revenue,2021-06-30,2637032000
+IT0000076502,Danieli & C,income_04,Cost Of Revenue,2021-06-30,2043327000
+IT0000076502,Danieli & C,income_05,Operating Revenue,2021-06-30,2637032000
+IT0000076502,Danieli & C,income_06,Net Income,2021-06-30,80189000
+IT0000076502,Danieli & C,income_07,EBIT,2021-06-30,136921000
+IT0000076502,Danieli & C,income_08,EBITDA,2021-06-30,234722000
+IT0000076502,Danieli & C,income_09,Normalized EBITDA,2021-06-30,235157000
+IT0000214293,Toscana Aeroporti,balances_01,Current Liabilities,2021-12-31,104126000
+IT0000214293,Toscana Aeroporti,balances_02,Total Assets,2021-12-31,332035000
+IT0000214293,Toscana Aeroporti,balances_03,Total Non Current Assets,2021-12-31,242757000
+IT0000214293,Toscana Aeroporti,balances_04,Investmentin Financial Assets,2021-12-31,0
+IT0000214293,Toscana Aeroporti,balances_05,Other Intangible Assets,2021-12-31,185384000
+IT0000214293,Toscana Aeroporti,balances_06,Goodwill,2021-12-31,3735000
+IT0000214293,Toscana Aeroporti,balances_07,Current Assets,2021-12-31,89278000
+IT0000214293,Toscana Aeroporti,balances_09,Accounts Receivable,2021-12-31,16233000
+IT0000214293,Toscana Aeroporti,balances_10,Cash And Cash Equivalents,2021-12-31,54147000
+IT0000214293,Toscana Aeroporti,balances_11,Total Capitalization,2021-12-31,195509000
+IT0000214293,Toscana Aeroporti,income_01,Diluted EPS,2021-12-31,-0.282
+IT0000214293,Toscana Aeroporti,income_02,Basic EPS,2021-12-31,-0.282
+IT0000214293,Toscana Aeroporti,income_03,Total Revenue,2021-12-31,48532000
+IT0000214293,Toscana Aeroporti,income_04,Cost Of Revenue,2021-12-31,55611000
+IT0000214293,Toscana Aeroporti,income_05,Operating Revenue,2021-12-31,48532000
+IT0000214293,Toscana Aeroporti,income_06,Net Income,2021-12-31,-5256000
+IT0000214293,Toscana Aeroporti,income_07,EBIT,2021-12-31,-9257000
+IT0000214293,Toscana Aeroporti,income_08,EBITDA,2021-12-31,1134000
+IT0000214293,Toscana Aeroporti,income_09,Normalized EBITDA,2021-12-31,-719000
+IT0000336518,Juventus Fc,balances_01,Current Liabilities,2021-06-30,367676079
+IT0000336518,Juventus Fc,balances_02,Total Assets,2021-06-30,907811913
+IT0000336518,Juventus Fc,balances_03,Total Non Current Assets,2021-06-30,720090018
+IT0000336518,Juventus Fc,balances_04,Investmentin Financial Assets,2021-06-30,13015630
+IT0000336518,Juventus Fc,balances_05,Other Intangible Assets,2021-06-30,482059558
+IT0000336518,Juventus Fc,balances_06,Goodwill,2021-06-30,1811233
+IT0000336518,Juventus Fc,balances_07,Current Assets,2021-06-30,187721895
+IT0000336518,Juventus Fc,balances_08,Inventory,2021-06-30,9127022
+IT0000336518,Juventus Fc,balances_09,Accounts Receivable,2021-06-30,35975000
+IT0000336518,Juventus Fc,balances_10,Cash And Cash Equivalents,2021-06-30,10533461
+IT0000336518,Juventus Fc,balances_11,Total Capitalization,2021-06-30,353692822
+IT0000336518,Juventus Fc,income_01,Diluted EPS,2021-06-30,-0.158
+IT0000336518,Juventus Fc,income_02,Basic EPS,2021-06-30,-0.158
+IT0000336518,Juventus Fc,income_03,Total Revenue,2021-06-30,478576290
+IT0000336518,Juventus Fc,income_04,Cost Of Revenue,2021-06-30,314066460
+IT0000336518,Juventus Fc,income_05,Operating Revenue,2021-06-30,478576290
+IT0000336518,Juventus Fc,income_06,Net Income,2021-06-30,-209885432
+IT0000336518,Juventus Fc,income_07,EBIT,2021-06-30,-191403171
+IT0000336518,Juventus Fc,income_08,EBITDA,2021-06-30,25839367
+IT0000336518,Juventus Fc,income_09,Normalized EBITDA,2021-06-30,43017367
+IT0000784196,Bca Pop Sondrio,balances_02,Total Assets,2021-12-31,55016149000
+IT0000784196,Bca Pop Sondrio,balances_04,Investmentin Financial Assets,2021-12-31,14483249000
+IT0000784196,Bca Pop Sondrio,balances_05,Other Intangible Assets,2021-12-31,18381000
+IT0000784196,Bca Pop Sondrio,balances_06,Goodwill,2021-12-31,12632000
+IT0000784196,Bca Pop Sondrio,balances_10,Cash And Cash Equivalents,2021-12-31,7935209000
+IT0000784196,Bca Pop Sondrio,balances_11,Total Capitalization,2021-12-31,7506456000
+IT0000784196,Bca Pop Sondrio,income_01,Diluted EPS,2021-12-31,0.593
+IT0000784196,Bca Pop Sondrio,income_02,Basic EPS,2021-12-31,0.593
+IT0000784196,Bca Pop Sondrio,income_03,Total Revenue,2021-12-31,1114986000
+IT0000784196,Bca Pop Sondrio,income_05,Operating Revenue,2021-12-31,1114986000
+IT0000784196,Bca Pop Sondrio,income_06,Net Income,2021-12-31,268634000
+IT0001017851,Rosetti Marino,balances_01,Current Liabilities,2021-12-31,76284000
+IT0001017851,Rosetti Marino,balances_02,Total Assets,2021-12-31,374078000
+IT0001017851,Rosetti Marino,balances_03,Total Non Current Assets,2021-12-31,124210000
+IT0001017851,Rosetti Marino,balances_05,Other Intangible Assets,2021-12-31,3189000
+IT0001017851,Rosetti Marino,balances_06,Goodwill,2021-12-31,3406000
+IT0001017851,Rosetti Marino,balances_07,Current Assets,2021-12-31,249868000
+IT0001017851,Rosetti Marino,balances_08,Inventory,2021-12-31,52409000
+IT0001017851,Rosetti Marino,balances_09,Accounts Receivable,2021-12-31,46697000
+IT0001017851,Rosetti Marino,balances_10,Cash And Cash Equivalents,2021-12-31,69107000
+IT0001017851,Rosetti Marino,balances_11,Total Capitalization,2021-12-31,197041000
+IT0001017851,Rosetti Marino,income_01,Diluted EPS,2021-12-31,-14.401842
+IT0001017851,Rosetti Marino,income_02,Basic EPS,2021-12-31,-14.401842
+IT0001017851,Rosetti Marino,income_03,Total Revenue,2021-12-31,173870000
+IT0001017851,Rosetti Marino,income_04,Cost Of Revenue,2021-12-31,173984000
+IT0001017851,Rosetti Marino,income_05,Operating Revenue,2021-12-31,173870000
+IT0001017851,Rosetti Marino,income_06,Net Income,2021-12-31,-54727000
+IT0001017851,Rosetti Marino,income_07,EBIT,2021-12-31,-63759000
+IT0001017851,Rosetti Marino,income_08,EBITDA,2021-12-31,-56760000
+IT0001017851,Rosetti Marino,income_09,Normalized EBITDA,2021-12-31,-52762000
+IT0001018362,Valsoia,balances_01,Current Liabilities,2021-12-31,24792313
+IT0001018362,Valsoia,balances_02,Total Assets,2021-12-31,116452519
+IT0001018362,Valsoia,balances_03,Total Non Current Assets,2021-12-31,56766493
+IT0001018362,Valsoia,balances_05,Other Intangible Assets,2021-12-31,26558000
+IT0001018362,Valsoia,balances_06,Goodwill,2021-12-31,17453307
+IT0001018362,Valsoia,balances_07,Current Assets,2021-12-31,59686026
+IT0001018362,Valsoia,balances_08,Inventory,2021-12-31,9079435
+IT0001018362,Valsoia,balances_09,Accounts Receivable,2021-12-31,8318104
+IT0001018362,Valsoia,balances_10,Cash And Cash Equivalents,2021-12-31,41245097
+IT0001018362,Valsoia,balances_11,Total Capitalization,2021-12-31,88354801
+IT0001018362,Valsoia,income_01,Diluted EPS,2021-12-31,0.683
+IT0001018362,Valsoia,income_02,Basic EPS,2021-12-31,0.688
+IT0001018362,Valsoia,income_03,Total Revenue,2021-12-31,90953246
+IT0001018362,Valsoia,income_04,Cost Of Revenue,2021-12-31,52726954
+IT0001018362,Valsoia,income_05,Operating Revenue,2021-12-31,90953246
+IT0001018362,Valsoia,income_06,Net Income,2021-12-31,7364511
+IT0001018362,Valsoia,income_07,EBIT,2021-12-31,10741589
+IT0001018362,Valsoia,income_08,EBITDA,2021-12-31,13219589
+IT0001018362,Valsoia,income_09,Normalized EBITDA,2021-12-31,13208589
+IT0001029492,Saes Getters,balances_01,Current Liabilities,2021-12-31,101314000
+IT0001029492,Saes Getters,balances_02,Total Assets,2021-12-31,432741000
+IT0001029492,Saes Getters,balances_03,Total Non Current Assets,2021-12-31,237489000
+IT0001029492,Saes Getters,balances_04,Investmentin Financial Assets,2021-12-31,71887000
+IT0001029492,Saes Getters,balances_05,Other Intangible Assets,2021-12-31,11240000
+IT0001029492,Saes Getters,balances_06,Goodwill,2021-12-31,48631000
+IT0001029492,Saes Getters,balances_07,Current Assets,2021-12-31,195252000
+IT0001029492,Saes Getters,balances_08,Inventory,2021-12-31,35392000
+IT0001029492,Saes Getters,balances_09,Accounts Receivable,2021-12-31,29614000
+IT0001029492,Saes Getters,balances_10,Cash And Cash Equivalents,2021-12-31,29518000
+IT0001029492,Saes Getters,balances_11,Total Capitalization,2021-12-31,305719000
+IT0001029492,Saes Getters,income_01,Diluted EPS,2021-12-31,0.69831
+IT0001029492,Saes Getters,income_02,Basic EPS,2021-12-31,0.69831
+IT0001029492,Saes Getters,income_03,Total Revenue,2021-12-31,190198000
+IT0001029492,Saes Getters,income_04,Cost Of Revenue,2021-12-31,109170000
+IT0001029492,Saes Getters,income_05,Operating Revenue,2021-12-31,190198000
+IT0001029492,Saes Getters,income_06,Net Income,2021-12-31,12797000
+IT0001029492,Saes Getters,income_07,EBIT,2021-12-31,24393000
+IT0001029492,Saes Getters,income_08,EBITDA,2021-12-31,36486000
+IT0001029492,Saes Getters,income_09,Normalized EBITDA,2021-12-31,37324000
+IT0001031084,Banca Generali,balances_02,Total Assets,2021-12-31,16191610000
+IT0001031084,Banca Generali,balances_04,Investmentin Financial Assets,2021-12-31,10653240000
+IT0001031084,Banca Generali,balances_05,Other Intangible Assets,2021-12-31,48099000
+IT0001031084,Banca Generali,balances_06,Goodwill,2021-12-31,88073000
+IT0001031084,Banca Generali,balances_10,Cash And Cash Equivalents,2021-12-31,1828599000
+IT0001031084,Banca Generali,balances_11,Total Capitalization,2021-12-31,1331036000
+IT0001031084,Banca Generali,income_01,Diluted EPS,2021-12-31,2.81
+IT0001031084,Banca Generali,income_02,Basic EPS,2021-12-31,2.81
+IT0001031084,Banca Generali,income_03,Total Revenue,2021-12-31,807130000
+IT0001031084,Banca Generali,income_05,Operating Revenue,2021-12-31,807130000
+IT0001031084,Banca Generali,income_06,Net Income,2021-12-31,323103000
+IT0001041000,Bco Desio Brianza,balances_02,Total Assets,2021-12-31,17804781000
+IT0001041000,Bco Desio Brianza,balances_04,Investmentin Financial Assets,2021-12-31,3798232000
+IT0001041000,Bco Desio Brianza,balances_05,Other Intangible Assets,2021-12-31,3797000
+IT0001041000,Bco Desio Brianza,balances_06,Goodwill,2021-12-31,15322000
+IT0001041000,Bco Desio Brianza,balances_10,Cash And Cash Equivalents,2021-12-31,2044587000
+IT0001041000,Bco Desio Brianza,balances_11,Total Capitalization,2021-12-31,2728104000
+IT0001041000,Bco Desio Brianza,income_01,Diluted EPS,2021-12-31,0.40384
+IT0001041000,Bco Desio Brianza,income_02,Basic EPS,2021-12-31,0.40384
+IT0001041000,Bco Desio Brianza,income_03,Total Revenue,2021-12-31,458177000
+IT0001041000,Bco Desio Brianza,income_05,Operating Revenue,2021-12-31,458177000
+IT0001041000,Bco Desio Brianza,income_06,Net Income,2021-12-31,54901000
+IT0001042610,Sabaf,balances_01,Current Liabilities,2021-12-31,98787000
+IT0001042610,Sabaf,balances_02,Total Assets,2021-12-31,316408000
+IT0001042610,Sabaf,balances_03,Total Non Current Assets,2021-12-31,130093000
+IT0001042610,Sabaf,balances_04,Investmentin Financial Assets,2021-12-31,83000
+IT0001042610,Sabaf,balances_05,Other Intangible Assets,2021-12-31,17963000
+IT0001042610,Sabaf,balances_06,Goodwill,2021-12-31,17590000
+IT0001042610,Sabaf,balances_07,Current Assets,2021-12-31,186315000
+IT0001042610,Sabaf,balances_08,Inventory,2021-12-31,64153000
+IT0001042610,Sabaf,balances_09,Accounts Receivable,2021-12-31,68040000
+IT0001042610,Sabaf,balances_10,Cash And Cash Equivalents,2021-12-31,43649000
+IT0001042610,Sabaf,balances_11,Total Capitalization,2021-12-31,205087000
+IT0001042610,Sabaf,income_01,Diluted EPS,2021-12-31,2.132
+IT0001042610,Sabaf,income_02,Basic EPS,2021-12-31,2.132
+IT0001042610,Sabaf,income_03,Total Revenue,2021-12-31,263259000
+IT0001042610,Sabaf,income_04,Cost Of Revenue,2021-12-31,128597000
+IT0001042610,Sabaf,income_05,Operating Revenue,2021-12-31,263259000
+IT0001042610,Sabaf,income_06,Net Income,2021-12-31,23903000
+IT0001042610,Sabaf,income_07,EBIT,2021-12-31,30416000
+IT0001042610,Sabaf,income_08,EBITDA,2021-12-31,47285000
+IT0001042610,Sabaf,income_09,Normalized EBITDA,2021-12-31,46713000
+IT0001128047,Cembre,balances_01,Current Liabilities,2021-12-31,51650000
+IT0001128047,Cembre,balances_02,Total Assets,2021-12-31,237819000
+IT0001128047,Cembre,balances_03,Total Non Current Assets,2021-12-31,103501000
+IT0001128047,Cembre,balances_05,Other Intangible Assets,2021-12-31,4476000
+IT0001128047,Cembre,balances_06,Goodwill,2021-12-31,4608000
+IT0001128047,Cembre,balances_07,Current Assets,2021-12-31,134318000
+IT0001128047,Cembre,balances_08,Inventory,2021-12-31,55505000
+IT0001128047,Cembre,balances_09,Accounts Receivable,2021-12-31,28164000
+IT0001128047,Cembre,balances_10,Cash And Cash Equivalents,2021-12-31,46636000
+IT0001128047,Cembre,balances_11,Total Capitalization,2021-12-31,176158000
+IT0001128047,Cembre,income_01,Diluted EPS,2021-12-31,1.51
+IT0001128047,Cembre,income_02,Basic EPS,2021-12-31,1.51
+IT0001128047,Cembre,income_03,Total Revenue,2021-12-31,167362000
+IT0001128047,Cembre,income_04,Cost Of Revenue,2021-12-31,73921000
+IT0001128047,Cembre,income_05,Operating Revenue,2021-12-31,167362000
+IT0001128047,Cembre,income_06,Net Income,2021-12-31,25321000
+IT0001128047,Cembre,income_07,EBIT,2021-12-31,34392000
+IT0001128047,Cembre,income_08,EBITDA,2021-12-31,45801000
+IT0001128047,Cembre,income_09,Normalized EBITDA,2021-12-31,45865000
+IT0001157020,Erg,balances_01,Current Liabilities,2021-12-31,1909075000
+IT0001157020,Erg,balances_02,Total Assets,2021-12-31,6003844000
+IT0001157020,Erg,balances_03,Total Non Current Assets,2021-12-31,3294630000
+IT0001157020,Erg,balances_04,Investmentin Financial Assets,2021-12-31,984000
+IT0001157020,Erg,balances_05,Other Intangible Assets,2021-12-31,689061000
+IT0001157020,Erg,balances_06,Goodwill,2021-12-31,306117000
+IT0001157020,Erg,balances_07,Current Assets,2021-12-31,2709212000
+IT0001157020,Erg,balances_08,Inventory,2021-12-31,32301000
+IT0001157020,Erg,balances_09,Accounts Receivable,2021-12-31,320202000
+IT0001157020,Erg,balances_10,Cash And Cash Equivalents,2021-12-31,860352000
+IT0001157020,Erg,balances_11,Total Capitalization,2021-12-31,3609433000
+IT0001157020,Erg,income_01,Diluted EPS,2021-12-31,1.16
+IT0001157020,Erg,income_02,Basic EPS,2021-12-31,1.16
+IT0001157020,Erg,income_03,Total Revenue,2021-12-31,601408000
+IT0001157020,Erg,income_04,Cost Of Revenue,2021-12-31,156420000
+IT0001157020,Erg,income_05,Operating Revenue,2021-12-31,601408000
+IT0001157020,Erg,income_06,Net Income,2021-12-31,172897000
+IT0001157020,Erg,income_07,EBIT,2021-12-31,155460000
+IT0001157020,Erg,income_08,EBITDA,2021-12-31,383770000
+IT0001157020,Erg,income_09,Normalized EBITDA,2021-12-31,421917000
+IT0001206769,Sol,balances_01,Current Liabilities,2021-12-31,315398000
+IT0001206769,Sol,balances_02,Total Assets,2021-12-31,1444448000
+IT0001206769,Sol,balances_03,Total Non Current Assets,2021-12-31,852612000
+IT0001206769,Sol,balances_04,Investmentin Financial Assets,2021-12-31,1077000
+IT0001206769,Sol,balances_05,Other Intangible Assets,2021-12-31,22752000
+IT0001206769,Sol,balances_06,Goodwill,2021-12-31,170313000
+IT0001206769,Sol,balances_07,Current Assets,2021-12-31,591835000
+IT0001206769,Sol,balances_08,Inventory,2021-12-31,67303000
+IT0001206769,Sol,balances_09,Accounts Receivable,2021-12-31,340023000
+IT0001206769,Sol,balances_10,Cash And Cash Equivalents,2021-12-31,139641000
+IT0001206769,Sol,balances_11,Total Capitalization,2021-12-31,1041020000
+IT0001206769,Sol,income_01,Diluted EPS,2021-12-31,0.987
+IT0001206769,Sol,income_02,Basic EPS,2021-12-31,0.987
+IT0001206769,Sol,income_03,Total Revenue,2021-12-31,1112909000
+IT0001206769,Sol,income_04,Cost Of Revenue,2021-12-31,628982000
+IT0001206769,Sol,income_05,Operating Revenue,2021-12-31,1112909000
+IT0001206769,Sol,income_06,Net Income,2021-12-31,89549000
+IT0001206769,Sol,income_07,EBIT,2021-12-31,134026000
+IT0001206769,Sol,income_08,EBITDA,2021-12-31,253322000
+IT0001206769,Sol,income_09,Normalized EBITDA,2021-12-31,253064000
+IT0001207098,Acea,balances_01,Current Liabilities,2021-12-31,2597955000
+IT0001207098,Acea,balances_02,Total Assets,2021-12-31,10628886000
+IT0001207098,Acea,balances_03,Total Non Current Assets,2021-12-31,7801652000
+IT0001207098,Acea,balances_04,Investmentin Financial Assets,2021-12-31,22549000
+IT0001207098,Acea,balances_05,Other Intangible Assets,2021-12-31,3459797000
+IT0001207098,Acea,balances_06,Goodwill,2021-12-31,251477000
+IT0001207098,Acea,balances_07,Current Assets,2021-12-31,2827235000
+IT0001207098,Acea,balances_08,Inventory,2021-12-31,86406000
+IT0001207098,Acea,balances_09,Accounts Receivable,2021-12-31,1071644000
+IT0001207098,Acea,balances_10,Cash And Cash Equivalents,2021-12-31,680820000
+IT0001207098,Acea,balances_11,Total Capitalization,2021-12-31,6876221000
+IT0001207098,Acea,income_01,Diluted EPS,2021-12-31,1.47118
+IT0001207098,Acea,income_02,Basic EPS,2021-12-31,1.47118
+IT0001207098,Acea,income_03,Total Revenue,2021-12-31,3838987000
+IT0001207098,Acea,income_04,Cost Of Revenue,2021-12-31,1833091000
+IT0001207098,Acea,income_05,Operating Revenue,2021-12-31,3838987000
+IT0001207098,Acea,income_06,Net Income,2021-12-31,313309000
+IT0001207098,Acea,income_07,EBIT,2021-12-31,586273000
+IT0001207098,Acea,income_08,EBITDA,2021-12-31,1128930000
+IT0001207098,Acea,income_09,Normalized EBITDA,2021-12-31,1211237000
+IT0001233417,A2a,balances_01,Current Liabilities,2021-12-31,8148000000
+IT0001233417,A2a,balances_02,Total Assets,2021-12-31,18008000000
+IT0001233417,A2a,balances_03,Total Non Current Assets,2021-12-31,9421000000
+IT0001233417,A2a,balances_04,Investmentin Financial Assets,2021-12-31,64000000
+IT0001233417,A2a,balances_05,Other Intangible Assets,2021-12-31,2379000000
+IT0001233417,A2a,balances_06,Goodwill,2021-12-31,746000000
+IT0001233417,A2a,balances_07,Current Assets,2021-12-31,8587000000
+IT0001233417,A2a,balances_08,Inventory,2021-12-31,204000000
+IT0001233417,A2a,balances_09,Accounts Receivable,2021-12-31,3291000000
+IT0001233417,A2a,balances_10,Cash And Cash Equivalents,2021-12-31,964000000
+IT0001233417,A2a,balances_11,Total Capitalization,2021-12-31,7993000000
+IT0001233417,A2a,income_01,Diluted EPS,2021-12-31,0.1639
+IT0001233417,A2a,income_02,Basic EPS,2021-12-31,0.1639
+IT0001233417,A2a,income_03,Total Revenue,2021-12-31,11352000000
+IT0001233417,A2a,income_04,Cost Of Revenue,2021-12-31,9088000000
+IT0001233417,A2a,income_05,Operating Revenue,2021-12-31,11352000000
+IT0001233417,A2a,income_06,Net Income,2021-12-31,504000000
+IT0001233417,A2a,income_07,EBIT,2021-12-31,658000000
+IT0001233417,A2a,income_08,EBITDA,2021-12-31,1324000000
+IT0001233417,A2a,income_09,Normalized EBITDA,2021-12-31,1329000000
+IT0001237053,Emak,balances_01,Current Liabilities,2021-12-31,233441000
+IT0001237053,Emak,balances_02,Total Assets,2021-12-31,658152000
+IT0001237053,Emak,balances_03,Total Non Current Assets,2021-12-31,222773000
+IT0001237053,Emak,balances_04,Investmentin Financial Assets,2021-12-31,984000
+IT0001237053,Emak,balances_05,Other Intangible Assets,2021-12-31,24853000
+IT0001237053,Emak,balances_06,Goodwill,2021-12-31,70634000
+IT0001237053,Emak,balances_07,Current Assets,2021-12-31,435379000
+IT0001237053,Emak,balances_08,Inventory,2021-12-31,217316000
+IT0001237053,Emak,balances_09,Accounts Receivable,2021-12-31,121093000
+IT0001237053,Emak,balances_10,Cash And Cash Equivalents,2021-12-31,79645000
+IT0001237053,Emak,balances_11,Total Capitalization,2021-12-31,360424000
+IT0001237053,Emak,income_01,Diluted EPS,2021-12-31,0.199
+IT0001237053,Emak,income_02,Basic EPS,2021-12-31,0.199
+IT0001237053,Emak,income_03,Total Revenue,2021-12-31,588299000
+IT0001237053,Emak,income_04,Cost Of Revenue,2021-12-31,305921000
+IT0001237053,Emak,income_05,Operating Revenue,2021-12-31,588299000
+IT0001237053,Emak,income_06,Net Income,2021-12-31,32508000
+IT0001237053,Emak,income_07,EBIT,2021-12-31,48825000
+IT0001237053,Emak,income_08,EBITDA,2021-12-31,73217000
+IT0001237053,Emak,income_09,Normalized EBITDA,2021-12-31,73158000
+IT0001250932,Hera,balances_01,Current Liabilities,2021-12-31,6066500000
+IT0001250932,Hera,balances_02,Total Assets,2021-12-31,14031500000
+IT0001250932,Hera,balances_03,Total Non Current Assets,2021-12-31,7589700000
+IT0001250932,Hera,balances_04,Investmentin Financial Assets,2021-12-31,1900000
+IT0001250932,Hera,balances_05,Other Intangible Assets,2021-12-31,4126700000
+IT0001250932,Hera,balances_06,Goodwill,2021-12-31,842900000
+IT0001250932,Hera,balances_07,Current Assets,2021-12-31,6441800000
+IT0001250932,Hera,balances_08,Inventory,2021-12-31,368000000
+IT0001250932,Hera,balances_09,Accounts Receivable,2021-12-31,1398300000
+IT0001250932,Hera,balances_10,Cash And Cash Equivalents,2021-12-31,885600000
+IT0001250932,Hera,balances_11,Total Capitalization,2021-12-31,6329100000
+IT0001250932,Hera,income_01,Diluted EPS,2021-12-31,0.228
+IT0001250932,Hera,income_02,Basic EPS,2021-12-31,0.228
+IT0001250932,Hera,income_03,Total Revenue,2021-12-31,10377100000
+IT0001250932,Hera,income_04,Cost Of Revenue,2021-12-31,8894100000
+IT0001250932,Hera,income_05,Operating Revenue,2021-12-31,10377100000
+IT0001250932,Hera,income_06,Net Income,2021-12-31,333500000
+IT0001250932,Hera,income_07,EBIT,2021-12-31,518600000
+IT0001250932,Hera,income_08,EBITDA,2021-12-31,981900000
+IT0001250932,Hera,income_09,Normalized EBITDA,2021-12-31,1017600000
+IT0001347308,Buzzi,balances_01,Current Liabilities,2021-12-31,673469000
+IT0001347308,Buzzi,balances_02,Total Assets,2021-12-31,6921783000
+IT0001347308,Buzzi,balances_03,Total Non Current Assets,2021-12-31,4681945000
+IT0001347308,Buzzi,balances_04,Investmentin Financial Assets,2021-12-31,19907000
+IT0001347308,Buzzi,balances_05,Other Intangible Assets,2021-12-31,59419000
+IT0001347308,Buzzi,balances_06,Goodwill,2021-12-31,608789000
+IT0001347308,Buzzi,balances_07,Current Assets,2021-12-31,2239838000
+IT0001347308,Buzzi,balances_08,Inventory,2021-12-31,498127000
+IT0001347308,Buzzi,balances_09,Accounts Receivable,2021-12-31,455735000
+IT0001347308,Buzzi,balances_10,Cash And Cash Equivalents,2021-12-31,1203611000
+IT0001347308,Buzzi,balances_11,Total Capitalization,2021-12-31,5357377000
+IT0001347308,Buzzi,income_01,Diluted EPS,2021-12-31,2.82
+IT0001347308,Buzzi,income_02,Basic EPS,2021-12-31,2.82
+IT0001347308,Buzzi,income_03,Total Revenue,2021-12-31,3445551000
+IT0001347308,Buzzi,income_04,Cost Of Revenue,2021-12-31,1354486000
+IT0001347308,Buzzi,income_05,Operating Revenue,2021-12-31,3445551000
+IT0001347308,Buzzi,income_06,Net Income,2021-12-31,541903000
+IT0001347308,Buzzi,income_07,EBIT,2021-12-31,677055000
+IT0001347308,Buzzi,income_08,EBITDA,2021-12-31,926103000
+IT0001347308,Buzzi,income_09,Normalized EBITDA,2021-12-31,893694000
+IT0001415246,Fincantieri,balances_01,Current Liabilities,2021-12-31,6059844000
+IT0001415246,Fincantieri,balances_02,Total Assets,2021-12-31,9081534000
+IT0001415246,Fincantieri,balances_03,Total Non Current Assets,2021-12-31,2857740000
+IT0001415246,Fincantieri,balances_04,Investmentin Financial Assets,2021-12-31,26666000
+IT0001415246,Fincantieri,balances_05,Other Intangible Assets,2021-12-31,415610000
+IT0001415246,Fincantieri,balances_06,Goodwill,2021-12-31,272383000
+IT0001415246,Fincantieri,balances_07,Current Assets,2021-12-31,6223794000
+IT0001415246,Fincantieri,balances_08,Inventory,2021-12-31,438855000
+IT0001415246,Fincantieri,balances_09,Accounts Receivable,2021-12-31,935578000
+IT0001415246,Fincantieri,balances_10,Cash And Cash Equivalents,2021-12-31,1236180000
+IT0001415246,Fincantieri,balances_11,Total Capitalization,2021-12-31,2611498000
+IT0001415246,Fincantieri,income_01,Diluted EPS,2021-12-31,0.01271
+IT0001415246,Fincantieri,income_02,Basic EPS,2021-12-31,0.01286
+IT0001415246,Fincantieri,income_03,Total Revenue,2021-12-31,6799577000
+IT0001415246,Fincantieri,income_04,Cost Of Revenue,2021-12-31,5310717000
+IT0001415246,Fincantieri,income_05,Operating Revenue,2021-12-31,6799577000
+IT0001415246,Fincantieri,income_06,Net Income,2021-12-31,21778000
+IT0001415246,Fincantieri,income_07,EBIT,2021-12-31,163241000
+IT0001415246,Fincantieri,income_08,EBITDA,2021-12-31,368553000
+IT0001415246,Fincantieri,income_09,Normalized EBITDA,2021-12-31,403725000
+IT0001447348,Mittel,balances_01,Current Liabilities,2021-12-31,104478886
+IT0001447348,Mittel,balances_02,Total Assets,2021-12-31,649096262
+IT0001447348,Mittel,balances_03,Total Non Current Assets,2021-12-31,461001600
+IT0001447348,Mittel,balances_04,Investmentin Financial Assets,2021-12-31,11893560
+IT0001447348,Mittel,balances_05,Other Intangible Assets,2021-12-31,13393274
+IT0001447348,Mittel,balances_06,Goodwill,2021-12-31,96199357
+IT0001447348,Mittel,balances_07,Current Assets,2021-12-31,188094662
+IT0001447348,Mittel,balances_08,Inventory,2021-12-31,65257947
+IT0001447348,Mittel,balances_09,Accounts Receivable,2021-12-31,38288444
+IT0001447348,Mittel,balances_10,Cash And Cash Equivalents,2021-12-31,67560266
+IT0001447348,Mittel,balances_11,Total Capitalization,2021-12-31,276595412
+IT0001447348,Mittel,income_01,Diluted EPS,2021-12-31,0.007
+IT0001447348,Mittel,income_02,Basic EPS,2021-12-31,0.007
+IT0001447348,Mittel,income_03,Total Revenue,2021-12-31,201679764
+IT0001447348,Mittel,income_04,Cost Of Revenue,2021-12-31,122278339
+IT0001447348,Mittel,income_05,Operating Revenue,2021-12-31,201679764
+IT0001447348,Mittel,income_06,Net Income,2021-12-31,582488
+IT0001447348,Mittel,income_07,EBIT,2021-12-31,7172761
+IT0001447348,Mittel,income_08,EBITDA,2021-12-31,24640115
+IT0001447348,Mittel,income_09,Normalized EBITDA,2021-12-31,27828386
+IT0001477402,Exprivia,balances_01,Current Liabilities,2021-12-31,89037000
+IT0001477402,Exprivia,balances_02,Total Assets,2021-12-31,207123000
+IT0001477402,Exprivia,balances_03,Total Non Current Assets,2021-12-31,100700000
+IT0001477402,Exprivia,balances_05,Other Intangible Assets,2021-12-31,9278000
+IT0001477402,Exprivia,balances_06,Goodwill,2021-12-31,69071000
+IT0001477402,Exprivia,balances_07,Current Assets,2021-12-31,106423000
+IT0001477402,Exprivia,balances_08,Inventory,2021-12-31,23501000
+IT0001477402,Exprivia,balances_09,Accounts Receivable,2021-12-31,53360000
+IT0001477402,Exprivia,balances_10,Cash And Cash Equivalents,2021-12-31,19060000
+IT0001477402,Exprivia,balances_11,Total Capitalization,2021-12-31,103926000
+IT0001477402,Exprivia,income_01,Diluted EPS,2021-12-31,0.2148
+IT0001477402,Exprivia,income_02,Basic EPS,2021-12-31,0.2148
+IT0001477402,Exprivia,income_03,Total Revenue,2021-12-31,176476000
+IT0001477402,Exprivia,income_04,Cost Of Revenue,2021-12-31,125281000
+IT0001477402,Exprivia,income_05,Operating Revenue,2021-12-31,176476000
+IT0001477402,Exprivia,income_06,Net Income,2021-12-31,10170000
+IT0001477402,Exprivia,income_07,EBIT,2021-12-31,17736000
+IT0001477402,Exprivia,income_08,EBITDA,2021-12-31,26511000
+IT0001477402,Exprivia,income_09,Normalized EBITDA,2021-12-31,31643000
+IT0003023980,Centrale Del Latte D'Italia,balances_01,Current Liabilities,2021-12-31,125482033
+IT0003023980,Centrale Del Latte D'Italia,balances_02,Total Assets,2021-12-31,266316602
+IT0003023980,Centrale Del Latte D'Italia,balances_03,Total Non Current Assets,2021-12-31,149882153
+IT0003023980,Centrale Del Latte D'Italia,balances_04,Investmentin Financial Assets,2021-12-31,703424
+IT0003023980,Centrale Del Latte D'Italia,balances_05,Other Intangible Assets,2021-12-31,19198027
+IT0003023980,Centrale Del Latte D'Italia,balances_06,Goodwill,2021-12-31,350000
+IT0003023980,Centrale Del Latte D'Italia,balances_07,Current Assets,2021-12-31,116434449
+IT0003023980,Centrale Del Latte D'Italia,balances_08,Inventory,2021-12-31,19402000
+IT0003023980,Centrale Del Latte D'Italia,balances_09,Accounts Receivable,2021-12-31,28438000
+IT0003023980,Centrale Del Latte D'Italia,balances_10,Cash And Cash Equivalents,2021-12-31,57371558
+IT0003023980,Centrale Del Latte D'Italia,balances_11,Total Capitalization,2021-12-31,63136988
+IT0003023980,Centrale Del Latte D'Italia,income_01,Diluted EPS,2021-12-31,0.16
+IT0003023980,Centrale Del Latte D'Italia,income_02,Basic EPS,2021-12-31,0.16
+IT0003023980,Centrale Del Latte D'Italia,income_03,Total Revenue,2021-12-31,283395722
+IT0003023980,Centrale Del Latte D'Italia,income_04,Cost Of Revenue,2021-12-31,227097408
+IT0003023980,Centrale Del Latte D'Italia,income_05,Operating Revenue,2021-12-31,283395722
+IT0003023980,Centrale Del Latte D'Italia,income_06,Net Income,2021-12-31,2293598
+IT0003023980,Centrale Del Latte D'Italia,income_07,EBIT,2021-12-31,4750437
+IT0003023980,Centrale Del Latte D'Italia,income_08,EBITDA,2021-12-31,21743666
+IT0003023980,Centrale Del Latte D'Italia,income_09,Normalized EBITDA,2021-12-31,22497805
+IT0003027817,Iren,balances_01,Current Liabilities,2021-12-31,2457293000
+IT0003027817,Iren,balances_02,Total Assets,2021-12-31,10170620000
+IT0003027817,Iren,balances_03,Total Non Current Assets,2021-12-31,7577768000
+IT0003027817,Iren,balances_04,Investmentin Financial Assets,2021-12-31,33267000
+IT0003027817,Iren,balances_05,Other Intangible Assets,2021-12-31,2522771000
+IT0003027817,Iren,balances_06,Goodwill,2021-12-31,192480000
+IT0003027817,Iren,balances_07,Current Assets,2021-12-31,2592853000
+IT0003027817,Iren,balances_08,Inventory,2021-12-31,111812000
+IT0003027817,Iren,balances_09,Accounts Receivable,2021-12-31,1063926000
+IT0003027817,Iren,balances_10,Cash And Cash Equivalents,2021-12-31,606888000
+IT0003027817,Iren,balances_11,Total Capitalization,2021-12-31,2570615000
+IT0003027817,Iren,income_01,Diluted EPS,2021-12-31,0.24
+IT0003027817,Iren,income_02,Basic EPS,2021-12-31,0.24
+IT0003027817,Iren,income_03,Total Revenue,2021-12-31,4878478000
+IT0003027817,Iren,income_04,Cost Of Revenue,2021-12-31,3368703000
+IT0003027817,Iren,income_05,Operating Revenue,2021-12-31,4878478000
+IT0003027817,Iren,income_06,Net Income,2021-12-31,303172000
+IT0003027817,Iren,income_07,EBIT,2021-12-31,477202000
+IT0003027817,Iren,income_08,EBITDA,2021-12-31,955522000
+IT0003027817,Iren,income_09,Normalized EBITDA,2021-12-31,974250000
+IT0003056386,Pininfarina Spa,balances_01,Current Liabilities,2021-12-31,35127000
+IT0003056386,Pininfarina Spa,balances_02,Total Assets,2021-12-31,96416000
+IT0003056386,Pininfarina Spa,balances_03,Total Non Current Assets,2021-12-31,44664000
+IT0003056386,Pininfarina Spa,balances_04,Investmentin Financial Assets,2021-12-31,550000
+IT0003056386,Pininfarina Spa,balances_05,Other Intangible Assets,2021-12-31,6287000
+IT0003056386,Pininfarina Spa,balances_06,Goodwill,2021-12-31,
+IT0003056386,Pininfarina Spa,balances_07,Current Assets,2021-12-31,51752000
+IT0003056386,Pininfarina Spa,balances_08,Inventory,2021-12-31,330000
+IT0003056386,Pininfarina Spa,balances_09,Accounts Receivable,2021-12-31,13317000
+IT0003056386,Pininfarina Spa,balances_10,Cash And Cash Equivalents,2021-12-31,29358000
+IT0003056386,Pininfarina Spa,balances_11,Total Capitalization,2021-12-31,40187000
+IT0003056386,Pininfarina Spa,income_01,Diluted EPS,2021-12-31,0.03
+IT0003056386,Pininfarina Spa,income_02,Basic EPS,2021-12-31,0.03
+IT0003056386,Pininfarina Spa,income_03,Total Revenue,2021-12-31,64092000
+IT0003056386,Pininfarina Spa,income_04,Cost Of Revenue,2021-12-31,19439000
+IT0003056386,Pininfarina Spa,income_05,Operating Revenue,2021-12-31,64092000
+IT0003056386,Pininfarina Spa,income_06,Net Income,2021-12-31,2447000
+IT0003056386,Pininfarina Spa,income_07,EBIT,2021-12-31,4321000
+IT0003056386,Pininfarina Spa,income_08,EBITDA,2021-12-31,7421000
+IT0003056386,Pininfarina Spa,income_09,Normalized EBITDA,2021-12-31,3790000
+IT0003073266,Piaggio,balances_01,Current Liabilities,2021-12-31,812762000
+IT0003073266,Piaggio,balances_02,Total Assets,2021-12-31,1835673000
+IT0003073266,Piaggio,balances_03,Total Non Current Assets,2021-12-31,1150051000
+IT0003073266,Piaggio,balances_04,Investmentin Financial Assets,2021-12-31,
+IT0003073266,Piaggio,balances_05,Other Intangible Assets,2021-12-31,273269000
+IT0003073266,Piaggio,balances_06,Goodwill,2021-12-31,446940000
+IT0003073266,Piaggio,balances_07,Current Assets,2021-12-31,685622000
+IT0003073266,Piaggio,balances_08,Inventory,2021-12-31,277494000
+IT0003073266,Piaggio,balances_09,Accounts Receivable,2021-12-31,71225000
+IT0003073266,Piaggio,balances_10,Cash And Cash Equivalents,2021-12-31,260868000
+IT0003073266,Piaggio,balances_11,Total Capitalization,2021-12-31,936448000
+IT0003073266,Piaggio,income_01,Diluted EPS,2021-12-31,0.168
+IT0003073266,Piaggio,income_02,Basic EPS,2021-12-31,0.168
+IT0003073266,Piaggio,income_03,Total Revenue,2021-12-31,1668689000
+IT0003073266,Piaggio,income_04,Cost Of Revenue,2021-12-31,1315757000
+IT0003073266,Piaggio,income_05,Operating Revenue,2021-12-31,1668689000
+IT0003073266,Piaggio,income_06,Net Income,2021-12-31,60054000
+IT0003073266,Piaggio,income_07,EBIT,2021-12-31,116325000
+IT0003073266,Piaggio,income_08,EBITDA,2021-12-31,242910000
+IT0003073266,Piaggio,income_09,Normalized EBITDA,2021-12-31,245898000
+IT0003097257,Biesse,balances_01,Current Liabilities,2021-12-31,430458000
+IT0003097257,Biesse,balances_02,Total Assets,2021-12-31,722774000
+IT0003097257,Biesse,balances_03,Total Non Current Assets,2021-12-31,243532000
+IT0003097257,Biesse,balances_04,Investmentin Financial Assets,2021-12-31,2701000
+IT0003097257,Biesse,balances_05,Other Intangible Assets,2021-12-31,51296000
+IT0003097257,Biesse,balances_06,Goodwill,2021-12-31,46694000
+IT0003097257,Biesse,balances_07,Current Assets,2021-12-31,479242000
+IT0003097257,Biesse,balances_08,Inventory,2021-12-31,179417000
+IT0003097257,Biesse,balances_09,Accounts Receivable,2021-12-31,125962000
+IT0003097257,Biesse,balances_10,Cash And Cash Equivalents,2021-12-31,127099000
+IT0003097257,Biesse,balances_11,Total Capitalization,2021-12-31,249048000
+IT0003097257,Biesse,income_01,Diluted EPS,2021-12-31,1.24
+IT0003097257,Biesse,income_02,Basic EPS,2021-12-31,1.24
+IT0003097257,Biesse,income_03,Total Revenue,2021-12-31,742198000
+IT0003097257,Biesse,income_04,Cost Of Revenue,2021-12-31,345738000
+IT0003097257,Biesse,income_05,Operating Revenue,2021-12-31,742198000
+IT0003097257,Biesse,income_06,Net Income,2021-12-31,34018000
+IT0003097257,Biesse,income_07,EBIT,2021-12-31,42320000
+IT0003097257,Biesse,income_08,EBITDA,2021-12-31,75556000
+IT0003097257,Biesse,income_09,Normalized EBITDA,2021-12-31,60517000
+IT0003121677,Credem,balances_02,Total Assets,2021-12-31,67579187000
+IT0003121677,Credem,balances_04,Investmentin Financial Assets,2021-12-31,14631430000
+IT0003121677,Credem,balances_05,Other Intangible Assets,2021-12-31,173753000
+IT0003121677,Credem,balances_06,Goodwill,2021-12-31,291342000
+IT0003121677,Credem,balances_10,Cash And Cash Equivalents,2021-12-31,8043507000
+IT0003121677,Credem,balances_11,Total Capitalization,2021-12-31,6496866000
+IT0003121677,Credem,income_01,Diluted EPS,2021-12-31,1.05
+IT0003121677,Credem,income_02,Basic EPS,2021-12-31,1.05
+IT0003121677,Credem,income_03,Total Revenue,2021-12-31,1480740000
+IT0003121677,Credem,income_05,Operating Revenue,2021-12-31,1480740000
+IT0003121677,Credem,income_06,Net Income,2021-12-31,352427000
+IT0003128367,Enel,balances_01,Current Liabilities,2021-12-31,76720000000
+IT0003128367,Enel,balances_02,Total Assets,2021-12-31,206940000000
+IT0003128367,Enel,balances_03,Total Non Current Assets,2021-12-31,140566000000
+IT0003128367,Enel,balances_04,Investmentin Financial Assets,2021-12-31,5654000000
+IT0003128367,Enel,balances_05,Other Intangible Assets,2021-12-31,18070000000
+IT0003128367,Enel,balances_06,Goodwill,2021-12-31,13821000000
+IT0003128367,Enel,balances_07,Current Assets,2021-12-31,66374000000
+IT0003128367,Enel,balances_08,Inventory,2021-12-31,3023000000
+IT0003128367,Enel,balances_09,Accounts Receivable,2021-12-31,16076000000
+IT0003128367,Enel,balances_10,Cash And Cash Equivalents,2021-12-31,8858000000
+IT0003128367,Enel,balances_11,Total Capitalization,2021-12-31,81865000000
+IT0003128367,Enel,income_01,Diluted EPS,2021-12-31,0.31
+IT0003128367,Enel,income_02,Basic EPS,2021-12-31,0.31
+IT0003128367,Enel,income_03,Total Revenue,2021-12-31,94309000000
+IT0003128367,Enel,income_04,Cost Of Revenue,2021-12-31,63901000000
+IT0003128367,Enel,income_05,Operating Revenue,2021-12-31,94309000000
+IT0003128367,Enel,income_06,Net Income,2021-12-31,3189000000
+IT0003128367,Enel,income_07,EBIT,2021-12-31,7711000000
+IT0003128367,Enel,income_08,EBITDA,2021-12-31,16402000000
+IT0003128367,Enel,income_09,Normalized EBITDA,2021-12-31,25616000000
+IT0003132476,Eni,balances_01,Current Liabilities,2021-12-31,44002000000
+IT0003132476,Eni,balances_02,Total Assets,2021-12-31,137765000000
+IT0003132476,Eni,balances_03,Total Non Current Assets,2021-12-31,79888000000
+IT0003132476,Eni,balances_04,Investmentin Financial Assets,2021-12-31,53000000
+IT0003132476,Eni,balances_05,Other Intangible Assets,2021-12-31,1024000000
+IT0003132476,Eni,balances_06,Goodwill,2021-12-31,2862000000
+IT0003132476,Eni,balances_07,Current Assets,2021-12-31,57877000000
+IT0003132476,Eni,balances_08,Inventory,2021-12-31,6072000000
+IT0003132476,Eni,balances_09,Accounts Receivable,2021-12-31,15524000000
+IT0003132476,Eni,balances_10,Cash And Cash Equivalents,2021-12-31,8254000000
+IT0003132476,Eni,balances_11,Total Capitalization,2021-12-31,68151000000
+IT0003132476,Eni,income_01,Diluted EPS,2021-12-31,1.6
+IT0003132476,Eni,income_02,Basic EPS,2021-12-31,1.61
+IT0003132476,Eni,income_03,Total Revenue,2021-12-31,76575000000
+IT0003132476,Eni,income_04,Cost Of Revenue,2021-12-31,62612000000
+IT0003132476,Eni,income_05,Operating Revenue,2021-12-31,95844000000
+IT0003132476,Eni,income_06,Net Income,2021-12-31,5821000000
+IT0003132476,Eni,income_07,EBIT,2021-12-31,14901000000
+IT0003132476,Eni,income_08,EBITDA,2021-12-31,21964000000
+IT0003132476,Eni,income_09,Normalized EBITDA,2021-12-31,21859000000
+IT0003153415,Snam,balances_01,Current Liabilities,2021-12-31,7973000000
+IT0003153415,Snam,balances_02,Total Assets,2021-12-31,27161000000
+IT0003153415,Snam,balances_03,Total Non Current Assets,2021-12-31,22082000000
+IT0003153415,Snam,balances_04,Investmentin Financial Assets,2021-12-31,96000000
+IT0003153415,Snam,balances_05,Other Intangible Assets,2021-12-31,1107000000
+IT0003153415,Snam,balances_06,Goodwill,2021-12-31,60000000
+IT0003153415,Snam,balances_07,Current Assets,2021-12-31,5079000000
+IT0003153415,Snam,balances_08,Inventory,2021-12-31,121000000
+IT0003153415,Snam,balances_09,Accounts Receivable,2021-12-31,2729000000
+IT0003153415,Snam,balances_10,Cash And Cash Equivalents,2021-12-31,1337000000
+IT0003153415,Snam,balances_11,Total Capitalization,2021-12-31,17566000000
+IT0003153415,Snam,income_01,Diluted EPS,2021-12-31,0.447
+IT0003153415,Snam,income_02,Basic EPS,2021-12-31,0.457
+IT0003153415,Snam,income_03,Total Revenue,2021-12-31,3285000000
+IT0003153415,Snam,income_04,Cost Of Revenue,2021-12-31,747000000
+IT0003153415,Snam,income_05,Operating Revenue,2021-12-31,3285000000
+IT0003153415,Snam,income_06,Net Income,2021-12-31,1496000000
+IT0003153415,Snam,income_07,EBIT,2021-12-31,1734000000
+IT0003153415,Snam,income_08,EBITDA,2021-12-31,2543000000
+IT0003153415,Snam,income_09,Normalized EBITDA,2021-12-31,2568000000
+IT0003153621,Tamburi,balances_01,Current Liabilities,2021-12-31,79517546
+IT0003153621,Tamburi,balances_02,Total Assets,2021-12-31,1753793115
+IT0003153621,Tamburi,balances_03,Total Non Current Assets,2021-12-31,1669067503
+IT0003153621,Tamburi,balances_04,Investmentin Financial Assets,2021-12-31,815482968
+IT0003153621,Tamburi,balances_05,Other Intangible Assets,2021-12-31,7675
+IT0003153621,Tamburi,balances_06,Goodwill,2021-12-31,9806574
+IT0003153621,Tamburi,balances_07,Current Assets,2021-12-31,84725612
+IT0003153621,Tamburi,balances_09,Accounts Receivable,2021-12-31,779572
+IT0003153621,Tamburi,balances_10,Cash And Cash Equivalents,2021-12-31,3030321
+IT0003153621,Tamburi,balances_11,Total Capitalization,2021-12-31,1622946761
+IT0003153621,Tamburi,income_01,Diluted EPS,2021-12-31,0.13
+IT0003153621,Tamburi,income_02,Basic EPS,2021-12-31,0.13
+IT0003153621,Tamburi,income_03,Total Revenue,2021-12-31,16138182
+IT0003153621,Tamburi,income_04,Cost Of Revenue,2021-12-31,8698585
+IT0003153621,Tamburi,income_05,Operating Revenue,2021-12-31,16138182
+IT0003153621,Tamburi,income_06,Net Income,2021-12-31,22615237
+IT0003153621,Tamburi,income_07,EBIT,2021-12-31,23584362
+IT0003153621,Tamburi,income_08,EBITDA,2021-12-31,23929487
+IT0003153621,Tamburi,income_09,Normalized EBITDA,2021-12-31,23929487
+IT0003173629,Banca Sistema,balances_02,Total Assets,2021-12-31,3708891000
+IT0003173629,Banca Sistema,balances_04,Investmentin Financial Assets,2021-12-31,635302000
+IT0003173629,Banca Sistema,balances_05,Other Intangible Assets,2021-12-31,770000
+IT0003173629,Banca Sistema,balances_06,Goodwill,2021-12-31,32355000
+IT0003173629,Banca Sistema,balances_10,Cash And Cash Equivalents,2021-12-31,194336000
+IT0003173629,Banca Sistema,balances_11,Total Capitalization,2021-12-31,516330000
+IT0003173629,Banca Sistema,income_01,Diluted EPS,2021-12-31,0.289
+IT0003173629,Banca Sistema,income_02,Basic EPS,2021-12-31,0.289
+IT0003173629,Banca Sistema,income_03,Total Revenue,2021-12-31,111320000
+IT0003173629,Banca Sistema,income_05,Operating Revenue,2021-12-31,111320000
+IT0003173629,Banca Sistema,income_06,Net Income,2021-12-31,23251000
+IT0003242622,Terna,balances_01,Current Liabilities,2021-12-31,7647700000
+IT0003242622,Terna,balances_02,Total Assets,2021-12-31,22359200000
+IT0003242622,Terna,balances_03,Total Non Current Assets,2021-12-31,16501100000
+IT0003242622,Terna,balances_04,Investmentin Financial Assets,2021-12-31,44700000
+IT0003242622,Terna,balances_05,Other Intangible Assets,2021-12-31,400000000
+IT0003242622,Terna,balances_06,Goodwill,2021-12-31,256500000
+IT0003242622,Terna,balances_07,Current Assets,2021-12-31,5858100000
+IT0003242622,Terna,balances_08,Inventory,2021-12-31,69900000
+IT0003242622,Terna,balances_09,Accounts Receivable,2021-12-31,2777400000
+IT0003242622,Terna,balances_10,Cash And Cash Equivalents,2021-12-31,1566800000
+IT0003242622,Terna,balances_11,Total Capitalization,2021-12-31,13516900000
+IT0003242622,Terna,income_01,Diluted EPS,2021-12-31,0.393
+IT0003242622,Terna,income_02,Basic EPS,2021-12-31,0.393
+IT0003242622,Terna,income_03,Total Revenue,2021-12-31,2545500000
+IT0003242622,Terna,income_04,Cost Of Revenue,2021-12-31,424700000
+IT0003242622,Terna,income_05,Operating Revenue,2021-12-31,2545500000
+IT0003242622,Terna,income_06,Net Income,2021-12-31,789400000
+IT0003242622,Terna,income_07,EBIT,2021-12-31,1213600000
+IT0003242622,Terna,income_08,EBITDA,2021-12-31,1878400000
+IT0003242622,Terna,income_09,Normalized EBITDA,2021-12-31,1866600000
+IT0003261697,Azimut,balances_01,Current Liabilities,2021-12-31,495292000
+IT0003261697,Azimut,balances_02,Total Assets,2021-12-31,9922499000
+IT0003261697,Azimut,balances_03,Total Non Current Assets,2021-12-31,8795851000
+IT0003261697,Azimut,balances_04,Investmentin Financial Assets,2021-12-31,7738699000
+IT0003261697,Azimut,balances_05,Other Intangible Assets,2021-12-31,118793000
+IT0003261697,Azimut,balances_06,Goodwill,2021-12-31,648241000
+IT0003261697,Azimut,balances_07,Current Assets,2021-12-31,1126647000
+IT0003261697,Azimut,balances_09,Accounts Receivable,2021-12-31,563062000
+IT0003261697,Azimut,balances_10,Cash And Cash Equivalents,2021-12-31,180044000
+IT0003261697,Azimut,balances_11,Total Capitalization,2021-12-31,2035672000
+IT0003261697,Azimut,income_01,Diluted EPS,2021-12-31,4.351
+IT0003261697,Azimut,income_02,Basic EPS,2021-12-31,4.351
+IT0003261697,Azimut,income_03,Total Revenue,2021-12-31,1311053000
+IT0003261697,Azimut,income_04,Cost Of Revenue,2021-12-31,720936000
+IT0003261697,Azimut,income_05,Operating Revenue,2021-12-31,1311053000
+IT0003261697,Azimut,income_06,Net Income,2021-12-31,605457000
+IT0003261697,Azimut,income_07,EBIT,2021-12-31,746314000
+IT0003261697,Azimut,income_08,EBITDA,2021-12-31,746314000
+IT0003261697,Azimut,income_09,Normalized EBITDA,2021-12-31,383891000
+IT0003372205,Edison R,balances_01,Current Liabilities,2021-12-31,7914000000
+IT0003372205,Edison R,balances_02,Total Assets,2021-12-31,16708000000
+IT0003372205,Edison R,balances_03,Total Non Current Assets,2021-12-31,7727000000
+IT0003372205,Edison R,balances_04,Investmentin Financial Assets,2021-12-31,15000000
+IT0003372205,Edison R,balances_05,Other Intangible Assets,2021-12-31,339000000
+IT0003372205,Edison R,balances_06,Goodwill,2021-12-31,2184000000
+IT0003372205,Edison R,balances_07,Current Assets,2021-12-31,8981000000
+IT0003372205,Edison R,balances_08,Inventory,2021-12-31,176000000
+IT0003372205,Edison R,balances_09,Accounts Receivable,2021-12-31,3542000000
+IT0003372205,Edison R,balances_10,Cash And Cash Equivalents,2021-12-31,910000000
+IT0003372205,Edison R,balances_11,Total Capitalization,2021-12-31,6307000000
+IT0003372205,Edison R,income_01,Diluted EPS,2021-12-31,0.087202
+IT0003372205,Edison R,income_02,Basic EPS,2021-12-31,0.087202
+IT0003372205,Edison R,income_03,Total Revenue,2021-12-31,11739000000
+IT0003372205,Edison R,income_04,Cost Of Revenue,2021-12-31,10049000000
+IT0003372205,Edison R,income_05,Operating Revenue,2021-12-31,11739000000
+IT0003372205,Edison R,income_06,Net Income,2021-12-31,413000000
+IT0003372205,Edison R,income_07,EBIT,2021-12-31,521000000
+IT0003372205,Edison R,income_08,EBITDA,2021-12-31,879000000
+IT0003372205,Edison R,income_09,Normalized EBITDA,2021-12-31,909000000
+IT0003404214,Elica,balances_01,Current Liabilities,2021-12-31,254731000
+IT0003404214,Elica,balances_02,Total Assets,2021-12-31,509685000
+IT0003404214,Elica,balances_03,Total Non Current Assets,2021-12-31,212313000
+IT0003404214,Elica,balances_04,Investmentin Financial Assets,2021-12-31,714000
+IT0003404214,Elica,balances_05,Other Intangible Assets,2021-12-31,30818000
+IT0003404214,Elica,balances_06,Goodwill,2021-12-31,50115000
+IT0003404214,Elica,balances_07,Current Assets,2021-12-31,297372000
+IT0003404214,Elica,balances_08,Inventory,2021-12-31,84861000
+IT0003404214,Elica,balances_09,Accounts Receivable,2021-12-31,82186000
+IT0003404214,Elica,balances_10,Cash And Cash Equivalents,2021-12-31,99673000
+IT0003404214,Elica,balances_11,Total Capitalization,2021-12-31,195096000
+IT0003404214,Elica,income_01,Diluted EPS,2021-12-31,0.1914
+IT0003404214,Elica,income_02,Basic EPS,2021-12-31,0.1914
+IT0003404214,Elica,income_03,Total Revenue,2021-12-31,541293000
+IT0003404214,Elica,income_04,Cost Of Revenue,2021-12-31,285825000
+IT0003404214,Elica,income_05,Operating Revenue,2021-12-31,541293000
+IT0003404214,Elica,income_06,Net Income,2021-12-31,12119000
+IT0003404214,Elica,income_07,EBIT,2021-12-31,25474000
+IT0003404214,Elica,income_08,EBITDA,2021-12-31,50303000
+IT0003404214,Elica,income_09,Normalized EBITDA,2021-12-31,69896000
+IT0003428445,Marr,balances_01,Current Liabilities,2021-12-31,500827000
+IT0003428445,Marr,balances_02,Total Assets,2021-12-31,1152605000
+IT0003428445,Marr,balances_03,Total Non Current Assets,2021-12-31,347527000
+IT0003428445,Marr,balances_05,Other Intangible Assets,2021-12-31,3010000
+IT0003428445,Marr,balances_06,Goodwill,2021-12-31,160382000
+IT0003428445,Marr,balances_07,Current Assets,2021-12-31,805079000
+IT0003428445,Marr,balances_08,Inventory,2021-12-31,199852000
+IT0003428445,Marr,balances_09,Accounts Receivable,2021-12-31,313615000
+IT0003428445,Marr,balances_10,Cash And Cash Equivalents,2021-12-31,249994000
+IT0003428445,Marr,balances_11,Total Capitalization,2021-12-31,568837000
+IT0003428445,Marr,income_01,Diluted EPS,2021-12-31,0.53
+IT0003428445,Marr,income_02,Basic EPS,2021-12-31,0.53
+IT0003428445,Marr,income_03,Total Revenue,2021-12-31,1425042000
+IT0003428445,Marr,income_04,Cost Of Revenue,2021-12-31,1111846000
+IT0003428445,Marr,income_05,Operating Revenue,2021-12-31,1425042000
+IT0003428445,Marr,income_06,Net Income,2021-12-31,35071000
+IT0003428445,Marr,income_07,EBIT,2021-12-31,59079000
+IT0003428445,Marr,income_08,EBITDA,2021-12-31,77079000
+IT0003428445,Marr,income_09,Normalized EBITDA,2021-12-31,79387000
+IT0003492391,Diasorin,balances_01,Current Liabilities,2021-12-31,298229000
+IT0003492391,Diasorin,balances_02,Total Assets,2021-12-31,3231152000
+IT0003492391,Diasorin,balances_03,Total Non Current Assets,2021-12-31,2272861000
+IT0003492391,Diasorin,balances_05,Other Intangible Assets,2021-12-31,1153738000
+IT0003492391,Diasorin,balances_06,Goodwill,2021-12-31,789630000
+IT0003492391,Diasorin,balances_07,Current Assets,2021-12-31,958291000
+IT0003492391,Diasorin,balances_08,Inventory,2021-12-31,298049000
+IT0003492391,Diasorin,balances_09,Accounts Receivable,2021-12-31,217588000
+IT0003492391,Diasorin,balances_10,Cash And Cash Equivalents,2021-12-31,403020000
+IT0003492391,Diasorin,balances_11,Total Capitalization,2021-12-31,1366377000
+IT0003492391,Diasorin,income_01,Diluted EPS,2021-12-31,5.4
+IT0003492391,Diasorin,income_02,Basic EPS,2021-12-31,5.444308
+IT0003492391,Diasorin,income_03,Total Revenue,2021-12-31,1237654000
+IT0003492391,Diasorin,income_04,Cost Of Revenue,2021-12-31,412883000
+IT0003492391,Diasorin,income_05,Operating Revenue,2021-12-31,1237654000
+IT0003492391,Diasorin,income_06,Net Income,2021-12-31,310968000
+IT0003492391,Diasorin,income_07,EBIT,2021-12-31,422315000
+IT0003492391,Diasorin,income_08,EBITDA,2021-12-31,518308000
+IT0003492391,Diasorin,income_09,Normalized EBITDA,2021-12-31,540210000
+IT0003497168,Telecom Italia,balances_01,Current Liabilities,2021-12-31,16364000000
+IT0003497168,Telecom Italia,balances_02,Total Assets,2021-12-31,69187000000
+IT0003497168,Telecom Italia,balances_03,Total Non Current Assets,2021-12-31,55117000000
+IT0003497168,Telecom Italia,balances_04,Investmentin Financial Assets,2021-12-31,156000000
+IT0003497168,Telecom Italia,balances_05,Other Intangible Assets,2021-12-31,7150000000
+IT0003497168,Telecom Italia,balances_06,Goodwill,2021-12-31,18568000000
+IT0003497168,Telecom Italia,balances_07,Current Assets,2021-12-31,14070000000
+IT0003497168,Telecom Italia,balances_08,Inventory,2021-12-31,253000000
+IT0003497168,Telecom Italia,balances_09,Accounts Receivable,2021-12-31,2675000000
+IT0003497168,Telecom Italia,balances_10,Cash And Cash Equivalents,2021-12-31,6904000000
+IT0003497168,Telecom Italia,balances_11,Total Capitalization,2021-12-31,39191000000
+IT0003497168,Telecom Italia,income_01,Diluted EPS,2021-12-31,-0.4
+IT0003497168,Telecom Italia,income_02,Basic EPS,2021-12-31,-0.4
+IT0003497168,Telecom Italia,income_03,Total Revenue,2021-12-31,15316000000
+IT0003497168,Telecom Italia,income_04,Cost Of Revenue,2021-12-31,6065000000
+IT0003497168,Telecom Italia,income_05,Operating Revenue,2021-12-31,15316000000
+IT0003497168,Telecom Italia,income_06,Net Income,2021-12-31,-8652000000
+IT0003497168,Telecom Italia,income_07,EBIT,2021-12-31,-3330000000
+IT0003497168,Telecom Italia,income_08,EBITDA,2021-12-31,1160000000
+IT0003497168,Telecom Italia,income_09,Normalized EBITDA,2021-12-31,5872000000
+IT0003549422,Sanlorenzo,balances_01,Current Liabilities,2021-12-31,294298000
+IT0003549422,Sanlorenzo,balances_02,Total Assets,2021-12-31,595039000
+IT0003549422,Sanlorenzo,balances_03,Total Non Current Assets,2021-12-31,195340000
+IT0003549422,Sanlorenzo,balances_05,Other Intangible Assets,2021-12-31,45276000
+IT0003549422,Sanlorenzo,balances_06,Goodwill,2021-12-31,8667000
+IT0003549422,Sanlorenzo,balances_07,Current Assets,2021-12-31,399699000
+IT0003549422,Sanlorenzo,balances_08,Inventory,2021-12-31,68269000
+IT0003549422,Sanlorenzo,balances_09,Accounts Receivable,2021-12-31,18310000
+IT0003549422,Sanlorenzo,balances_10,Cash And Cash Equivalents,2021-12-31,141272000
+IT0003549422,Sanlorenzo,balances_11,Total Capitalization,2021-12-31,294729000
+IT0003549422,Sanlorenzo,income_01,Diluted EPS,2021-12-31,1.47
+IT0003549422,Sanlorenzo,income_02,Basic EPS,2021-12-31,1.48
+IT0003549422,Sanlorenzo,income_03,Total Revenue,2021-12-31,687970000
+IT0003549422,Sanlorenzo,income_04,Cost Of Revenue,2021-12-31,191821000
+IT0003549422,Sanlorenzo,income_05,Operating Revenue,2021-12-31,687970000
+IT0003549422,Sanlorenzo,income_06,Net Income,2021-12-31,51007000
+IT0003549422,Sanlorenzo,income_07,EBIT,2021-12-31,72009000
+IT0003549422,Sanlorenzo,income_08,EBITDA,2021-12-31,94449000
+IT0003549422,Sanlorenzo,income_09,Normalized EBITDA,2021-12-31,94465000
+IT0003796171,Poste Italiane,balances_01,Current Liabilities,2021-12-31,94090000000
+IT0003796171,Poste Italiane,balances_02,Total Assets,2021-12-31,284728000000
+IT0003796171,Poste Italiane,balances_03,Total Non Current Assets,2021-12-31,236651000000
+IT0003796171,Poste Italiane,balances_04,Investmentin Financial Assets,2021-12-31,220426000000
+IT0003796171,Poste Italiane,balances_05,Other Intangible Assets,2021-12-31,798000000
+IT0003796171,Poste Italiane,balances_06,Goodwill,2021-12-31,75000000
+IT0003796171,Poste Italiane,balances_07,Current Assets,2021-12-31,48076000000
+IT0003796171,Poste Italiane,balances_08,Inventory,2021-12-31,155000000
+IT0003796171,Poste Italiane,balances_09,Accounts Receivable,2021-12-31,2508000000
+IT0003796171,Poste Italiane,balances_10,Cash And Cash Equivalents,2021-12-31,10844000000
+IT0003796171,Poste Italiane,balances_11,Total Capitalization,2021-12-31,20823000000
+IT0003796171,Poste Italiane,income_01,Diluted EPS,2021-12-31,1.214
+IT0003796171,Poste Italiane,income_02,Basic EPS,2021-12-31,1.214
+IT0003796171,Poste Italiane,income_03,Total Revenue,2021-12-31,31639000000
+IT0003796171,Poste Italiane,income_04,Cost Of Revenue,2021-12-31,23329000000
+IT0003796171,Poste Italiane,income_05,Operating Revenue,2021-12-31,31639000000
+IT0003796171,Poste Italiane,income_06,Net Income,2021-12-31,1578000000
+IT0003796171,Poste Italiane,income_07,EBIT,2021-12-31,2208000000
+IT0003796171,Poste Italiane,income_08,EBITDA,2021-12-31,3011000000
+IT0003796171,Poste Italiane,income_09,Normalized EBITDA,2021-12-31,2873000000
+IT0003828271,Recordati Ord,balances_01,Current Liabilities,2021-12-31,626416000
+IT0003828271,Recordati Ord,balances_02,Total Assets,2021-12-31,2816199000
+IT0003828271,Recordati Ord,balances_03,Total Non Current Assets,2021-12-31,1966098000
+IT0003828271,Recordati Ord,balances_05,Other Intangible Assets,2021-12-31,1138786000
+IT0003828271,Recordati Ord,balances_06,Goodwill,2021-12-31,553209000
+IT0003828271,Recordati Ord,balances_07,Current Assets,2021-12-31,850101000
+IT0003828271,Recordati Ord,balances_08,Inventory,2021-12-31,228732000
+IT0003828271,Recordati Ord,balances_09,Accounts Receivable,2021-12-31,307778000
+IT0003828271,Recordati Ord,balances_10,Cash And Cash Equivalents,2021-12-31,244578000
+IT0003828271,Recordati Ord,balances_11,Total Capitalization,2021-12-31,1381625000
+IT0003828271,Recordati Ord,income_01,Diluted EPS,2021-12-31,1.846
+IT0003828271,Recordati Ord,income_02,Basic EPS,2021-12-31,1.874
+IT0003828271,Recordati Ord,income_03,Total Revenue,2021-12-31,1580074000
+IT0003828271,Recordati Ord,income_04,Cost Of Revenue,2021-12-31,427727000
+IT0003828271,Recordati Ord,income_05,Operating Revenue,2021-12-31,1580074000
+IT0003828271,Recordati Ord,income_06,Net Income,2021-12-31,385966000
+IT0003828271,Recordati Ord,income_07,EBIT,2021-12-31,480769000
+IT0003828271,Recordati Ord,income_08,EBITDA,2021-12-31,578354000
+IT0003828271,Recordati Ord,income_09,Normalized EBITDA,2021-12-31,596313000
+IT0003850929,Esprinet,balances_01,Current Liabilities,2021-12-31,1303287000
+IT0003850929,Esprinet,balances_02,Total Assets,2021-12-31,1922357000
+IT0003850929,Esprinet,balances_03,Total Non Current Assets,2021-12-31,245222000
+IT0003850929,Esprinet,balances_05,Other Intangible Assets,2021-12-31,8527000
+IT0003850929,Esprinet,balances_06,Goodwill,2021-12-31,102200000
+IT0003850929,Esprinet,balances_07,Current Assets,2021-12-31,1677135000
+IT0003850929,Esprinet,balances_08,Inventory,2021-12-31,529502000
+IT0003850929,Esprinet,balances_09,Accounts Receivable,2021-12-31,585522000
+IT0003850929,Esprinet,balances_10,Cash And Cash Equivalents,2021-12-31,491471000
+IT0003850929,Esprinet,balances_11,Total Capitalization,2021-12-31,492649000
+IT0003850929,Esprinet,income_01,Diluted EPS,2021-12-31,0.88
+IT0003850929,Esprinet,income_02,Basic EPS,2021-12-31,0.89
+IT0003850929,Esprinet,income_03,Total Revenue,2021-12-31,4690947000
+IT0003850929,Esprinet,income_04,Cost Of Revenue,2021-12-31,4459057000
+IT0003850929,Esprinet,income_05,Operating Revenue,2021-12-31,4690947000
+IT0003850929,Esprinet,income_06,Net Income,2021-12-31,44183000
+IT0003850929,Esprinet,income_07,EBIT,2021-12-31,66203000
+IT0003850929,Esprinet,income_08,EBITDA,2021-12-31,82518000
+IT0003850929,Esprinet,income_09,Normalized EBITDA,2021-12-31,82164000
+IT0003856405,Leonardo,balances_01,Current Liabilities,2021-12-31,15981000000
+IT0003856405,Leonardo,balances_02,Total Assets,2021-12-31,28379000000
+IT0003856405,Leonardo,balances_03,Total Non Current Assets,2021-12-31,12810000000
+IT0003856405,Leonardo,balances_05,Other Intangible Assets,2021-12-31,3243000000
+IT0003856405,Leonardo,balances_06,Goodwill,2021-12-31,3836000000
+IT0003856405,Leonardo,balances_07,Current Assets,2021-12-31,15569000000
+IT0003856405,Leonardo,balances_08,Inventory,2021-12-31,3999000000
+IT0003856405,Leonardo,balances_09,Accounts Receivable,2021-12-31,3203000000
+IT0003856405,Leonardo,balances_10,Cash And Cash Equivalents,2021-12-31,2479000000
+IT0003856405,Leonardo,balances_11,Total Capitalization,2021-12-31,9882000000
+IT0003856405,Leonardo,income_01,Diluted EPS,2021-12-31,1.019
+IT0003856405,Leonardo,income_02,Basic EPS,2021-12-31,1.019
+IT0003856405,Leonardo,income_03,Total Revenue,2021-12-31,14135000000
+IT0003856405,Leonardo,income_04,Cost Of Revenue,2021-12-31,12770000000
+IT0003856405,Leonardo,income_05,Operating Revenue,2021-12-31,14135000000
+IT0003856405,Leonardo,income_06,Net Income,2021-12-31,586000000
+IT0003856405,Leonardo,income_07,EBIT,2021-12-31,890000000
+IT0003856405,Leonardo,income_08,EBITDA,2021-12-31,1375000000
+IT0003856405,Leonardo,income_09,Normalized EBITDA,2021-12-31,1421000000
+IT0003865570,Webuild,balances_01,Current Liabilities,2021-12-31,8215936000
+IT0003865570,Webuild,balances_02,Total Assets,2021-12-31,12330256000
+IT0003865570,Webuild,balances_03,Total Non Current Assets,2021-12-31,2880984000
+IT0003865570,Webuild,balances_04,Investmentin Financial Assets,2021-12-31,23076000
+IT0003865570,Webuild,balances_05,Other Intangible Assets,2021-12-31,466350000
+IT0003865570,Webuild,balances_06,Goodwill,2021-12-31,78496000
+IT0003865570,Webuild,balances_07,Current Assets,2021-12-31,9449273000
+IT0003865570,Webuild,balances_08,Inventory,2021-12-31,217607000
+IT0003865570,Webuild,balances_09,Accounts Receivable,2021-12-31,2498234000
+IT0003865570,Webuild,balances_10,Cash And Cash Equivalents,2021-12-31,2370032000
+IT0003865570,Webuild,balances_11,Total Capitalization,2021-12-31,3392425000
+IT0003865570,Webuild,income_01,Diluted EPS,2021-12-31,-0.33
+IT0003865570,Webuild,income_02,Basic EPS,2021-12-31,-0.33
+IT0003865570,Webuild,income_03,Total Revenue,2021-12-31,5977821000
+IT0003865570,Webuild,income_04,Cost Of Revenue,2021-12-31,4656884000
+IT0003865570,Webuild,income_05,Operating Revenue,2021-12-31,5977821000
+IT0003865570,Webuild,income_06,Net Income,2021-12-31,-304949000
+IT0003865570,Webuild,income_07,EBIT,2021-12-31,21153000
+IT0003865570,Webuild,income_08,EBITDA,2021-12-31,321404000
+IT0003865570,Webuild,income_09,Normalized EBITDA,2021-12-31,327227000
+IT0003895668,Eurotech,balances_01,Current Liabilities,2021-12-31,29561000
+IT0003895668,Eurotech,balances_02,Total Assets,2021-12-31,165053000
+IT0003895668,Eurotech,balances_03,Total Non Current Assets,2021-12-31,101365000
+IT0003895668,Eurotech,balances_05,Other Intangible Assets,2021-12-31,18322000
+IT0003895668,Eurotech,balances_06,Goodwill,2021-12-31,69721000
+IT0003895668,Eurotech,balances_07,Current Assets,2021-12-31,63688000
+IT0003895668,Eurotech,balances_08,Inventory,2021-12-31,17442000
+IT0003895668,Eurotech,balances_09,Accounts Receivable,2021-12-31,11280000
+IT0003895668,Eurotech,balances_10,Cash And Cash Equivalents,2021-12-31,31704000
+IT0003895668,Eurotech,balances_11,Total Capitalization,2021-12-31,110436000
+IT0003895668,Eurotech,income_01,Diluted EPS,2021-12-31,-0.294
+IT0003895668,Eurotech,income_02,Basic EPS,2021-12-31,-0.294
+IT0003895668,Eurotech,income_03,Total Revenue,2021-12-31,63353000
+IT0003895668,Eurotech,income_04,Cost Of Revenue,2021-12-31,43988000
+IT0003895668,Eurotech,income_05,Operating Revenue,2021-12-31,63353000
+IT0003895668,Eurotech,income_06,Net Income,2021-12-31,-10408000
+IT0003895668,Eurotech,income_07,EBIT,2021-12-31,-7639000
+IT0003895668,Eurotech,income_08,EBITDA,2021-12-31,-3065000
+IT0003895668,Eurotech,income_09,Normalized EBITDA,2021-12-31,-2744000
+IT0004053440,Datalogic,balances_01,Current Liabilities,2021-12-31,277399000
+IT0004053440,Datalogic,balances_02,Total Assets,2021-12-31,818866000
+IT0004053440,Datalogic,balances_03,Total Non Current Assets,2021-12-31,457270000
+IT0004053440,Datalogic,balances_04,Investmentin Financial Assets,2021-12-31,11805000
+IT0004053440,Datalogic,balances_05,Other Intangible Assets,2021-12-31,81631000
+IT0004053440,Datalogic,balances_06,Goodwill,2021-12-31,193497000
+IT0004053440,Datalogic,balances_07,Current Assets,2021-12-31,361596000
+IT0004053440,Datalogic,balances_08,Inventory,2021-12-31,136721000
+IT0004053440,Datalogic,balances_09,Accounts Receivable,2021-12-31,82831000
+IT0004053440,Datalogic,balances_10,Cash And Cash Equivalents,2021-12-31,106080000
+IT0004053440,Datalogic,balances_11,Total Capitalization,2021-12-31,468982000
+IT0004053440,Datalogic,income_01,Diluted EPS,2021-12-31,0.68
+IT0004053440,Datalogic,income_02,Basic EPS,2021-12-31,0.69
+IT0004053440,Datalogic,income_03,Total Revenue,2021-12-31,597846000
+IT0004053440,Datalogic,income_04,Cost Of Revenue,2021-12-31,340823000
+IT0004053440,Datalogic,income_05,Operating Revenue,2021-12-31,597846000
+IT0004053440,Datalogic,income_06,Net Income,2021-12-31,38913000
+IT0004053440,Datalogic,income_07,EBIT,2021-12-31,45150000
+IT0004053440,Datalogic,income_08,EBITDA,2021-12-31,77906000
+IT0004053440,Datalogic,income_09,Normalized EBITDA,2021-12-31,77507000
+IT0004056880,Amplifon,balances_01,Current Liabilities,2021-12-31,886292000
+IT0004056880,Amplifon,balances_02,Total Assets,2021-12-31,3515291000
+IT0004056880,Amplifon,balances_03,Total Non Current Assets,2021-12-31,2868749000
+IT0004056880,Amplifon,balances_05,Other Intangible Assets,2021-12-31,414531000
+IT0004056880,Amplifon,balances_06,Goodwill,2021-12-31,1681470000
+IT0004056880,Amplifon,balances_07,Current Assets,2021-12-31,646542000
+IT0004056880,Amplifon,balances_08,Inventory,2021-12-31,62570000
+IT0004056880,Amplifon,balances_09,Accounts Receivable,2021-12-31,168680000
+IT0004056880,Amplifon,balances_10,Cash And Cash Equivalents,2021-12-31,268546000
+IT0004056880,Amplifon,balances_11,Total Capitalization,2021-12-31,1935763000
+IT0004056880,Amplifon,income_01,Diluted EPS,2021-12-31,0.69409
+IT0004056880,Amplifon,income_02,Basic EPS,2021-12-31,0.70182
+IT0004056880,Amplifon,income_03,Total Revenue,2021-12-31,1948075000
+IT0004056880,Amplifon,income_04,Cost Of Revenue,2021-12-31,854223000
+IT0004056880,Amplifon,income_05,Operating Revenue,2021-12-31,1948075000
+IT0004056880,Amplifon,income_06,Net Income,2021-12-31,157785000
+IT0004056880,Amplifon,income_07,EBIT,2021-12-31,251037000
+IT0004056880,Amplifon,income_08,EBITDA,2021-12-31,478447000
+IT0004056880,Amplifon,income_09,Normalized EBITDA,2021-12-31,476513000
+IT0004171440,Zignago Vetro,balances_01,Current Liabilities,2021-12-31,217998000
+IT0004171440,Zignago Vetro,balances_02,Total Assets,2021-12-31,689449000
+IT0004171440,Zignago Vetro,balances_03,Total Non Current Assets,2021-12-31,375864000
+IT0004171440,Zignago Vetro,balances_05,Other Intangible Assets,2021-12-31,2502000
+IT0004171440,Zignago Vetro,balances_06,Goodwill,2021-12-31,2685000
+IT0004171440,Zignago Vetro,balances_07,Current Assets,2021-12-31,313585000
+IT0004171440,Zignago Vetro,balances_08,Inventory,2021-12-31,92789000
+IT0004171440,Zignago Vetro,balances_09,Accounts Receivable,2021-12-31,65574000
+IT0004171440,Zignago Vetro,balances_10,Cash And Cash Equivalents,2021-12-31,117536000
+IT0004171440,Zignago Vetro,balances_11,Total Capitalization,2021-12-31,446825000
+IT0004171440,Zignago Vetro,income_01,Diluted EPS,2021-12-31,0.684
+IT0004171440,Zignago Vetro,income_02,Basic EPS,2021-12-31,0.684
+IT0004171440,Zignago Vetro,income_03,Total Revenue,2021-12-31,362437000
+IT0004171440,Zignago Vetro,income_04,Cost Of Revenue,2021-12-31,196539000
+IT0004171440,Zignago Vetro,income_05,Operating Revenue,2021-12-31,362437000
+IT0004171440,Zignago Vetro,income_06,Net Income,2021-12-31,60019000
+IT0004171440,Zignago Vetro,income_07,EBIT,2021-12-31,71696000
+IT0004171440,Zignago Vetro,income_08,EBITDA,2021-12-31,114908000
+IT0004171440,Zignago Vetro,income_09,Normalized EBITDA,2021-12-31,115304000
+IT0004195308,Mutuionline,balances_01,Current Liabilities,2021-12-31,125801000
+IT0004195308,Mutuionline,balances_02,Total Assets,2021-12-31,616605000
+IT0004195308,Mutuionline,balances_03,Total Non Current Assets,2021-12-31,319544000
+IT0004195308,Mutuionline,balances_04,Investmentin Financial Assets,2021-12-31,40410000
+IT0004195308,Mutuionline,balances_05,Other Intangible Assets,2021-12-31,50361000
+IT0004195308,Mutuionline,balances_06,Goodwill,2021-12-31,152395000
+IT0004195308,Mutuionline,balances_07,Current Assets,2021-12-31,297061000
+IT0004195308,Mutuionline,balances_09,Accounts Receivable,2021-12-31,123185000
+IT0004195308,Mutuionline,balances_10,Cash And Cash Equivalents,2021-12-31,165857000
+IT0004195308,Mutuionline,balances_11,Total Capitalization,2021-12-31,403933000
+IT0004195308,Mutuionline,income_01,Diluted EPS,2021-12-31,0.42
+IT0004195308,Mutuionline,income_02,Basic EPS,2021-12-31,0.43
+IT0004195308,Mutuionline,income_03,Total Revenue,2021-12-31,313464000
+IT0004195308,Mutuionline,income_04,Cost Of Revenue,2021-12-31,62163000
+IT0004195308,Mutuionline,income_05,Operating Revenue,2021-12-31,313464000
+IT0004195308,Mutuionline,income_06,Net Income,2021-12-31,16347000
+IT0004195308,Mutuionline,income_07,EBIT,2021-12-31,65251000
+IT0004195308,Mutuionline,income_08,EBITDA,2021-12-31,86038000
+IT0004195308,Mutuionline,income_09,Normalized EBITDA,2021-12-31,90622000
+IT0004496029,Expert.Ai,balances_01,Current Liabilities,2021-12-31,20769529
+IT0004496029,Expert.Ai,balances_02,Total Assets,2021-12-31,125572248
+IT0004496029,Expert.Ai,balances_03,Total Non Current Assets,2021-12-31,78875417
+IT0004496029,Expert.Ai,balances_04,Investmentin Financial Assets,2021-12-31,61482562
+IT0004496029,Expert.Ai,balances_05,Other Intangible Assets,2021-12-31,14919992
+IT0004496029,Expert.Ai,balances_06,Goodwill,2021-12-31,3421597
+IT0004496029,Expert.Ai,balances_07,Current Assets,2021-12-31,46696832
+IT0004496029,Expert.Ai,balances_08,Inventory,2021-12-31,0
+IT0004496029,Expert.Ai,balances_09,Accounts Receivable,2021-12-31,15948419
+IT0004496029,Expert.Ai,balances_10,Cash And Cash Equivalents,2021-12-31,26744665
+IT0004496029,Expert.Ai,balances_11,Total Capitalization,2021-12-31,77291840
+IT0004496029,Expert.Ai,income_01,Diluted EPS,2021-12-31,-0.3
+IT0004496029,Expert.Ai,income_02,Basic EPS,2021-12-31,-0.3
+IT0004496029,Expert.Ai,income_03,Total Revenue,2021-12-31,22765564
+IT0004496029,Expert.Ai,income_04,Cost Of Revenue,2021-12-31,-2329540
+IT0004496029,Expert.Ai,income_05,Operating Revenue,2021-12-31,22765564
+IT0004496029,Expert.Ai,income_06,Net Income,2021-12-31,-2938453
+IT0004496029,Expert.Ai,income_07,EBIT,2021-12-31,-1903073
+IT0004496029,Expert.Ai,income_08,EBITDA,2021-12-31,4417532
+IT0004496029,Expert.Ai,income_09,Normalized EBITDA,2021-12-31,4511251
+IT0004552359,Kme Group,balances_01,Current Liabilities,2021-12-31,35728000
+IT0004552359,Kme Group,balances_02,Total Assets,2021-12-31,685291000
+IT0004552359,Kme Group,balances_03,Total Non Current Assets,2021-12-31,643430000
+IT0004552359,Kme Group,balances_04,Investmentin Financial Assets,2021-12-31,0
+IT0004552359,Kme Group,balances_05,Other Intangible Assets,2021-12-31,12000
+IT0004552359,Kme Group,balances_06,Goodwill,2021-12-31,0
+IT0004552359,Kme Group,balances_07,Current Assets,2021-12-31,41861000
+IT0004552359,Kme Group,balances_08,Inventory,2021-12-31,0
+IT0004552359,Kme Group,balances_09,Accounts Receivable,2021-12-31,2052000
+IT0004552359,Kme Group,balances_10,Cash And Cash Equivalents,2021-12-31,4698000
+IT0004552359,Kme Group,balances_11,Total Capitalization,2021-12-31,644075000
+IT0004552359,Kme Group,income_01,Diluted EPS,2021-12-31,0.1041
+IT0004552359,Kme Group,income_02,Basic EPS,2021-12-31,0.1533
+IT0004552359,Kme Group,income_03,Total Revenue,2021-12-31,0
+IT0004552359,Kme Group,income_04,Cost Of Revenue,2021-12-31,0
+IT0004552359,Kme Group,income_05,Operating Revenue,2021-12-31,0
+IT0004552359,Kme Group,income_06,Net Income,2021-12-31,65306000
+IT0004552359,Kme Group,income_07,EBIT,2021-12-31,68203000
+IT0004552359,Kme Group,income_08,EBITDA,2021-12-31,68861000
+IT0004552359,Kme Group,income_09,Normalized EBITDA,2021-12-31,68861000
+IT0004585243,Tesmec,balances_01,Current Liabilities,2021-12-31,151741000
+IT0004585243,Tesmec,balances_02,Total Assets,2021-12-31,358132000
+IT0004585243,Tesmec,balances_03,Total Non Current Assets,2021-12-31,128643000
+IT0004585243,Tesmec,balances_04,Investmentin Financial Assets,2021-12-31,3000
+IT0004585243,Tesmec,balances_05,Other Intangible Assets,2021-12-31,23896000
+IT0004585243,Tesmec,balances_06,Goodwill,2021-12-31,0
+IT0004585243,Tesmec,balances_07,Current Assets,2021-12-31,229489000
+IT0004585243,Tesmec,balances_08,Inventory,2021-12-31,81085000
+IT0004585243,Tesmec,balances_09,Accounts Receivable,2021-12-31,54392000
+IT0004585243,Tesmec,balances_10,Cash And Cash Equivalents,2021-12-31,50189000
+IT0004585243,Tesmec,balances_11,Total Capitalization,2021-12-31,176733000
+IT0004585243,Tesmec,income_01,Diluted EPS,2021-12-31,0.002
+IT0004585243,Tesmec,income_02,Basic EPS,2021-12-31,0.002
+IT0004585243,Tesmec,income_03,Total Revenue,2021-12-31,180491000
+IT0004585243,Tesmec,income_04,Cost Of Revenue,2021-12-31,102508000
+IT0004585243,Tesmec,income_05,Operating Revenue,2021-12-31,180491000
+IT0004585243,Tesmec,income_06,Net Income,2021-12-31,1195000
+IT0004585243,Tesmec,income_07,EBIT,2021-12-31,7288000
+IT0004585243,Tesmec,income_08,EBITDA,2021-12-31,29735000
+IT0004585243,Tesmec,income_09,Normalized EBITDA,2021-12-31,29655000
+IT0004712375,Salvatore Ferragamo,balances_01,Current Liabilities,2021-12-31,463892000
+IT0004712375,Salvatore Ferragamo,balances_02,Total Assets,2021-12-31,1849055000
+IT0004712375,Salvatore Ferragamo,balances_03,Total Non Current Assets,2021-12-31,884085000
+IT0004712375,Salvatore Ferragamo,balances_04,Investmentin Financial Assets,2021-12-31,15659000
+IT0004712375,Salvatore Ferragamo,balances_05,Other Intangible Assets,2021-12-31,33423000
+IT0004712375,Salvatore Ferragamo,balances_06,Goodwill,2021-12-31,6679000
+IT0004712375,Salvatore Ferragamo,balances_07,Current Assets,2021-12-31,964970000
+IT0004712375,Salvatore Ferragamo,balances_08,Inventory,2021-12-31,274566000
+IT0004712375,Salvatore Ferragamo,balances_09,Accounts Receivable,2021-12-31,112670000
+IT0004712375,Salvatore Ferragamo,balances_10,Cash And Cash Equivalents,2021-12-31,511796000
+IT0004712375,Salvatore Ferragamo,balances_11,Total Capitalization,2021-12-31,827829000
+IT0004712375,Salvatore Ferragamo,income_01,Diluted EPS,2021-12-31,0.467
+IT0004712375,Salvatore Ferragamo,income_02,Basic EPS,2021-12-31,0.467
+IT0004712375,Salvatore Ferragamo,income_03,Total Revenue,2021-12-31,1135520000
+IT0004712375,Salvatore Ferragamo,income_04,Cost Of Revenue,2021-12-31,354576000
+IT0004712375,Salvatore Ferragamo,income_05,Operating Revenue,2021-12-31,1135520000
+IT0004712375,Salvatore Ferragamo,income_06,Net Income,2021-12-31,78647000
+IT0004712375,Salvatore Ferragamo,income_07,EBIT,2021-12-31,137980000
+IT0004712375,Salvatore Ferragamo,income_08,EBITDA,2021-12-31,301152000
+IT0004712375,Salvatore Ferragamo,income_09,Normalized EBITDA,2021-12-31,318793000
+IT0004720733,Alerion,balances_01,Current Liabilities,2021-12-31,106117000
+IT0004720733,Alerion,balances_02,Total Assets,2021-12-31,1008402000
+IT0004720733,Alerion,balances_03,Total Non Current Assets,2021-12-31,807849000
+IT0004720733,Alerion,balances_05,Other Intangible Assets,2021-12-31,201266000
+IT0004720733,Alerion,balances_07,Current Assets,2021-12-31,200553000
+IT0004720733,Alerion,balances_08,Inventory,2021-12-31,0
+IT0004720733,Alerion,balances_09,Accounts Receivable,2021-12-31,38263000
+IT0004720733,Alerion,balances_10,Cash And Cash Equivalents,2021-12-31,123652000
+IT0004720733,Alerion,balances_11,Total Capitalization,2021-12-31,742086000
+IT0004720733,Alerion,income_01,Diluted EPS,2021-12-31,0.9
+IT0004720733,Alerion,income_02,Basic EPS,2021-12-31,0.9
+IT0004720733,Alerion,income_03,Total Revenue,2021-12-31,149791000
+IT0004720733,Alerion,income_04,Cost Of Revenue,2021-12-31,14659000
+IT0004720733,Alerion,income_05,Operating Revenue,2021-12-31,149791000
+IT0004720733,Alerion,income_06,Net Income,2021-12-31,48738000
+IT0004720733,Alerion,income_07,EBIT,2021-12-31,91055000
+IT0004720733,Alerion,income_08,EBITDA,2021-12-31,132021000
+IT0004720733,Alerion,income_09,Normalized EBITDA,2021-12-31,131211000
+IT0004827447,Unipolsai,balances_02,Total Assets,2021-12-31,76459300000
+IT0004827447,Unipolsai,balances_04,Investmentin Financial Assets,2021-12-31,12959900000
+IT0004827447,Unipolsai,balances_05,Other Intangible Assets,2021-12-31,449200000
+IT0004827447,Unipolsai,balances_06,Goodwill,2021-12-31,513700000
+IT0004827447,Unipolsai,balances_09,Accounts Receivable,2021-12-31,1827200000
+IT0004827447,Unipolsai,balances_10,Cash And Cash Equivalents,2021-12-31,884800000
+IT0004827447,Unipolsai,balances_11,Total Capitalization,2021-12-31,9888200000
+IT0004827447,Unipolsai,income_01,Diluted EPS,2021-12-31,0.23
+IT0004827447,Unipolsai,income_02,Basic EPS,2021-12-31,0.23
+IT0004827447,Unipolsai,income_03,Total Revenue,2021-12-31,14206500000
+IT0004827447,Unipolsai,income_05,Operating Revenue,2021-12-31,14206500000
+IT0004827447,Unipolsai,income_06,Net Income,2021-12-31,688500000
+IT0004827447,Unipolsai,income_07,EBIT,2021-12-31,977100000
+IT0004931058,Maire Tecnimont,balances_01,Current Liabilities,2021-12-31,3806830000
+IT0004931058,Maire Tecnimont,balances_02,Total Assets,2021-12-31,5210023000
+IT0004931058,Maire Tecnimont,balances_03,Total Non Current Assets,2021-12-31,826538000
+IT0004931058,Maire Tecnimont,balances_05,Other Intangible Assets,2021-12-31,101551000
+IT0004931058,Maire Tecnimont,balances_06,Goodwill,2021-12-31,294321000
+IT0004931058,Maire Tecnimont,balances_07,Current Assets,2021-12-31,4383483000
+IT0004931058,Maire Tecnimont,balances_08,Inventory,2021-12-31,1845000
+IT0004931058,Maire Tecnimont,balances_09,Accounts Receivable,2021-12-31,491560000
+IT0004931058,Maire Tecnimont,balances_10,Cash And Cash Equivalents,2021-12-31,677101000
+IT0004931058,Maire Tecnimont,balances_11,Total Capitalization,2021-12-31,1106221000
+IT0004931058,Maire Tecnimont,income_01,Diluted EPS,2021-12-31,0.254
+IT0004931058,Maire Tecnimont,income_02,Basic EPS,2021-12-31,0.254
+IT0004931058,Maire Tecnimont,income_03,Total Revenue,2021-12-31,2844069000
+IT0004931058,Maire Tecnimont,income_04,Cost Of Revenue,2021-12-31,2197202000
+IT0004931058,Maire Tecnimont,income_05,Operating Revenue,2021-12-31,2844069000
+IT0004931058,Maire Tecnimont,income_06,Net Income,2021-12-31,83301000
+IT0004931058,Maire Tecnimont,income_07,EBIT,2021-12-31,123973000
+IT0004931058,Maire Tecnimont,income_08,EBITDA,2021-12-31,165159000
+IT0004931058,Maire Tecnimont,income_09,Normalized EBITDA,2021-12-31,159130000
+IT0004931496,Rcs Mediagroup,balances_01,Current Liabilities,2021-12-31,400000000
+IT0004931496,Rcs Mediagroup,balances_02,Total Assets,2021-12-31,1048700000
+IT0004931496,Rcs Mediagroup,balances_03,Total Non Current Assets,2021-12-31,690600000
+IT0004931496,Rcs Mediagroup,balances_04,Investmentin Financial Assets,2021-12-31,2400000
+IT0004931496,Rcs Mediagroup,balances_05,Other Intangible Assets,2021-12-31,347900000
+IT0004931496,Rcs Mediagroup,balances_06,Goodwill,2021-12-31,21800000
+IT0004931496,Rcs Mediagroup,balances_07,Current Assets,2021-12-31,358000000
+IT0004931496,Rcs Mediagroup,balances_08,Inventory,2021-12-31,17400000
+IT0004931496,Rcs Mediagroup,balances_09,Accounts Receivable,2021-12-31,219900000
+IT0004931496,Rcs Mediagroup,balances_10,Cash And Cash Equivalents,2021-12-31,72900000
+IT0004931496,Rcs Mediagroup,balances_11,Total Capitalization,2021-12-31,367900000
+IT0004931496,Rcs Mediagroup,income_01,Diluted EPS,2021-12-31,0.14
+IT0004931496,Rcs Mediagroup,income_02,Basic EPS,2021-12-31,0.14
+IT0004931496,Rcs Mediagroup,income_03,Total Revenue,2021-12-31,846200000
+IT0004931496,Rcs Mediagroup,income_04,Cost Of Revenue,2021-12-31,468600000
+IT0004931496,Rcs Mediagroup,income_05,Operating Revenue,2021-12-31,846200000
+IT0004931496,Rcs Mediagroup,income_06,Net Income,2021-12-31,72400000
+IT0004931496,Rcs Mediagroup,income_07,EBIT,2021-12-31,103100000
+IT0004931496,Rcs Mediagroup,income_08,EBITDA,2021-12-31,151500000
+IT0004931496,Rcs Mediagroup,income_09,Normalized EBITDA,2021-12-31,141100000
+IT0004965148,Moncler,balances_01,Current Liabilities,2021-12-31,894605000
+IT0004965148,Moncler,balances_02,Total Assets,2021-12-31,4267989000
+IT0004965148,Moncler,balances_03,Total Non Current Assets,2021-12-31,2804033000
+IT0004965148,Moncler,balances_05,Other Intangible Assets,2021-12-31,1070074000
+IT0004965148,Moncler,balances_06,Goodwill,2021-12-31,603417000
+IT0004965148,Moncler,balances_07,Current Assets,2021-12-31,1463956000
+IT0004965148,Moncler,balances_08,Inventory,2021-12-31,263521000
+IT0004965148,Moncler,balances_09,Accounts Receivable,2021-12-31,234274000
+IT0004965148,Moncler,balances_10,Cash And Cash Equivalents,2021-12-31,932718000
+IT0004965148,Moncler,balances_11,Total Capitalization,2021-12-31,2539039000
+IT0004965148,Moncler,income_01,Diluted EPS,2021-12-31,1.47
+IT0004965148,Moncler,income_02,Basic EPS,2021-12-31,1.48
+IT0004965148,Moncler,income_03,Total Revenue,2021-12-31,2046103000
+IT0004965148,Moncler,income_04,Cost Of Revenue,2021-12-31,479197000
+IT0004965148,Moncler,income_05,Operating Revenue,2021-12-31,2046103000
+IT0004965148,Moncler,income_06,Net Income,2021-12-31,393533000
+IT0004965148,Moncler,income_07,EBIT,2021-12-31,580949000
+IT0004965148,Moncler,income_08,EBITDA,2021-12-31,827468000
+IT0004965148,Moncler,income_09,Normalized EBITDA,2021-12-31,827468000
+IT0004967292,Fila,balances_01,Current Liabilities,2021-12-31,221620000
+IT0004967292,Fila,balances_02,Total Assets,2021-12-31,1193461000
+IT0004967292,Fila,balances_03,Total Non Current Assets,2021-12-31,642322000
+IT0004967292,Fila,balances_04,Investmentin Financial Assets,2021-12-31,4078000
+IT0004967292,Fila,balances_05,Other Intangible Assets,2021-12-31,277422000
+IT0004967292,Fila,balances_06,Goodwill,2021-12-31,168401000
+IT0004967292,Fila,balances_07,Current Assets,2021-12-31,551138000
+IT0004967292,Fila,balances_08,Inventory,2021-12-31,271269000
+IT0004967292,Fila,balances_09,Accounts Receivable,2021-12-31,107574000
+IT0004967292,Fila,balances_10,Cash And Cash Equivalents,2021-12-31,145985000
+IT0004967292,Fila,balances_11,Total Capitalization,2021-12-31,775795000
+IT0004967292,Fila,income_01,Diluted EPS,2021-12-31,0.73
+IT0004967292,Fila,income_02,Basic EPS,2021-12-31,0.75
+IT0004967292,Fila,income_03,Total Revenue,2021-12-31,655992000
+IT0004967292,Fila,income_04,Cost Of Revenue,2021-12-31,400692000
+IT0004967292,Fila,income_05,Operating Revenue,2021-12-31,655992000
+IT0004967292,Fila,income_06,Net Income,2021-12-31,38014000
+IT0004967292,Fila,income_07,EBIT,2021-12-31,78382000
+IT0004967292,Fila,income_08,EBITDA,2021-12-31,119171000
+IT0004967292,Fila,income_09,Normalized EBITDA,2021-12-31,119709000
+IT0004998065,Anima Holding,balances_01,Current Liabilities,2021-12-31,285878000
+IT0004998065,Anima Holding,balances_02,Total Assets,2021-12-31,2534855000
+IT0004998065,Anima Holding,balances_03,Total Non Current Assets,2021-12-31,1727542000
+IT0004998065,Anima Holding,balances_04,Investmentin Financial Assets,2021-12-31,103118000
+IT0004998065,Anima Holding,balances_05,Other Intangible Assets,2021-12-31,498439000
+IT0004998065,Anima Holding,balances_06,Goodwill,2021-12-31,1105463000
+IT0004998065,Anima Holding,balances_07,Current Assets,2021-12-31,807313000
+IT0004998065,Anima Holding,balances_09,Accounts Receivable,2021-12-31,172669000
+IT0004998065,Anima Holding,balances_10,Cash And Cash Equivalents,2021-12-31,585296000
+IT0004998065,Anima Holding,balances_11,Total Capitalization,2021-12-31,2143163000
+IT0004998065,Anima Holding,income_01,Diluted EPS,2021-12-31,0.680414
+IT0004998065,Anima Holding,income_02,Basic EPS,2021-12-31,0.705093
+IT0004998065,Anima Holding,income_03,Total Revenue,2021-12-31,1225083000
+IT0004998065,Anima Holding,income_04,Cost Of Revenue,2021-12-31,784396000
+IT0004998065,Anima Holding,income_05,Operating Revenue,2021-12-31,1225083000
+IT0004998065,Anima Holding,income_06,Net Income,2021-12-31,238656000
+IT0004998065,Anima Holding,income_07,EBIT,2021-12-31,327980000
+IT0004998065,Anima Holding,income_08,EBITDA,2021-12-31,375007000
+IT0004998065,Anima Holding,income_09,Normalized EBITDA,2021-12-31,375918000
+IT0005013013,Lventure Group,balances_01,Current Liabilities,2021-12-31,2755414
+IT0005013013,Lventure Group,balances_02,Total Assets,2021-12-31,34588597
+IT0005013013,Lventure Group,balances_03,Total Non Current Assets,2021-12-31,31131818
+IT0005013013,Lventure Group,balances_04,Investmentin Financial Assets,2021-12-31,27892452
+IT0005013013,Lventure Group,balances_05,Other Intangible Assets,2021-12-31,71032
+IT0005013013,Lventure Group,balances_06,Goodwill,2021-12-31,67000
+IT0005013013,Lventure Group,balances_07,Current Assets,2021-12-31,3456779
+IT0005013013,Lventure Group,balances_09,Accounts Receivable,2021-12-31,1131183
+IT0005013013,Lventure Group,balances_10,Cash And Cash Equivalents,2021-12-31,1461825
+IT0005013013,Lventure Group,balances_11,Total Capitalization,2021-12-31,31573114
+IT0005013013,Lventure Group,income_01,Diluted EPS,2021-12-31,0.03576
+IT0005013013,Lventure Group,income_02,Basic EPS,2021-12-31,0.03623
+IT0005013013,Lventure Group,income_03,Total Revenue,2021-12-31,5381000
+IT0005013013,Lventure Group,income_04,Cost Of Revenue,2021-12-31,2674150
+IT0005013013,Lventure Group,income_05,Operating Revenue,2021-12-31,5381000
+IT0005013013,Lventure Group,income_06,Net Income,2021-12-31,1727087
+IT0005013013,Lventure Group,income_07,EBIT,2021-12-31,1876071
+IT0005013013,Lventure Group,income_08,EBITDA,2021-12-31,2194782
+IT0005013013,Lventure Group,income_09,Normalized EBITDA,2021-12-31,2289964
+IT0005037210,Tinexta,balances_01,Current Liabilities,2021-12-31,207786000
+IT0005037210,Tinexta,balances_02,Total Assets,2021-12-31,816182000
+IT0005037210,Tinexta,balances_03,Total Non Current Assets,2021-12-31,602911000
+IT0005037210,Tinexta,balances_04,Investmentin Financial Assets,2021-12-31,4045000
+IT0005037210,Tinexta,balances_05,Other Intangible Assets,2021-12-31,183534000
+IT0005037210,Tinexta,balances_06,Goodwill,2021-12-31,366853000
+IT0005037210,Tinexta,balances_07,Current Assets,2021-12-31,213270000
+IT0005037210,Tinexta,balances_08,Inventory,2021-12-31,1342000
+IT0005037210,Tinexta,balances_09,Accounts Receivable,2021-12-31,100138000
+IT0005037210,Tinexta,balances_10,Cash And Cash Equivalents,2021-12-31,68253000
+IT0005037210,Tinexta,balances_11,Total Capitalization,2021-12-31,361446000
+IT0005037210,Tinexta,income_01,Diluted EPS,2021-12-31,0.79
+IT0005037210,Tinexta,income_02,Basic EPS,2021-12-31,0.81
+IT0005037210,Tinexta,income_03,Total Revenue,2021-12-31,301496000
+IT0005037210,Tinexta,income_04,Cost Of Revenue,2021-12-31,189338000
+IT0005037210,Tinexta,income_05,Operating Revenue,2021-12-31,301496000
+IT0005037210,Tinexta,income_06,Net Income,2021-12-31,37471000
+IT0005037210,Tinexta,income_07,EBIT,2021-12-31,39891000
+IT0005037210,Tinexta,income_08,EBITDA,2021-12-31,74842000
+IT0005037210,Tinexta,income_09,Normalized EBITDA,2021-12-31,80196000
+IT0005040354,Growens,balances_01,Current Liabilities,2021-12-31,29565850
+IT0005040354,Growens,balances_02,Total Assets,2021-12-31,58077407
+IT0005040354,Growens,balances_03,Total Non Current Assets,2021-12-31,29818234
+IT0005040354,Growens,balances_05,Other Intangible Assets,2021-12-31,6855105
+IT0005040354,Growens,balances_06,Goodwill,2021-12-31,15405497
+IT0005040354,Growens,balances_07,Current Assets,2021-12-31,28259173
+IT0005040354,Growens,balances_08,Inventory,2021-12-31,26856
+IT0005040354,Growens,balances_09,Accounts Receivable,2021-12-31,12465270
+IT0005040354,Growens,balances_10,Cash And Cash Equivalents,2021-12-31,13324983
+IT0005040354,Growens,balances_11,Total Capitalization,2021-12-31,21014623
+IT0005040354,Growens,income_01,Diluted EPS,2021-12-31,0.0246
+IT0005040354,Growens,income_02,Basic EPS,2021-12-31,0.0261
+IT0005040354,Growens,income_03,Total Revenue,2021-12-31,71236962
+IT0005040354,Growens,income_04,Cost Of Revenue,2021-12-31,47546465
+IT0005040354,Growens,income_05,Operating Revenue,2021-12-31,71236962
+IT0005040354,Growens,income_06,Net Income,2021-12-31,387098
+IT0005040354,Growens,income_07,EBIT,2021-12-31,1187946
+IT0005040354,Growens,income_08,EBITDA,2021-12-31,5106594
+IT0005040354,Growens,income_09,Normalized EBITDA,2021-12-31,5257260
+IT0005043507,Ovs,balances_01,Current Liabilities,2021-01-31,622341000
+IT0005043507,Ovs,balances_02,Total Assets,2021-01-31,2605521000
+IT0005043507,Ovs,balances_03,Total Non Current Assets,2021-01-31,1976048000
+IT0005043507,Ovs,balances_04,Investmentin Financial Assets,2021-01-31,0
+IT0005043507,Ovs,balances_05,Other Intangible Assets,2021-01-31,604139000
+IT0005043507,Ovs,balances_06,Goodwill,2021-01-31,297541000
+IT0005043507,Ovs,balances_07,Current Assets,2021-01-31,629473000
+IT0005043507,Ovs,balances_08,Inventory,2021-01-31,420110000
+IT0005043507,Ovs,balances_09,Accounts Receivable,2021-01-31,102061000
+IT0005043507,Ovs,balances_10,Cash And Cash Equivalents,2021-01-31,77507000
+IT0005043507,Ovs,balances_11,Total Capitalization,2021-01-31,1178561000
+IT0005043507,Ovs,income_01,Diluted EPS,2021-01-31,0.147045
+IT0005043507,Ovs,income_02,Basic EPS,2021-01-31,0.147045
+IT0005043507,Ovs,income_03,Total Revenue,2021-01-31,1056174000
+IT0005043507,Ovs,income_04,Cost Of Revenue,2021-01-31,454393000
+IT0005043507,Ovs,income_05,Operating Revenue,2021-01-31,1056174000
+IT0005043507,Ovs,income_06,Net Income,2021-01-31,35037000
+IT0005043507,Ovs,income_07,EBIT,2021-01-31,-12624000
+IT0005043507,Ovs,income_08,EBITDA,2021-01-31,194105000
+IT0005043507,Ovs,income_09,Normalized EBITDA,2021-01-31,201347000
+IT0005054967,Rai Way,balances_01,Current Liabilities,2021-12-31,102216355
+IT0005054967,Rai Way,balances_02,Total Assets,2021-12-31,388045096
+IT0005054967,Rai Way,balances_03,Total Non Current Assets,2021-12-31,297657522
+IT0005054967,Rai Way,balances_05,Other Intangible Assets,2021-12-31,11431000
+IT0005054967,Rai Way,balances_06,Goodwill,2021-12-31,5813000
+IT0005054967,Rai Way,balances_07,Current Assets,2021-12-31,94326833
+IT0005054967,Rai Way,balances_08,Inventory,2021-12-31,790000
+IT0005054967,Rai Way,balances_09,Accounts Receivable,2021-12-31,67816000
+IT0005054967,Rai Way,balances_10,Cash And Cash Equivalents,2021-12-31,17243998
+IT0005054967,Rai Way,balances_11,Total Capitalization,2021-12-31,234916587
+IT0005054967,Rai Way,income_01,Diluted EPS,2021-12-31,0.24
+IT0005054967,Rai Way,income_02,Basic EPS,2021-12-31,0.24
+IT0005054967,Rai Way,income_03,Total Revenue,2021-12-31,229937000
+IT0005054967,Rai Way,income_04,Cost Of Revenue,2021-12-31,39715000
+IT0005054967,Rai Way,income_05,Operating Revenue,2021-12-31,229937000
+IT0005054967,Rai Way,income_06,Net Income,2021-12-31,65383926
+IT0005054967,Rai Way,income_07,EBIT,2021-12-31,90967964
+IT0005054967,Rai Way,income_08,EBITDA,2021-12-31,141471431
+IT0005054967,Rai Way,income_09,Normalized EBITDA,2021-12-31,141673965
+IT0005144784,Generalfinance,balances_01,Current Liabilities,2021-12-31,17031571
+IT0005144784,Generalfinance,balances_02,Total Assets,2021-12-31,365268893
+IT0005144784,Generalfinance,balances_03,Total Non Current Assets,2021-12-31,7545253
+IT0005144784,Generalfinance,balances_04,Investmentin Financial Assets,2021-12-31,28415
+IT0005144784,Generalfinance,balances_05,Other Intangible Assets,2021-12-31,1670567
+IT0005144784,Generalfinance,balances_06,Goodwill,2021-12-31,0
+IT0005144784,Generalfinance,balances_07,Current Assets,2021-12-31,357723640
+IT0005144784,Generalfinance,balances_09,Accounts Receivable,2021-12-31,19000
+IT0005144784,Generalfinance,balances_10,Cash And Cash Equivalents,2021-12-31,33458171
+IT0005144784,Generalfinance,balances_11,Total Capitalization,2021-12-31,315582524
+IT0005144784,Generalfinance,income_01,Diluted EPS,2021-12-31,0.748185
+IT0005144784,Generalfinance,income_02,Basic EPS,2021-12-31,0.748185
+IT0005144784,Generalfinance,income_03,Total Revenue,2021-12-31,30004363
+IT0005144784,Generalfinance,income_04,Cost Of Revenue,2021-12-31,9334023
+IT0005144784,Generalfinance,income_05,Operating Revenue,2021-12-31,30004363
+IT0005144784,Generalfinance,income_06,Net Income,2021-12-31,9453364
+IT0005144784,Generalfinance,income_07,EBIT,2021-12-31,15068593
+IT0005144784,Generalfinance,income_08,EBITDA,2021-12-31,15068593
+IT0005144784,Generalfinance,income_09,Normalized EBITDA,2021-12-31,16211267
+IT0005162406,Technogym,balances_01,Current Liabilities,2021-12-31,346567000
+IT0005162406,Technogym,balances_02,Total Assets,2021-12-31,763092000
+IT0005162406,Technogym,balances_03,Total Non Current Assets,2021-12-31,292049000
+IT0005162406,Technogym,balances_04,Investmentin Financial Assets,2021-12-31,200000
+IT0005162406,Technogym,balances_05,Other Intangible Assets,2021-12-31,50696000
+IT0005162406,Technogym,balances_07,Current Assets,2021-12-31,471044000
+IT0005162406,Technogym,balances_08,Inventory,2021-12-31,108548000
+IT0005162406,Technogym,balances_09,Accounts Receivable,2021-12-31,104242000
+IT0005162406,Technogym,balances_10,Cash And Cash Equivalents,2021-12-31,174306000
+IT0005162406,Technogym,balances_11,Total Capitalization,2021-12-31,322341000
+IT0005162406,Technogym,income_01,Diluted EPS,2021-12-31,0.31
+IT0005162406,Technogym,income_02,Basic EPS,2021-12-31,0.31
+IT0005162406,Technogym,income_03,Total Revenue,2021-12-31,611412000
+IT0005162406,Technogym,income_04,Cost Of Revenue,2021-12-31,367653000
+IT0005162406,Technogym,income_05,Operating Revenue,2021-12-31,611412000
+IT0005162406,Technogym,income_06,Net Income,2021-12-31,63065000
+IT0005162406,Technogym,income_07,EBIT,2021-12-31,80598000
+IT0005162406,Technogym,income_08,EBITDA,2021-12-31,117004000
+IT0005162406,Technogym,income_09,Normalized EBITDA,2021-12-31,117303000
+IT0005176406,Enav,balances_01,Current Liabilities,2021-12-31,509444102
+IT0005176406,Enav,balances_02,Total Assets,2021-12-31,2356114635
+IT0005176406,Enav,balances_03,Total Non Current Assets,2021-12-31,1836166103
+IT0005176406,Enav,balances_04,Investmentin Financial Assets,2021-12-31,344000
+IT0005176406,Enav,balances_05,Other Intangible Assets,2021-12-31,82720810
+IT0005176406,Enav,balances_06,Goodwill,2021-12-31,93472000
+IT0005176406,Enav,balances_07,Current Assets,2021-12-31,519948729
+IT0005176406,Enav,balances_08,Inventory,2021-12-31,61518741
+IT0005176406,Enav,balances_09,Accounts Receivable,2021-12-31,177161512
+IT0005176406,Enav,balances_10,Cash And Cash Equivalents,2021-12-31,225309927
+IT0005176406,Enav,balances_11,Total Capitalization,2021-12-31,1572661650
+IT0005176406,Enav,income_01,Diluted EPS,2021-12-31,0.14
+IT0005176406,Enav,income_02,Basic EPS,2021-12-31,0.14
+IT0005176406,Enav,income_03,Total Revenue,2021-12-31,800224855
+IT0005176406,Enav,income_04,Cost Of Revenue,2021-12-31,604537838
+IT0005176406,Enav,income_05,Operating Revenue,2021-12-31,800224855
+IT0005176406,Enav,income_06,Net Income,2021-12-31,78371693
+IT0005176406,Enav,income_07,EBIT,2021-12-31,109576564
+IT0005176406,Enav,income_08,EBITDA,2021-12-31,238833564
+IT0005176406,Enav,income_09,Normalized EBITDA,2021-12-31,265848359
+IT0005186371,Industrie De Nora,balances_01,Current Liabilities,2021-12-31,468877000
+IT0005186371,Industrie De Nora,balances_02,Total Assets,2021-12-31,965529000
+IT0005186371,Industrie De Nora,balances_03,Total Non Current Assets,2021-12-31,446171000
+IT0005186371,Industrie De Nora,balances_04,Investmentin Financial Assets,2021-12-31,5421000
+IT0005186371,Industrie De Nora,balances_05,Other Intangible Assets,2021-12-31,69579000
+IT0005186371,Industrie De Nora,balances_06,Goodwill,2021-12-31,63226000
+IT0005186371,Industrie De Nora,balances_07,Current Assets,2021-12-31,519358000
+IT0005186371,Industrie De Nora,balances_08,Inventory,2021-12-31,233033000
+IT0005186371,Industrie De Nora,balances_09,Accounts Receivable,2021-12-31,139974000
+IT0005186371,Industrie De Nora,balances_10,Cash And Cash Equivalents,2021-12-31,73843000
+IT0005186371,Industrie De Nora,balances_11,Total Capitalization,2021-12-31,450459000
+IT0005186371,Industrie De Nora,income_01,Diluted EPS,2021-12-31,0.330694
+IT0005186371,Industrie De Nora,income_02,Basic EPS,2021-12-31,0.330694
+IT0005186371,Industrie De Nora,income_03,Total Revenue,2021-12-31,615878000
+IT0005186371,Industrie De Nora,income_04,Cost Of Revenue,2021-12-31,371122000
+IT0005186371,Industrie De Nora,income_05,Operating Revenue,2021-12-31,615878000
+IT0005186371,Industrie De Nora,income_06,Net Income,2021-12-31,66696000
+IT0005186371,Industrie De Nora,income_07,EBIT,2021-12-31,98216000
+IT0005186371,Industrie De Nora,income_08,EBITDA,2021-12-31,124450000
+IT0005186371,Industrie De Nora,income_09,Normalized EBITDA,2021-12-31,124186000
+IT0005203622,Dhh,balances_01,Current Liabilities,2021-12-31,10958775
+IT0005203622,Dhh,balances_02,Total Assets,2021-12-31,37237154
+IT0005203622,Dhh,balances_03,Total Non Current Assets,2021-12-31,23892178
+IT0005203622,Dhh,balances_04,Investmentin Financial Assets,2021-12-31,17710
+IT0005203622,Dhh,balances_05,Other Intangible Assets,2021-12-31,4946133
+IT0005203622,Dhh,balances_06,Goodwill,2021-12-31,9666343
+IT0005203622,Dhh,balances_07,Current Assets,2021-12-31,13344977
+IT0005203622,Dhh,balances_08,Inventory,2021-12-31,0
+IT0005203622,Dhh,balances_09,Accounts Receivable,2021-12-31,2537570
+IT0005203622,Dhh,balances_10,Cash And Cash Equivalents,2021-12-31,9259765
+IT0005203622,Dhh,balances_11,Total Capitalization,2021-12-31,19344477
+IT0005203622,Dhh,income_01,Diluted EPS,2021-12-31,0.675
+IT0005203622,Dhh,income_02,Basic EPS,2021-12-31,0.675
+IT0005203622,Dhh,income_03,Total Revenue,2021-12-31,19802048
+IT0005203622,Dhh,income_04,Cost Of Revenue,2021-12-31,8490648
+IT0005203622,Dhh,income_05,Operating Revenue,2021-12-31,19802048
+IT0005203622,Dhh,income_06,Net Income,2021-12-31,3191183
+IT0005203622,Dhh,income_07,EBIT,2021-12-31,3576616
+IT0005203622,Dhh,income_08,EBITDA,2021-12-31,6855989
+IT0005203622,Dhh,income_09,Normalized EBITDA,2021-12-31,7189924
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_01,Current Liabilities,2021-12-31,109706537
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_02,Total Assets,2021-12-31,302810211
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_03,Total Non Current Assets,2021-12-31,131259960
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_05,Other Intangible Assets,2021-12-31,2337675
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_06,Goodwill,2021-12-31,15907954
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_07,Current Assets,2021-12-31,171550251
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_08,Inventory,2021-12-31,35050484
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_09,Accounts Receivable,2021-12-31,29433391
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_10,Cash And Cash Equivalents,2021-12-31,17118957
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,balances_11,Total Capitalization,2021-12-31,185839044
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_01,Diluted EPS,2021-12-31,-0.06
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_02,Basic EPS,2021-12-31,-0.06
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_03,Total Revenue,2021-12-31,194849556
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_04,Cost Of Revenue,2021-12-31,139523367
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_05,Operating Revenue,2021-12-31,194849556
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_06,Net Income,2021-12-31,-1426751
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_07,EBIT,2021-12-31,-3889289
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_08,EBITDA,2021-12-31,9511791
+IT0005215329,Fine Foods & Pharmaceuticals Ntm,income_09,Normalized EBITDA,2021-12-31,20923182
+IT0005218380,Banco Bpm,balances_02,Total Assets,2021-12-31,200489216000
+IT0005218380,Banco Bpm,balances_04,Investmentin Financial Assets,2021-12-31,38113680000
+IT0005218380,Banco Bpm,balances_05,Other Intangible Assets,2021-12-31,1158864000
+IT0005218380,Banco Bpm,balances_06,Goodwill,2021-12-31,54858000
+IT0005218380,Banco Bpm,balances_10,Cash And Cash Equivalents,2021-12-31,39778483000
+IT0005218380,Banco Bpm,balances_11,Total Capitalization,2021-12-31,28536196000
+IT0005218380,Banco Bpm,income_01,Diluted EPS,2021-12-31,0.38
+IT0005218380,Banco Bpm,income_02,Basic EPS,2021-12-31,0.38
+IT0005218380,Banco Bpm,income_03,Total Revenue,2021-12-31,4371885000
+IT0005218380,Banco Bpm,income_05,Operating Revenue,2021-12-31,4371885000
+IT0005218380,Banco Bpm,income_06,Net Income,2021-12-31,569068000
+IT0005221517,Gpi,balances_01,Current Liabilities,2021-12-31,170976000
+IT0005221517,Gpi,balances_02,Total Assets,2021-12-31,428510000
+IT0005221517,Gpi,balances_03,Total Non Current Assets,2021-12-31,175151000
+IT0005221517,Gpi,balances_04,Investmentin Financial Assets,2021-12-31,423000
+IT0005221517,Gpi,balances_05,Other Intangible Assets,2021-12-31,83442000
+IT0005221517,Gpi,balances_06,Goodwill,2021-12-31,51934000
+IT0005221517,Gpi,balances_07,Current Assets,2021-12-31,253360000
+IT0005221517,Gpi,balances_08,Inventory,2021-12-31,7046000
+IT0005221517,Gpi,balances_09,Accounts Receivable,2021-12-31,51238000
+IT0005221517,Gpi,balances_10,Cash And Cash Equivalents,2021-12-31,41371000
+IT0005221517,Gpi,balances_11,Total Capitalization,2021-12-31,223344000
+IT0005221517,Gpi,income_01,Diluted EPS,2021-12-31,0.61
+IT0005221517,Gpi,income_02,Basic EPS,2021-12-31,0.61
+IT0005221517,Gpi,income_03,Total Revenue,2021-12-31,323890000
+IT0005221517,Gpi,income_04,Cost Of Revenue,2021-12-31,92730000
+IT0005221517,Gpi,income_05,Operating Revenue,2021-12-31,323890000
+IT0005221517,Gpi,income_06,Net Income,2021-12-31,11047000
+IT0005221517,Gpi,income_07,EBIT,2021-12-31,23337000
+IT0005221517,Gpi,income_08,EBITDA,2021-12-31,45220000
+IT0005221517,Gpi,income_09,Normalized EBITDA,2021-12-31,47593000
+IT0005239360,Unicredit,balances_02,Total Assets,2021-12-31,917227000000
+IT0005239360,Unicredit,balances_04,Investmentin Financial Assets,2021-12-31,223134000000
+IT0005239360,Unicredit,balances_05,Other Intangible Assets,2021-12-31,2234000000
+IT0005239360,Unicredit,balances_06,Goodwill,2021-12-31,0
+IT0005239360,Unicredit,balances_10,Cash And Cash Equivalents,2021-12-31,162271000000
+IT0005239360,Unicredit,balances_11,Total Capitalization,2021-12-31,186038000000
+IT0005239360,Unicredit,income_01,Diluted EPS,2021-12-31,0.924
+IT0005239360,Unicredit,income_02,Basic EPS,2021-12-31,0.93
+IT0005239360,Unicredit,income_03,Total Revenue,2021-12-31,18674000000
+IT0005239360,Unicredit,income_05,Operating Revenue,2021-12-31,18674000000
+IT0005239360,Unicredit,income_06,Net Income,2021-12-31,2096000000
+IT0005239881,Unieuro,balances_01,Current Liabilities,2021-02-28,848644000
+IT0005239881,Unieuro,balances_02,Total Assets,2021-02-28,1477963000
+IT0005239881,Unieuro,balances_03,Total Non Current Assets,2021-02-28,802161000
+IT0005239881,Unieuro,balances_05,Other Intangible Assets,2021-02-28,32927000
+IT0005239881,Unieuro,balances_06,Goodwill,2021-02-28,195238000
+IT0005239881,Unieuro,balances_07,Current Assets,2021-02-28,675802000
+IT0005239881,Unieuro,balances_08,Inventory,2021-02-28,372053000
+IT0005239881,Unieuro,balances_09,Accounts Receivable,2021-02-28,65314000
+IT0005239881,Unieuro,balances_10,Cash And Cash Equivalents,2021-02-28,219366000
+IT0005239881,Unieuro,balances_11,Total Capitalization,2021-02-28,192363000
+IT0005239881,Unieuro,income_01,Diluted EPS,2021-02-28,2.68
+IT0005239881,Unieuro,income_02,Basic EPS,2021-02-28,2.68
+IT0005239881,Unieuro,income_03,Total Revenue,2021-02-28,2685224000
+IT0005239881,Unieuro,income_04,Cost Of Revenue,2021-02-28,2212387000
+IT0005239881,Unieuro,income_05,Operating Revenue,2021-02-28,2685224000
+IT0005239881,Unieuro,income_06,Net Income,2021-02-28,53550000
+IT0005239881,Unieuro,income_07,EBIT,2021-02-28,60922000
+IT0005239881,Unieuro,income_08,EBITDA,2021-02-28,151117000
+IT0005239881,Unieuro,income_09,Normalized EBITDA,2021-02-28,160241000
+IT0005244402,Bff Bank,balances_02,Total Assets,2021-12-31,11176697328
+IT0005244402,Bff Bank,balances_04,Investmentin Financial Assets,2021-12-31,5912744221
+IT0005244402,Bff Bank,balances_05,Other Intangible Assets,2021-12-31,36673062
+IT0005244402,Bff Bank,balances_06,Goodwill,2021-12-31,30874236
+IT0005244402,Bff Bank,balances_10,Cash And Cash Equivalents,2021-12-31,825027000
+IT0005244402,Bff Bank,balances_11,Total Capitalization,2021-12-31,934221764
+IT0005244402,Bff Bank,income_01,Diluted EPS,2021-12-31,1.01
+IT0005244402,Bff Bank,income_02,Basic EPS,2021-12-31,1.06
+IT0005244402,Bff Bank,income_03,Total Revenue,2021-12-31,301599679
+IT0005244402,Bff Bank,income_05,Operating Revenue,2021-12-31,301599679
+IT0005244402,Bff Bank,income_06,Net Income,2021-12-31,197372423
+IT0005244618,Cellularline,balances_01,Current Liabilities,2021-12-31,37958000
+IT0005244618,Cellularline,balances_02,Total Assets,2021-12-31,281190000
+IT0005244618,Cellularline,balances_03,Total Non Current Assets,2021-12-31,184195000
+IT0005244618,Cellularline,balances_04,Investmentin Financial Assets,2021-12-31,
+IT0005244618,Cellularline,balances_05,Other Intangible Assets,2021-12-31,61355000
+IT0005244618,Cellularline,balances_06,Goodwill,2021-12-31,108773000
+IT0005244618,Cellularline,balances_07,Current Assets,2021-12-31,96995000
+IT0005244618,Cellularline,balances_08,Inventory,2021-12-31,28766000
+IT0005244618,Cellularline,balances_09,Accounts Receivable,2021-12-31,52117000
+IT0005244618,Cellularline,balances_10,Cash And Cash Equivalents,2021-12-31,8138000
+IT0005244618,Cellularline,balances_11,Total Capitalization,2021-12-31,231001000
+IT0005244618,Cellularline,income_01,Diluted EPS,2021-12-31,-0.19
+IT0005244618,Cellularline,income_02,Basic EPS,2021-12-31,-0.19
+IT0005244618,Cellularline,income_03,Total Revenue,2021-12-31,110575000
+IT0005244618,Cellularline,income_04,Cost Of Revenue,2021-12-31,62363000
+IT0005244618,Cellularline,income_05,Operating Revenue,2021-12-31,110575000
+IT0005244618,Cellularline,income_06,Net Income,2021-12-31,-3846000
+IT0005244618,Cellularline,income_07,EBIT,2021-12-31,-5379000
+IT0005244618,Cellularline,income_08,EBITDA,2021-12-31,13609000
+IT0005244618,Cellularline,income_09,Normalized EBITDA,2021-12-31,20783000
+IT0005246191,Comer Industries,balances_01,Current Liabilities,2021-12-31,344624000
+IT0005246191,Comer Industries,balances_02,Total Assets,2021-12-31,1155509000
+IT0005246191,Comer Industries,balances_03,Total Non Current Assets,2021-12-31,621045000
+IT0005246191,Comer Industries,balances_05,Other Intangible Assets,2021-12-31,216379000
+IT0005246191,Comer Industries,balances_06,Goodwill,2021-12-31,155689000
+IT0005246191,Comer Industries,balances_07,Current Assets,2021-12-31,534464000
+IT0005246191,Comer Industries,balances_08,Inventory,2021-12-31,225628000
+IT0005246191,Comer Industries,balances_09,Accounts Receivable,2021-12-31,196155000
+IT0005246191,Comer Industries,balances_10,Cash And Cash Equivalents,2021-12-31,85744000
+IT0005246191,Comer Industries,balances_11,Total Capitalization,2021-12-31,523355000
+IT0005246191,Comer Industries,income_01,Diluted EPS,2021-12-31,1.37
+IT0005246191,Comer Industries,income_02,Basic EPS,2021-12-31,1.37
+IT0005246191,Comer Industries,income_03,Total Revenue,2021-12-31,598110000
+IT0005246191,Comer Industries,income_04,Cost Of Revenue,2021-12-31,379147000
+IT0005246191,Comer Industries,income_05,Operating Revenue,2021-12-31,598110000
+IT0005246191,Comer Industries,income_06,Net Income,2021-12-31,39429000
+IT0005246191,Comer Industries,income_07,EBIT,2021-12-31,56313000
+IT0005246191,Comer Industries,income_08,EBITDA,2021-12-31,77077000
+IT0005246191,Comer Industries,income_09,Normalized EBITDA,2021-12-31,77216000
+IT0005252728,Brembo,balances_01,Current Liabilities,2021-12-31,1056332000
+IT0005252728,Brembo,balances_02,Total Assets,2021-12-31,3683289000
+IT0005252728,Brembo,balances_03,Total Non Current Assets,2021-12-31,2032271000
+IT0005252728,Brembo,balances_04,Investmentin Financial Assets,2021-12-31,1969000
+IT0005252728,Brembo,balances_05,Other Intangible Assets,2021-12-31,189883000
+IT0005252728,Brembo,balances_06,Goodwill,2021-12-31,107436000
+IT0005252728,Brembo,balances_07,Current Assets,2021-12-31,1651018000
+IT0005252728,Brembo,balances_08,Inventory,2021-12-31,482924000
+IT0005252728,Brembo,balances_09,Accounts Receivable,2021-12-31,468222000
+IT0005252728,Brembo,balances_10,Cash And Cash Equivalents,2021-12-31,557463000
+IT0005252728,Brembo,balances_11,Total Capitalization,2021-12-31,2281895000
+IT0005252728,Brembo,income_01,Diluted EPS,2021-12-31,0.67
+IT0005252728,Brembo,income_02,Basic EPS,2021-12-31,0.67
+IT0005252728,Brembo,income_03,Total Revenue,2021-12-31,2777556000
+IT0005252728,Brembo,income_04,Cost Of Revenue,2021-12-31,1287141000
+IT0005252728,Brembo,income_05,Operating Revenue,2021-12-31,2777556000
+IT0005252728,Brembo,income_06,Net Income,2021-12-31,215537000
+IT0005252728,Brembo,income_07,EBIT,2021-12-31,300036000
+IT0005252728,Brembo,income_08,EBITDA,2021-12-31,512670000
+IT0005252728,Brembo,income_09,Normalized EBITDA,2021-12-31,512457000
+IT0005262149,Sit,balances_01,Current Liabilities,2021-12-31,140688000
+IT0005262149,Sit,balances_02,Total Assets,2021-12-31,450036000
+IT0005262149,Sit,balances_03,Total Non Current Assets,2021-12-31,257957000
+IT0005262149,Sit,balances_04,Investmentin Financial Assets,2021-12-31,
+IT0005262149,Sit,balances_05,Other Intangible Assets,2021-12-31,61611000
+IT0005262149,Sit,balances_06,Goodwill,2021-12-31,87946000
+IT0005262149,Sit,balances_07,Current Assets,2021-12-31,192079000
+IT0005262149,Sit,balances_08,Inventory,2021-12-31,70087000
+IT0005262149,Sit,balances_09,Accounts Receivable,2021-12-31,56052000
+IT0005262149,Sit,balances_10,Cash And Cash Equivalents,2021-12-31,46667000
+IT0005262149,Sit,balances_11,Total Capitalization,2021-12-31,267654000
+IT0005262149,Sit,income_01,Diluted EPS,2021-12-31,0.336
+IT0005262149,Sit,income_02,Basic EPS,2021-12-31,0.336
+IT0005262149,Sit,income_03,Total Revenue,2021-12-31,380521000
+IT0005262149,Sit,income_04,Cost Of Revenue,2021-12-31,199399000
+IT0005262149,Sit,income_05,Operating Revenue,2021-12-31,380521000
+IT0005262149,Sit,income_06,Net Income,2021-12-31,8243000
+IT0005262149,Sit,income_07,EBIT,2021-12-31,16569000
+IT0005262149,Sit,income_08,EBITDA,2021-12-31,43454000
+IT0005262149,Sit,income_09,Normalized EBITDA,2021-12-31,53235000
+IT0005274094,Pharmanutra,balances_01,Current Liabilities,2021-12-31,16748000
+IT0005274094,Pharmanutra,balances_02,Total Assets,2021-12-31,71356000
+IT0005274094,Pharmanutra,balances_03,Total Non Current Assets,2021-12-31,15837000
+IT0005274094,Pharmanutra,balances_04,Investmentin Financial Assets,2021-12-31,
+IT0005274094,Pharmanutra,balances_05,Other Intangible Assets,2021-12-31,2750000
+IT0005274094,Pharmanutra,balances_06,Goodwill,2021-12-31,2750000
+IT0005274094,Pharmanutra,balances_07,Current Assets,2021-12-31,55519000
+IT0005274094,Pharmanutra,balances_08,Inventory,2021-12-31,2865000
+IT0005274094,Pharmanutra,balances_09,Accounts Receivable,2021-12-31,14287000
+IT0005274094,Pharmanutra,balances_10,Cash And Cash Equivalents,2021-12-31,29409000
+IT0005274094,Pharmanutra,balances_11,Total Capitalization,2021-12-31,50082000
+IT0005274094,Pharmanutra,income_01,Diluted EPS,2021-12-31,1.42
+IT0005274094,Pharmanutra,income_02,Basic EPS,2021-12-31,1.42
+IT0005274094,Pharmanutra,income_03,Total Revenue,2021-12-31,68836000
+IT0005274094,Pharmanutra,income_04,Cost Of Revenue,2021-12-31,43827000
+IT0005274094,Pharmanutra,income_05,Operating Revenue,2021-12-31,68836000
+IT0005274094,Pharmanutra,income_06,Net Income,2021-12-31,13771000
+IT0005274094,Pharmanutra,income_07,EBIT,2021-12-31,18828000
+IT0005274094,Pharmanutra,income_08,EBITDA,2021-12-31,19835000
+IT0005274094,Pharmanutra,income_09,Normalized EBITDA,2021-12-31,20065000
+IT0005282865,Reply,balances_01,Current Liabilities,2021-12-31,708552000
+IT0005282865,Reply,balances_02,Total Assets,2021-12-31,1857597000
+IT0005282865,Reply,balances_03,Total Non Current Assets,2021-12-31,873006000
+IT0005282865,Reply,balances_04,Investmentin Financial Assets,2021-12-31,328000
+IT0005282865,Reply,balances_05,Other Intangible Assets,2021-12-31,83386000
+IT0005282865,Reply,balances_06,Goodwill,2021-12-31,445345000
+IT0005282865,Reply,balances_07,Current Assets,2021-12-31,984592000
+IT0005282865,Reply,balances_08,Inventory,2021-12-31,86787000
+IT0005282865,Reply,balances_09,Accounts Receivable,2021-12-31,471560000
+IT0005282865,Reply,balances_10,Cash And Cash Equivalents,2021-12-31,329051000
+IT0005282865,Reply,balances_11,Total Capitalization,2021-12-31,836582000
+IT0005282865,Reply,income_01,Diluted EPS,2021-12-31,4.03
+IT0005282865,Reply,income_02,Basic EPS,2021-12-31,4.03
+IT0005282865,Reply,income_03,Total Revenue,2021-12-31,1501434000
+IT0005282865,Reply,income_04,Cost Of Revenue,2021-12-31,1243845000
+IT0005282865,Reply,income_05,Operating Revenue,2021-12-31,1501434000
+IT0005282865,Reply,income_06,Net Income,2021-12-31,150672000
+IT0005282865,Reply,income_07,EBIT,2021-12-31,216646000
+IT0005282865,Reply,income_08,EBITDA,2021-12-31,265037000
+IT0005282865,Reply,income_09,Normalized EBITDA,2021-12-31,257385000
+IT0005283111,Il Sole 24 Ore,balances_01,Current Liabilities,2021-12-31,112937000
+IT0005283111,Il Sole 24 Ore,balances_02,Total Assets,2021-12-31,248112000
+IT0005283111,Il Sole 24 Ore,balances_03,Total Non Current Assets,2021-12-31,131084000
+IT0005283111,Il Sole 24 Ore,balances_04,Investmentin Financial Assets,2021-12-31,731000
+IT0005283111,Il Sole 24 Ore,balances_05,Other Intangible Assets,2021-12-31,31868000
+IT0005283111,Il Sole 24 Ore,balances_06,Goodwill,2021-12-31,20724000
+IT0005283111,Il Sole 24 Ore,balances_07,Current Assets,2021-12-31,117028000
+IT0005283111,Il Sole 24 Ore,balances_08,Inventory,2021-12-31,1659000
+IT0005283111,Il Sole 24 Ore,balances_09,Accounts Receivable,2021-12-31,65835000
+IT0005283111,Il Sole 24 Ore,balances_10,Cash And Cash Equivalents,2021-12-31,35744000
+IT0005283111,Il Sole 24 Ore,balances_11,Total Capitalization,2021-12-31,56486000
+IT0005283111,Il Sole 24 Ore,income_01,Diluted EPS,2021-12-31,-0.32
+IT0005283111,Il Sole 24 Ore,income_02,Basic EPS,2021-12-31,-0.32
+IT0005283111,Il Sole 24 Ore,income_03,Total Revenue,2021-12-31,203546000
+IT0005283111,Il Sole 24 Ore,income_04,Cost Of Revenue,2021-12-31,97544000
+IT0005283111,Il Sole 24 Ore,income_05,Operating Revenue,2021-12-31,203546000
+IT0005283111,Il Sole 24 Ore,income_06,Net Income,2021-12-31,-21029000
+IT0005283111,Il Sole 24 Ore,income_07,EBIT,2021-12-31,-14578000
+IT0005283111,Il Sole 24 Ore,income_08,EBITDA,2021-12-31,3086000
+IT0005283111,Il Sole 24 Ore,income_09,Normalized EBITDA,2021-12-31,13859000
+IT0005312027,Equita Group,balances_01,Current Liabilities,2021-12-31,32324097
+IT0005312027,Equita Group,balances_02,Total Assets,2021-12-31,315623495
+IT0005312027,Equita Group,balances_03,Total Non Current Assets,2021-12-31,84946584
+IT0005312027,Equita Group,balances_04,Investmentin Financial Assets,2021-12-31,49243191
+IT0005312027,Equita Group,balances_05,Other Intangible Assets,2021-12-31,3068193
+IT0005312027,Equita Group,balances_06,Goodwill,2021-12-31,24153008
+IT0005312027,Equita Group,balances_07,Current Assets,2021-12-31,230676909
+IT0005312027,Equita Group,balances_09,Accounts Receivable,2021-12-31,
+IT0005312027,Equita Group,balances_10,Cash And Cash Equivalents,2021-12-31,136126012
+IT0005312027,Equita Group,balances_11,Total Capitalization,2021-12-31,261908352
+IT0005312027,Equita Group,income_01,Diluted EPS,2021-12-31,0.465978
+IT0005312027,Equita Group,income_02,Basic EPS,2021-12-31,0.465978
+IT0005312027,Equita Group,income_03,Total Revenue,2021-12-31,98746208
+IT0005312027,Equita Group,income_04,Cost Of Revenue,2021-12-31,37553556
+IT0005312027,Equita Group,income_05,Operating Revenue,2021-12-31,98746208
+IT0005312027,Equita Group,income_06,Net Income,2021-12-31,21511592
+IT0005312027,Equita Group,income_07,EBIT,2021-12-31,31959621
+IT0005312027,Equita Group,income_08,EBITDA,2021-12-31,31959621
+IT0005312027,Equita Group,income_09,Normalized EBITDA,2021-12-31,33618711
+IT0005314635,Alkemy,balances_01,Current Liabilities,2021-12-31,38665000
+IT0005314635,Alkemy,balances_02,Total Assets,2021-12-31,103818000
+IT0005314635,Alkemy,balances_03,Total Non Current Assets,2021-12-31,53077000
+IT0005314635,Alkemy,balances_04,Investmentin Financial Assets,2021-12-31,5000
+IT0005314635,Alkemy,balances_05,Other Intangible Assets,2021-12-31,863000
+IT0005314635,Alkemy,balances_06,Goodwill,2021-12-31,41249000
+IT0005314635,Alkemy,balances_07,Current Assets,2021-12-31,50741000
+IT0005314635,Alkemy,balances_08,Inventory,2021-12-31,
+IT0005314635,Alkemy,balances_09,Accounts Receivable,2021-12-31,36040000
+IT0005314635,Alkemy,balances_10,Cash And Cash Equivalents,2021-12-31,10458000
+IT0005314635,Alkemy,balances_11,Total Capitalization,2021-12-31,36376000
+IT0005314635,Alkemy,income_01,Diluted EPS,2021-12-31,0.78
+IT0005314635,Alkemy,income_02,Basic EPS,2021-12-31,0.78
+IT0005314635,Alkemy,income_03,Total Revenue,2021-12-31,95035000
+IT0005314635,Alkemy,income_04,Cost Of Revenue,2021-12-31,46825000
+IT0005314635,Alkemy,income_05,Operating Revenue,2021-12-31,95035000
+IT0005314635,Alkemy,income_06,Net Income,2021-12-31,4263000
+IT0005314635,Alkemy,income_07,EBIT,2021-12-31,6390000
+IT0005314635,Alkemy,income_08,EBITDA,2021-12-31,8798000
+IT0005314635,Alkemy,income_09,Normalized EBITDA,2021-12-31,9571000
+IT0005322612,Igd,balances_01,Current Liabilities,2021-12-31,228665000
+IT0005322612,Igd,balances_02,Total Assets,2021-12-31,2405607000
+IT0005322612,Igd,balances_03,Total Non Current Assets,2021-12-31,2186428000
+IT0005322612,Igd,balances_04,Investmentin Financial Assets,2021-12-31,174000
+IT0005322612,Igd,balances_05,Other Intangible Assets,2021-12-31,303000
+IT0005322612,Igd,balances_06,Goodwill,2021-12-31,7585000
+IT0005322612,Igd,balances_07,Current Assets,2021-12-31,219179000
+IT0005322612,Igd,balances_08,Inventory,2021-12-31,37332000
+IT0005322612,Igd,balances_09,Accounts Receivable,2021-12-31,16206000
+IT0005322612,Igd,balances_10,Cash And Cash Equivalents,2021-12-31,158080000
+IT0005322612,Igd,balances_11,Total Capitalization,2021-12-31,2092123000
+IT0005322612,Igd,income_01,Diluted EPS,2021-12-31,0.478
+IT0005322612,Igd,income_02,Basic EPS,2021-12-31,0.478
+IT0005322612,Igd,income_03,Total Revenue,2021-12-31,145535000
+IT0005322612,Igd,income_04,Cost Of Revenue,2021-12-31,24032000
+IT0005322612,Igd,income_05,Operating Revenue,2021-12-31,145535000
+IT0005322612,Igd,income_06,Net Income,2021-12-31,52769000
+IT0005322612,Igd,income_07,EBIT,2021-12-31,84290000
+IT0005322612,Igd,income_08,EBITDA,2021-12-31,84834000
+IT0005322612,Igd,income_09,Normalized EBITDA,2021-12-31,95344000
+IT0005331019,Carel Industries,balances_01,Current Liabilities,2021-12-31,166449000
+IT0005331019,Carel Industries,balances_02,Total Assets,2021-12-31,507796000
+IT0005331019,Carel Industries,balances_03,Total Non Current Assets,2021-12-31,237652000
+IT0005331019,Carel Industries,balances_05,Other Intangible Assets,2021-12-31,67223000
+IT0005331019,Carel Industries,balances_06,Goodwill,2021-12-31,67347000
+IT0005331019,Carel Industries,balances_07,Current Assets,2021-12-31,270144000
+IT0005331019,Carel Industries,balances_08,Inventory,2021-12-31,80580000
+IT0005331019,Carel Industries,balances_09,Accounts Receivable,2021-12-31,74454000
+IT0005331019,Carel Industries,balances_10,Cash And Cash Equivalents,2021-12-31,100625000
+IT0005331019,Carel Industries,balances_11,Total Capitalization,2021-12-31,223665000
+IT0005331019,Carel Industries,income_01,Diluted EPS,2021-12-31,0.475792
+IT0005331019,Carel Industries,income_02,Basic EPS,2021-12-31,0.475792
+IT0005331019,Carel Industries,income_03,Total Revenue,2021-12-31,423068000
+IT0005331019,Carel Industries,income_04,Cost Of Revenue,2021-12-31,239923000
+IT0005331019,Carel Industries,income_05,Operating Revenue,2021-12-31,423068000
+IT0005331019,Carel Industries,income_06,Net Income,2021-12-31,49059000
+IT0005331019,Carel Industries,income_07,EBIT,2021-12-31,63012000
+IT0005331019,Carel Industries,income_08,EBITDA,2021-12-31,83854000
+IT0005331019,Carel Industries,income_09,Normalized EBITDA,2021-12-31,83547000
+IT0005337818,Intred,balances_01,Current Liabilities,2021-12-31,40117600
+IT0005337818,Intred,balances_02,Total Assets,2021-12-31,85597036
+IT0005337818,Intred,balances_03,Total Non Current Assets,2021-12-31,57416545
+IT0005337818,Intred,balances_04,Investmentin Financial Assets,2021-12-31,105000
+IT0005337818,Intred,balances_05,Other Intangible Assets,2021-12-31,13030686
+IT0005337818,Intred,balances_06,Goodwill,2021-12-31,8544178
+IT0005337818,Intred,balances_07,Current Assets,2021-12-31,28180491
+IT0005337818,Intred,balances_08,Inventory,2021-12-31,1188094
+IT0005337818,Intred,balances_09,Accounts Receivable,2021-12-31,7753019
+IT0005337818,Intred,balances_10,Cash And Cash Equivalents,2021-12-31,15328015
+IT0005337818,Intred,balances_11,Total Capitalization,2021-12-31,43917946
+IT0005337818,Intred,income_01,Diluted EPS,2021-12-31,0.543861
+IT0005337818,Intred,income_02,Basic EPS,2021-12-31,0.543861
+IT0005337818,Intred,income_03,Total Revenue,2021-12-31,41241888
+IT0005337818,Intred,income_04,Cost Of Revenue,2021-12-31,6417124
+IT0005337818,Intred,income_05,Operating Revenue,2021-12-31,41241888
+IT0005337818,Intred,income_06,Net Income,2021-12-31,8620469
+IT0005337818,Intred,income_07,EBIT,2021-12-31,12013340
+IT0005337818,Intred,income_08,EBITDA,2021-12-31,17821158
+IT0005337818,Intred,income_09,Normalized EBITDA,2021-12-31,18204198
+IT0005337958,Piovan,balances_01,Current Liabilities,2021-12-31,167851000
+IT0005337958,Piovan,balances_02,Total Assets,2021-12-31,320335000
+IT0005337958,Piovan,balances_03,Total Non Current Assets,2021-12-31,85985000
+IT0005337958,Piovan,balances_05,Other Intangible Assets,2021-12-31,4279000
+IT0005337958,Piovan,balances_06,Goodwill,2021-12-31,21913000
+IT0005337958,Piovan,balances_07,Current Assets,2021-12-31,234351000
+IT0005337958,Piovan,balances_08,Inventory,2021-12-31,44540000
+IT0005337958,Piovan,balances_09,Accounts Receivable,2021-12-31,55390000
+IT0005337958,Piovan,balances_10,Cash And Cash Equivalents,2021-12-31,118505000
+IT0005337958,Piovan,balances_11,Total Capitalization,2021-12-31,138924000
+IT0005337958,Piovan,income_01,Diluted EPS,2021-12-31,0.55
+IT0005337958,Piovan,income_02,Basic EPS,2021-12-31,0.56
+IT0005337958,Piovan,income_03,Total Revenue,2021-12-31,285905000
+IT0005337958,Piovan,income_04,Cost Of Revenue,2021-12-31,175010000
+IT0005337958,Piovan,income_05,Operating Revenue,2021-12-31,285905000
+IT0005337958,Piovan,income_06,Net Income,2021-12-31,28347000
+IT0005337958,Piovan,income_07,EBIT,2021-12-31,35200000
+IT0005337958,Piovan,income_08,EBITDA,2021-12-31,42726000
+IT0005337958,Piovan,income_09,Normalized EBITDA,2021-12-31,41669000
+IT0005338675,Sostravel.Com,balances_01,Current Liabilities,2021-12-31,2521919
+IT0005338675,Sostravel.Com,balances_02,Total Assets,2021-12-31,6006752
+IT0005338675,Sostravel.Com,balances_03,Total Non Current Assets,2021-12-31,1748512
+IT0005338675,Sostravel.Com,balances_04,Investmentin Financial Assets,2021-12-31,71172
+IT0005338675,Sostravel.Com,balances_05,Other Intangible Assets,2021-12-31,804465
+IT0005338675,Sostravel.Com,balances_06,Goodwill,2021-12-31,0
+IT0005338675,Sostravel.Com,balances_07,Current Assets,2021-12-31,4258240
+IT0005338675,Sostravel.Com,balances_08,Inventory,2021-12-31,0
+IT0005338675,Sostravel.Com,balances_09,Accounts Receivable,2021-12-31,12457
+IT0005338675,Sostravel.Com,balances_10,Cash And Cash Equivalents,2021-12-31,3294685
+IT0005338675,Sostravel.Com,balances_11,Total Capitalization,2021-12-31,3349892
+IT0005338675,Sostravel.Com,income_01,Diluted EPS,2021-12-31,-0.192694
+IT0005338675,Sostravel.Com,income_02,Basic EPS,2021-12-31,-0.192694
+IT0005338675,Sostravel.Com,income_03,Total Revenue,2021-12-31,702552
+IT0005338675,Sostravel.Com,income_04,Cost Of Revenue,2021-12-31,1109931
+IT0005338675,Sostravel.Com,income_05,Operating Revenue,2021-12-31,702552
+IT0005338675,Sostravel.Com,income_06,Net Income,2021-12-31,-1383206
+IT0005338675,Sostravel.Com,income_07,EBIT,2021-12-31,-1181871
+IT0005338675,Sostravel.Com,income_08,EBITDA,2021-12-31,-403901
+IT0005338675,Sostravel.Com,income_09,Normalized EBITDA,2021-12-31,-211824
+IT0005339160,Plc,balances_01,Current Liabilities,2021-12-31,37392000
+IT0005339160,Plc,balances_02,Total Assets,2021-12-31,78677000
+IT0005339160,Plc,balances_03,Total Non Current Assets,2021-12-31,23164000
+IT0005339160,Plc,balances_04,Investmentin Financial Assets,2021-12-31,12000
+IT0005339160,Plc,balances_05,Other Intangible Assets,2021-12-31,4340000
+IT0005339160,Plc,balances_06,Goodwill,2021-12-31,8190000
+IT0005339160,Plc,balances_07,Current Assets,2021-12-31,55514000
+IT0005339160,Plc,balances_08,Inventory,2021-12-31,4508000
+IT0005339160,Plc,balances_09,Accounts Receivable,2021-12-31,20264000
+IT0005339160,Plc,balances_10,Cash And Cash Equivalents,2021-12-31,10729000
+IT0005339160,Plc,balances_11,Total Capitalization,2021-12-31,28379000
+IT0005339160,Plc,income_01,Diluted EPS,2021-12-31,0.11
+IT0005339160,Plc,income_02,Basic EPS,2021-12-31,0.11
+IT0005339160,Plc,income_03,Total Revenue,2021-12-31,62323000
+IT0005339160,Plc,income_04,Cost Of Revenue,2021-12-31,42029000
+IT0005339160,Plc,income_05,Operating Revenue,2021-12-31,62323000
+IT0005339160,Plc,income_06,Net Income,2021-12-31,2970000
+IT0005339160,Plc,income_07,EBIT,2021-12-31,7459000
+IT0005339160,Plc,income_08,EBITDA,2021-12-31,10255000
+IT0005339160,Plc,income_09,Normalized EBITDA,2021-12-31,6562000
+IT0005359192,Illimity Bank,balances_02,Total Assets,2021-12-31,4660590000
+IT0005359192,Illimity Bank,balances_04,Investmentin Financial Assets,2021-12-31,628243000
+IT0005359192,Illimity Bank,balances_05,Other Intangible Assets,2021-12-31,48992000
+IT0005359192,Illimity Bank,balances_06,Goodwill,2021-12-31,36257000
+IT0005359192,Illimity Bank,balances_10,Cash And Cash Equivalents,2021-12-31,507779000
+IT0005359192,Illimity Bank,balances_11,Total Capitalization,2021-12-31,1280264000
+IT0005359192,Illimity Bank,income_01,Diluted EPS,2021-12-31,0.87
+IT0005359192,Illimity Bank,income_02,Basic EPS,2021-12-31,0.88
+IT0005359192,Illimity Bank,income_03,Total Revenue,2021-12-31,215370000
+IT0005359192,Illimity Bank,income_05,Operating Revenue,2021-12-31,215370000
+IT0005359192,Illimity Bank,income_06,Net Income,2021-12-31,65591000
+IT0005366601,Antares Vision,balances_01,Current Liabilities,2021-12-31,70566363
+IT0005366601,Antares Vision,balances_02,Total Assets,2021-12-31,507605272
+IT0005366601,Antares Vision,balances_03,Total Non Current Assets,2021-12-31,278428596
+IT0005366601,Antares Vision,balances_04,Investmentin Financial Assets,2021-12-31,394255
+IT0005366601,Antares Vision,balances_05,Other Intangible Assets,2021-12-31,83489468
+IT0005366601,Antares Vision,balances_06,Goodwill,2021-12-31,145859266
+IT0005366601,Antares Vision,balances_07,Current Assets,2021-12-31,229176675
+IT0005366601,Antares Vision,balances_08,Inventory,2021-12-31,37575243
+IT0005366601,Antares Vision,balances_09,Accounts Receivable,2021-12-31,61785590
+IT0005366601,Antares Vision,balances_10,Cash And Cash Equivalents,2021-12-31,78332432
+IT0005366601,Antares Vision,balances_11,Total Capitalization,2021-12-31,392992201
+IT0005366601,Antares Vision,income_01,Diluted EPS,2021-12-31,0.19
+IT0005366601,Antares Vision,income_02,Basic EPS,2021-12-31,0.19
+IT0005366601,Antares Vision,income_03,Total Revenue,2021-12-31,178957767
+IT0005366601,Antares Vision,income_04,Cost Of Revenue,2021-12-31,84527835
+IT0005366601,Antares Vision,income_05,Operating Revenue,2021-12-31,178957767
+IT0005366601,Antares Vision,income_06,Net Income,2021-12-31,12395990
+IT0005366601,Antares Vision,income_07,EBIT,2021-12-31,20493663
+IT0005366601,Antares Vision,income_08,EBITDA,2021-12-31,33359327
+IT0005366601,Antares Vision,income_09,Normalized EBITDA,2021-12-31,35998113
+IT0005378325,Trawell Co,balances_01,Current Liabilities,2021-12-31,8296419
+IT0005378325,Trawell Co,balances_02,Total Assets,2021-12-31,36349206
+IT0005378325,Trawell Co,balances_03,Total Non Current Assets,2021-12-31,23406017
+IT0005378325,Trawell Co,balances_04,Investmentin Financial Assets,2021-12-31,2263131
+IT0005378325,Trawell Co,balances_05,Other Intangible Assets,2021-12-31,927378
+IT0005378325,Trawell Co,balances_06,Goodwill,2021-12-31,16118767
+IT0005378325,Trawell Co,balances_07,Current Assets,2021-12-31,12943189
+IT0005378325,Trawell Co,balances_08,Inventory,2021-12-31,991909
+IT0005378325,Trawell Co,balances_09,Accounts Receivable,2021-12-31,2166327
+IT0005378325,Trawell Co,balances_10,Cash And Cash Equivalents,2021-12-31,5072621
+IT0005378325,Trawell Co,balances_11,Total Capitalization,2021-12-31,21098741
+IT0005378325,Trawell Co,income_01,Diluted EPS,2021-12-31,-0.23
+IT0005378325,Trawell Co,income_02,Basic EPS,2021-12-31,-0.23
+IT0005378325,Trawell Co,income_03,Total Revenue,2021-12-31,20256146
+IT0005378325,Trawell Co,income_04,Cost Of Revenue,2021-12-31,18340724
+IT0005378325,Trawell Co,income_05,Operating Revenue,2021-12-31,20256146
+IT0005378325,Trawell Co,income_06,Net Income,2021-12-31,-627712
+IT0005378325,Trawell Co,income_07,EBIT,2021-12-31,1617143
+IT0005378325,Trawell Co,income_08,EBITDA,2021-12-31,2414286
+IT0005378325,Trawell Co,income_09,Normalized EBITDA,2021-12-31,2414286
+IT0005385213,Newlat Food,balances_01,Current Liabilities,2021-12-31,336643000
+IT0005385213,Newlat Food,balances_02,Total Assets,2021-12-31,834900000
+IT0005385213,Newlat Food,balances_03,Total Non Current Assets,2021-12-31,304326000
+IT0005385213,Newlat Food,balances_04,Investmentin Financial Assets,2021-12-31,1532000
+IT0005385213,Newlat Food,balances_05,Other Intangible Assets,2021-12-31,84125000
+IT0005385213,Newlat Food,balances_06,Goodwill,2021-12-31,13701000
+IT0005385213,Newlat Food,balances_07,Current Assets,2021-12-31,530574000
+IT0005385213,Newlat Food,balances_08,Inventory,2021-12-31,63855000
+IT0005385213,Newlat Food,balances_09,Accounts Receivable,2021-12-31,67184000
+IT0005385213,Newlat Food,balances_10,Cash And Cash Equivalents,2021-12-31,384888000
+IT0005385213,Newlat Food,balances_11,Total Capitalization,2021-12-31,130038000
+IT0005385213,Newlat Food,income_01,Diluted EPS,2021-12-31,0.12
+IT0005385213,Newlat Food,income_02,Basic EPS,2021-12-31,0.12
+IT0005385213,Newlat Food,income_03,Total Revenue,2021-12-31,555864000
+IT0005385213,Newlat Food,income_04,Cost Of Revenue,2021-12-31,440414000
+IT0005385213,Newlat Food,income_05,Operating Revenue,2021-12-31,555864000
+IT0005385213,Newlat Food,income_06,Net Income,2021-12-31,5134000
+IT0005385213,Newlat Food,income_07,EBIT,2021-12-31,16903000
+IT0005385213,Newlat Food,income_08,EBITDA,2021-12-31,47746000
+IT0005385213,Newlat Food,income_09,Normalized EBITDA,2021-12-31,48947000
+IT0005388266,Salcef Group,balances_01,Current Liabilities,2021-12-31,225030031
+IT0005388266,Salcef Group,balances_02,Total Assets,2021-12-31,744374447
+IT0005388266,Salcef Group,balances_03,Total Non Current Assets,2021-12-31,228207471
+IT0005388266,Salcef Group,balances_05,Other Intangible Assets,2021-12-31,7583000
+IT0005388266,Salcef Group,balances_06,Goodwill,2021-12-31,41795326
+IT0005388266,Salcef Group,balances_07,Current Assets,2021-12-31,516166343
+IT0005388266,Salcef Group,balances_08,Inventory,2021-12-31,20664592
+IT0005388266,Salcef Group,balances_09,Accounts Receivable,2021-12-31,89109000
+IT0005388266,Salcef Group,balances_10,Cash And Cash Equivalents,2021-12-31,166175877
+IT0005388266,Salcef Group,balances_11,Total Capitalization,2021-12-31,496757036
+IT0005388266,Salcef Group,income_01,Diluted EPS,2021-12-31,0.68
+IT0005388266,Salcef Group,income_02,Basic EPS,2021-12-31,0.76
+IT0005388266,Salcef Group,income_03,Total Revenue,2021-12-31,434552360
+IT0005388266,Salcef Group,income_04,Cost Of Revenue,2021-12-31,239265462
+IT0005388266,Salcef Group,income_05,Operating Revenue,2021-12-31,434552360
+IT0005388266,Salcef Group,income_06,Net Income,2021-12-31,39070532
+IT0005388266,Salcef Group,income_07,EBIT,2021-12-31,61957022
+IT0005388266,Salcef Group,income_08,EBITDA,2021-12-31,89320126
+IT0005388266,Salcef Group,income_09,Normalized EBITDA,2021-12-31,96638126
+IT0005394413,Doxee,balances_01,Current Liabilities,2021-12-31,12329179
+IT0005394413,Doxee,balances_02,Total Assets,2021-12-31,31167754
+IT0005394413,Doxee,balances_03,Total Non Current Assets,2021-12-31,13008953
+IT0005394413,Doxee,balances_04,Investmentin Financial Assets,2021-12-31,3827
+IT0005394413,Doxee,balances_05,Other Intangible Assets,2021-12-31,7132159
+IT0005394413,Doxee,balances_06,Goodwill,2021-12-31,0
+IT0005394413,Doxee,balances_07,Current Assets,2021-12-31,18158801
+IT0005394413,Doxee,balances_09,Accounts Receivable,2021-12-31,9830359
+IT0005394413,Doxee,balances_10,Cash And Cash Equivalents,2021-12-31,5847799
+IT0005394413,Doxee,balances_11,Total Capitalization,2021-12-31,14802964
+IT0005394413,Doxee,income_01,Diluted EPS,2021-12-31,0.22734
+IT0005394413,Doxee,income_02,Basic EPS,2021-12-31,0.22734
+IT0005394413,Doxee,income_03,Total Revenue,2021-12-31,21480001
+IT0005394413,Doxee,income_04,Cost Of Revenue,2021-12-31,15594864
+IT0005394413,Doxee,income_05,Operating Revenue,2021-12-31,21480001
+IT0005394413,Doxee,income_06,Net Income,2021-12-31,1794570
+IT0005394413,Doxee,income_07,EBIT,2021-12-31,2176717
+IT0005394413,Doxee,income_08,EBITDA,2021-12-31,5723235
+IT0005394413,Doxee,income_09,Normalized EBITDA,2021-12-31,5785031
+IT0005411209,Gvs,balances_01,Current Liabilities,2021-12-31,111586000
+IT0005411209,Gvs,balances_02,Total Assets,2021-12-31,608565000
+IT0005411209,Gvs,balances_03,Total Non Current Assets,2021-12-31,318728000
+IT0005411209,Gvs,balances_04,Investmentin Financial Assets,2021-12-31,15000
+IT0005411209,Gvs,balances_05,Other Intangible Assets,2021-12-31,129365000
+IT0005411209,Gvs,balances_06,Goodwill,2021-12-31,98379000
+IT0005411209,Gvs,balances_07,Current Assets,2021-12-31,289837000
+IT0005411209,Gvs,balances_08,Inventory,2021-12-31,72353000
+IT0005411209,Gvs,balances_09,Accounts Receivable,2021-12-31,52975000
+IT0005411209,Gvs,balances_10,Cash And Cash Equivalents,2021-12-31,136893000
+IT0005411209,Gvs,balances_11,Total Capitalization,2021-12-31,475471000
+IT0005411209,Gvs,income_01,Diluted EPS,2021-12-31,0.386907
+IT0005411209,Gvs,income_02,Basic EPS,2021-12-31,0.386907
+IT0005411209,Gvs,income_03,Total Revenue,2021-12-31,339725000
+IT0005411209,Gvs,income_04,Cost Of Revenue,2021-12-31,132756000
+IT0005411209,Gvs,income_05,Operating Revenue,2021-12-31,339725000
+IT0005411209,Gvs,income_06,Net Income,2021-12-31,67590000
+IT0005411209,Gvs,income_07,EBIT,2021-12-31,92643000
+IT0005411209,Gvs,income_08,EBITDA,2021-12-31,116171000
+IT0005411209,Gvs,income_09,Normalized EBITDA,2021-12-31,114768000
+IT0005433740,Relatech,balances_01,Current Liabilities,2021-12-31,11215571
+IT0005433740,Relatech,balances_02,Total Assets,2021-12-31,47995465
+IT0005433740,Relatech,balances_03,Total Non Current Assets,2021-12-31,23642272
+IT0005433740,Relatech,balances_04,Investmentin Financial Assets,2021-12-31,2092978
+IT0005433740,Relatech,balances_05,Other Intangible Assets,2021-12-31,9376140
+IT0005433740,Relatech,balances_06,Goodwill,2021-12-31,8238084
+IT0005433740,Relatech,balances_07,Current Assets,2021-12-31,24353194
+IT0005433740,Relatech,balances_08,Inventory,2021-12-31,665759
+IT0005433740,Relatech,balances_09,Accounts Receivable,2021-12-31,9141947
+IT0005433740,Relatech,balances_10,Cash And Cash Equivalents,2021-12-31,11012119
+IT0005433740,Relatech,balances_11,Total Capitalization,2021-12-31,23128152
+IT0005433740,Relatech,income_01,Diluted EPS,2021-12-31,0.089988
+IT0005433740,Relatech,income_02,Basic EPS,2021-12-31,0.109985
+IT0005433740,Relatech,income_03,Total Revenue,2021-12-31,28951987
+IT0005433740,Relatech,income_04,Cost Of Revenue,2021-12-31,9514138
+IT0005433740,Relatech,income_05,Operating Revenue,2021-12-31,28951987
+IT0005433740,Relatech,income_06,Net Income,2021-12-31,3647392
+IT0005433740,Relatech,income_07,EBIT,2021-12-31,3249029
+IT0005433740,Relatech,income_08,EBITDA,2021-12-31,6209509
+IT0005433740,Relatech,income_09,Normalized EBITDA,2021-12-31,6209509
+IT0005440893,Wiit,balances_01,Current Liabilities,2021-12-31,43890216
+IT0005440893,Wiit,balances_02,Total Assets,2021-12-31,285563035
+IT0005440893,Wiit,balances_03,Total Non Current Assets,2021-12-31,206532732
+IT0005440893,Wiit,balances_04,Investmentin Financial Assets,2021-12-31,4447
+IT0005440893,Wiit,balances_05,Other Intangible Assets,2021-12-31,52386478
+IT0005440893,Wiit,balances_06,Goodwill,2021-12-31,101862753
+IT0005440893,Wiit,balances_07,Current Assets,2021-12-31,79030303
+IT0005440893,Wiit,balances_08,Inventory,2021-12-31,200656
+IT0005440893,Wiit,balances_09,Accounts Receivable,2021-12-31,14341933
+IT0005440893,Wiit,balances_10,Cash And Cash Equivalents,2021-12-31,37445042
+IT0005440893,Wiit,balances_11,Total Capitalization,2021-12-31,214215524
+IT0005440893,Wiit,income_01,Diluted EPS,2021-12-31,-0.04
+IT0005440893,Wiit,income_02,Basic EPS,2021-12-31,-0.04
+IT0005440893,Wiit,income_03,Total Revenue,2021-12-31,77120002
+IT0005440893,Wiit,income_04,Cost Of Revenue,2021-12-31,51879642
+IT0005440893,Wiit,income_05,Operating Revenue,2021-12-31,77120002
+IT0005440893,Wiit,income_06,Net Income,2021-12-31,-981315
+IT0005440893,Wiit,income_07,EBIT,2021-12-31,4662205
+IT0005440893,Wiit,income_08,EBITDA,2021-12-31,22839554
+IT0005440893,Wiit,income_09,Normalized EBITDA,2021-12-31,22839554
+IT0005455875,Intercos,balances_01,Current Liabilities,2021-12-31,42290866
+IT0005455875,Intercos,balances_02,Total Assets,2021-12-31,473823416
+IT0005455875,Intercos,balances_03,Total Non Current Assets,2021-12-31,319446635
+IT0005455875,Intercos,balances_05,Other Intangible Assets,2021-12-31,34598000
+IT0005455875,Intercos,balances_06,Goodwill,2021-12-31,33653547
+IT0005455875,Intercos,balances_07,Current Assets,2021-12-31,154376781
+IT0005455875,Intercos,balances_08,Inventory,2021-12-31,
+IT0005455875,Intercos,balances_09,Accounts Receivable,2021-12-31,34131327
+IT0005455875,Intercos,balances_10,Cash And Cash Equivalents,2021-12-31,71568559
+IT0005455875,Intercos,balances_11,Total Capitalization,2021-12-31,427893728
+IT0005455875,Intercos,income_01,Diluted EPS,2021-12-31,0.20497
+IT0005455875,Intercos,income_02,Basic EPS,2021-12-31,0.20497
+IT0005455875,Intercos,income_03,Total Revenue,2021-12-31,43197002
+IT0005455875,Intercos,income_04,Cost Of Revenue,2021-12-31,-4841823
+IT0005455875,Intercos,income_05,Operating Revenue,2021-12-31,43197002
+IT0005455875,Intercos,income_06,Net Income,2021-12-31,19624260
+IT0005455875,Intercos,income_07,EBIT,2021-12-31,18665066
+IT0005455875,Intercos,income_08,EBITDA,2021-12-31,27628066
+IT0005455875,Intercos,income_09,Normalized EBITDA,2021-12-31,38615066
+IT0005461329,Defence Tech Holding,balances_01,Current Liabilities,2021-12-31,9941713
+IT0005461329,Defence Tech Holding,balances_02,Total Assets,2021-12-31,50349748
+IT0005461329,Defence Tech Holding,balances_03,Total Non Current Assets,2021-12-31,12556676
+IT0005461329,Defence Tech Holding,balances_04,Investmentin Financial Assets,2021-12-31,13138
+IT0005461329,Defence Tech Holding,balances_05,Other Intangible Assets,2021-12-31,11992895
+IT0005461329,Defence Tech Holding,balances_07,Current Assets,2021-12-31,37793072
+IT0005461329,Defence Tech Holding,balances_08,Inventory,2021-12-31,777530
+IT0005461329,Defence Tech Holding,balances_09,Accounts Receivable,2021-12-31,9882575
+IT0005461329,Defence Tech Holding,balances_10,Cash And Cash Equivalents,2021-12-31,23644246
+IT0005461329,Defence Tech Holding,balances_11,Total Capitalization,2021-12-31,39403904
+IT0005461329,Defence Tech Holding,income_01,Diluted EPS,2021-12-31,0.146463
+IT0005461329,Defence Tech Holding,income_02,Basic EPS,2021-12-31,0.146463
+IT0005461329,Defence Tech Holding,income_03,Total Revenue,2021-12-31,17311492
+IT0005461329,Defence Tech Holding,income_04,Cost Of Revenue,2021-12-31,10357309
+IT0005461329,Defence Tech Holding,income_05,Operating Revenue,2021-12-31,17311492
+IT0005461329,Defence Tech Holding,income_06,Net Income,2021-12-31,3741096
+IT0005461329,Defence Tech Holding,income_07,EBIT,2021-12-31,5271101
+IT0005461329,Defence Tech Holding,income_08,EBITDA,2021-12-31,6281990
+IT0005461329,Defence Tech Holding,income_09,Normalized EBITDA,2021-12-31,6869483
+IT0005466195,Star7,balances_01,Current Liabilities,2021-12-31,30294103
+IT0005466195,Star7,balances_02,Total Assets,2021-12-31,104172850
+IT0005466195,Star7,balances_03,Total Non Current Assets,2021-12-31,47814978
+IT0005466195,Star7,balances_04,Investmentin Financial Assets,2021-12-31,0
+IT0005466195,Star7,balances_05,Other Intangible Assets,2021-12-31,5551833
+IT0005466195,Star7,balances_06,Goodwill,2021-12-31,35533588
+IT0005466195,Star7,balances_07,Current Assets,2021-12-31,56357872
+IT0005466195,Star7,balances_08,Inventory,2021-12-31,1409633
+IT0005466195,Star7,balances_09,Accounts Receivable,2021-12-31,23599347
+IT0005466195,Star7,balances_10,Cash And Cash Equivalents,2021-12-31,23485538
+IT0005466195,Star7,balances_11,Total Capitalization,2021-12-31,67322180
+IT0005466195,Star7,income_01,Diluted EPS,2021-12-31,0.28538
+IT0005466195,Star7,income_02,Basic EPS,2021-12-31,0.28538
+IT0005466195,Star7,income_03,Total Revenue,2021-12-31,58992426
+IT0005466195,Star7,income_04,Cost Of Revenue,2021-12-31,27591725
+IT0005466195,Star7,income_05,Operating Revenue,2021-12-31,58992426
+IT0005466195,Star7,income_06,Net Income,2021-12-31,2183084
+IT0005466195,Star7,income_07,EBIT,2021-12-31,4035413
+IT0005466195,Star7,income_08,EBITDA,2021-12-31,8244682
+IT0005466195,Star7,income_09,Normalized EBITDA,2021-12-31,8259749
+IT0005495657,Saipem,balances_01,Current Liabilities,2021-12-31,6844000000
+IT0005495657,Saipem,balances_02,Total Assets,2021-12-31,11542000000
+IT0005495657,Saipem,balances_03,Total Non Current Assets,2021-12-31,4723000000
+IT0005495657,Saipem,balances_04,Investmentin Financial Assets,2021-12-31,61000000
+IT0005495657,Saipem,balances_05,Other Intangible Assets,2021-12-31,32000000
+IT0005495657,Saipem,balances_06,Goodwill,2021-12-31,667000000
+IT0005495657,Saipem,balances_07,Current Assets,2021-12-31,6819000000
+IT0005495657,Saipem,balances_08,Inventory,2021-12-31,258000000
+IT0005495657,Saipem,balances_09,Accounts Receivable,2021-12-31,1837000000
+IT0005495657,Saipem,balances_10,Cash And Cash Equivalents,2021-12-31,1495000000
+IT0005495657,Saipem,balances_11,Total Capitalization,2021-12-31,2758000000
+IT0005495657,Saipem,income_01,Diluted EPS,2021-12-31,-2.62
+IT0005495657,Saipem,income_02,Basic EPS,2021-12-31,-2.62
+IT0005495657,Saipem,income_03,Total Revenue,2021-12-31,6528000000
+IT0005495657,Saipem,income_04,Cost Of Revenue,2021-12-31,7064000000
+IT0005495657,Saipem,income_05,Operating Revenue,2021-12-31,6528000000
+IT0005495657,Saipem,income_06,Net Income,2021-12-31,-2467000000
+IT0005495657,Saipem,income_07,EBIT,2021-12-31,-2229000000
+IT0005495657,Saipem,income_08,EBITDA,2021-12-31,-1829000000
+IT0005495657,Saipem,income_09,Normalized EBITDA,2021-12-31,-1585000000
+IT0005496473,Tessellis,balances_01,Current Liabilities,2021-12-31,116355000
+IT0005496473,Tessellis,balances_02,Total Assets,2021-12-31,143236000
+IT0005496473,Tessellis,balances_03,Total Non Current Assets,2021-12-31,106769000
+IT0005496473,Tessellis,balances_04,Investmentin Financial Assets,2021-12-31,8000
+IT0005496473,Tessellis,balances_05,Other Intangible Assets,2021-12-31,58822000
+IT0005496473,Tessellis,balances_06,Goodwill,2021-12-31,
+IT0005496473,Tessellis,balances_07,Current Assets,2021-12-31,36556000
+IT0005496473,Tessellis,balances_08,Inventory,2021-12-31,197000
+IT0005496473,Tessellis,balances_09,Accounts Receivable,2021-12-31,8788000
+IT0005496473,Tessellis,balances_10,Cash And Cash Equivalents,2021-12-31,11614000
+IT0005496473,Tessellis,balances_11,Total Capitalization,2021-12-31,-11431000
+IT0005496473,Tessellis,income_01,Diluted EPS,2021-12-31,-0.4
+IT0005496473,Tessellis,income_02,Basic EPS,2021-12-31,-0.4
+IT0005496473,Tessellis,income_03,Total Revenue,2021-12-31,144159000
+IT0005496473,Tessellis,income_04,Cost Of Revenue,2021-12-31,105178000
+IT0005496473,Tessellis,income_05,Operating Revenue,2021-12-31,144159000
+IT0005496473,Tessellis,income_06,Net Income,2021-12-31,-20617000
+IT0005496473,Tessellis,income_07,EBIT,2021-12-31,-16187000
+IT0005496473,Tessellis,income_08,EBITDA,2021-12-31,26856000
+IT0005496473,Tessellis,income_09,Normalized EBITDA,2021-12-31,27462000
+IT0005508921,Banca Monte Paschi Siena,balances_02,Total Assets,2021-12-31,137868562000
+IT0005508921,Banca Monte Paschi Siena,balances_04,Investmentin Financial Assets,2021-12-31,25153141000
+IT0005508921,Banca Monte Paschi Siena,balances_05,Other Intangible Assets,2021-12-31,177329000
+IT0005508921,Banca Monte Paschi Siena,balances_06,Goodwill,2021-12-31,7900000
+IT0005508921,Banca Monte Paschi Siena,balances_10,Cash And Cash Equivalents,2021-12-31,23046584000
+IT0005508921,Banca Monte Paschi Siena,balances_11,Total Capitalization,2021-12-31,18684125000
+IT0005508921,Banca Monte Paschi Siena,income_01,Diluted EPS,2021-12-31,6.540531
+IT0005508921,Banca Monte Paschi Siena,income_02,Basic EPS,2021-12-31,6.540531
+IT0005508921,Banca Monte Paschi Siena,income_03,Total Revenue,2021-12-31,3183800000
+IT0005508921,Banca Monte Paschi Siena,income_05,Operating Revenue,2021-12-31,3183800000
+IT0005508921,Banca Monte Paschi Siena,income_06,Net Income,2021-12-31,309507000
