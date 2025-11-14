@@ -116,7 +116,7 @@ def main():
 
     wait = WebDriverWait(driver, 30)
 
-    login()
+    #login()
 
     ctx.module.init(driver)
     
@@ -188,11 +188,13 @@ def main():
 
     try:
         schedule.every(1).seconds.do(job_1s)
-        schedule.every().day.at("08:30:00").do(job_8_30)
+        schedule.every().day.at("08:55:00").do(job_8_30)
         schedule.every().day.at("18:00:00").do(job_18_00)
 
-        schedule.every().day.at("16:09:00").do(job_8_30)
-        schedule.every().day.at("16:08:00").do(job_18_00)
+        #schedule.every().day.at("08:33:00").do(job_8_30)
+
+        #schedule.every().day.at("16:09:00").do(job_8_30)
+        #schedule.every().day.at("16:08:00").do(job_18_00)
 
         print("Scheduler avviato. Premi Ctrl+C per uscire.")
 
