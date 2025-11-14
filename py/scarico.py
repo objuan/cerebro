@@ -3,34 +3,26 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from database import *
 import sys, traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 #yf.enable_debug_mode()
 yf.set_tz_cache_location("cache")
 
 
-#tickers = get_tickers(conn,"prima")
-tickers = select("SELECT id from ticker where fineco=1")["id"].to_list()
-#tickers = ["ENI.MI"]
+def scarico_history(ticker , period,interval, isHistory):
 
-print("tickers",tickers)
-
-intervals = ["1d","1h","5m","1m"]
-#1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
-periods= ["1y","2mo","1mo","5d"]
-
-for idx, interval in enumerate(intervals):
-    period = periods[idx]
-
-    for ticker in tickers:
-        print("=================================")
-        print(f"⬇️  Downloading {ticker} ({interval} / {period})")
+    
+        logger.info("=================================")
+        logger.info(f"⬇️  Downloading {ticker} ({interval} / {period})")
 
         try:
                 data = yf.download(ticker, period=period, interval=interval, progress=False,auto_adjust=True)
                 
                 if data.empty:
-                    print(f"⚠️  Nessun dato per {ticker}")
-                    continue
+                    logger.warn(f"⚠️  Nessun dato per {ticker}")
+                    return
               
                 data.reset_index(inplace=True)
                 #print(data.columns)
@@ -42,7 +34,7 @@ for idx, interval in enumerate(intervals):
                 elif 'Datetime' in data.columns:
                     data["timestamp"] = data["Datetime"].dt.tz_convert(LOCAL_TZ).dt.strftime("%Y-%m-%d %H:%M:%S")
                 #records = data.assign(id=ticker)[["id", "timestamp", "Open", "High", "Low", "Close", "Volume"]].values.tolist()
-                print(data)
+                #print(data)
 
                 #print(data)
                 # Normalizza colonne e salva
@@ -64,19 +56,46 @@ for idx, interval in enumerate(intervals):
                 conn = get_connection()
                 cur = conn.cursor()    
                 #OR IGNORE 
+                post=""
+                if (isHistory):
+                     post="_history"
                 cur.executemany(f"""
-                    INSERT OR IGNORE  INTO candles_{interval}_history (id, timestamp, open, high, low, close, volume)
+                    INSERT OR IGNORE  INTO candles_{interval}{post} (id, timestamp, open, high, low, close, volume)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, records)
 
                 #print(records)
 
                 conn.commit()
+                rows = cur.rowcount
+
                 conn.close()
 
-                print(f"✅ Salvate {len(records)} righe per {ticker}")
+                logger.info(f"✅ Salvate {rows} righe per {ticker}")
 
         except Exception as e:
-                print(f"❌ Errore con {ticker}: {e}")
-                traceback.print_exc(file=sys.stdout)
+                logger.error(e, exc_info=True)
+                
+if __name__ == "__main__":
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+        
+    #tickers = get_tickers(conn,"prima")
+    tickers = select("SELECT id from ticker where fineco=1")["id"].to_list()
+    #tickers = ["ENI.MI"]
 
+    print("tickers",tickers)
+
+    intervals = ["1d","1h","5m","1m"]
+    #1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+    periods= ["1y","2mo","1mo","5d"]
+        
+    for idx, interval in enumerate(intervals):
+        period = periods[idx]
+
+        for ticker in tickers:
+            scarico_history(ticker,period,interval,True)

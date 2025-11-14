@@ -12,7 +12,8 @@ from utils import *
 
 import logging
 import mplfinance as mpf
-
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # --- LOGGER CONFIG ---
 logging.basicConfig(
@@ -295,9 +296,8 @@ def scan_open_prob(tickers):
     for k in racc.keys():
         list = racc[k]
         gain=0
-        if (len(list) > 0  and len(list)<3):
+        if (len(list) > 0  and len(list)<6):
             
-            print("--")
             ordinati = sorted(list, key=lambda p: p.rank, reverse=True) # desc
             
             for o in ordinati:
@@ -315,6 +315,9 @@ def scan_open_prob(tickers):
 if __name__ == "__main__":
     #tickers = get_tickers(conn,"prima")
     tickers = select("SELECT id from ticker where fineco=1 and market_cap = 'Large Cap' ")["id"].to_list()
+    tickers = select("SELECT id from ticker where fineco=1 and market_cap = 'Mid Cap' ")["id"].to_list()
+    tickers = select("SELECT id from ticker where fineco=1 ")["id"].to_list()
+    #tickers = select("SELECT id from ticker where fineco=1  ")["id"].to_list()
     #tickers = ["BMPS.MI"]
     logger.info(tickers)
     scan_open_prob(tickers)

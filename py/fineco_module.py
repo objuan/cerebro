@@ -18,23 +18,16 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import warnings
 import schedule
-
 import logging
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-# --- LOGGER CONFIG ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
-DB_PATH = "quotes.db"
-UPDATE_TIME = 10 # secs
+from database import *
+from scarico import scarico_history
 
-def get_connection():
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+UPDATE_TIME = 10 # secs
 
 conn = get_connection()
 cur = conn.cursor()
@@ -46,6 +39,9 @@ driver=None
 last_tick_time = None
 last_tick_time_1m = None
 last_tick_time_5m = None
+last_tick_refresh = None
+tick_count=0
+active=False
 
 def init(drv):
     global html
@@ -53,25 +49,74 @@ def init(drv):
     global last_tick_time
     global last_tick_time_1m
     global last_tick_time_5m
+    global last_tick_refresh
 
     driver=drv
+   
+
+   
+
     html = driver.page_source
     last_tick_time = datetime.now()
     last_tick_time_1m= datetime.now()
     last_tick_time_5m= datetime.now()
-    update_data()
-    aggregate("1m")
+    last_tick_refresh= datetime.now()
+
+    #event_8_30()
+
+    #aggregate("1m")
     #aggregate("5m")
 
-def tick():
+def event_8_30():
+    global active
+   
+    table_path='//*[@id="main-app"]/div[2]/div/div/div[5]/div'
+    elem = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.XPATH, table_path))
+    )
+
+    execute("DELETE FROM live_candles_1m")
+    execute("DELETE FROM live_quotes")
+    execute("DELETE FROM candles_1m")
+
+    logger.info("INIT")
+    time.sleep(3)
+    
+    def onFirstTick(ticker):
+        scarico_history(ticker,"1d","1m",False)
+        logger.info(f"FIRST TICKER {ticker}")
+
+    update_data(onFirstTick)
+    active=True
+
+
+def event_18_00():
+    global active
+    active=False
+    pass
+
+def tick_1s():
+    if not active:
+        return
+    
     global last_tick_time
     global last_tick_time_1m
     global last_tick_time_5m
+    global last_tick_refresh
+    global tick_count
+
     delay =  (datetime.now()-last_tick_time).total_seconds()
     #print(datetime.now().second )
     if (delay > UPDATE_TIME):
-       last_tick_time = datetime.now()
-       update_data()
+        last_tick_time = datetime.now()
+        if (tick_count < 3):
+            update_data()
+            tick_count=tick_count+1
+        else:
+            logger.info("REFRESH")
+            driver.refresh()
+            last_tick_refresh = datetime.now()
+            tick_count=0
 
         # check for 1 min to 5 min 
     if (datetime.now().second < 5 and (datetime.now()-last_tick_time_1m).total_seconds() > 30 ):
@@ -84,7 +129,7 @@ def tick():
 
     
 
-def update_data():
+def update_data(tiker_handler=None):
     #print(html)
     try:
             html = driver.page_source
@@ -120,64 +165,77 @@ def update_data():
                         #break
             #print(results)
 
-       
+            postfix= ".MI"
+
             for row in results:
                  if "descrizione" in row and "prezzo" in row:
-                     
-                      save(row,".MI")
+                        if tiker_handler:
+                            tiker_handler(row["simbolo"].strip()+postfix)
+                        save(row,postfix)
 
 
     except Exception as ex:
-        logger.error(ex )
+        logger.error(ex , exc_info=True)
 
 def save(row,postfix):
+
     try:
-        desc = row["descrizione"].replace("EQ","").strip()
-        prezzo = float(row["prezzo"].strip().replace(".","").replace(",","."))
-        volume = row["volume"].strip().replace(".","")
-        if (volume.endswith("M")): volume = volume[:-1]+"000"
-        time = row["data/ora"].strip()
-        if (time!=""):
-            varPerc = row["var %"].strip()
-            symbol = row["simbolo"].strip()+postfix
-            #print(desc,symbol,prezzo,volume,time)
-            readable_utc=  datetime.now().strftime("%Y-%m-%d")+" " +time
-            readable_local = readable_utc
-            cur.execute("""
-                INSERT OR IGNORE  INTO quotes (
-                    id, price, time_utc, time_local, exchange, quote_type, market_hours,
-                    change_percent, day_volume, change, last_size, price_hint
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                symbol,
-                prezzo,
-                readable_utc,
-                readable_local,
-                "MIL",
+        if row["prezzo"]!="-":
+            desc = row["descrizione"].replace("EQ","").strip()
+            prezzo = float(row["prezzo"].strip().replace(".","").replace(",","."))
+            volume = row["volume"].strip().replace(".","")
+            if (volume!="-"):
+                if (volume.endswith("M")): volume = volume[:-1]+"000"
+            else:
+                volume="0"
+            time = row["data/ora"].strip()
+            if (time!="" and  not "/" in time):
+            #time o 12/11/25 o 18:00:00
+                varPerc = row["var %"].strip()
+                symbol = row["simbolo"].strip()+postfix
+                #print(desc,symbol,prezzo,volume,time)
+            
+                readable_utc=  datetime.now().strftime("%Y-%m-%d")+" " +time
+
+                readable_local = readable_utc
+                cur.execute("""
+                    INSERT OR IGNORE  INTO live_quotes (
+                        id, price, time_utc, time_local, exchange, quote_type, market_hours,
+                        change_percent, day_volume, change, last_size, price_hint
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    symbol,
+                    prezzo,
+                    readable_utc,
+                    readable_local,
+                    "MIL",
+                    "",
+                    "0",
+                    varPerc,
+                    int(volume),
+                    "",
                 "",
-                "0",
-                varPerc,
-                int(volume),
-                "",
-            "",
-                "")
-            )
-            conn.commit()
+                    "")
+                )
+                conn.commit()
+                if cur.rowcount>0:
+                    logger.info(f"ADDED ROWS : #{cur.rowcount}")
 
     except Exception as ex:
-        logger.error(ex ) 
+        logger.error(ex, exc_info=True ) 
 
+#############################################
 
 def aggregate(period):
 
     logger.info(f"aggregate {period} ")
     """Aggrega solo i nuovi tick in candele 5 minuti e aggiorna la tabella meta"""
     conn = get_connection()
-    last_agg = get_last_aggregated(conn,period)
+    #last_agg = get_last_aggregated(conn,period)
 
     # Leggi tick recenti (ultimi 3 giorni)
     df = pd.read_sql_query("""
-        SELECT id, price, time_utc, day_volume FROM quotes
+        SELECT id, price, time_utc, day_volume FROM live_quotes
         WHERE time_utc >= datetime('now', '-1 day')
     """, conn, parse_dates=["time_utc"])
 
@@ -193,22 +251,26 @@ def aggregate(period):
     now = datetime.now()
     
     if (period =="1m"):
-        last_ts = now.replace(minute=now.minute - 2, second=59, microsecond=0)
+        m = now.minute - 2
+        if (m <0): m=m+60
+        last_ts = now.replace(minute=m, second=59, microsecond=0)
     if (period =="5m"):
         minute_floor = (now.minute // 5) * 5 -5
-        print(minute_floor)
-        last_ts = now.replace(minute= minute_floor - 1, second=59, microsecond=0)
+        #print(minute_floor)
+        m = minute_floor - 1
+        if (m <0): m=m+60
+        last_ts = now.replace(minute= m, second=59, microsecond=0)
         #last_ts = datetime.now() - timedelta(minutes=10)
 
     for symbol, g in df.groupby("id"):
-        print(f"==> {period} symbol {symbol} last_ts: {last_ts}")
+        #print(f"==> {period} symbol {symbol} last_ts: {last_ts}")
         #last_ts = last_agg.get(symbol)
 
         if last_ts:
             cutoff = pd.to_datetime(last_ts)
             g = g[g.index > cutoff]
 
-        print(g)
+        #print(g)
         if g.empty:
             continue
 
@@ -239,6 +301,18 @@ def aggregate(period):
     # 🔹 Inserisci solo nuove righe
     cur = conn.cursor()
     cur.executemany(f"""
+        INSERT OR IGNORE INTO live_candles_{period}
+        (id, timestamp, open, high, low, close, volume)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, [
+        (row.id, row.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+         row.open, row.high, row.low, row.close, int(row.volume))
+        for row in candles.itertuples()
+    ])
+    conn.commit()
+
+    cur = conn.cursor()
+    cur.executemany(f"""
         INSERT OR IGNORE INTO candles_{period}
         (id, timestamp, open, high, low, close, volume)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -250,11 +324,14 @@ def aggregate(period):
     conn.commit()
 
     # 🔹 Aggiorna meta
-    update_last_aggregated(conn, period,updated_meta)
+    #update_last_aggregated(conn, period,updated_meta)
+    if cur.rowcount>0:
+        logger.info(f"✅ Salvate {cur.rowcount} nuove candele. Stato aggiornato per {len(updated_meta)} simboli.")
+
 
     conn.close()
-    logger.info(f"✅ Salvate {len(candles)} nuove candele. Stato aggiornato per {len(updated_meta)} simboli.")
-
+    
+'''
 def get_last_aggregated(conn,period):
     """Restituisce un dizionario {id: last_timestamp}"""
     cur = conn.cursor()
@@ -272,6 +349,8 @@ def update_last_aggregated(conn, period, updates: dict):
             ON CONFLICT(id) DO UPDATE SET last_aggregated_{period}=excluded.last_aggregated_{period}
         """, (symbol, ts))
     conn.commit()
+'''
+
 
 print("START")
 
