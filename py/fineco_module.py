@@ -34,6 +34,11 @@ cur = conn.cursor()
 
 div_name ='//*[@id="main-app"]/div[2]/div/div/div[5]'
 table_xpath = '//*[@id="main-app"]/div[2]/div/div/div[5]/div/div/div[2]/div/div[1]/div/div/table'
+market_xpath = '//*[@id="main-app"]/div[2]/div/div/div[5]/div/div/div[1]/div[1]'
+table_path='//*[@id="main-app"]/div[2]/div/div/div[5]/div'
+
+market_map = {"FTSEMIB":".MI","Nasdaq 100":""}
+
 html=""
 driver=None
 last_tick_time = None
@@ -42,8 +47,12 @@ last_tick_time_5m = None
 last_tick_refresh = None
 tick_count=0
 active=False
+testMode = False
+postfix=""
 
-def init(drv):
+def init(drv,_testMode):
+    global testMode
+    testMode=_testMode
     global html
     global driver
     global last_tick_time
@@ -53,9 +62,6 @@ def init(drv):
 
     driver=drv
    
-
-   
-
     html = driver.page_source
     last_tick_time = datetime.now()
     last_tick_time_1m= datetime.now()
@@ -68,9 +74,19 @@ def init(drv):
     #aggregate("5m")
 
 def event_8_30():
+    
     global active
-   
-    table_path='//*[@id="main-app"]/div[2]/div/div/div[5]/div'
+    global postfix
+
+    elem = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.XPATH, market_xpath))
+    )
+    logger.info(f"START WITH MARKET: {elem.text}")
+
+    postfix = market_map[elem.text.strip()]
+    
+    logger.info(f"POSTFIX: {postfix}")
+
     elem = WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.XPATH, table_path))
     )
@@ -165,7 +181,7 @@ def update_data(tiker_handler=None):
                         #break
             #print(results)
 
-            postfix= ".MI"
+            #postfix= ".MI"
 
             for row in results:
                  if "descrizione" in row and "prezzo" in row:

@@ -8,6 +8,7 @@ import importlib
 import traceback
 import sys
 import schedule
+import argparse
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -98,6 +99,12 @@ def login():
     btn_elem.click()
 
 def main():
+    parser = argparse.ArgumentParser(description="Fineco live")
+    parser.add_argument("-t", "--test", action="store_true", help="modo test", default=True)
+    args = parser.parse_args()
+    logger.info("Fineco Live")
+    logger.info(f"TEST :{args.test}")
+    
     global module
     global driver
     global ctx
@@ -118,9 +125,9 @@ def main():
 
     #login()
 
-    ctx.module.init(driver)
-    
-    # Timeout attesa per caricamento dinamico - puoi aumentare se la piattaforma è lenta
+    ctx.module.init(driver,args.test)
+
+   # Timeout attesa per caricamento dinamico - puoi aumentare se la piattaforma è lenta
     try:
         # Aspetta che qualcosa di riconoscibile appaia: titolo, div principale, o tabella
         wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
@@ -140,7 +147,11 @@ def main():
                 print(f"[Watcher] Rilevata modifica su {path}, ricarico...")
                 last_mtime = new_mtime
                 ctx.module = load_module()
-                ctx.module.init(driver)
+                ctx.module.init(driver,args.test)
+
+                if (args.test):
+                    ctx.module.event_8_30()
+
             else:
                 ctx.module.tick_1s()
                 
@@ -158,11 +169,13 @@ def main():
 
 
     def job_8_30():
-
-        global ctx
-        logger.info("TASK 8:30")
-        login()
-        ctx.module.event_8_30()
+        try:
+            global ctx
+            logger.info("TASK 8:30")
+            login()
+            ctx.module.event_8_30()
+        except:
+            logger.error("job_8_30", exc_info=True)
 
     def job_18_00():
         global ctx
@@ -197,6 +210,10 @@ def main():
         #schedule.every().day.at("16:08:00").do(job_18_00)
 
         print("Scheduler avviato. Premi Ctrl+C per uscire.")
+
+        if (args.test):
+            job_8_30()
+        
 
         while True:
             schedule.run_pending()

@@ -4,12 +4,31 @@ import matplotlib.pyplot as plt
 from database import *
 import sys, traceback
 import logging
-
+import requests
 logger = logging.getLogger(__name__)
 
 #yf.enable_debug_mode()
 yf.set_tz_cache_location("cache")
 
+def cerca_ticker(query):
+    url = "https://query2.finance.yahoo.com/v1/finance/search"
+    params = {"q": query}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+    r = requests.get(url, params=params, headers=headers, timeout=10)
+    data = r.json()
+
+    risultati = []
+    for item in data.get("quotes", []):
+        risultati.append({
+             "exchange" : item.get("exchange"),
+            "symbol": item.get("symbol"),
+            "shortname": item.get("shortname"),
+            "longname": item.get("longname"),
+            "exchDisp": item.get("exchDisp")
+        })
+    return risultati
 
 def scarico_history(ticker , period,interval, isHistory):
 
@@ -84,15 +103,25 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
     )
         
+    #search 
+    for r in cerca_ticker("apple"):
+        print(r)
+    #exit()
+
     #tickers = get_tickers(conn,"prima")
-    tickers = select("SELECT id from ticker where fineco=1")["id"].to_list()
+    #tickers = select("SELECT id from ticker where fineco=1")["id"].to_list()
+    tickers = select("SELECT distinct id from live_quotes ")["id"].to_list()
     #tickers = ["ENI.MI"]
+    #tickers = ["AAPL"]
+    
 
     print("tickers",tickers)
 
-    intervals = ["1d","1h","5m","1m"]
+    #intervals = ["1d","1h","5m","1m"]
+    intervals = ["5m"]
     #1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
-    periods= ["1y","2mo","1mo","5d"]
+    #periods= ["1y","2mo","1mo","5d"]
+    periods= ["30d"]
         
     for idx, interval in enumerate(intervals):
         period = periods[idx]

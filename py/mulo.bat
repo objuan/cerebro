@@ -1,2 +1,3 @@
+cd C:\Lavoro\cerebro\py
 ./.venv/Scripts/activate.bat
-python live.py
+python fineco.py

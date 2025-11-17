@@ -58,6 +58,7 @@ class OrderType(Enum):
 
 
 class Order:
+    id :str
     candle:Candle
     type : OrderType
     take_profit : float
@@ -65,12 +66,16 @@ class Order:
     end_candle : Candle
     rank : float
 
-    def __init__(self):
+    def __init__(self,id):
         self.end_candle=None
         self.rank=0
+        self.id=id
 
     def profit(self):
-        return self.end_candle.close - self.candle.close
+        if (self.end_candle):
+            return self.end_candle.close - self.candle.close
+        else:
+            return 0
 
     def profit_perc(self):
         #logger.debug(f"{ self.candle.close} -> {self.end_candle.close} ")
@@ -78,7 +83,7 @@ class Order:
     
     def close(self,actual_candle:Candle, msg):
         self.end_candle=actual_candle
-        logger.debug(f"{msg} {self} {self.profit_perc()}")
+        logger.debug(f"{msg} buy:{self.candle.date.strftime('%H:%M:%S')}({self.candle.close}) sell:{self.end_candle.date.strftime('%H:%M:%S')}({self.end_candle.close}) {self.profit_perc()}")
 
     def __str__(self):
         return f"{self.candle.date}  {self.candle.close} DO {self.type} tp:{self.take_profit} sl:{self.stop_loss} "

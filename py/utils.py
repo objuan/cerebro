@@ -21,6 +21,16 @@ def get_history_data( ticker, interval, dt_from,dt_to=None):
 
     return select(f"SELECT * FROM candles_{interval}_history where id='{ticker}' and  timestamp>= '{dt_from}' and timestamp<='{dt_to}' order by timestamp ASC")
 
+def get_live_5m_data( ticker,  dt_from,dt_to=None):
+    dt_from =  dt_from.strftime('%Y-%m-%d %H:%M:%S')
+    if dt_to:
+        dt_to =  dt_to.strftime('%Y-%m-%d %H:%M:%S')
+    else:
+        dt_to = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    return select(f"SELECT id,timestamp_5m as timestamp ,low,high,open,close,volume  FROM candles_5m where id='{ticker}' and  timestamp_5m>= '{dt_from}' and timestamp_5m<='{dt_to}' order by timestamp_5m ASC")
+
+
 #########
 
 def get_last_day( ticker):

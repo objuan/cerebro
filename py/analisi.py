@@ -16,21 +16,17 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # --- LOGGER CONFIG ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+
 logger = logging.getLogger(__name__)
 
 
-NUM_DAYS = 30
 ORB_MINUTES = 0
 candela = "5m"
 
 STOP_LOSS_PERC = 0.5
 MAX_MINUTES = 60 * 10
 
+###############################
 
 ###############################
 
@@ -99,7 +95,7 @@ class GIU_Strategy(Strategy) :
         self.last_day=None
 
     def onStartDay(self,candle:Candle):
-        logger.debug(f"=== onStartDay {candle.date} ===")
+        #logger.debug(f"=== onStartDay {candle.date} ===")
         #if (self.last_day):
         #   print("last",self.last_day.date)
 
@@ -133,7 +129,7 @@ class GIU_Strategy(Strategy) :
                 #take_profit_up = self.last_day.close + perc(self.last_day.close, 2*STOP_LOSS_PERC)
                 #take_profit_up_up = self.last_day.close + perc(self.last_day.close, 4*STOP_LOSS_PERC)
                 
-                logger.debug(f"EVAL val:{candle.close  }   ld:{self.last_day.close } sl:{stop_loss}  tp:{take_profit} ")
+                #logger.debug(f"EVAL val:{candle.close  }   ld:{self.last_day.close } sl:{stop_loss}  tp:{take_profit} ")
                 
                 if  not self.order:
                     ## GIU e SU
@@ -141,7 +137,7 @@ class GIU_Strategy(Strategy) :
                         if (up_take_profit < self.last_day.close ):
                             logger.debug(f"EVAL val:{candle.close  }   ld:{self.last_day.close } sl:{stop_loss}  tp:{take_profit} ")
                             #logger.debug(f"! {candle.close } < {self.last_day.close}")
-                            self.order = Order()
+                            self.order = Order( self.ctx.ticker )
                             self.order.candle=candle
                             self.order.type = OrderType.LONG
                             self.order.stop_loss = candle.close - perc(candle.close, STOP_LOSS_PERC)
@@ -206,7 +202,9 @@ def compute_continue(ctx:BacktestContext ):
         except Exception as e:
             logger.error("ERROR ", exc_info=True)
 
-def scan_open_prob(tickers):
+###################
+
+def scan_open_prob(tickers, first_day, last_day , useHistory, maxDayOrders=6):
 
     total = pd.DataFrame(columns=["ticker","profit","count"])
     ctx_list = []
@@ -218,16 +216,19 @@ def scan_open_prob(tickers):
 
         logger.info(f"ticker {ticker} market {market}")
 
-        dat = yf.Ticker(ticker)
+        #dat = yf.Ticker(ticker)
 
-        interval = open_close(market)
+        #interval = open_close(market)
         #logger.info("ORARIO", interval[0], interval[1])
 
+        '''
         last_day = get_last_day(ticker); 
         last_day =(last_day - timedelta(days=1))
         first_day =(last_day - timedelta(days=NUM_DAYS))
+        '''
         logger.info(f"SCAN FROM {first_day} to {last_day}")
 
+        '''
         if (min_date):
             min_date = min ( min_date , first_day)
         else:
@@ -236,13 +237,19 @@ def scan_open_prob(tickers):
             max_date = max ( max_date , last_day)
         else:
             max_date =last_day
+        '''
 
         ctx = BacktestContext()
         ctx_list.append(ctx)
         ctx.ticker = ticker
-        ctx.data = get_history_data(ticker, candela,first_day,last_day )
+        if useHistory:
+            ctx.data = get_history_data(ticker, candela,first_day,last_day )
+        else:
+            ctx.data = get_live_5m_data(ticker, first_day,last_day )
+
         ctx.data ["Signal"] = np.nan
        
+        logger.info(f"LOAD DATA #{len(ctx.data)}")
         #print(ctx.data)
         #exit()
         compute_continue(ctx)
@@ -275,12 +282,12 @@ def scan_open_prob(tickers):
             new_row = {"ticker":ticker,"profit" :ctx.result['profit'].sum(),"count" : len(ctx.result)}
             total = pd.concat([ total, pd.DataFrame([new_row])], ignore_index=True)
         #exit(0)
-    logger.info("===================")
+    logger.info("======== TOTALE ===========")
     logger.info(total)
     logger.info(f"sum :{total['profit'].sum()}")
 
     # analisi a priorita
-    logger.info("====== PRIORITA=============")
+    logger.info("====== PRIORITA =============")
     racc = {}
     #logger.info(f"range {min_date} {max_date}")
     for ctx in ctx_list:
@@ -291,12 +298,14 @@ def scan_open_prob(tickers):
             racc[dt ].append(order)
             #print(dt)
 
+    #logger.info(f"{racc}")
+
     count=0
     total_gain=0
     for k in racc.keys():
         list = racc[k]
         gain=0
-        if (len(list) > 0  and len(list)<6):
+        if (len(list) > 0  and len(list)<maxDayOrders):
             
             ordinati = sorted(list, key=lambda p: p.rank, reverse=True) # desc
             
@@ -306,20 +315,38 @@ def scan_open_prob(tickers):
 
             total_gain=total_gain+gain
             count=count+len(list)
-            print(k,len(list),gain)
+            logger.info(f"{k} #{len(list)} gain:{gain}")
 
     logger.info(f"count {count} profit :{total_gain}")
     #plot(ctx)
+    return racc
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     #tickers = get_tickers(conn,"prima")
     tickers = select("SELECT id from ticker where fineco=1 and market_cap = 'Large Cap' ")["id"].to_list()
     tickers = select("SELECT id from ticker where fineco=1 and market_cap = 'Mid Cap' ")["id"].to_list()
     tickers = select("SELECT id from ticker where fineco=1 ")["id"].to_list()
     #tickers = select("SELECT id from ticker where fineco=1  ")["id"].to_list()
-    #tickers = ["BMPS.MI"]
-    logger.info(tickers)
-    scan_open_prob(tickers)
+    tickers = select("SELECT distinct id from live_quotes ")["id"].to_list()
+
+    NUM_DAYS = 30
+
+    #last_day = get_last_day(ticker); 
+    last_day = datetime.now()
+    #last_day =(last_day - timedelta(days=1))
+    first_day =(last_day - timedelta(days=NUM_DAYS))
+    logger.info(f"SCAN FROM {first_day} to {last_day}")
+
+    #tickers = ["BMED.MI"]
+    logger.info(f"USER {tickers}")
+
+    scan_open_prob(tickers,first_day,last_day,True,maxDayOrders=4)
 
     
