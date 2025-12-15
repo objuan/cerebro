@@ -66,8 +66,9 @@ class Order:
     end_candle : Candle
     rank : float
 
-    def __init__(self,id):
+    def __init__(self,id, fakeOrder):
         self.end_candle=None
+        self.fakeOrder=fakeOrder
         self.rank=0
         self.id=id
 
@@ -86,4 +87,4 @@ class Order:
         logger.debug(f"{msg} buy:{self.candle.date.strftime('%H:%M:%S')}({self.candle.close}) sell:{self.end_candle.date.strftime('%H:%M:%S')}({self.end_candle.close}) {self.profit_perc()}")
 
     def __str__(self):
-        return f"{self.candle.date}  {self.candle.close} DO {self.type} tp:{self.take_profit} sl:{self.stop_loss} "
+        return f"{self.candle.date}  {self.candle.close} DO {self.type} tp:{self.take_profit} sl:{self.stop_loss} [{'FAKE' if self.fakeOrder else ''}] "

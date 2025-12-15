@@ -1,0 +1,20 @@
+ssh-keygen -t ed25519 -C "cerebro"
+
+ssh-keygen -t rsa -b 2048 -C "cerebro"
+
+ssh-keygen -f public_key.pub -e -m PEM > public_key.pem
+
+#######
+
+da git bash
+
+Public Signing Key
+
+
+openssl genrsa -out private_signature.pem 2048
+openssl rsa -in private_signature.pem -outform PEM -pubout -out public_signature.pem
+
+Public Encryption Key
+
+openssl genrsa -out private_encryption.pem 2048
+openssl rsa -in private_encryption.pem -outform PEM -pubout -out public_encryption.pem

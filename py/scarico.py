@@ -121,7 +121,7 @@ if __name__ == "__main__":
     intervals = ["5m"]
     #1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
     #periods= ["1y","2mo","1mo","5d"]
-    periods= ["30d"]
+    periods= ["60d"]
         
     for idx, interval in enumerate(intervals):
         period = periods[idx]

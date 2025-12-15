@@ -16,6 +16,7 @@ class BacktestContext:
     result:any
     prob:any
     data:any
+    orders: list[Order]
     
     def __init__(self):
         self.orders=[]
@@ -24,6 +25,24 @@ class BacktestContext:
         self.tag=None
         self.result = pd.DataFrame(columns=["day","profit","buy","sell"])
       
+    def get_orders(self, keepFake=False):
+        list=[]
+        for o in self.orders:
+            if not o.fakeOrder or (keepFake and o.fakeOrder ):
+                list.append(o)
+        return list
+    
+    def total_profit_perc(self,startDate, back_days = 1, keepFake=False):
+        gain=0
+        #logger.debug(f"totalGain {startDate.date()}")
+        for o in self.orders:
+            if not o.fakeOrder or (keepFake and o.fakeOrder ):
+                diff_giorni   = int((startDate.date()-o.candle.date.date()  ).days )
+                #logger.debug(f"diff_giorni {diff_giorni}")
+                if (diff_giorni >0 and diff_giorni  <= back_days ):
+                    logger.debug(f"take {o.candle.date.date()} {startDate.date()} {diff_giorni}")
+                    gain+= o.profit_perc()
+        return gain
 
     def addOrder(self,order:Order,tag):
         self.orders.append(order)
