@@ -18,3 +18,8 @@ Public Encryption Key
 
 openssl genrsa -out private_encryption.pem 2048
 openssl rsa -in private_encryption.pem -outform PEM -pubout -out public_encryption.pem
+
+
+openssl dhparam -outform PEM 2048 -out dhparam.pem -text
+
+openssl dhparam -in dhparam.pem -text

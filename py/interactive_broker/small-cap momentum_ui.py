@@ -26,6 +26,8 @@ SCANNER IN ESECUZIONE
 - startegy, running up alert -> avviso quando cerca di raggiunge il massimo  della giornata
 
 
+SCANNER DI ARRESTO
+
 '''
 
 import streamlit as st

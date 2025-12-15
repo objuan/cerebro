@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Crypto Dashboard</title>
+
+  <!-- GridStack -->
+  <link href="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack-all.js"></script>
+
+  <!-- DataTables -->
+  <link href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" rel="stylesheet"/>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <!-- PLOT -->
+
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+
+
+  <style>
+     .header {
+      height: 40px;
+      background: #253248;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      border-bottom: 1px solid #334158;
+    }
+
+    .header-title {
+      font-weight: bold;
+      margin-right: 16px;
+    }
+
+    .header-status {
+      font-size: 13px;
+      color: #9fb3c8;
+    }
+    body { background:#111; color:#eee; font-family:Arial }
+    .grid-stack { background: #FAFAD2; }
+    .grid-stack-item-content {
+      background:#1e1e1e;
+      border-radius:8px;
+      padding:8px;
+      /*overflow:auto;*/
+    }
+    button { margin:5px }
+    .no-drag {
+         pointer-events: auto;
+    }
+    .no-drag * {
+    cursor: default;
+    }
+    .chart-container {
+         width: 100%;
+        height: calc(100% - 170px); /* spazio per titolo */
+        min-height: 200px;   /* 🔴 IMPORTANTISSIMO */
+    }
+  </style>
+</head>
+
+<body>
+
+ <!-- 🔷 Barra titolo -->
+<div class="header">
+    <div class="header-title">📈 Crypto Live</div>
+    <div class="header-status">
+      Ultimo aggiornamento:
+      <span id="heartbeatLabel">—</span>
+    </div>
+</div>
+
+<button onclick="addTopVolume()">➕ Top Volume</button>
+<button onclick="addOHLC()">➕ OHLC Table</button>
+<button onclick="addCandleChart()">➕ Candlestick</button>
+<button onclick="addCandleWidget('BTC/USDC','1m')">➕ BTC 1m</button>
+
+<div class="grid-stack"></div>
+
+
+<!-------------------------------------------->
+<script>
+
+const heartbeatLabel = document.getElementById("heartbeatLabel");
+chart_list=[];
+chart_map=[];
+
+// ===========  EVENTS =============
+
+const ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+
+  if (msg.type === "candle") {
+    //console.log("🕯️ nuova candle", msg.data);
+    const pair = msg.pair;
+    const chartObj = chart_map[pair];
+
+    if (!chartObj) {
+        //console.warn("Grafico non trovato per", pair);
+        return;
+    }
+    const c = msg.data;
+    //console.log("update" ,c)
+    chartObj.candles.update({
+        //time: Math.floor(c.timestamp / 1000), // ⚠️ seconds
+        time: Math.floor(new Date(c.t).getTime() / 1000),
+        open: c.o,
+        high: c.h,
+        low: c.l,
+        close: c.c,
+        volume:c.v,
+    });
+    chartObj.volume.update({
+        time: Math.floor(new Date(c.t).getTime() / 1000),
+        value: c.bv,
+        color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
+    });
+  }
+  else if (msg.type === "heartbeat") {
+        const d = new Date(msg.ts);
+        heartbeatLabel.textContent = d.toLocaleString();
+  }
+};
+
+// =============== GRID SETUP ==============================
+
+const grid = GridStack.init({ 
+    draggable: { handle: "h3" },
+    resizable: { handles: "e, se, s" },
+    float:true 
+});
+
+function saveLayout() {
+  const layout = grid.save(false); // false = senza DOM
+  localStorage.setItem("grid-layout", JSON.stringify(layout));
+}
+
+grid.on("change", saveLayout);
+
+grid.on("resizestop", (e, el) => {
+  const container = el.querySelector(".chart-container");
+  if (!container) return;
+
+  const chartObj = chart_list[container.id];
+  if (!chartObj) return;
+
+  console.log(chartObj);
+
+  for(i=0;i<chartObj.charts.length;i++)
+    {
+        if (i==0)
+            chartObj.charts[0].resize(
+                container.clientWidth,
+                container.clientHeight
+            );
+            else
+             chartObj.charts[i].resize(
+                container.clientWidth,
+                100
+            );
+    }
+});
+
+// =============== CHART ===============
+
+
+function createChart(id_chart,id_chart_vol, pair, timeframe) {
+    const container = document.getElementById(id_chart);
+    console.log("container",container)
+    const chart = LightweightCharts.createChart(container, {
+        layout: {
+            background: { color: '#253248' },
+            textColor: 'rgba(255, 255, 255, 0.9)',
+        },
+        grid: {
+            vertLines: { color: '#334158' },
+            horzLines: { color: '#334158' },
+        },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+            // Vertical crosshair line (showing Date in Label)
+            vertLine: {
+                width: 1,
+                color: '#C3BCDB44',
+                style: LightweightCharts.LineStyle.Solid,
+                labelBackgroundColor: '#9B7DFF',
+            },
+
+            // Horizontal crosshair line (showing Price in Label)
+            horzLine: {
+                height: 1,
+                color: '#9B7DFF',
+                labelBackgroundColor: '#9B7DFF',
+            },
+        },
+        priceScale: { borderColor: '#485c7b' },
+        timeScale: { borderColor: '#485c7b' },
+        timeScale: {
+            timeVisible: true,
+            secondsVisible: false,
+            borderColor: '#485c7b',
+        },
+    });
+
+ 
+    const candles = chart.addSeries(
+        LightweightCharts.CandlestickSeries,
+        {
+            upColor: '#4bffb5',
+            downColor: '#ff4976',
+            borderUpColor: '#4bffb5',
+            borderDownColor: '#ff4976',
+            wickUpColor: '#838ca1',
+            wickDownColor: '#838ca1',
+        }
+    );
+
+    
+    const chart2 = LightweightCharts.createChart(
+        document.getElementById(id_chart),
+        {
+            height: 100,
+            layout: {
+                background: {
+                    type: 'solid',
+                    color: '#F5F5FF',
+                },
+            },
+         timeScale: {
+            timeVisible: true,
+            secondsVisible: false,
+            borderColor: '#485c7b',
+        },
+        }
+    );
+
+    const volumeSeries = chart2.addSeries(
+        LightweightCharts.HistogramSeries,
+        {
+            priceFormat: {
+                type: 'volume',
+            },
+            priceScaleId: '', // 👈 scale separata sotto
+            scaleMargins: {
+            top: 0.7,
+            bottom: 0,
+            },
+        }
+        );
+
+    // SYNC
+
+    chart.timeScale().subscribeVisibleLogicalRangeChange(timeRange => {
+        chart2.timeScale().setVisibleLogicalRange(timeRange);
+    });
+
+    chart2.timeScale().subscribeVisibleLogicalRangeChange(timeRange => {
+        chart.timeScale().setVisibleLogicalRange(timeRange);
+    });
+
+    
+    function getCrosshairDataPoint(series, param) {
+        if (!param.time) {
+            return null;
+        }
+        const dataPoint = param.seriesData.get(series);
+        return dataPoint || null;
+    }
+
+    function syncCrosshair(chart, series, dataPoint) {
+        if (dataPoint) {
+            chart.setCrosshairPosition(dataPoint.value, dataPoint.time, series);
+            return;
+        }
+        chart.clearCrosshairPosition();
+    }
+    chart.subscribeCrosshairMove(param => {
+        const dataPoint = getCrosshairDataPoint(candles, param);
+        syncCrosshair(chart2, volumeSeries, dataPoint);
+    });
+    chart2.subscribeCrosshairMove(param => {
+        const dataPoint = getCrosshairDataPoint(volumeSeries, param);
+        syncCrosshair(chart, candles, dataPoint);
+    });
+
+    // final
+
+    chart_list[id_chart] = { charts:[chart,chart2], candles ,volume: volumeSeries };
+    chart_map[pair] = chart_list[id_chart] 
+    //console.log(pair)
+    /*
+    candles.setData([
+    { time: 1714500000, open: 100, high: 110, low: 90, close: 105 },
+    { time: 1714500600, open: 105, high: 115, low: 100, close: 110 },
+    ]);
+    */
+
+  fetch(`/api/ohlc_chart?pair=${pair}&timeframe=${timeframe}`)
+    .then(r => r.json())
+    .then(data => {
+        //console.log(data)
+      
+        candles.setData(
+            data.map(d => ({
+            time: Math.floor(new Date(d.t).getTime() / 1000),
+            open: d.o,
+            high: d.h,
+            low: d.l,
+            close: d.c
+            }))
+        );
+        volumeSeries.setData(
+            data.map(d => ({
+                time: Math.floor(new Date(d.t).getTime() / 1000),
+                value: d.bv,
+                color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
+            }))
+        );
+    });
+    
+}
+
+
+// ============== WIDGETS ===========================
+
+function addWidget(title, contentHtml) {
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div class="grid-stack-item">
+      <div class="grid-stack-item-content">
+        <h3 class="drag-handle">${title}</h3>
+        <div class="no-drag">
+            ${contentHtml}
+        </div>
+      </div>
+    </div>`;
+  grid.addWidget(el, { w:4, h:4 });
+}
+
+function addTopVolume() {
+  const id = "table_" + Date.now();
+  addWidget("Top Volume", `<table id="${id}" class="display"></table>`);
+
+  fetch('/api/top_volume')
+    .then(r => r.json())
+    .then(data => {
+      $(`#${id}`).DataTable({
+        data,
+        columns: [
+          { title:"Pair", data:"pair" },
+          { title:"Volume", data:"volume" }
+        ]
+      });
+    });
+}
+
+function addOHLC() {
+  const pair = prompt("Pair (BTC/USDC):", "BTC/USDC");
+  const tf = prompt("Timeframe:", "5m");
+  const id = "ohlc_" + Date.now();
+
+  addWidget(`OHLC ${pair} ${tf}`, `<table id="${id}" class="display"></table>`);
+
+  fetch(`/api/ohlc?pair=${pair}&timeframe=${tf}`)
+    .then(r => r.json())
+    .then(data => {
+      $(`#${id}`).DataTable({
+        data,
+        columns: [
+          { title:"Time", data:"datetime" },
+          { title:"Open", data:"open" },
+          { title:"High", data:"high" },
+          { title:"Low", data:"low" },
+          { title:"Close", data:"close" },
+          { title:"Volume", data:"quote_volume" }
+        ]
+      });
+    });
+}
+
+
+function addCandleWidget(pair,timeframe) {
+
+  const id_chart = "chart_" + Date.now();
+  const id_chart_vol = "chart_vol_" + Date.now();
+
+  const el = document.createElement("div");
+  el.classList.add("grid-stack-item");
+
+  el.innerHTML = `
+    <div class="grid-stack-item-content">
+      <h3 class="drag-handle">📈 ${pair} ${timeframe}</h3>
+      <div class="chart-container" id="${id_chart}"></div>
+      <div class="chart-volume" id="${id_chart_vol}"></div>
+    </div>
+  `;
+
+  grid.addWidget(el, { w: 6, h: 5 });
+
+  //createChart(id, pair, timeframe);
+  setTimeout(() => {
+    createChart(id_chart,id_chart_vol, pair, timeframe);
+    }, 0);
+}
+
+</script>
+
+</body>
+</html>
