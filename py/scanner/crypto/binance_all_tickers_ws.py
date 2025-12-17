@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS ohlc_live (
     close REAL,
     base_volume REAL,
     quote_volume REAL,
+    base_volume_24h REAL,
+    quote_volume_24h REAL,
     updated_at INTEGER, -- epoch ms
     ds_updated_at TEXT, -- epoch ms
     PRIMARY KEY(exchange, pair, timeframe, timestamp)
@@ -83,7 +85,7 @@ def normalize_symbol(pair):
     else:
         return pair
 
-def update_ohlc(pair, price, d_base, d_quote, ts_ms):
+def update_ohlc(pair, price, d_base, d_quote,d_base_24, d_quote_24, ts_ms):
     for tf, sec in TIMEFRAMES.items():
         t = floor_ts(ts_ms, sec)
         key = (pair, tf, t)
@@ -96,7 +98,9 @@ def update_ohlc(pair, price, d_base, d_quote, ts_ms):
                 "low": price,
                 "close": price,
                 "base_vol": d_base,
-                "quote_vol": d_quote
+                "quote_vol": d_quote,
+                "base_vol_24h": d_base_24,
+                "quote_vol_24h": d_quote_24
             }
         else:
             c["high"] = max(c["high"], price)
@@ -104,14 +108,16 @@ def update_ohlc(pair, price, d_base, d_quote, ts_ms):
             c["close"] = price
             c["base_vol"] += d_base
             c["quote_vol"] += d_quote
+            c["base_vol_24h"] = d_base_24
+            c["quote_vol_24h"] = d_quote_24
 
         save = agg_cache[key]
         cur.execute("""
-        INSERT OR REPLACE INTO ohlc_live VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
+        INSERT OR REPLACE INTO ohlc_live VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ? , ?)
         """, (
             "binance", normalize_symbol(pair), tf, t,
             save["open"], save["high"], save["low"], save["close"],
-            save["base_vol"], save["quote_vol"],
+            save["base_vol"], save["quote_vol"],save["base_vol_24h"], save["quote_vol_24h"],
             int(time.time() * 1000),
             datetime.utcnow().isoformat()
         ))
@@ -134,7 +140,7 @@ async def run():
                     v = float(t["v"])
                     q = float(t["q"])
                     ts = t["E"]
-
+                    
                     prev = last_stats.get(pair)
                     if prev:
                         d_base = max(0.0, v - prev["v"])
@@ -144,6 +150,6 @@ async def run():
 
                     last_stats[pair] = {"v": v, "q": q}
 
-                    update_ohlc(pair, price, d_base, d_quote, ts)
+                    update_ohlc(pair, price, d_base, d_quote,v,q, ts)
 
 asyncio.run(run())

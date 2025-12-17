@@ -1,0 +1,48 @@
+{
+    "components": [
+        {
+            "id": "def_0",
+            "type": "comp",
+            "rect": {
+                "w": 6,
+                "h": 5,
+                "x": 0,
+                "y": 0
+            },
+            "widget": {
+                "type": "chart",
+                "pair": "BTC/USDC",
+                "timeframe": "1m",
+                "plot_config":{
+                    "main_plot": {
+                        "ema": {"color": "red", "eta" : 9} 
+                    },
+                    "subplots": {
+                    }
+                }
+            }
+        },
+        {
+            "id": "12addde6-effb-4835-848c-c448d041d87a",
+            "type": "comp",
+            "rect": {
+                "w": 6,
+                "h": 5,
+                "x": 6,
+                "y": 0
+            },
+            "widget": {
+                "type": "chart",
+                "pair": "BTC/USDC",
+                "timeframe": "5m",
+                "plot_config":{
+                    "main_plot": {
+                       
+                    },
+                    "subplots": {
+                    }
+                }
+            }
+        }
+    ]
+}

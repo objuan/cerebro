@@ -1,27 +1,64 @@
-from fastapi import FastAPI
+from logging.handlers import RotatingFileHandler
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi import WebSocket, WebSocketDisconnect
 from contextlib import asynccontextmanager
 import pandas as pd
 import sqlite3
 from datetime import datetime
 import time
-from crypto_job import *
 import asyncio
 import os
+import logging
+
+############# LOGS #############
+
+os.makedirs("logs", exist_ok=True)
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+# Rotazione: max 5 MB, tieni 5 backup
+file_handler = RotatingFileHandler(
+        "logs/app.log",
+        maxBytes=5_000_000,
+        backupCount=5
+)
+file_handler.setLevel(logging.DEBUG)
+
+# Console
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+#############
+
+from crypto_job import *
+from layout import *
 
 DB_FILE = "../db/crypto.db"
+DEF_LAYOUT = "./layouts/default_layout.json"
 
-fetcher = CryptoJob(DB_FILE,2)
+fetcher = CryptoJob(DB_FILE,2,debugMode=True)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task = asyncio.create_task(live_loop())
+    task1 = asyncio.create_task(hourly_task())
     yield
     task.cancel()
+    task1.cancel()
 
 app = FastAPI(lifespan=lifespan)
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 def fetch_all_new(fetcher, pairs, timeframe):
     all_new = []
@@ -80,7 +117,8 @@ def top_volume(timeframe: str = "5m", limit: int = 20):
 
 
 @app.get("/api/ohlc_chart")
-def ohlc_chart(pair: str, timeframe: str, limit: int = 300):
+def ohlc_chart(pair: str, timeframe: str, limit: int = 1000):
+    '''
     df = get_df("""
         SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
         FROM ohlc_history
@@ -88,9 +126,8 @@ def ohlc_chart(pair: str, timeframe: str, limit: int = 300):
         ORDER BY timestamp ASC
         LIMIT ?
     """, (pair, timeframe, limit))
-
-    #df["datetime"] = df["timestamp"].apply(ts_to_local_str)
-
+    '''
+    df = fetcher.ohlc_data(pair,timeframe,limit)
     return JSONResponse(df.to_dict(orient="records"))
 
 
@@ -98,27 +135,40 @@ def ohlc_chart(pair: str, timeframe: str, limit: int = 300):
 def health():
     return {"status": "ok"}
 
+
+
 ####################
-PAIRS = ["BTC/USDC", "ETH/USDC"]
-TIMEFRAME = "1m"
+#PAIRS = ["BTC/USDC", "ETH/USDC"]
+#TIMEFRAME = "1m"
 
-class WSManager:
-    def __init__(self):
-        self.connections: List[WebSocket] = []
-
-    async def connect(self, ws: WebSocket):
-        await ws.accept()
-        self.connections.append(ws)
-
-    def disconnect(self, ws: WebSocket):
-        self.connections.remove(ws)
-
-    async def broadcast(self, message: dict):
-        for ws in self.connections:
-            await ws.send_json(message)
 
 ws_manager = WSManager()
+render_page = RenderPage(ws_manager)
+layout = Layout()
+layout.read(DEF_LAYOUT)
+#layout.setDefault()
 
+@app.get("/api/layout/select")
+async def load_layout():
+    await layout.load(render_page)
+    return {"status": "ok"}
+
+@app.post("/api/layout/save")
+async def save_layout(request: Request):
+    dati_json = await request.json()
+    #logger.info(f"data {dati_json}")
+    layout.from_data(dati_json)
+    return {"status": "ok"}
+
+@app.post("/api/layout/cmd")
+async def layout_cmd(request: Request):
+    dati_json = await request.json()
+    logger.info(f"cmd {dati_json}")
+    if dati_json["scope"] =="layout":
+        await layout.process_cmd(dati_json, render_page)
+    return {"status": "ok"}
+
+###################################
 
 @app.websocket("/ws/live")
 async def ws_live(ws: WebSocket):
@@ -128,6 +178,18 @@ async def ws_live(ws: WebSocket):
             await ws.receive_text()  # keep alive
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
+
+
+async def hourly_task():
+    while True:
+        await asyncio.sleep(60 * 60)  # 1 ora
+        try:
+            #print("Task eseguito")
+            fetcher.update_stats()
+        except Exception as e:
+            logger.error("❌ errore hourly_task:", exc_info=True)
+        
+     
 
 async def live_loop():
     while True:
@@ -140,13 +202,22 @@ async def live_loop():
             
             await ws_manager.broadcast(msg)
     
-            for pair in PAIRS:
-                candles = fetcher.fetch_new_candles(pair, TIMEFRAME)
+            
+            new_candles = await fetcher.fetch_new_candles()
+
+            #logger.info(f"NEW # {len(new_candles)}")
+
+            if len(new_candles) < 500:
+                await layout.notify_candles(new_candles,render_page)
+            '''
+            for pair,timeframe in fetcher.live_pairs():
+                candles = fetcher.fetch_new_candles(pair, timeframe,render_page)
                 if candles:
-                    print(f"🕯️ {pair} nuove: {len(candles)}")
+                    #print(f"🕯️ {pair} nuove: {len(candles)}")
                     
                     for candle in candles:
-                        print(candle)
+                        #print(candle)
+                        
                         msg = {
                                 "type": "candle",
                                 "pair":pair,
@@ -161,13 +232,15 @@ async def live_loop():
                                     "bv":  candle["base_volume"]
                                 }
                         }
-                        await ws_manager.broadcast(msg)
+                     
+                        #await ws_manager.broadcast(msg)
                     # qui puoi:
                     # - aggiornare indicatori
                     # - push via websocket
                     # - salvare su history
+           '''
         except Exception as e:
-            print("❌ errore live loop:", e)
+            logger.error("❌ errore live loop:", exc_info=True)
 
         await asyncio.sleep(1)
 

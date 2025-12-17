@@ -1,0 +1,34 @@
+{
+    "components": [
+        {
+            "id": "def_0",
+            "type": "comp",
+            "rect": {
+                "w": 6,
+                "h": 7,
+                "x": 0,
+                "y": 0
+            },
+            "widget": {
+                "type": "chart",
+                "pair": "BTC/USDC",
+                "timeframe": "1m"
+            }
+        },
+        {
+            "id": "def_1",
+            "type": "comp",
+            "rect": {
+                "w": 6,
+                "h": 5,
+                "x": 6,
+                "y": 0
+            },
+            "widget": {
+                "type": "chart",
+                "pair": "BTC/USDC",
+                "timeframe": "5m"
+            }
+        }
+    ]
+}

@@ -16,48 +16,9 @@
 
   <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
+  <link rel="stylesheet" href="/static/css/styles.css"> 
+   <script src="/static/indicators.js"></script>
 
-
-  <style>
-     .header {
-      height: 40px;
-      background: #253248;
-      display: flex;
-      align-items: center;
-      padding: 0 12px;
-      border-bottom: 1px solid #334158;
-    }
-
-    .header-title {
-      font-weight: bold;
-      margin-right: 16px;
-    }
-
-    .header-status {
-      font-size: 13px;
-      color: #9fb3c8;
-    }
-    body { background:#111; color:#eee; font-family:Arial }
-    .grid-stack { background: #FAFAD2; }
-    .grid-stack-item-content {
-      background:#1e1e1e;
-      border-radius:8px;
-      padding:8px;
-      /*overflow:auto;*/
-    }
-    button { margin:5px }
-    .no-drag {
-         pointer-events: auto;
-    }
-    .no-drag * {
-    cursor: default;
-    }
-    .chart-container {
-         width: 100%;
-        height: calc(100% - 170px); /* spazio per titolo */
-        min-height: 200px;   /* 🔴 IMPORTANTISSIMO */
-    }
-  </style>
 </head>
 
 <body>
@@ -74,7 +35,7 @@
 <button onclick="addTopVolume()">➕ Top Volume</button>
 <button onclick="addOHLC()">➕ OHLC Table</button>
 <button onclick="addCandleChart()">➕ Candlestick</button>
-<button onclick="addCandleWidget('BTC/USDC','1m')">➕ BTC 1m</button>
+<button onclick="layout_addWidget({'type':'chart','pair': 'BTC/USDC', 'timeframe':'1m'})">➕ BTC 1m</button>
 
 <div class="grid-stack"></div>
 
@@ -85,6 +46,7 @@
 const heartbeatLabel = document.getElementById("heartbeatLabel");
 chart_list=[];
 chart_map=[];
+widget_list=[];
 
 // ===========  EVENTS =============
 
@@ -92,28 +54,45 @@ const ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
 
-  if (msg.type === "candle") {
-    //console.log("🕯️ nuova candle", msg.data);
+  if (msg.type === "comp") {
+      console.log("comp",msg)
+      if (msg.widget.type =="chart")
+      {
+         addCandleWidget(msg.id, msg.widget.pair,msg.widget.timeframe,msg.widget.plot_config, msg.rect )
+      }
+      
+  }
+  else if (msg.type === "del") {
+      
+       const chartObj = chart_list[msg["id"]];
+       console.log("del",msg,chartObj)
+        chartObj.widget_ele.classList.add('closing');
+        setTimeout(() => grid.removeWidget(chartObj.widget_ele), 200);
+       
+  }
+  else if (msg.type === "candle") {
+    //console.log("🕯️ nuova candle", msg);
+    const id = msg.id;
     const pair = msg.pair;
-    const chartObj = chart_map[pair];
+    const chartObj = chart_list[id];
 
     if (!chartObj) {
-        //console.warn("Grafico non trovato per", pair);
+        console.warn("Grafico non trovato per", pair);
         return;
     }
     const c = msg.data;
     //console.log("update" ,c)
-    chartObj.candles.update({
+    chartObj.mainSeries.update({
         //time: Math.floor(c.timestamp / 1000), // ⚠️ seconds
-        time: Math.floor(new Date(c.t).getTime() / 1000),
+        time: db_localTime(c.t),
         open: c.o,
         high: c.h,
         low: c.l,
         close: c.c,
         volume:c.v,
     });
-    chartObj.volume.update({
-        time: Math.floor(new Date(c.t).getTime() / 1000),
+    chartObj.volumeSeries.update({
+        time: db_localTime(c.t),
         value: c.bv,
         color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
     });
@@ -123,18 +102,52 @@ ws.onmessage = (event) => {
         heartbeatLabel.textContent = d.toLocaleString();
   }
 };
+ $(document).ready(function () {
+    
+  fetch(`/api/layout/select`)
+    .then(r => r.json())
+    .then(data => {
+      //alert(data)
+    });
+  });
 
 // =============== GRID SETUP ==============================
 
 const grid = GridStack.init({ 
-    draggable: { handle: "h3" },
+    draggable: { handle: '.grid-stack-handle'},
     resizable: { handles: "e, se, s" },
     float:true 
 });
 
 function saveLayout() {
-  const layout = grid.save(false); // false = senza DOM
-  localStorage.setItem("grid-layout", JSON.stringify(layout));
+   const layout = grid.save(false); // false = senza DOM
+   if (layout.length !=widget_list.length )
+   {
+     alert("ATTENZIONE LEN WINDGET");
+      return;
+   }
+
+   //alert(widget_list.length);
+   save=[]
+  for(i=0;i<widget_list.length;i++)
+  {
+     save.push({"id": widget_list[i].id, "rect": layout[i],"data": widget_list[i].save()}) 
+    
+  }
+
+  console.log(save)
+  fetch(`/api/layout/save`,
+  {
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json'},
+    body:  JSON.stringify(save)
+  }).then(response => {
+        if (!response.ok) {
+            throw new Error(`Errore HTTP! Stato: ${response.status}`);
+        }
+    });
+  
+  //localStorage.setItem("grid-layout", JSON.stringify(layout));
 }
 
 grid.on("change", saveLayout);
@@ -166,7 +179,7 @@ grid.on("resizestop", (e, el) => {
 // =============== CHART ===============
 
 
-function createChart(id_chart,id_chart_vol, pair, timeframe) {
+function createChart(widget_ele,id_chart,id_chart_vol, pair, timeframe,plot_config) {
     const container = document.getElementById(id_chart);
     console.log("container",container)
     const chart = LightweightCharts.createChart(container, {
@@ -205,7 +218,7 @@ function createChart(id_chart,id_chart_vol, pair, timeframe) {
     });
 
  
-    const candles = chart.addSeries(
+    const mainSeries = chart.addSeries(
         LightweightCharts.CandlestickSeries,
         {
             upColor: '#4bffb5',
@@ -250,6 +263,28 @@ function createChart(id_chart,id_chart_vol, pair, timeframe) {
         }
         );
 
+    // INDICATORS
+    indicators = []
+
+    Object.entries(plot_config["main_plot"]).forEach(([key, value]) => {
+        console.log("ADD" , key, value);
+        if (key == "ema")
+        {
+           indicators[key] = {
+              fun : calculateEMA,
+              args : value["eta"],
+              series : chart.addSeries(
+                LightweightCharts.LineSeries,
+                {
+                    color: '#4bffb5',
+                    lineWidth: 1,
+                }
+              )
+          }
+        }
+        
+    });
+
     // SYNC
 
     chart.timeScale().subscribeVisibleLogicalRangeChange(timeRange => {
@@ -277,57 +312,158 @@ function createChart(id_chart,id_chart_vol, pair, timeframe) {
         chart.clearCrosshairPosition();
     }
     chart.subscribeCrosshairMove(param => {
-        const dataPoint = getCrosshairDataPoint(candles, param);
+        const dataPoint = getCrosshairDataPoint(mainSeries, param);
         syncCrosshair(chart2, volumeSeries, dataPoint);
     });
     chart2.subscribeCrosshairMove(param => {
         const dataPoint = getCrosshairDataPoint(volumeSeries, param);
-        syncCrosshair(chart, candles, dataPoint);
+        syncCrosshair(chart, mainSeries, dataPoint);
     });
 
     // final
 
-    chart_list[id_chart] = { charts:[chart,chart2], candles ,volume: volumeSeries };
-    chart_map[pair] = chart_list[id_chart] 
-    //console.log(pair)
-    /*
-    candles.setData([
-    { time: 1714500000, open: 100, high: 110, low: 90, close: 105 },
-    { time: 1714500600, open: 105, high: 115, low: 100, close: 110 },
-    ]);
-    */
+      function refresh()
+      {
+        //console.log("....",this);
+          fetch(`/api/ohlc_chart?pair=${this.pair}&timeframe=${this.timeframe}`)
+            .then(r => r.json())
+            .then(data => {
+                //console.log(data)
+               if (data.length>0)
+               {
+                  this.mainSeries.setData(
+                      data.map(d => ({
+                      time: db_localTime(d.t),
+                      open: d.o,
+                      high: d.h,
+                      low: d.l,
+                      close: d.c
+                      }))
+                  );
+                  this.volumeSeries.setData(
+                      data.map(d => ({
+                          time: db_localTime(d.t),
+                          value: d.bv,
+                          color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
+                      }))
+                  );
 
-  fetch(`/api/ohlc_chart?pair=${pair}&timeframe=${timeframe}`)
-    .then(r => r.json())
-    .then(data => {
-        //console.log(data)
+                  Object.entries(this.indicators).forEach(([key, chartMeta]) => {
+                      console.log("REFRESH", key, chartMeta);
+
+                      const ind_data = chartMeta["fun"]( data, chartMeta["args"]);
+                      console.log(ind_data)
+                      chartMeta["series"].setData(ind_data);
+                  });
+                }
+            });
+      }
+      function save()
+      {
+        //alert("save");
+        return {"pair":pair,"timeframe":this.timeframe,"plot_config": this.plot_config}
+      }
+
+    chart_list[id_chart] = { id : id_chart, widget_ele:widget_ele, pair:pair, timeframe:timeframe, charts:[chart,chart2], mainSeries ,volumeSeries: volumeSeries, 
+      plot_config:plot_config, indicators : indicators, refresh: refresh , save:save};
+
+    chart_map[pair] = chart_list[id_chart] ;
+    widget_list.push(chart_list[id_chart]);
+
+    //console.log("!!!!!!!!!!",widget_list);
+    // EXTRA
+
+    /**
+     * Funzione di utilità per convertire una coordinata Y in prezzo.
+     * @param {number} yCoordinate - La coordinata Y in pixel relativa al riquadro del grafico.
+     * @returns {number|null} Il prezzo corrispondente.
+     */
+    function convertCoordinateToPrice(yCoordinate) {
+        if (mainSeries) {
+            return mainSeries.coordinateToPrice(yCoordinate); 
+        }
+        return null;
+    }
+
+    container.addEventListener('contextmenu', function(event) {
+      event.preventDefault(); // Impedisce la comparsa del menu contestuale del browser
+
+      // Qui devi convertire le coordinate, vedi il punto 2
+      const clientX = event.clientX;
+      const clientY = event.clientY;
+
+      // Ottieni le coordinate relative al grafico
+      const chartRect = container.getBoundingClientRect();
+      const chartY = clientY - chartRect.top;
       
-        candles.setData(
-            data.map(d => ({
-            time: Math.floor(new Date(d.t).getTime() / 1000),
-            open: d.o,
-            high: d.h,
-            low: d.l,
-            close: d.c
-            }))
-        );
-        volumeSeries.setData(
-            data.map(d => ({
-                time: Math.floor(new Date(d.t).getTime() / 1000),
-                value: d.bv,
-                color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
-            }))
-        );
-    });
-    
+      // Converti la coordinata Y in prezzo
+      // Chiama la funzione di conversione (vedi sotto)
+      const priceAtMouse = convertCoordinateToPrice(chartY); 
+
+      console.log(`Evento Tasto Destro a coordinata Y del grafico: ${chartY}`);
+      console.log(`Prezzo corrispondente: ${priceAtMouse}`);
+
+      // Logica per mostrare il tuo menu contestuale al clientX/clientY
+
+     
+  });
+
+ chart_list[id_chart] .refresh();
 }
 
 
 // ============== WIDGETS ===========================
 
-function addWidget(title, contentHtml) {
+function layout_closeWidget(item,id)
+{
+  //console.log("id",id)
+  if (confirm('Chiudere il widget?')) {
+    //#item.classList.add('closing');
+    //setTimeout(() => grid.removeWidget(item), 200);
+     fetch(`/api/layout/cmd`,
+    {
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json'},
+      body:  JSON.stringify({"scope" : "layout" , "cmd" :"del" , "id" : id})
+    }).then(response => {
+          if (!response.ok) {
+              throw new Error(`Errore HTTP! Stato: ${response.status}`);
+          }
+      });
+  }
+}
+
+function layout_addWidget(data)
+{
+  data.scope="layout"
+  data.cmd="add"
+  fetch(`/api/layout/cmd`,
+  {
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json'},
+    body:  JSON.stringify(data)
+  }).then(response => {
+        if (!response.ok) {
+            throw new Error(`Errore HTTP! Stato: ${response.status}`);
+        }
+    });
+}
+
+
+
+function addWidget(title, contentHtml,rect) {
   const el = document.createElement('div');
+  el.classList.add("grid-stack-item");
   el.innerHTML = `
+    <div class="grid-stack-item-content">
+      <h3 class="drag-handle">${title}</h3>
+      <div class="no-drag">
+            ${contentHtml}
+        </div>
+    </div>
+  `;
+    /*
+  el.innerHTML1 = `
     <div class="grid-stack-item">
       <div class="grid-stack-item-content">
         <h3 class="drag-handle">${title}</h3>
@@ -336,7 +472,8 @@ function addWidget(title, contentHtml) {
         </div>
       </div>
     </div>`;
-  grid.addWidget(el, { w:4, h:4 });
+    */
+  grid.addWidget(el,rect);
 }
 
 function addTopVolume() {
@@ -381,27 +518,76 @@ function addOHLC() {
 }
 
 
-function addCandleWidget(pair,timeframe) {
 
-  const id_chart = "chart_" + Date.now();
-  const id_chart_vol = "chart_vol_" + Date.now();
+function addCandleWidget(id, pair,timeframe,plot_config,rect) {
+
+  console.log("plot_config",plot_config)
+  function updateChartTimeframe(chartId, newTimeframe) {
+    chatObj = chart_list[chartId]
+    console.log(`Aggiornamento del grafico ID: ${chartId} al timeframe: ${newTimeframe} chatObj ${chatObj}`);
+    chatObj.timeframe = newTimeframe;
+    chatObj.refresh();
+  }
+
+  function attachTimeframeListener(widgetElement) {
+    const selectElement = widgetElement.querySelector('.timeframe-selector');
+    const chartContainer = widgetElement.querySelector('.chart-container');
+    const chartId = chartContainer ? chartContainer.id : null;
+
+    if (selectElement && chartId) {
+        selectElement.addEventListener('change', (event) => {
+            const newTimeframe = event.target.value;
+            updateChartTimeframe(chartId, newTimeframe);
+        });
+        
+        // Impedisci al click sulla tendina di attivare la funzione di drag di GridStack
+        selectElement.addEventListener('mousedown', (event) => {
+             event.stopPropagation();
+        });
+    }
+ }
+
+  const id_chart = id;//"chart_" + Date.now();
+  const id_chart_vol = id+"_vol";//chart_vol_" + Date.now();
 
   const el = document.createElement("div");
   el.classList.add("grid-stack-item");
 
   el.innerHTML = `
     <div class="grid-stack-item-content">
-      <h3 class="drag-handle">📈 ${pair} ${timeframe}</h3>
+     
+      <div class="header  grid-stack-handle">
+        <div class="header-title">
+             📈 ${pair} 
+        </div>
+        
+        <select class="timeframe-selector" >
+            <option value="1m">1m</option>
+            <option value="5m">5m</option>
+            <option value="15m" selected>15m</option> <option value="30m">30m</option>
+            <option value="1h">1h</option>
+            <option value="4h">4h</option>
+            <option value="1d">1d</option>
+        </select>
+      <button class="close-btn" title="Chiudi" onclick="layout_closeWidget(this.closest('.grid-stack-item'),'${id_chart}')" >✕</button>
+        
+        
+    </div>
       <div class="chart-container" id="${id_chart}"></div>
       <div class="chart-volume" id="${id_chart_vol}"></div>
     </div>
   `;
+  if (rect==null)  rect =  { w: 6, h: 5 }
 
-  grid.addWidget(el, { w: 6, h: 5 });
+  grid.addWidget(el, rect  );
+
+  el.querySelector('.timeframe-selector').value = timeframe;
+  attachTimeframeListener(el);
+
 
   //createChart(id, pair, timeframe);
   setTimeout(() => {
-    createChart(id_chart,id_chart_vol, pair, timeframe);
+    createChart(el,id_chart,id_chart_vol, pair, timeframe, plot_config);
     }, 0);
 }
 
