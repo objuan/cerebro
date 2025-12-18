@@ -119,7 +119,17 @@ def ohlc_chart(pair: str, timeframe: str, limit: int = 1000):
     """, (pair, timeframe, limit))
     '''
     df = fetcher.ohlc_data(pair,timeframe,limit)
-    return JSONResponse(df.to_dict(orient="records"))
+    
+    df1 = db.dataframe(timeframe)
+    df_co = (
+            df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
+            .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
+            .copy()
+    )
+    
+    #print("chart",df_co)
+    
+    return JSONResponse(df_co.to_dict(orient="records"))
 
 
 @app.get("/api/symbols")
@@ -188,6 +198,8 @@ async def live_loop():
                 "ts": int(time.time() * 1000)
             }
             
+           
+
             await ws_manager.broadcast(msg)
 
             
@@ -199,6 +211,8 @@ async def live_loop():
                 await layout.notify_candles(new_candles,render_page)
 
             db.tick()
+
+            layout.tick()
            
         except Exception as e:
             logger.error("❌ errore live loop:", exc_info=True)

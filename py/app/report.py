@@ -10,7 +10,9 @@ from renderpage import RenderPage
 class ReportWidget(Widget):
 
     def __init__(self,id):
+       super().__init__()
        self.id=id
+       
    
     def fill(df):
         pass

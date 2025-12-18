@@ -97,7 +97,9 @@ ws.onmessage = (event) => {
         console.warn("Grafico non trovato per", pair);
         return;
     }
+    
     const c = msg.data;
+    
     //console.log("update" ,c)
     chartObj.mainSeries.update({
         //time: Math.floor(c.timestamp / 1000), // ⚠️ seconds
@@ -113,6 +115,8 @@ ws.onmessage = (event) => {
         value: c.bv,
         color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
     });
+    
+    
   }
   else if (msg.type === "heartbeat") {
         const d = new Date(msg.ts);

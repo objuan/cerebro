@@ -10,7 +10,7 @@ from typing import List, Dict
 from utils import *
 from job import *
 from renderpage import RenderPage
-
+from config import *
 import warnings
 warnings.filterwarnings("ignore")
 #from scanner.crypto import ohlc_history_manager
@@ -40,6 +40,9 @@ cur_exe.execute("PRAGMA synchronous=NORMAL;")
 
 TIMEFRAMES = ['1m', '5m']
 
+conn_read = sqlite3.connect(DB_FILE, isolation_level=None)
+
+'''
 conn = sqlite3.connect(DB_FILE, isolation_level=None)
 cur = conn.cursor()
 
@@ -52,6 +55,8 @@ CREATE TABLE IF NOT EXISTS batch (
 
 )""")
 conn.commit()
+conn.close()
+'''
 
 class CryptoJob(Job):
 
@@ -64,6 +69,13 @@ class CryptoJob(Job):
         self.historyActive=historyActive
         self.liveActive=liveActive
         self.update_stats()
+
+        conn = sqlite3.connect(DB_FILE, isolation_level=None)
+        cur = conn.cursor()
+        cur.execute("""
+        DELETE FROM ohlc_live
+        """)
+        conn.close()
 
         # startup 
         #self.align_data()
@@ -97,9 +109,12 @@ class CryptoJob(Job):
             ORDER BY quote_volume_24h desc limit 
             """  + " " +str(self.max_pairs)
 
+        #logger.info(sql)
         conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(sql, conn)
+
+        df = pd.read_sql_query(sql, conn_read)
         conn.close()
+        #print("---",len(df))
         return df
     
     def live_symbols_dict(self):
@@ -117,11 +132,13 @@ class CryptoJob(Job):
             ORDER BY quote_volume_24h desc limit 
             """  + " " +str(self.max_pairs)
 
+        #logger.info(sql)
         conn = sqlite3.connect(self.db_file)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute(sql)
         rows = cur.fetchall()
+        
         #print(rows)
         conn.close()
         return [dict(r) for r in rows]
@@ -208,7 +225,7 @@ class CryptoJob(Job):
 
             last = ohlcv[-1]
             since = last[0] + 1
-            logger.info(f"last # {last}")
+            #logger.info(f"last # {last}")
 
             for o in ohlcv:
                 ts, open_, high, low, close, vol = o
@@ -268,7 +285,7 @@ class CryptoJob(Job):
                 """, (
                     "binance",
                     pair,
-                    timeframe,
+                        timeframe,
                     ts,
                     open_,
                     high,
@@ -286,36 +303,36 @@ class CryptoJob(Job):
 
             
 
-    def align_data(self, timeframe, limit=999999):
+    def align_data(self, timeframe):
 
-        '''
-        query_batch = """
-            SELECT last_time 
-            FROM batch
-            WHERE exchange = ? and timeframe=?
+
+        query_min = """
+            SELECT min(timestamp) as min
+            FROM ohlc_history
+            WHERE pair = ? and timeframe=? and source == 'live'
             """
-        
-        conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(query_batch, conn, params= (self.exchange,timeframe))
-        '''
-        
+      
         query_max = """
             SELECT max(timestamp) as max
             FROM ohlc_history
             WHERE pair = ? and timeframe=? and source != 'live'
             """
-      
+        
         conn = sqlite3.connect(self.db_file)
+        
         for pair in self.pairs:
-            #for timeframe in TIMEFRAMES:
+                max_dt=None
                 update = False
-                df = pd.read_sql_query(query_max, conn, params= (pair, timeframe))
-
+                df_min = pd.read_sql_query(query_min, conn, params= (pair, timeframe))
+                df_max = pd.read_sql_query(query_max, conn, params= (pair, timeframe))
                 #print(df)
-                if df.iloc[0]["max"]:
-                    max_dt = int(df.iloc[0]["max"]/1000) # ultima data in unix time 
+                if df_max.iloc[0]["max"]:
+                    if not df_min.iloc[0]["min"]:
+                        max_dt = int(df_max.iloc[0]["max"]/1000) # ultima data in unix time    
+                    else:
+                        max_dt = int(df_min.iloc[0]["min"]/1000) # ultima data in unix time 
                 
-
+                if max_dt:
                     last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
 
                     #logger.info(f"LAST UPDATE DELTA {last_update_delta_min}")
@@ -332,9 +349,9 @@ class CryptoJob(Job):
                 else:
                     update=True
                     max_dt = int(
-                        (datetime.now() - timedelta(seconds=seconds_from_candles(1000, timeframe)))
+                        (datetime.now() - timedelta(seconds=seconds_from_candles(TIMEFRAME_LEN_CANDLES[timeframe], timeframe)))
                         .timestamp()
-)
+                        )
                 #update=True
                 if update:
                     print(max_dt)
@@ -343,7 +360,7 @@ class CryptoJob(Job):
                     self._fetch_missing_history(conn,pair,timeframe,max_dt*1000)
                     
         conn.close()     
-        return df
+  
 
     def ohlc_data(self,pair: str, timeframe: str, limit: int = 1000):
         self.align_data(timeframe)
@@ -381,6 +398,9 @@ class CryptoJob(Job):
     '''
     
     def history_data(self,pairs: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
+        if len(pairs) == 0:
+            logger.error("Pair empty !!!")
+            return None
         self.align_data(timeframe)
         sql_pairs = str(pairs)[1:-1]
      
@@ -406,7 +426,7 @@ class CryptoJob(Job):
                 LIMIT {limit}"""
           
             df = pd.read_sql_query(query, conn)
-            #print(df)
+            #print(query)
 
         df = df.iloc[::-1].reset_index(drop=True)
         conn.close()     

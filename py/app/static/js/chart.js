@@ -149,7 +149,7 @@ function createChart(widget_ele,id_chart, pair, timeframe,plot_config) {
         syncCrosshair(chart2, volumeSeries, dataPoint);
 
         lbl="";
-        if (param.time) {
+        if (param.time && dataPoint) {
             let priceFormatted = '';
             const price =  dataPoint.close;
             priceFormatted = price.toFixed(3);
@@ -181,7 +181,7 @@ function createChart(widget_ele,id_chart, pair, timeframe,plot_config) {
           fetch(`/api/ohlc_chart?pair=${this.pair}&timeframe=${this.timeframe}`)
             .then(r => r.json())
             .then(data => {
-                //console.log(data)
+                console.log(data)
                if (data.length>0)
                {
                   this.mainSeries.setData(
@@ -207,6 +207,13 @@ function createChart(widget_ele,id_chart, pair, timeframe,plot_config) {
                       //console.log(ind_data)
                       chartMeta["series"].setData(ind_data);
                   });
+
+                  /*chart.timeScale().setVisibleRange({
+                     from: data[0].time,
+                     to: data[data.length - 1].time
+                    });
+                    */
+                  chart.timeScale().fitContent();
                 }
             });
       }

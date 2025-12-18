@@ -6,37 +6,7 @@ logger = logging.getLogger(__name__)
 
 from report import *
 from renderpage import RenderPage
-
-TIMEFRAME_UPDATE_SECONDS = {
-    "1s": 1,
-    "5s": 5,
-    "15s": 15,
-    "30s": 30,
-    "1m": 10,
-    "3m": 180,
-    "5m": 300,
-    "15m": 900,
-    "30m": 1800,
-    "1h": 60*60,
-    "2h": 7200,
-    "4h": 14400,
-    "1d": 60*60*12,
-}
-TIMEFRAME_LEN_CANDLES = {
-    "1s": 1,
-    "5s": 5,
-    "15s": 15,
-    "30s": 30,
-    "1m": 1000,
-    "3m": 180,
-    "5m": 1000,
-    "15m": 900,
-    "30m": 1800,
-    "1h": 24*7,
-    "2h": 7200,
-    "4h": 14400,
-    "1d": 60,
-}
+from config import TIMEFRAME_UPDATE_SECONDS,TIMEFRAME_LEN_CANDLES
 
 
 # si autoaggiorna ogni tot
@@ -87,21 +57,32 @@ class DBDataframe_TimeFrame:
             self.update()
             self.lastTime = datetime.now()
 
+    def set_indicators(self,df):
+        pass
+        #df['datetime_local'] = (pd.to_datetime(df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
+
     def update(self):
         if not self.last_timestamp:
-            self.df = self.fetcher.history_data(self.pairs , self.timeframe , limit= TIMEFRAME_LEN_CANDLES[self.timeframe] )
+            self.df = self.fetcher.history_data(self.pairs , self.timeframe , limit= 999999 )
+            #print(self.df)
+            #self.df = self.df.set_index("timestamp", drop=True)
+
             self.last_timestamp = self.df['timestamp'].max()
             logger.info(f"FIRST {self.timeframe} last_timestamp {self.last_timestamp}")
-            self.df['datetime_local'] = (pd.to_datetime(self.df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
-
+            #self.df['datetime_local'] = (pd.to_datetime(self.df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
+            
+            
         else:            
             #logger.info(f"UPDATE {self.timeframe} last_timestamp {self.last_timestamp}")
-            new_df = self.fetcher.history_data(self.pairs , self.timeframe ,since = self.last_timestamp, limit= TIMEFRAME_LEN_CANDLES[self.timeframe] )
+            new_df = self.fetcher.history_data(self.pairs , self.timeframe ,since = self.last_timestamp, limit= 9999999)
+             
             #print( "NEW ",new_df)
-
+            
             self.df = pd.concat([self.df, new_df], ignore_index=True)
 
             # 🔥 OVERWRITE: tieni l’ultimo record per stessa chiave
+            
+            '''
             self.df  = (
                     self.df .sort_values("timestamp")
                     .drop_duplicates(
@@ -109,14 +90,32 @@ class DBDataframe_TimeFrame:
                         keep="last"
                     )
                 )
+            '''
+            
+            
+            self.df  = self.df.drop_duplicates(
+                        subset=["exchange", "pair", "timeframe", "timestamp"],
+                        keep="last"
+                    )
+            
+            #self.df .sort_values("timestamp")
 
             # tieni solo gli ultimi N arrivi
             self.df = self.df.tail(TIMEFRAME_LEN_CANDLES[self.timeframe]).reset_index(drop=True)
+
+            self.set_indicators(self.df)
+
             self.last_timestamp = self.df['timestamp'].max()
+
+            #print( "NEW ",self.df.tail())
         #print( "DB ",self.df )
 
     def dataframe(self,pair="") -> pd.DataFrame:
-        return self.df
+        if pair=="":
+            return self.df
+        else:
+            cp =  self.df.copy()
+            return cp[cp["pair"]== pair]
     
 ###########
 
@@ -134,4 +133,6 @@ class DBDataframe:
     def dataframe(self,timeframe,pair="")-> pd.DataFrame:
         if not timeframe in self.map :
             self.map[timeframe] = DBDataframe_TimeFrame(self.fetcher,timeframe)
+        
         return self.map[timeframe].dataframe(pair)
+        

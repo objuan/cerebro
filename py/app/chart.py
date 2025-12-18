@@ -10,6 +10,7 @@ from renderpage import RenderPage
 class ChartWidget(Widget):
 
     def __init__(self,id, pair, timeframe,plot_config={}):
+       super().__init__()
        self.id=id
        self.plot_config=plot_config
     

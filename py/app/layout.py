@@ -21,6 +21,9 @@ class Layout:
        self.db = db
        pass
 
+    def tick(self):
+        for comp in self.components:
+            comp.tick()
 
     async def load(self,page:RenderPage):
         try:
@@ -30,9 +33,7 @@ class Layout:
         except:
             logger.error("ERROR",exc_info=True)
 
-    def render_html():
-        
-        pass
+
 
     def read(self,filePath):
         self.filePath=filePath
@@ -129,6 +130,8 @@ class LayoutComponent:
        self.widget=None
        #self.id = str(uuid.uuid4())
 
+    def tick(self):
+        self.widget.tick()
 
     async def load(self,page:RenderPage):
         ''' at startup '''
