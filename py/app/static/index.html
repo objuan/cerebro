@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Crypto Dashboard</title>
 
+ <link rel="icon" href="data:,">
   <!-- GridStack -->
   <link href="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack.min.css" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack-all.js"></script>
@@ -17,7 +18,9 @@
   <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
   <link rel="stylesheet" href="/static/css/styles.css"> 
-   <script src="/static/indicators.js"></script>
+   <script src="/static/js/indicators.js"></script>
+   <script src="/static/js/chart.js"></script>
+   <script src="/static/js/utils.js"></script>
 
 </head>
 
@@ -33,12 +36,22 @@
 </div>
 
 <button onclick="addTopVolume()">➕ Top Volume</button>
-<button onclick="addOHLC()">➕ OHLC Table</button>
-<button onclick="addCandleChart()">➕ Candlestick</button>
 <button onclick="layout_addWidget({'type':'chart','pair': 'BTC/USDC', 'timeframe':'1m'})">➕ BTC 1m</button>
 
 <div class="grid-stack"></div>
 
+<div id="popup" style="display:none;
+    position:fixed; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    border:1px solid #ccc;
+    padding:20px;
+    z-index: 100;
+    background:white;">
+  
+  <select id="choice"></select><br><br>
+  <button id="ok">OK</button>
+  <button id="cancel">Annulla</button>
+</div>
 
 <!-------------------------------------------->
 <script>
@@ -60,7 +73,11 @@ ws.onmessage = (event) => {
       {
          addCandleWidget(msg.id, msg.widget.pair,msg.widget.timeframe,msg.widget.plot_config, msg.rect )
       }
-      
+      else if (msg.widget.type =="report")
+      {
+         //console.log("report")
+         addReportWidget(msg.id,msg.rect ,  msg.widget)
+      }
   }
   else if (msg.type === "del") {
       
@@ -103,13 +120,15 @@ ws.onmessage = (event) => {
   }
 };
  $(document).ready(function () {
-    
-  fetch(`/api/layout/select`)
-    .then(r => r.json())
-    .then(data => {
-      //alert(data)
-    });
-  });
+    setTimeout(() => 
+    { 
+      fetch(`/api/layout/select`)
+        .then(r => r.json())
+        .then(data => {
+          //alert(data)
+        });
+      });
+    },200);
 
 // =============== GRID SETUP ==============================
 
@@ -175,242 +194,6 @@ grid.on("resizestop", (e, el) => {
             );
     }
 });
-
-// =============== CHART ===============
-
-
-function createChart(widget_ele,id_chart,id_chart_vol, pair, timeframe,plot_config) {
-    const container = document.getElementById(id_chart);
-    console.log("container",container)
-    const chart = LightweightCharts.createChart(container, {
-        layout: {
-            background: { color: '#253248' },
-            textColor: 'rgba(255, 255, 255, 0.9)',
-        },
-        grid: {
-            vertLines: { color: '#334158' },
-            horzLines: { color: '#334158' },
-        },
-        crosshair: {
-            mode: LightweightCharts.CrosshairMode.Normal,
-            // Vertical crosshair line (showing Date in Label)
-            vertLine: {
-                width: 1,
-                color: '#C3BCDB44',
-                style: LightweightCharts.LineStyle.Solid,
-                labelBackgroundColor: '#9B7DFF',
-            },
-
-            // Horizontal crosshair line (showing Price in Label)
-            horzLine: {
-                height: 1,
-                color: '#9B7DFF',
-                labelBackgroundColor: '#9B7DFF',
-            },
-        },
-        priceScale: { borderColor: '#485c7b' },
-        timeScale: { borderColor: '#485c7b' },
-        timeScale: {
-            timeVisible: true,
-            secondsVisible: false,
-            borderColor: '#485c7b',
-        },
-    });
-
- 
-    const mainSeries = chart.addSeries(
-        LightweightCharts.CandlestickSeries,
-        {
-            upColor: '#4bffb5',
-            downColor: '#ff4976',
-            borderUpColor: '#4bffb5',
-            borderDownColor: '#ff4976',
-            wickUpColor: '#838ca1',
-            wickDownColor: '#838ca1',
-        }
-    );
-
-    
-    const chart2 = LightweightCharts.createChart(
-        document.getElementById(id_chart),
-        {
-            height: 100,
-            layout: {
-                background: {
-                    type: 'solid',
-                    color: '#F5F5FF',
-                },
-            },
-         timeScale: {
-            timeVisible: true,
-            secondsVisible: false,
-            borderColor: '#485c7b',
-        },
-        }
-    );
-
-    const volumeSeries = chart2.addSeries(
-        LightweightCharts.HistogramSeries,
-        {
-            priceFormat: {
-                type: 'volume',
-            },
-            priceScaleId: '', // 👈 scale separata sotto
-            scaleMargins: {
-            top: 0.7,
-            bottom: 0,
-            },
-        }
-        );
-
-    // INDICATORS
-    indicators = []
-
-    Object.entries(plot_config["main_plot"]).forEach(([key, value]) => {
-        console.log("ADD" , key, value);
-        if (key == "ema")
-        {
-           indicators[key] = {
-              fun : calculateEMA,
-              args : value["eta"],
-              series : chart.addSeries(
-                LightweightCharts.LineSeries,
-                {
-                    color: '#4bffb5',
-                    lineWidth: 1,
-                }
-              )
-          }
-        }
-        
-    });
-
-    // SYNC
-
-    chart.timeScale().subscribeVisibleLogicalRangeChange(timeRange => {
-        chart2.timeScale().setVisibleLogicalRange(timeRange);
-    });
-
-    chart2.timeScale().subscribeVisibleLogicalRangeChange(timeRange => {
-        chart.timeScale().setVisibleLogicalRange(timeRange);
-    });
-
-    
-    function getCrosshairDataPoint(series, param) {
-        if (!param.time) {
-            return null;
-        }
-        const dataPoint = param.seriesData.get(series);
-        return dataPoint || null;
-    }
-
-    function syncCrosshair(chart, series, dataPoint) {
-        if (dataPoint) {
-            chart.setCrosshairPosition(dataPoint.value, dataPoint.time, series);
-            return;
-        }
-        chart.clearCrosshairPosition();
-    }
-    chart.subscribeCrosshairMove(param => {
-        const dataPoint = getCrosshairDataPoint(mainSeries, param);
-        syncCrosshair(chart2, volumeSeries, dataPoint);
-    });
-    chart2.subscribeCrosshairMove(param => {
-        const dataPoint = getCrosshairDataPoint(volumeSeries, param);
-        syncCrosshair(chart, mainSeries, dataPoint);
-    });
-
-    // final
-
-      function refresh()
-      {
-        //console.log("....",this);
-          fetch(`/api/ohlc_chart?pair=${this.pair}&timeframe=${this.timeframe}`)
-            .then(r => r.json())
-            .then(data => {
-                //console.log(data)
-               if (data.length>0)
-               {
-                  this.mainSeries.setData(
-                      data.map(d => ({
-                      time: db_localTime(d.t),
-                      open: d.o,
-                      high: d.h,
-                      low: d.l,
-                      close: d.c
-                      }))
-                  );
-                  this.volumeSeries.setData(
-                      data.map(d => ({
-                          time: db_localTime(d.t),
-                          value: d.bv,
-                          color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
-                      }))
-                  );
-
-                  Object.entries(this.indicators).forEach(([key, chartMeta]) => {
-                      console.log("REFRESH", key, chartMeta);
-
-                      const ind_data = chartMeta["fun"]( data, chartMeta["args"]);
-                      console.log(ind_data)
-                      chartMeta["series"].setData(ind_data);
-                  });
-                }
-            });
-      }
-      function save()
-      {
-        //alert("save");
-        return {"pair":pair,"timeframe":this.timeframe,"plot_config": this.plot_config}
-      }
-
-    chart_list[id_chart] = { id : id_chart, widget_ele:widget_ele, pair:pair, timeframe:timeframe, charts:[chart,chart2], mainSeries ,volumeSeries: volumeSeries, 
-      plot_config:plot_config, indicators : indicators, refresh: refresh , save:save};
-
-    chart_map[pair] = chart_list[id_chart] ;
-    widget_list.push(chart_list[id_chart]);
-
-    //console.log("!!!!!!!!!!",widget_list);
-    // EXTRA
-
-    /**
-     * Funzione di utilità per convertire una coordinata Y in prezzo.
-     * @param {number} yCoordinate - La coordinata Y in pixel relativa al riquadro del grafico.
-     * @returns {number|null} Il prezzo corrispondente.
-     */
-    function convertCoordinateToPrice(yCoordinate) {
-        if (mainSeries) {
-            return mainSeries.coordinateToPrice(yCoordinate); 
-        }
-        return null;
-    }
-
-    container.addEventListener('contextmenu', function(event) {
-      event.preventDefault(); // Impedisce la comparsa del menu contestuale del browser
-
-      // Qui devi convertire le coordinate, vedi il punto 2
-      const clientX = event.clientX;
-      const clientY = event.clientY;
-
-      // Ottieni le coordinate relative al grafico
-      const chartRect = container.getBoundingClientRect();
-      const chartY = clientY - chartRect.top;
-      
-      // Converti la coordinata Y in prezzo
-      // Chiama la funzione di conversione (vedi sotto)
-      const priceAtMouse = convertCoordinateToPrice(chartY); 
-
-      console.log(`Evento Tasto Destro a coordinata Y del grafico: ${chartY}`);
-      console.log(`Prezzo corrispondente: ${priceAtMouse}`);
-
-      // Logica per mostrare il tuo menu contestuale al clientX/clientY
-
-     
-  });
-
- chart_list[id_chart] .refresh();
-}
-
 
 // ============== WIDGETS ===========================
 
@@ -493,35 +276,29 @@ function addTopVolume() {
     });
 }
 
-function addOHLC() {
-  const pair = prompt("Pair (BTC/USDC):", "BTC/USDC");
-  const tf = prompt("Timeframe:", "5m");
-  const id = "ohlc_" + Date.now();
 
-  addWidget(`OHLC ${pair} ${tf}`, `<table id="${id}" class="display"></table>`);
-
-  fetch(`/api/ohlc?pair=${pair}&timeframe=${tf}`)
-    .then(r => r.json())
-    .then(data => {
-      $(`#${id}`).DataTable({
-        data,
-        columns: [
-          { title:"Time", data:"datetime" },
-          { title:"Open", data:"open" },
-          { title:"High", data:"high" },
-          { title:"Low", data:"low" },
-          { title:"Close", data:"close" },
-          { title:"Volume", data:"quote_volume" }
-        ]
-      });
+function chart_selectpair(item,id)
+{
+    chartObj = chart_list[id];
+    //console.log("chart_selectpair",chartObj)
+    $.getJSON('/api/symbols', function (data) {
+      PopupList(data["pairs"], chartObj.pair, (newPair)=>
+      {
+        //console.log("SELTA ", newPair ,id )
+        chartObj = chart_list[id];
+         //console.log("chart_selectpair1",chartObj)
+         chartObj.pair = newPair;
+         console.log(chartObj.titleElement)
+         chartObj.titleElement.innerHTML = newPair;
+         chartObj.refresh();
+      } );
     });
 }
-
-
 
 function addCandleWidget(id, pair,timeframe,plot_config,rect) {
 
   console.log("plot_config",plot_config)
+
   function updateChartTimeframe(chartId, newTimeframe) {
     chatObj = chart_list[chartId]
     console.log(`Aggiornamento del grafico ID: ${chartId} al timeframe: ${newTimeframe} chatObj ${chatObj}`);
@@ -545,22 +322,25 @@ function addCandleWidget(id, pair,timeframe,plot_config,rect) {
              event.stopPropagation();
         });
     }
- }
+  }
 
+ 
   const id_chart = id;//"chart_" + Date.now();
   const id_chart_vol = id+"_vol";//chart_vol_" + Date.now();
 
   const el = document.createElement("div");
   el.classList.add("grid-stack-item");
-
+  
   el.innerHTML = `
     <div class="grid-stack-item-content">
      
       <div class="header  grid-stack-handle">
         <div class="header-title">
-             📈 ${pair} 
+             📈 <span id='${id}_pair'>${pair} </span>
         </div>
         
+        <button class="pair-btn" title="Select Pair" onclick="chart_selectpair(this.closest('.grid-stack-item'),'${id_chart}')" >^</button>
+     
         <select class="timeframe-selector" >
             <option value="1m">1m</option>
             <option value="5m">5m</option>
@@ -574,7 +354,6 @@ function addCandleWidget(id, pair,timeframe,plot_config,rect) {
         
     </div>
       <div class="chart-container" id="${id_chart}"></div>
-      <div class="chart-volume" id="${id_chart_vol}"></div>
     </div>
   `;
   if (rect==null)  rect =  { w: 6, h: 5 }
@@ -584,11 +363,17 @@ function addCandleWidget(id, pair,timeframe,plot_config,rect) {
   el.querySelector('.timeframe-selector').value = timeframe;
   attachTimeframeListener(el);
 
-
   //createChart(id, pair, timeframe);
   setTimeout(() => {
-    createChart(el,id_chart,id_chart_vol, pair, timeframe, plot_config);
-    }, 0);
+    chartObj = createChart(el,id_chart, pair, timeframe, plot_config);
+    chartObj.titleElement = document.getElementById(id+"_pair");
+
+    //bind_get(chartObj.pair,id+"_pair", (val)=> { return "."+val; } );
+  }, 0);
+}
+
+function addReportWidget(id, rect, data) {
+  console.log("report ",data)
 }
 
 </script>

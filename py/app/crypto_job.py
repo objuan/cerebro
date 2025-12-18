@@ -11,8 +11,9 @@ from utils import *
 from job import *
 from renderpage import RenderPage
 
+import warnings
+warnings.filterwarnings("ignore")
 #from scanner.crypto import ohlc_history_manager
-logger = logging.getLogger(__name__)
 
 DB_FILE = "../db/crypto.db"
 
@@ -22,6 +23,11 @@ exchange_ccxt = ccxt.binance({
     "options": {"defaultType": "spot"}
 })
 
+
+
+logging.getLogger("ccxt").setLevel(logging.CRITICAL)
+
+logger = logging.getLogger(__name__)
 
 conn_exe = sqlite3.connect(DB_FILE, isolation_level=None)
 cur_exe = conn_exe.cursor()
@@ -34,35 +40,69 @@ cur_exe.execute("PRAGMA synchronous=NORMAL;")
 
 TIMEFRAMES = ['1m', '5m']
 
+conn = sqlite3.connect(DB_FILE, isolation_level=None)
+cur = conn.cursor()
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS batch (
+    exchange TEXT,
+    pair TEXT,
+    timeframe TEXT,
+    last_time INTEGER
+
+)""")
+conn.commit()
 
 class CryptoJob(Job):
 
-    def __init__(self, db_file, max_pairs, debugMode=False):
+    def __init__(self, db_file, max_pairs, historyActive=True, liveActive=True):
         super().__init__()
         self.db_file=db_file
         self.last_ts = {}
         self.max_pairs=max_pairs
         self.exchange: str = "binance"
-        self.debugMode=debugMode
+        self.historyActive=historyActive
+        self.liveActive=liveActive
         self.update_stats()
 
         # startup 
-        self.align_data()
+        #self.align_data()
 
     def tick(self):
        pass 
 
     def update_stats(self):
-        self.monitor = self.top_pairs()
+        self.monitor = self.live_symbols_dict()
         
         self.pairs = [ x["pair"]  for x in self.monitor ]
         self.sql_pairs = str(self.pairs)[1:-1]
         logger.info(f"LISTEN PAIRS {self.pairs}")
 
-    def live_pairs(self, volume):
-        return  ["BTC/USDC", "ETH/USDC"]
+    def live_symbols(self)->List[str]:
+        ''' get array '''
+        return  self.pairs
     
-    def top_pairs(self):
+    def live_symbols_df(self)-> pd.DataFrame:
+        sql="""
+            SELECT *
+            FROM (
+                SELECT *,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY pair
+                        ORDER BY updated_at DESC
+                    ) AS rn
+                FROM ohlc_live WHERE timeframe = '1m'
+            )
+            WHERE rn = 1
+            ORDER BY quote_volume_24h desc limit 
+            """  + " " +str(self.max_pairs)
+
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(sql, conn)
+        conn.close()
+        return df
+    
+    def live_symbols_dict(self):
         sql="""
             SELECT *
             FROM (
@@ -82,17 +122,16 @@ class CryptoJob(Job):
         cur = conn.cursor()
         cur.execute(sql)
         rows = cur.fetchall()
-        print(rows)
-
+        #print(rows)
         conn.close()
-
         return [dict(r) for r in rows]
 
-    async def fetch_new_candles(self):
+    async def fetch_live_candles(self):
+        
         key = "all"
         last_seen = self.last_ts.get(key, 0)
         
-        if not self.debugMode:
+        if self.liveActive:
           
             #print(self.sql_pairs)
             cur_exe.execute(f"""
@@ -139,133 +178,175 @@ class CryptoJob(Job):
 
         return [dict(r) for r in rows]
 
-    def _fetch_new_candles(
-        self,
-        pair: str,
-        timeframe: str
-    ) -> List[Dict]:
+    
 
-        if self.debugMode:
-            return
-
-        conn = sqlite3.connect(self.db_file)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-
-        key = (self.exchange, pair, timeframe)
-        last_seen = self.last_ts.get(key, 0)
-
-        # get 
-        cur.execute("""
-            SELECT *
-            FROM ohlc_live
-            WHERE exchange = ?
-              AND pair = ?
-              AND timeframe = ?
-              AND updated_at > ?
-            ORDER BY updated_at ASC
-        """, (self.exchange, pair, timeframe, last_seen))
-
-        rows = cur.fetchall()
-
-        #logger.info(f"Find rows # {len(rows)}")
-        #update
-
-        cur_exe.execute("""
-        INSERT OR REPLACE INTO ohlc_history
-        SELECT
-            exchange,
-            pair,
-            timeframe,
-            timestamp,
-            open,
-            high,
-            low,
-            close,
-            base_volume,
-            quote_volume,
-            'live',
-            updated_at,
-            ds_updated_at
-        FROM ohlc_live
-           WHERE exchange = ?
-              AND pair = ?
-              AND timeframe = ?
-              AND updated_at > ?
-        """, (self.exchange, pair, timeframe, last_seen))
-        #cur_exe.commit()
-
-        conn.close()
-
-        if rows:
-            self.last_ts[key] = rows[-1]["updated_at"]
-
-        return [dict(r) for r in rows]
-
-
-    def fetch_missing_history(self,cursor, pair, timeframe, since,limit=1000):
+    def _fetch_missing_history(self,cursor, pair, timeframe, since):
         #since = week_ago_ms()
 
-        logger.info(f"fetching history {pair} {timeframe} {since}")
+        update_delta_min = datetime.now() - datetime.fromtimestamp(float(since)/1000)
+        candles= candles_from_seconds(update_delta_min.total_seconds(),timeframe)
 
-        ohlcv = exchange_ccxt.fetch_ohlcv(
-            symbol=pair,
-            timeframe=timeframe,
-            since=since,
-            limit=limit
-        )
-
-        logger.info(f"Find rows # {len(ohlcv)}")
-
-        for o in ohlcv:
-            ts, open_, high, low, close, vol = o
-
-            cursor.execute("""
-            INSERT OR REPLACE INTO  ohlc_history VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?
-            )
-            """, (
-                "binance",
-                pair,
-                timeframe,
-                ts,
-                open_,
-                high,
-                low,
-                close,
-                vol,
-                vol * close,
-                "ccxt",
-                int(time.time() * 1000),
-                datetime.utcnow().isoformat()
-            ))
-        cursor.commit()
-
-    def align_data(self, limit=1000):
-        if self.debugMode:
-            return
+        logger.info(f">> Fetching history p:{pair} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
         
-        query = """
+        batch_count = 100
+        i = 0
+        while ( True):
+            i=i+1
+
+            logger.info(f"{i} ASK  {since}")
+
+            ohlcv = exchange_ccxt.fetch_ohlcv(
+                symbol=pair,
+                timeframe=timeframe,
+                since=since,
+                limit=batch_count
+            )
+
+            logger.info(f"{i} Find rows # {len(ohlcv)}")
+            if len(ohlcv) <1:
+                break
+
+            last = ohlcv[-1]
+            since = last[0] + 1
+            logger.info(f"last # {last}")
+
+            for o in ohlcv:
+                ts, open_, high, low, close, vol = o
+                
+                cursor.execute("""
+            INSERT INTO ohlc_history (
+                    exchange,
+                    pair,
+                    timeframe,
+                    timestamp,
+                    open,
+                    high,
+                    low,
+                    close,
+                    base_volume,
+                    quote_volume,
+                    source,
+                    updated_at,
+                    ds_updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(exchange, pair, timeframe, timestamp)
+                DO UPDATE SET
+                    open = excluded.open,
+                    high = excluded.high,
+                    low = excluded.low,
+                    close = excluded.close,
+                    base_volume = excluded.base_volume,
+                    quote_volume = excluded.quote_volume,
+                    source = excluded.source,
+                    updated_at = excluded.updated_at,
+                    ds_updated_at = excluded.ds_updated_at
+                
+                            
+                """, (
+                    "binance",
+                    pair,
+                    timeframe,
+                    ts,
+                    open_,
+                    high,
+                    low,
+                    close,
+                    vol,
+                    vol * close,
+                    "ccxt",
+                    int(time.time() * 1000),
+                    datetime.utcnow().isoformat()
+                ))
+            
+                '''
+                
+                cursor.execute("""
+                INSERT OR REPLACE INTO  ohlc_history VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?
+                )
+                """, (
+                    "binance",
+                    pair,
+                    timeframe,
+                    ts,
+                    open_,
+                    high,
+                    low,
+                    close,
+                    vol,
+                    vol * close,
+                    "ccxt",
+                    int(time.time() * 1000),
+                    datetime.utcnow().isoformat()
+                ))
+                '''
+                
+            cursor.commit()
+
+            
+
+    def align_data(self, timeframe, limit=999999):
+
+        '''
+        query_batch = """
+            SELECT last_time 
+            FROM batch
+            WHERE exchange = ? and timeframe=?
+            """
+        
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query_batch, conn, params= (self.exchange,timeframe))
+        '''
+        
+        query_max = """
             SELECT max(timestamp) as max
             FROM ohlc_history
             WHERE pair = ? and timeframe=? and source != 'live'
             """
-             
-        conn = sqlite3.connect(DB_FILE)
-
+      
+        conn = sqlite3.connect(self.db_file)
         for pair in self.pairs:
-            for timeframe in TIMEFRAMES:
-                df = pd.read_sql_query(query, conn, params= (pair, timeframe))
-                max_dt = int(df.iloc[0]["max"])
-                logger.info(f"STARTUP pair:{pair} tf:{timeframe} -> {max_dt}")
+            #for timeframe in TIMEFRAMES:
+                update = False
+                df = pd.read_sql_query(query_max, conn, params= (pair, timeframe))
 
-                self.fetch_missing_history(conn,pair,timeframe,max_dt,limit)
+                #print(df)
+                if df.iloc[0]["max"]:
+                    max_dt = int(df.iloc[0]["max"]/1000) # ultima data in unix time 
                 
+
+                    last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
+
+                    #logger.info(f"LAST UPDATE DELTA {last_update_delta_min}")
+                    # devo aggiornare ??? 
+                    
+                    if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 10):
+                        update=True
+                    if (timeframe =="5m" and last_update_delta_min.total_seconds()/60 > 30):
+                        update=True
+                    if (timeframe =="1h" and last_update_delta_min.total_seconds()/60 > 1):
+                        update=True
+                    if (timeframe =="1d" and last_update_delta_min.total_seconds()/60 > 24*60):
+                        update=True
+                else:
+                    update=True
+                    max_dt = int(
+                        (datetime.now() - timedelta(seconds=seconds_from_candles(1000, timeframe)))
+                        .timestamp()
+)
+                #update=True
+                if update:
+                    print(max_dt)
+                    logger.info(f"UPDATE HISTORY pair:{pair} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
+
+                    self._fetch_missing_history(conn,pair,timeframe,max_dt*1000)
+                    
         conn.close()     
         return df
 
     def ohlc_data(self,pair: str, timeframe: str, limit: int = 1000):
-        self.align_data()
+        self.align_data(timeframe)
 
         query = """
             SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
@@ -277,14 +358,82 @@ class CryptoJob(Job):
         conn = sqlite3.connect(DB_FILE)
         df = pd.read_sql_query(query, conn, params= (pair, timeframe, limit))
         df = df.iloc[::-1].reset_index(drop=True)
-        '''
-        if len(df) < limit:
-            since = calculate_since(timeframe, limit)
-            logger.info(f"UPDATE CANDLES {pair} {timeframe} since {since} old:{len(df)}")
-            self.fetch_missing_history(conn,pair,timeframe,since,limit)
-
-            df = pd.read_sql_query(query, conn, params= (pair, timeframe, limit))
-        '''
+      
         conn.close()     
         return df
+    
+    '''
+    def history_data(self,pair: str, timeframe: str, limit: int = 1000):
+        self.align_data(timeframe)
+
+        query = """
+            SELECT *
+            FROM ohlc_history
+            WHERE pair=? AND timeframe=?
+            ORDER BY timestamp DESC
+            LIMIT ?"""
+             
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, conn, params= (pair, timeframe, limit))
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()     
+        return df
+    '''
+    
+    def history_data(self,pairs: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
+        self.align_data(timeframe)
+        sql_pairs = str(pairs)[1:-1]
+     
+        conn = sqlite3.connect(self.db_file)
+        if since:
+            #since = int(dt_from.timestamp()) * 1000
+            query = f"""
+                SELECT *
+                FROM ohlc_history
+                WHERE pair in ({sql_pairs}) AND timeframe='{timeframe}'
+                and timestamp>= {since}
+                ORDER BY timestamp DESC
+                LIMIT {limit}"""
+                
+            #print("since",since)
+            df = pd.read_sql_query(query, conn)
+        else:
+            query = f"""
+                SELECT *
+                FROM ohlc_history
+                WHERE pair in ({sql_pairs}) AND timeframe='{timeframe}'
+                ORDER BY timestamp DESC
+                LIMIT {limit}"""
+          
+            df = pd.read_sql_query(query, conn)
+            #print(df)
+
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()     
+        return df
+    
+    def history_at_time(self, timeframe, datetime):
+        self.align_data(timeframe)
+        #sql_pairs = str(pairs)[1:-1]
+
+        query = """
+            SELECT *
+            FROM ohlc_history
+            WHERE timestamp >= ? and timestamp < ? AND timeframe=?
+            """
+        
+        #datetime_after =  + timedelta(minutes=1)
+        delta = timeframe_to_milliseconds(timeframe)
+
+        unix_from = int(datetime.timestamp()) * 1000
+        unix_to= unix_from+delta
+
+       # logger.info(f"history_at_time -{sql_pairs}- {unix_from} {unix_to}")
+
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, conn, params= (unix_from,unix_to,timeframe))
+        conn.close()     
+        return df
+    
+  
    

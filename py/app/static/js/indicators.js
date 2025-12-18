@@ -1,6 +1,8 @@
 function db_localTime(data)
 {
-    return Math.floor(new Date(data).getTime() / 1000)
+     const seconds = new Date(data).getTime() / 1000;
+    const offsetSeconds = 60*60;//-date.getTimezoneOffset() * 6000;
+    return Math.floor(seconds + offsetSeconds);
 }
 
 

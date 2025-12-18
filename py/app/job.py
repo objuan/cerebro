@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, HTMLResponse
 import pandas as pd
@@ -24,6 +25,15 @@ class Job:
 
     def __init__(self):
        pass
+
+    def live_symbols(self)-> List[str]:
+        pass
+
+    def live_symbols_df(self)-> pd.DataFrame:
+        pass
+
+    def live_symbols_dict(self):
+        pass
 
     def tick(self):
        pass

@@ -46,8 +46,8 @@ from layout import *
 DB_FILE = "../db/crypto.db"
 DEF_LAYOUT = "./layouts/default_layout.json"
 
-fetcher = CryptoJob(DB_FILE,2,debugMode=True)
-
+fetcher = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
+db = DBDataframe(fetcher)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -88,18 +88,9 @@ def index():
     with open("static/index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(f.read())
 
-@app.get("/api/ohlc")
-def ohlc(pair: str, timeframe: str, limit: int = 200):
-    df = get_df("""
-        SELECT *
-        FROM ohlc_history
-        WHERE pair=? AND timeframe=?
-        ORDER BY timestamp DESC
-        LIMIT ?
-    """, (pair, timeframe, limit))
-    df["datetime"] = df["timestamp"].apply(ts_to_local_str)
-
-    return JSONResponse(df.to_dict(orient="records"))
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.get("/api/top_volume")
 def top_volume(timeframe: str = "5m", limit: int = 20):
@@ -131,20 +122,17 @@ def ohlc_chart(pair: str, timeframe: str, limit: int = 1000):
     return JSONResponse(df.to_dict(orient="records"))
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
+@app.get("/api/symbols")
+def get_symbols(limit: int = 1000):
+    pairs = fetcher.live_symbols()
+    print(pairs)
+    return JSONResponse({"pairs":pairs})
 
 ####################
-#PAIRS = ["BTC/USDC", "ETH/USDC"]
-#TIMEFRAME = "1m"
-
 
 ws_manager = WSManager()
 render_page = RenderPage(ws_manager)
-layout = Layout()
+layout = Layout(fetcher,db)
 layout.read(DEF_LAYOUT)
 #layout.setDefault()
 
@@ -201,44 +189,17 @@ async def live_loop():
             }
             
             await ws_manager.broadcast(msg)
-    
+
             
-            new_candles = await fetcher.fetch_new_candles()
+            new_candles = await fetcher.fetch_live_candles()
 
             #logger.info(f"NEW # {len(new_candles)}")
 
             if len(new_candles) < 500:
                 await layout.notify_candles(new_candles,render_page)
-            '''
-            for pair,timeframe in fetcher.live_pairs():
-                candles = fetcher.fetch_new_candles(pair, timeframe,render_page)
-                if candles:
-                    #print(f"🕯️ {pair} nuove: {len(candles)}")
-                    
-                    for candle in candles:
-                        #print(candle)
-                        
-                        msg = {
-                                "type": "candle",
-                                "pair":pair,
-                                "timeframe": TIMEFRAME,
-                                "data": {
-                                    "t":  candle["timestamp"],
-                                    "o": candle["open"],
-                                    "h":  candle["high"],
-                                    "l":  candle["low"],
-                                    "c":  candle["close"],
-                                    "qv":  candle["quote_volume"],
-                                    "bv":  candle["base_volume"]
-                                }
-                        }
-                     
-                        #await ws_manager.broadcast(msg)
-                    # qui puoi:
-                    # - aggiornare indicatori
-                    # - push via websocket
-                    # - salvare su history
-           '''
+
+            db.tick()
+           
         except Exception as e:
             logger.error("❌ errore live loop:", exc_info=True)
 

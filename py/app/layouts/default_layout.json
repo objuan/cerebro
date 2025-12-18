@@ -4,8 +4,8 @@
             "id": "def_0",
             "type": "comp",
             "rect": {
-                "w": 6,
-                "h": 5,
+                "w": 7,
+                "h": 6,
                 "x": 0,
                 "y": 0
             },
@@ -13,35 +13,35 @@
                 "type": "chart",
                 "pair": "BTC/USDC",
                 "timeframe": "1m",
-                "plot_config":{
+                "plot_config": {
                     "main_plot": {
-                        "ema": {"color": "red", "eta" : 9} 
+                        "ema9": {
+                            "fun": "ema",
+                            "color": "red",
+                            "eta": 9
+                        },
+                        "ema20": {
+                            "fun": "ema",
+                            "color": "white",
+                            "eta": 20
+                        }
                     },
-                    "subplots": {
-                    }
+                    "subplots": {}
                 }
             }
         },
         {
-            "id": "12addde6-effb-4835-848c-c448d041d87a",
+            "id": "def_1",
             "type": "comp",
             "rect": {
-                "w": 6,
-                "h": 5,
-                "x": 6,
+                "w": 7,
+                "h": 6,
+                "x": 0,
                 "y": 0
             },
             "widget": {
-                "type": "chart",
-                "pair": "BTC/USDC",
-                "timeframe": "5m",
-                "plot_config":{
-                    "main_plot": {
-                       
-                    },
-                    "subplots": {
-                    }
-                }
+                "type": "report",
+                "report_type": "top_gain"
             }
         }
     ]

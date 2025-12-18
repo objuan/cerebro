@@ -3,17 +3,24 @@ import json
 from datetime import datetime, timedelta
 from chart import *
 from renderpage import *
+from reports.top_gain_report import *
+from reports.db_dataframe import *
+from job import *
 import uuid
 import logging
 import asyncio
+
 
 logger = logging.getLogger(__name__)
 
 class Layout:
 
-    def __init__(self):
+    def __init__(self, fetcher: Job, db : DBDataframe):
        self.components=[]
+       self.fetcher=fetcher
+       self.db = db
        pass
+
 
     async def load(self,page:RenderPage):
         try:
@@ -84,6 +91,12 @@ class Layout:
         if cmd["type"] =="chart":
                 logger.info(f'CREATE CHART {cmd}')
                 return ChartWidget(id, cmd["pair"] ,cmd["timeframe"],cmd["plot_config"] )
+        if cmd["type"] =="report":
+                logger.info(f'CREATE REPORT {cmd}')
+                report_type = cmd["report_type"]
+                if report_type =="top_gain":
+                    return TopGainReportWidget(id,self.fetcher,self.db)
+                #return ChartWidget(id, cmd["pair"] ,cmd["timeframe"],cmd["plot_config"] )
         return None
     
     async def process_cmd(self,cmd,page:RenderPage):

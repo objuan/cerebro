@@ -12,7 +12,7 @@ class ChartWidget(Widget):
     def __init__(self,id, pair, timeframe,plot_config={}):
        self.id=id
        self.plot_config=plot_config
-       print("llll",plot_config)
+    
        self.set(pair,timeframe)
        
     def set(self,pair,timeframe):
