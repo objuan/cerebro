@@ -74,7 +74,7 @@ class DBDataframe_TimeFrame:
             
         else:            
             #logger.info(f"UPDATE {self.timeframe} last_timestamp {self.last_timestamp}")
-            new_df = self.fetcher.history_data(self.pairs , self.timeframe ,since = self.last_timestamp, limit= 9999999)
+            new_df = self.fetcher.history_data(self.pairs , self.timeframe ,since = self.last_timestamp, limit= 9999)
              
             #print( "NEW ",new_df)
             
@@ -101,7 +101,7 @@ class DBDataframe_TimeFrame:
             #self.df .sort_values("timestamp")
 
             # tieni solo gli ultimi N arrivi
-            self.df = self.df.tail(TIMEFRAME_LEN_CANDLES[self.timeframe]).reset_index(drop=True)
+            self.df = self.df.tail(TIMEFRAME_LEN_CANDLES[self.timeframe] * len(self.pairs)).reset_index(drop=True)
 
             self.set_indicators(self.df)
 

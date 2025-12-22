@@ -46,7 +46,7 @@ from layout import *
 DB_FILE = "../db/crypto.db"
 DEF_LAYOUT = "./layouts/default_layout.json"
 
-fetcher = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
+fetcher = CryptoJob(DB_FILE,10,historyActive=False,liveActive=True)
 db = DBDataframe(fetcher)
 
 @asynccontextmanager
@@ -118,9 +118,9 @@ def ohlc_chart(pair: str, timeframe: str, limit: int = 1000):
         LIMIT ?
     """, (pair, timeframe, limit))
     '''
-    df = fetcher.ohlc_data(pair,timeframe,limit)
+    #df = fetcher.ohlc_data(pair,timeframe,limit)
     
-    df1 = db.dataframe(timeframe)
+    df1 = db.dataframe(timeframe, pair)
     df_co = (
             df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
             .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
@@ -131,6 +131,11 @@ def ohlc_chart(pair: str, timeframe: str, limit: int = 1000):
     
     return JSONResponse(df_co.to_dict(orient="records"))
 
+@app.get("/api/report")
+def ohlc_chart(name: str):
+    #layout.components.
+    #return JSONResponse(df_co.to_dict(orient="records"))
+    pass
 
 @app.get("/api/symbols")
 def get_symbols(limit: int = 1000):
@@ -211,11 +216,11 @@ async def live_loop():
                 await layout.notify_candles(new_candles,render_page)
 
             db.tick()
-
-            layout.tick()
+            
+            await layout.tick(render_page)
            
         except Exception as e:
-            logger.error("❌ errore live loop:", exc_info=True)
+            logger.error("errore live loop:", exc_info=True)
 
         await asyncio.sleep(1)
 

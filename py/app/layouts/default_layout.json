@@ -4,15 +4,15 @@
             "id": "def_0",
             "type": "comp",
             "rect": {
-                "w": 7,
-                "h": 6,
+                "w": 5,
+                "h": 4,
                 "x": 0,
                 "y": 0
             },
             "widget": {
                 "type": "chart",
                 "pair": "BTC/USDC",
-                "timeframe": "1m",
+                "timeframe": "5m",
                 "plot_config": {
                     "main_plot": {
                         "ema9": {
@@ -36,12 +36,36 @@
             "rect": {
                 "w": 7,
                 "h": 6,
-                "x": 0,
+                "x": 5,
                 "y": 0
             },
             "widget": {
                 "type": "report",
-                "report_type": "top_gain"
+                "report_type": "top_gain",
+                "title": "Top Gainer",
+                "columns": [
+                    {
+                        "title": "Change From 60 m(%)"
+                    },
+                    {
+                        "title": "Pair/News"
+                    },
+                    {
+                        "title": "Price"
+                    },
+                    {
+                        "title": "Volume"
+                    },
+                    {
+                        "title": "Rel Vol (DaylyRate)"
+                    },
+                    {
+                        "title": "Rel Vol (5 min %)"
+                    },
+                    {
+                        "title": "Gap"
+                    }
+                ]
             }
         }
     ]

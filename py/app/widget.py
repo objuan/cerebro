@@ -12,16 +12,16 @@ class Widget:
        self.tickCont=0
        pass
 
-    def tick(self):
+    async def tick(self,render_page):
         if self.tickCont==0:
-            if self.onStart() :
+            if self.onStart(render_page) :
                 self.tickCont=self.tickCont+1
-        self.onTick()
+        await self.onTick(render_page)
 
-    def onStart(self)-> bool:
+    def onStart(self,render_page)-> bool:
         return True
 
-    def onTick(self):
+    async def onTick(self,render_page):
         pass
 
     def serialize(self):

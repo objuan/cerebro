@@ -21,9 +21,9 @@ class Layout:
        self.db = db
        pass
 
-    def tick(self):
+    async def tick(self,render_page):
         for comp in self.components:
-            comp.tick()
+            await comp.tick(render_page)
 
     async def load(self,page:RenderPage):
         try:
@@ -130,8 +130,8 @@ class LayoutComponent:
        self.widget=None
        #self.id = str(uuid.uuid4())
 
-    def tick(self):
-        self.widget.tick()
+    async def tick(self,render_page):
+        await self.widget.tick(render_page)
 
     async def load(self,page:RenderPage):
         ''' at startup '''
@@ -161,7 +161,5 @@ class LayoutComponent:
     async def notify_candles(self, candles,page:RenderPage):
         await self.widget.notify_candles(candles,page)
 
-    def render_html():
-        pass
 
 

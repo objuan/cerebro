@@ -25,8 +25,8 @@ class ReportWidget(Widget):
         pass
 
     def from_data(self,data):
-      
-        type = data["sss"]
+        pass
+        #type = data["sss"]
 
 
     def serialize(self):

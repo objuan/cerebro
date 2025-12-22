@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="/static/css/styles.css"> 
    <script src="/static/js/indicators.js"></script>
    <script src="/static/js/chart.js"></script>
+   <script src="/static/js/report.js"></script>
    <script src="/static/js/utils.js"></script>
 
 </head>
@@ -60,15 +61,16 @@ const heartbeatLabel = document.getElementById("heartbeatLabel");
 chart_list=[];
 chart_map=[];
 widget_list=[];
+report_map=[];
 
 // ===========  EVENTS =============
 
 const ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
-
+  //console.log(msg)
   if (msg.type === "comp") {
-      console.log("comp",msg)
+      //console.log("comp",msg)
       if (msg.widget.type =="chart")
       {
          addCandleWidget(msg.id, msg.widget.pair,msg.widget.timeframe,msg.widget.plot_config, msg.rect )
@@ -115,8 +117,12 @@ ws.onmessage = (event) => {
         value: c.bv,
         color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
     });
-    
-    
+  }
+  else  if (msg.type === "report") {
+      
+      const reportObj = report_map[msg["id"]];
+      //console.log(" report ", msg,reportObj);
+      reportObj.update(msg.data)
   }
   else if (msg.type === "heartbeat") {
         const d = new Date(msg.ts);
@@ -144,6 +150,7 @@ const grid = GridStack.init({
 
 function saveLayout() {
    const layout = grid.save(false); // false = senza DOM
+   console.log("saveLayout",layout)
    if (layout.length !=widget_list.length )
    {
      alert("ATTENZIONE LEN WINDGET");
@@ -378,6 +385,34 @@ function addCandleWidget(id, pair,timeframe,plot_config,rect) {
 
 function addReportWidget(id, rect, data) {
   console.log("report ",data)
+
+  const el = document.createElement("div");
+  el.classList.add("grid-stack-item");
+  
+  el.innerHTML = `
+    <div class="grid-stack-item-content">
+     
+      <div class="header  grid-stack-handle">
+        <div class="header-title">
+             📈 <span id='${id}_pair'>${data["title"]} </span>
+        </div>
+        
+      <button class="close-btn" title="Chiudi" onclick="layout_closeWidget(this.closest('.grid-stack-item'),'${id}')" >✕</button>
+    </div>  
+        
+    <table id='${id}'>
+     
+    </table>
+  `;
+  if (rect==null)  rect =  { w: 6, h: 5 }
+
+  grid.addWidget(el, rect  );
+
+  setTimeout(() => {
+    chartObj = createReport(el,id, data);
+    //chartObj.titleElement = document.getElementById(id+"_pair");
+  }, 0);
+
 }
 
 </script>

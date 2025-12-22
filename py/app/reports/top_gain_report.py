@@ -23,23 +23,77 @@ class TopGainReportWidget(ReportWidget):
     def format_time(self,time):
         return f"{self.gain_time_min} m"
 
-    def onStart(self)-> bool:
+    def onStart(self,render_page)-> bool:
         self.columns= [f"Change From {self.format_time(self.gain_time_min)}(%)","Pair/News","Rank","Price","Volume","Rel Vol (DaylyRate)", "Rel Vol (5 min %)","Gap"]
+        
+        self.columnsData = [
+            {"title": f"Change From {self.format_time(self.gain_time_min)}(%)", "data":"gain" },
+            {"title": "Pair/News", "data":"pair" },
+            {"title": "Price", "data":"close" },
+            {"title": "Volume", "data":"base_volume" },
+            {"title": "Rel Vol (DaylyRate)", "data":"rel_vol_24" },
+            {"title": "Rel Vol (5 min %)", "data":"rel_vol_5m" },
+            {"title": "Gap", "data":"gap" }
+
+        ]
+        self.columnsData = [
+            {"title": f"Change From {self.format_time(self.gain_time_min)}(%)" ,"decimals": 2, "colors":{ "range_min": -2 , "range_max":10 ,  "color_min": "#FFFFFF" , "color_max":"#14A014"   } },
+            {"title": "Pair/News" , "type" :"str" },
+            {"title": "Price","decimals": 5 },
+            {"title": "Volume" },
+            {"title": "Volume (QUOTE)" },
+            {"title": "Rel Vol (DaylyRate)","decimals": 2 },
+            {"title": "Rel Vol (5 min %)","decimals": 2},
+            {"title": "Gap", "decimals": 1, "colors":{ "range_min": -2 , "range_max":10 ,  "color_min": "#7B9AFD" , "color_max":"#3800B9"   } }
+
+        ]
+
         live_df = self.job.live_symbols_df()
         return len(live_df)>0
     
-    def onTick(self):
+    async def onTick(self,render_page):
         
+     
         try:
             # situazione attuale
             live_df = self.job.live_symbols_df()
-            logger.info(live_df)
+            #logger.info(live_df)
 
             #dt = datetime.now() - timedelta(minutes=self.gain_time_min)
 
-            df = self.db.dataframe("1m")[["timestamp","pair","close","quote_volume","base_volume"]].copy()
+            df_5m = self.db.dataframe("5m")
+            df_5m = df_5m.sort_values(["pair", "timestamp"]).reset_index(drop=True)
 
+            mean_base_volume_5m = (
+                            df_5m
+                            .sort_values("timestamp")
+                            .groupby("pair")
+                            .tail(self.history_days)
+                            .groupby("pair")["base_volume"]
+                            .mean()
+                            .reset_index(name="avg_base_volume_5m")
+                        )
+
+            #print(df_5m)
+            #########
+
+           
+            #           
             df_1d = self.db.dataframe("1d")
+
+            mean_base_volume_1d = (
+                df_1d
+                .sort_values("timestamp")
+                .groupby("pair")
+                .tail(self.history_days)
+                .groupby("pair")["base_volume"]
+                .mean()
+                .reset_index(name="avg_base_volume_1d")
+            )
+
+            ####
+
+            df = self.db.dataframe("1m")[["timestamp","pair","close","open","quote_volume","base_volume"]].copy()
 
             #self.df = pd.DataFrame(columns=self.columns)
 
@@ -47,10 +101,16 @@ class TopGainReportWidget(ReportWidget):
             #df = live_df[["pair","timestamp","close", "base_volume" , "quote_volume"]].copy()
 
             #print("history_shapshot",history_shapshot)
-            df['datetime_local'] = (pd.to_datetime(df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
+            #df['datetime_local'] = (pd.to_datetime(df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
             df = df.sort_values(["pair", "timestamp"]).reset_index(drop=True)
 
             df["gain"] =  ((df['close'] - df['close'].shift(60) ) / df['close'].shift(60))  * 100
+
+            #la differenza tra l’OPEN corrente e il CLOSE precedente.
+            #Esiste solo all’apertura
+            #Indica news / eventi overnight
+            df["gap"] =  ((df['open'] - df['close'].shift(1) ) /df['close'].shift(1))  * 100
+
 
             # 24 ore
             
@@ -61,33 +121,45 @@ class TopGainReportWidget(ReportWidget):
                     lambda g: (
                         g
                         .set_index("timestamp")["base_volume"]
-                        .rolling(4)
+                        .rolling(60*24)
+                        .sum()
+                        .values
+                    )
+                )
+            )
+            quote_vol_24h = (
+                df
+                .groupby("pair", group_keys=False)
+                .apply(
+                    lambda g: (
+                        g
+                        .set_index("timestamp")["quote_volume"]
+                        .rolling(60*24)
                         .sum()
                         .values
                     )
                 )
             )
             df["base_volume_24h"] = base_vol_24h.explode().astype(float).values
-            mean_quote_volume = (
-                df_1d
-                .sort_values("timestamp")
-                .groupby("pair")
-                .tail(self.history_days)
-                .groupby("pair")["quote_volume"]
-                .mean()
-                .reset_index(name="avg_quote_volume")
-            )
+            df["quote_volume_24h"] = quote_vol_24h.explode().astype(float).values
+
             #ogger.info(mean_quote_volume)
 
-            df = df.merge(  mean_quote_volume, on="pair",    how="left")
+            df = df.merge(  mean_base_volume_1d, on="pair",    how="left")
+            df = df.merge(  mean_base_volume_5m, on="pair",    how="left")
 
-            '''
-            df['Rel Vol (DaylyRate)'] = (
-                df['quote_volume_24h'] /
-                df.groupby('pair')['quote_volume_24h']
-                .transform(lambda x: x.rolling(self.history_days*1440, min_periods=1).mean())
-            )
-            '''
+            #  df_5m["base_volume_history"]
+
+            #volume delle ultime 24 ore con il volume medio giornaliero storico.
+            df['rel_vol_24'] = (df['base_volume_24h'] / df['avg_base_volume_1d']) 
+
+               
+            #quanto il volume dell’ultima candela 5m è sopra/sotto la media delle candele 5m.
+            #df['Rel Vol (5 min %)'] = (df['base_volume_5m'] / df['avg_base_volume_5m'])
+            df['rel_vol_5m'] = ((df['base_volume'] / df['avg_base_volume_5m']) ) * 100
+            
+            
+
             df = df.sort_values(["pair", "timestamp"]).reset_index(drop=True)
 
             #df = df.merge(  mean_quote_volume, on="pair",    how="left")
@@ -95,7 +167,10 @@ class TopGainReportWidget(ReportWidget):
             
             #df["Vol50 media"]  = df['pair'].map(mean_quote_volume)
 
-            logger.info(df[df["pair"] == 'BTC/USDC'])
+            #logger.info(df[df["pair"] == 'BTC/USDC'])
+
+            #logger.info(df[df["pair"] == 'ETH/USDC'])
+
             '''
             df['Rel Vol (DaylyRate)'] = (
                 df['quote_volume_24h'] /
@@ -124,6 +199,22 @@ class TopGainReportWidget(ReportWidget):
 
             #print( live_df)
             #print( "df", df)
+
+            ###################
+
+            latest_rows = df.loc[df.groupby("pair")["timestamp"].idxmax()]
+            latest_rows.sort_values(by = "gain", ascending=True).reset_index(drop=True)
+
+            logger.info(latest_rows)
+                        
+            #df.tail(10)
+            await render_page.send({
+                   "id" : self.id,
+                   "type" : "report",
+                   "data": latest_rows[["gain","pair","close", "base_volume_24h","quote_volume_24h","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
+               })
+          
+        
         except:
             logger.error("REPORT ERROR" , exc_info=True)
 
@@ -133,6 +224,6 @@ class TopGainReportWidget(ReportWidget):
             "type":"report",
             "report_type":"top_gain",
             "title" : "Top Gainer",
-            "columns" : self.columns
+            "columns" : self.columnsData
         }
   

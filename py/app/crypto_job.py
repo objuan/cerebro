@@ -10,7 +10,7 @@ from typing import List, Dict
 from utils import *
 from job import *
 from renderpage import RenderPage
-from config import *
+from config import TIMEFRAME_LEN_CANDLES
 import warnings
 warnings.filterwarnings("ignore")
 #from scanner.crypto import ohlc_history_manager
@@ -205,7 +205,7 @@ class CryptoJob(Job):
 
         logger.info(f">> Fetching history p:{pair} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
         
-        batch_count = 100
+        batch_count = 500
         i = 0
         while ( True):
             i=i+1
