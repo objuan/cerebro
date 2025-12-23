@@ -1,28 +1,35 @@
 {
     "ibroker":
     {
-        "instrument": "STK",
-        "location": "STK.US.MAJOR",
-        "type1": "TOP_PERC_GAIN",
-        "type": "HIGH_OPEN_GAP",
-        "filter": [
-            {
-                "code": "priceAbove",
-                "value": 10
-            },
-            {
-                "code": "priceBelow",
-                "value": 20000
-            },
+        "scheduler":
         {
-                "code": "usdVolumeAbove",
-                "value": 2000
-            },
+            
+        },
+        "scanner":
+        {
+            "instrument": "STK",
+            "location": "STK.US.MAJOR",
+            "type": "TOP_PERC_GAIN",
+            "type1": "HIGH_OPEN_GAP",
+            "filter": [
+                {
+                    "code": "priceAbove",
+                    "value": 10
+                },
+                {
+                    "code": "priceBelow",
+                    "value": 20000
+                },
             {
-                "code": "usdVolumeBelow",
-                "value": 20009000000
-            }
-        
-        ]
+                    "code": "usdVolumeAbove",
+                    "value": 2000
+                },
+                {
+                    "code": "usdVolumeBelow",
+                    "value": 20009000000
+                }
+            
+            ]
+        }
     }
 }

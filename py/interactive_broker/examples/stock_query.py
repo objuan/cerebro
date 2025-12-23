@@ -27,7 +27,7 @@ client = IbkrClient(cacert=cacert)
 
 
 print('#### get_stocks ####')
-stocks = client.security_stocks_by_symbol('AAPL').data
+stocks = client.security_stocks_by_symbol('TSLA').data
 print(stocks)
 
 

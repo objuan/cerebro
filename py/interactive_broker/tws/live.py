@@ -4,10 +4,11 @@ from ib_insync import *
 ib = IB()
 
 # Connect to TWS (use '127.0.0.1' and port 7497 for demo, 7496 for live trading)
-ib.connect('127.0.0.1', 7496, clientId=1)
+ib.connect('127.0.0.1', 7497, clientId=1)
 
 # Define a contract (VALE stock on SMART exchange, traded in USD)
-contract = Stock('VALE', 'SMART', 'USD')
+#contract = Stock('VALE', 'SMART', 'USD')
+contract = Stock('AAPL', 'NASDAQ', 'USD')
 
 # Request market data for the contract
 market_data = ib.reqMktData(contract)
@@ -15,7 +16,7 @@ market_data = ib.reqMktData(contract)
 # Function to print market data
 def print_data():
     if market_data:
-        print(f"Bid: {market_data.bid}, Ask: {market_data.ask}, Last: {market_data.last}")
+        print(f"Bid: {market_data.bid}, Ask: {market_data.ask}, Last: {market_data.last}  V: {market_data.volume}  S: {market_data.shortableShares}")
     else:
         print("No market data received.")
 

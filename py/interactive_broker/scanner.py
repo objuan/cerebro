@@ -153,4 +153,5 @@ def scan():
         #print("Scanner result salvato in scanner_result.json")
 
 if __name__ == "__main__":
+    
     scan()
