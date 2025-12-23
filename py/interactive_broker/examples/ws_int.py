@@ -19,21 +19,21 @@ from ibind import IbkrWsKey, IbkrWsClient, ibind_logs_initialize
 
 ibind_logs_initialize(log_to_file=False)
 
-account_id = os.getenv('IBIND_ACCOUNT_ID', '[YOUR_ACCOUNT_ID]')
+account_id = os.getenv('IBIND_ACCOUNT_ID', 'DUN863926')
 cacert = os.getenv('IBIND_CACERT', False)  # insert your cacert path here
 
-ws_client = IbkrWsClient()#cacert=cacert, account_id=account_id)
+ws_client = IbkrWsClient(cacert=cacert, account_id=account_id)
 
 ws_client.start()
 
 requests = [
     #market data "md"  channel for a specific conid with specific fields 
     {'channel': 'md+265598', 'data': {'fields': ['55', '71', '84', '86', '88', '85', '87', '7295', '7296', '70']}},
-    {'channel': 'or'},
-    {'channel': 'tr'},
-    {'channel': f'sd+{account_id}'},
-    {'channel': f'ld+{account_id}'},
-    {'channel': 'pl'},
+    #{'channel': 'or'},
+    #{'channel': 'tr'},
+    #{'channel': f'sd+{account_id}'},
+    #{'channel': f'ld+{account_id}'},
+    #{'channel': 'pl'},
 ]
 # live order 
 # #ws_client.subscribe(channel='or', data=None)
@@ -87,15 +87,37 @@ for request in requests:
     while not ws_client.subscribe(**request):
         time.sleep(1)
 
-while ws_client.running:
-    try:
-        for qa in queue_accessors:
-            while not qa.empty():
-                print(str(qa), qa.get())
+def parse_market_data(msg: dict):
+    data = {}
+    print(msg)
 
-        time.sleep(1)
-    except KeyboardInterrupt:
-        print('KeyboardInterrupt')
-        break
+    data["conid"] = msg.get("conid")
+    data["bid_price"] = float(msg["bid_price"]) if "bid_price" in msg else None
+    data["bid_size"] = int(msg["bid_size"]) if "bid_size" in msg else None
+    data["updated"] = msg.get("_updated")
+
+    marker = msg.get("market_data_marker")
+    data["is_live"] = marker is None or marker not in ("q9",)
+    print(data)
+    return data
+
+output_file = "stream.txt"
+# market_data_marker: 'q9' = dati NON live
+#with open(output_file, "w", encoding="utf-8") as f:
+
+while ws_client.running:
+        try:
+            for qa in queue_accessors:
+                while not qa.empty():
+                
+                    print(str(qa), qa.get())
+                    #p = parse_market_data(qa.get())
+                    #f.write(f"{str(qa)} | {qa.get()}\n")
+                    
+
+            time.sleep(1)
+        except KeyboardInterrupt:
+            print('KeyboardInterrupt')
+            break
 
 #stop(None, None)

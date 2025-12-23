@@ -40,7 +40,7 @@ logger.addHandler(console_handler)
 
 #############
 
-from crypto_job import *
+from job_binance import *
 from layout import *
 
 DB_FILE = "../db/crypto.db"

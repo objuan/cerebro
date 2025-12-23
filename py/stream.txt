@@ -1,0 +1,74 @@
+{265598: {'conid': 265598, '_updated': 1766413590376, 'topic': 'smd+265598', 'symbol': 'AAPL', 'market_data_marker': 'q15'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413591244, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '493K', 'bid_price': '273.38', 'ask_size': '100', 'high': '0.00', 'bid_size': '400', 'low': '0.00', 'open': '0.00', 'ask_price': '273.44', 'market_data_availability': 'DB'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413595706, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_price': '273.43', 'service_params': '&serviceID1=122&serviceID2=123&serviceID3=203&serviceID4=775&serviceID5=204&serviceID6=206&serviceID7=108&serviceID8=109'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413598166, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '494K'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413602219, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_size': '500'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413624257, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_price': '273.42'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413628136, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '495K'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413638313, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_size': '500', 'ask_price': '273.49'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413649198, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_size': '400', 'bid_size': '600'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413658171, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '496K'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413668279, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.42', 'ask_size': 
+'500', 'bid_size': '100'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413672125, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.38', 'bid_size': 
+'700'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413682092, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_size': '800'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413688313, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '497K'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413699224, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.40', 'bid_size': 
+'500'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413704275, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_size': '1,000', 'ask_price': '273.48'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413717280, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.42', 'bid_size': 
+'100'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413728206, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.40', 'ask_size': 
+'200', 'bid_size': '500', 'ask_price': '273.45'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413763195, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_size': '100', 'ask_price': '273.48'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413778295, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '498K'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413779796, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_size': '500', 'ask_price': '273.49'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413794556, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_size': '600'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413804563, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.41', 'bid_size': 
+'100'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413808567, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '499K'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413819090, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'ask_size': '200', 'ask_price': '273.48'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413828220, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.36', 'ask_size': 
+'100', 'ask_price': '273.40'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413835285, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.38'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413838328, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '501K'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413845290, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.36', 'bid_size': 
+'200'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413864280, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_price': '273.38', 'bid_size': 
+'100'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413868300, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'volume': '502K'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+{265598: {'conid': 265598, '_updated': 1766413873106, 'topic': 'smd+265598', 'market_data_marker': 'q15', 'bid_size': '200'}}
+{'conid': None, 'bid_price': None, 'bid_size': None, 'updated': None, 'is_live': True}
+15:31:22|I| IbkrWsClient: Unsubscribed: umd+265598+{"fields": ["55", "71", "84", "86", "88", "85", "87", "7295", "7296", "70"]} without confirmation.

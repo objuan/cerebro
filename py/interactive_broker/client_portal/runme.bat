@@ -1,0 +1,1 @@
+C:\Lavoro\cerebro\py\interactive_broker\client_portal\bin\run.bat C:\Lavoro\cerebro\py\interactive_broker\client_portal\root\conf.yaml
