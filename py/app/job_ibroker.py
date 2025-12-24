@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from logging.handlers import RotatingFileHandler
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 import pandas as pd
 import sqlite3
@@ -6,19 +7,28 @@ from datetime import datetime
 import time
 import logging
 from typing import List, Dict
-
+import asyncio
 from utils import *
 from job import *
 from renderpage import RenderPage
 from config import TIMEFRAME_LEN_CANDLES
+import yfinance as yf
 import warnings
 warnings.filterwarnings("ignore")
+
+#from ib.tws_scanner import *
+from ib_insync import IB,util,Stock
+
 #from scanner.crypto import ohlc_history_manager
 
 DB_FILE = "../db/crypto.db"
 
-
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 conn_exe = sqlite3.connect(DB_FILE, isolation_level=None)
 cur_exe = conn_exe.cursor()
@@ -32,29 +42,60 @@ TIMEFRAMES = ['1m', '5m']
 
 conn_read = sqlite3.connect(DB_FILE, isolation_level=None)
 
-class CryptoJob(Job):
 
-    def __init__(self, db_file, max_symbols, historyActive=True, liveActive=True):
-        super().__init__(db_file,max_symbols, "ib_ohlc_history,","ib_ohlc_live",historyActive,liveActive)
+class IBrokerJob(Job):
+
+    def __init__(self, ib,db_file, max_symbols, historyActive=True, liveActive=True):
+      
+        super().__init__(db_file,max_symbols, "ib_ohlc_history","ib_ohlc_live",historyActive,liveActive)
+        self.ib=ib
+        conn = sqlite3.connect(self.db_file)
+        cur = conn.cursor()
+        cur.execute("""
+                    
+    CREATE TABLE IF NOT EXISTS ib_ohlc_history (
+        exchange TEXT,
+        symbol TEXT,
+        timeframe TEXT,
+        timestamp INTEGER,
+
+        open REAL,
+        high REAL,
+        low REAL,
+        close REAL,
+
+        base_volume REAL,
+        quote_volume REAL,
+
+        source TEXT,        -- ib | live
+        updated_at INTEGER,          
+        ds_updated_at TEXT,
+
+        PRIMARY KEY (exchange, symbol, timeframe, timestamp)
+    )""")
+        conn.close()
 
     def tick(self):
        pass 
 
     def live_symbols_query(self, max_symbols)-> str:
-        return f"""
-            SELECT *
-            FROM (
-                SELECT *,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY pair
-                        ORDER BY updated_at DESC
-                    ) AS rn
-                FROM ohlc_live WHERE timeframe = '1m'
-            )
-            WHERE rn = 1
-            ORDER BY quote_volume_24h desc limit 
-            """  + " " +str(max_symbols)
 
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query("select max(updated_at) as max from ib_contracts", conn)
+        max_date = df.iloc[0]["max"]
+        #print("max_date",max_date)
+        last_df = pd.read_sql_query(f"select conidex,symbol,listing_exchange from ib_contracts where updated_at={max_date}", conn)
+        #print("df",last_df)
+        conn.close()
+
+        #if self.max_symbols!=None:
+        #    last_df = last_df.iloc[:self.max_symbols]
+
+        self.symbol_map = last_df.set_index("symbol")["listing_exchange"].to_dict()
+        self.symbol_to_conid_map = last_df.set_index("symbol")["conidex"].to_dict()
+
+        return f"select symbol from ib_contracts where updated_at={max_date}"
+            
     async def fetch_live_candles(self):
         
         key = "all"
@@ -62,98 +103,205 @@ class CryptoJob(Job):
         
         if self.liveActive:
           
-          pass
+            #print(self.sql_pairs)
+            cur_exe.execute(f"""
+            INSERT OR REPLACE INTO ib_ohlc_history
+            SELECT
+                exchange,
+                symbol,
+                timeframe,
+                timestamp,
+                open,
+                high,
+                low,
+                close,
+                base_volume,
+                quote_volume,
+                'live',
+                updated_at,
+                ds_updated_at
+            FROM ib_ohlc_live
+            WHERE symbol in ({self.sql_symbols})
+                AND updated_at > ?
+            """, ( last_seen))
 
-    def _fetch_missing_history(self,cursor, pair, timeframe, since):
+        conn = sqlite3.connect(self.db_file)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # get 
+        cur.execute("""
+            SELECT symbol, timeframe as tf ,updated_at as ts, timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
+            FROM ib_ohlc_history
+            WHERE  updated_at >= ?
+            ORDER BY updated_at ASC
+        """, ( last_seen))
+
+        rows = cur.fetchall()
+
+        conn.close()
+
+        if rows:
+            self.last_ts[key] = rows[-1]["ts"]
+
+        return [dict(r) for r in rows]
+
+    async def _fetch_missing_history(self,cursor, symbol, timeframe, since):
         #since = week_ago_ms()
 
-        update_delta_min = datetime.now() - datetime.fromtimestamp(float(since)/1000)
-        candles= candles_from_seconds(update_delta_min.total_seconds(),timeframe)
+        try:
+            update_delta_min = datetime.now() - datetime.fromtimestamp(float(since)/1000)
+            candles= candles_from_seconds(update_delta_min.total_seconds(),timeframe)
 
-        logger.info(f">> Fetching history p:{pair} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
+            logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
+            
+            dt_start =  datetime.fromtimestamp(float(since)/1000)
+            exchange = self.symbol_map[symbol]
         
-        batch_count = 500
-        i = 0
-        while ( True):
-            i=i+1
+            batch_count = 500
+            i = 0
+            while ( True):
+                i=i+1
 
-            logger.info(f"{i} ASK  {since}")
+                logger.info(f"{i} ASK  {dt_start}")
 
-            '''
-            ohlcv = exchange_ccxt.fetch_ohlcv(
-                symbol=pair,
-                timeframe=timeframe,
-                since=since,
-                limit=batch_count
-            )
-            
-
-            logger.info(f"{i} Find rows # {len(ohlcv)}")
-            if len(ohlcv) <1:
-                break
-
-            last = ohlcv[-1]
-            since = last[0] + 1
-            #logger.info(f"last # {last}")
-
-            for o in ohlcv:
-                ts, open_, high, low, close, vol = o
-                
-                cursor.execute("""
-            INSERT INTO ohlc_history (
-                    exchange,
-                    pair,
-                    timeframe,
-                    timestamp,
-                    open,
-                    high,
-                    low,
-                    close,
-                    base_volume,
-                    quote_volume,
-                    source,
-                    updated_at,
-                    ds_updated_at
+                ###########
+                df = yf.download(
+                    tickers=symbol,
+                    start=dt_start.strftime("%Y-%m-%d"),
+                    #period="1d",
+                    interval=timeframe,
+                    auto_adjust=False,
+                    progress=False,
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(exchange, pair, timeframe, timestamp)
-                DO UPDATE SET
-                    open = excluded.open,
-                    high = excluded.high,
-                    low = excluded.low,
-                    close = excluded.close,
-                    base_volume = excluded.base_volume,
-                    quote_volume = excluded.quote_volume,
-                    source = excluded.source,
-                    updated_at = excluded.updated_at,
-                    ds_updated_at = excluded.ds_updated_at
+                df = df.reset_index()
+                df.columns = [
+                    c[0] if isinstance(c, tuple) else c
+                    for c in df.columns
+                ]
+                #logger.debug(df.head())      
+                dateName = "Date"
+                if not dateName in df.columns:
+                    dateName ="Datetime"
                 
-                            
-                """, (
-                    "binance",
-                    pair,
-                    timeframe,
-                    ts,
-                    open_,
-                    high,
-                    low,
-                    close,
-                    vol,
-                    vol * close,
-                    "ccxt",
-                    int(time.time() * 1000),
-                    datetime.utcnow().isoformat()
-                ))
+                df[dateName] = df[dateName].astype("int64") // 10**9
 
-                '''
-                
-            cursor.commit()
+                #logger.debug(df.head())      
+                # 3. Converti i dati in un formato leggibile (List of Dicts)
+                # util.df(bars) creerebbe un DataFrame, ma per JSON usiamo una lista
+                ohlcv =  [
+                    (b[0]*1000, b.Open, b.High, b.Low, b.Close, b.Volume)
+                        for b in df.itertuples(index=False)
+                ]
 
-            
+                # lì'ultima è parsiale
+                ohlcv = ohlcv[:-1]
+                #print(data)
+
+                ################
+
+                logger.info(f"{i} Find rows # {len(ohlcv)}")
+                if len(ohlcv) <1:
+                    break
+
+                last = ohlcv[-1]
+                since = last[0] + 1
+                #logger.info(f"last # {last}")
+
+                for o in ohlcv:
+                    ts, open_, high, low, close, vol = o
+                    
+                    cursor.execute("""
+                INSERT INTO ib_ohlc_history (
+                        exchange,
+                        symbol,
+                        timeframe,
+                        timestamp,
+                        open,
+                        high,
+                        low,
+                        close,
+                        base_volume,
+                        quote_volume,
+                        source,
+                        updated_at,
+                        ds_updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(exchange, symbol, timeframe, timestamp)
+                    DO UPDATE SET
+                        open = excluded.open,
+                        high = excluded.high,
+                        low = excluded.low,
+                        close = excluded.close,
+                        base_volume = excluded.base_volume,
+                        quote_volume = excluded.quote_volume,
+                        source = excluded.source,
+                        updated_at = excluded.updated_at,
+                        ds_updated_at = excluded.ds_updated_at
+                    
+                                
+                    """, (
+                        exchange,
+                        symbol,
+                        timeframe,
+                        ts,
+                        open_,
+                        high,
+                        low,
+                        close,
+                        vol,
+                        vol * close,
+                        "yahoo",
+                        int(time.time() * 1000),
+                        datetime.utcnow().isoformat()
+                    ))
+        
+                    
+                cursor.commit()
+                break
+        except:
+            logger.error("ERROR", exc_info=True)
 
  
+if __name__ == "__main__":
 
- 
+    #ib = IB()
+
+    # Co    nnect to TWS (use '127.0.0.1' and port 7497 for demo, 7496 for live trading)
+    #ib.connect('127.0.0.1', 7497, clientId=1)
+
+    #############
+    # Rotazione: max 5 MB, tieni 5 backup
+    file_handler = RotatingFileHandler(
+            "logs/ibroker.log",
+            maxBytes=5_000_000,
+            backupCount=5
+    )
+    file_handler.setLevel(logging.DEBUG)
+
+    # Console
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
     
+    #############
+
+    job = IBrokerJob(None,DB_FILE, 1, True,False)
+ 
+    async def test():
+        
+            await job.ohlc_data("AAPL","1m",1000)
+           
+        
+        #logger.info(df)   
+    asyncio.run(test())
+    #logger.info(df)
   
    

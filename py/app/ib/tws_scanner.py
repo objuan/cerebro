@@ -13,60 +13,88 @@ import yfinance as yf
 import pandas as pd
 import logging
 from logging.handlers import RotatingFileHandler
-from ib_insync import *
-util.startLoop()  # uncomment this line when in a notebook
+from ib_insync import IB,util,Stock
 
+#util.startLoop()  # uncomment this line when in a notebook
+  
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-ib = IB()
-ib.connect('127.0.0.1', 7497, clientId=1)
 
 DB_FILE = "db/crypto.db"
 CONFIG_FILE = "scanner/ibroker/config.json"
 DB_TABLE = "ib_ohlc_live"
 
-try:
-    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-        config = json.load(f)
-        #print(config)
-except FileNotFoundError:
-    print("File non trovato")
-except json.JSONDecodeError as e:
-    print("JSON non valido:", e)
+ib=None
+#ib = IB()
+async def ib_bootstrap(ib):
+   
+    #await ib.connect('127.0.0.1', 7497, clientId=1)
+    if not ib.isConnected():
+        await ib.connectAsync(
+            host='127.0.0.1',
+            port=7497,
+            clientId=1,
+            timeout=5
+        )
 
-################################
+    while True:
+        #print("tick")
+        try:
+           pass
+        except Exception as e:
+            logger.error("errore pws loop:", exc_info=True)
 
-conn = sqlite3.connect(DB_FILE, isolation_level=None)
-cur = conn.cursor()
+        await asyncio.sleep(1)
 
-cur.execute("PRAGMA journal_mode=WAL;")
-cur.execute("PRAGMA synchronous=NORMAL;")
+async def _bootstrap():
+    
+    global ib
+    ib = IB()
+    await ib.connect('127.0.0.1', 7497, clientId=1)
 
-cur.execute("""
-    CREATE TABLE IF NOT EXISTS ib_ohlc_live (
-        conindex INTEGER,
-        symbol TEXT,
-        exchange TEXT,
-        timeframe TEXT,
-        timestamp INTEGER, -- epoch ms
-        open REAL,
-        high REAL,
-        low REAL,
-        close REAL,
-        bid REAL,
-        ask REAL,
-        volume REAL,
-        volume_day REAL,
-        updated_at INTEGER, -- epoch ms
-        ds_updated_at TEXT, -- epoch ms
-        PRIMARY KEY(symbol, timeframe, timestamp)
-    )""")
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            #print(config)
+    except FileNotFoundError:
+        print("File non trovato")
+    except json.JSONDecodeError as e:
+        print("JSON non valido:", e)
 
-cur.execute("""
-    CREATE INDEX IF NOT EXISTS ib_idx_ohlc_ts
-        ON ib_ohlc_live(timestamp)
-    """)
+
+def init_db():
+
+    ################################
+
+    conn = sqlite3.connect(DB_FILE, isolation_level=None)
+    cur = conn.cursor()
+
+    cur.execute("PRAGMA journal_mode=WAL;")
+    cur.execute("PRAGMA synchronous=NORMAL;")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS ib_ohlc_live (
+            conindex INTEGER,
+            symbol TEXT,
+            timeframe TEXT,
+            timestamp INTEGER, -- epoch ms
+            open REAL,
+            high REAL,
+            low REAL,
+            close REAL,
+            bid REAL,
+            ask REAL,
+            volume REAL,
+            volume_day REAL,
+            updated_at INTEGER, -- epoch ms
+            ds_updated_at TEXT, -- epoch ms
+            PRIMARY KEY(symbol, timeframe, timestamp)
+        )""")
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS ib_idx_ohlc_ts
+            ON ib_ohlc_live(timestamp)
+        """)
 
 last_stats = {}
 agg_cache = {}
@@ -74,8 +102,8 @@ RETENTION_HOURS = 48      # quante ore tenere
 CLEANUP_INTERVAL = 3600  # ogni quanto pulire (1h)
 
 TIMEFRAMES = {
-    #"30s": 30
-    "1m": 60,
+    "30s": 30
+    #"1m": 60,
     #"5m": 300,
     #"1h": 3600,
 }
@@ -104,7 +132,7 @@ def floor_ts(ts_ms, sec):
     return (ts_ms // (sec*1000)) * (sec*1000)
 
 
-def update_ohlc(conindex,symbol, exchange,price,bid,ask, volume, ts_ms):
+def update_ohlc(conindex,symbol, price,bid,ask, volume, ts_ms):
     volume=volume*100
     for tf, sec in TIMEFRAMES.items():
         t = floor_ts(int(ts_ms)*1000, sec)
@@ -138,9 +166,9 @@ def update_ohlc(conindex,symbol, exchange,price,bid,ask, volume, ts_ms):
 
         save = agg_cache[key]
         cur.execute("""
-        INSERT OR REPLACE INTO ib_ohlc_live VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO ib_ohlc_live VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            conindex, symbol, exchange,  tf, t,
+            conindex, symbol, tf, t,
             save["open"], save["high"], save["low"], save["close"],
             save["bid"],save["ask"],
             save["volume_acc"], save["volume"], 
@@ -177,7 +205,7 @@ def scan(config):
     run_time = int(time.time() * 1000)
     ds_run_time  = datetime.utcnow().isoformat()
 
-    Contract              
+            
     print(display_with_stock_symbol(scanData))
     # inserimento dati
     #for row in display_with_stock_symbol(scanData).iterrows():
@@ -332,49 +360,3 @@ def start_watch(receiveHandler):
         # Gracefully disconnect on exit
         print("Disconnecting from TWS...")
         ib.disconnect()
-
-#############
-
-if __name__ =="__main__":
-
-    #############
-    # Rotazione: max 5 MB, tieni 5 backup
-    file_handler = RotatingFileHandler(
-            "logs/tws_broker.log",
-            maxBytes=5_000_000,
-            backupCount=5
-    )
-    file_handler.setLevel(logging.DEBUG)
-
-    # Console
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
-
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    file_handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-    #############
-
-    logger.info("=================================================")
-    logger.info("               IBROKER SCANNER V1.0")
-    logger.info("=================================================")
-
-    try:
-        #scan(config)
-
-        updateLive(config, 0,2)
-        
-        def receive(symbol, ticker: Ticker):
-            logger.info(ticker)
-            print(">>", symbol_to_conid_map[symbol] , symbol, ticker.last,ticker.volume, ticker.time )
-
-            update_ohlc(symbol_to_conid_map[symbol] , symbol,symbol_map[symbol], ticker.last,ticker.bid, ticker.ask, ticker.volume,ticker.time .timestamp())
-
-        start_watch(receive)
-
-    except:
-        logger.error("ERROR", exc_info=True)
-    #clean_up()

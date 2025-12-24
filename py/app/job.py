@@ -32,6 +32,8 @@ def week_ago_ms():
 class Job:
 
     def __init__(self,db_file,max_symbols, table_name, live_table_name,historyActive=True, liveActive=True):
+        
+        self.symbols=[]
         self.db_file=db_file
         self.table_name=table_name
         self.live_table_name=live_table_name
@@ -52,8 +54,11 @@ class Job:
 
     def update_stats(self):
         self.monitor = self.live_symbols_dict()
-        print(self.monitor)
+        logger.debug(self.monitor)
         self.symbols = [ x["symbol"]  for x in self.monitor ]
+        if self.max_symbols != None:
+             self.symbols = self.symbols [:self.max_symbols]
+        
         self.sql_symbols = str(self.symbols)[1:-1]
         logger.info(f"LISTEN SYMBOLS {self.symbols}")
 
@@ -95,70 +100,72 @@ class Job:
     async def fetch_live_candles(self):
         pass
 
-    def  _fetch_missing_history(self,cursor, symbol, timeframe, since):
+    async def  _fetch_missing_history(self,cursor, symbol, timeframe, since):
         pass
 
-    def align_data(self, timeframe):
+    async def align_data(self, timeframe):
 
-        query_min = f"""
-            SELECT min(timestamp) as min
-            FROM {self.table_name}
-            WHERE symbol = ? and timeframe=? and source == 'live'
-            """
-      
-        query_max = f"""
-            SELECT max(timestamp) as max
-            FROM {self.table_name}
-            WHERE symbol = ? and timeframe=? and source != 'live'
-            """
+        try:
+            query_min = f"""
+                SELECT min(timestamp) as min
+                FROM {self.table_name}
+                WHERE symbol = ? and timeframe=? and source == 'live'
+                """
         
-        conn = sqlite3.connect(self.db_file)
-        
-        for symbol in self.live_symbols():
-                max_dt=None
-                update = False
-                df_min = pd.read_sql_query(query_min, conn, params= (symbol, timeframe))
-                df_max = pd.read_sql_query(query_max, conn, params= (symbol, timeframe))
-                #print(df)
-                if df_max.iloc[0]["max"]:
-                    if not df_min.iloc[0]["min"]:
-                        max_dt = int(df_max.iloc[0]["max"]/1000) # ultima data in unix time    
+            query_max = f"""
+                SELECT max(timestamp) as max
+                FROM {self.table_name}
+                WHERE symbol = ? and timeframe=? and source != 'live'
+                """
+
+            conn = sqlite3.connect(self.db_file)
+            
+            for symbol in self.live_symbols():
+                    max_dt=None
+                    update = False
+                    df_min = pd.read_sql_query(query_min, conn, params= (symbol, timeframe))
+                    df_max = pd.read_sql_query(query_max, conn, params= (symbol, timeframe))
+                    #print(df)
+                    if df_max.iloc[0]["max"]:
+                        if not df_min.iloc[0]["min"]:
+                            max_dt = int(df_max.iloc[0]["max"]/1000) # ultima data in unix time    
+                        else:
+                            max_dt = int(df_min.iloc[0]["min"]/1000) # ultima data in unix time 
+                    
+                    if max_dt:
+                        last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
+
+                        logger.info(f"LAST UPDATE DELTA {last_update_delta_min}")
+                        # devo aggiornare ??? 
+                        
+                        if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 5):
+                            update=True
+                        if (timeframe =="5m" and last_update_delta_min.total_seconds()/60 > 30):
+                            update=True
+                        if (timeframe =="1h" and last_update_delta_min.total_seconds()/60 > 1):
+                            update=True
+                        if (timeframe =="1d" and last_update_delta_min.total_seconds()/60 > 24*60):
+                            update=True
                     else:
-                        max_dt = int(df_min.iloc[0]["min"]/1000) # ultima data in unix time 
-                
-                if max_dt:
-                    last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
-
-                    #logger.info(f"LAST UPDATE DELTA {last_update_delta_min}")
-                    # devo aggiornare ??? 
-                    
-                    if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 10):
                         update=True
-                    if (timeframe =="5m" and last_update_delta_min.total_seconds()/60 > 30):
-                        update=True
-                    if (timeframe =="1h" and last_update_delta_min.total_seconds()/60 > 1):
-                        update=True
-                    if (timeframe =="1d" and last_update_delta_min.total_seconds()/60 > 24*60):
-                        update=True
-                else:
-                    update=True
-                    max_dt = int(
-                        (datetime.now() - timedelta(seconds=seconds_from_candles(TIMEFRAME_LEN_CANDLES[timeframe], timeframe)))
-                        .timestamp()
-                        )
-                #update=True
-                if update:
-                    print(max_dt)
-                    logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
+                        max_dt = int(
+                            (datetime.now() - timedelta(seconds=seconds_from_candles(TIMEFRAME_LEN_CANDLES[timeframe], timeframe)))
+                            .timestamp()
+                            )
+                    #update=True
+                    if update:
+                        logger.debug("MAX.. ",max_dt)
+                        logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
 
-                    self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000)
-                    
-        conn.close()     
-  
+                        await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000)
+                        
+            conn.close()     
+        except: 
+            logger.error("ERROR",exc_info=True)
 
-    def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000):
-        self.align_data(timeframe)
-
+    async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000):
+        await self.align_data(timeframe)
+       
         query = f"""
             SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
             FROM {self.table_name}
@@ -209,8 +216,8 @@ class Job:
         conn.close()     
         return df
     
-    def history_at_time(self, timeframe, datetime):
-        self.align_data(timeframe)
+    async def history_at_time(self, timeframe, datetime):
+        await self.align_data(timeframe)
         #sql_pairs = str(pairs)[1:-1]
 
         query = f"""

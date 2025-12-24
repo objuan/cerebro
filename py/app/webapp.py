@@ -11,8 +11,17 @@ import time
 import asyncio
 import os
 import logging
+import sys
+
+#if sys.platform == 'win32':
+    #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 ############# LOGS #############
+#print(" STAT FROM ",os.getcwd())
+
+#if not os.getcwd().endswith("APP"):
+    #os.chdir("APP")
+#print(" STAT FROM ",os.getcwd())
 
 os.makedirs("logs", exist_ok=True)
 
@@ -40,25 +49,69 @@ logger.addHandler(console_handler)
 
 #############
 
-from job_binance import *
+#from job_binance import *
+from job_ibroker import *
+from ib_insync import IB,util
+
 from layout import *
 
 DB_FILE = "../db/crypto.db"
 DEF_LAYOUT = "./layouts/default_layout.json"
 
-fetcher = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
+#fetcher = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
+fetcher = IBrokerJob(None,DB_FILE,2,historyActive=False,liveActive=True)
+
 db = DBDataframe(fetcher)
+
+# FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(live_loop())
-    task1 = asyncio.create_task(hourly_task())
-    yield
-    task.cancel()
-    task1.cancel()
+  
+    '''
+    loop = asyncio.get_running_loop()
+    print(f"--- Lifespan loop: {type(loop).__name__} ---")
+    ib = IB()
+    
+    # Forza IB a usare il loop corrente (opzionale ma consigliato se l'errore persiste)
+    util.patchAsyncio() # Solo se usi versioni vecchie, di solito non serve più
+    '''
+    try:
+        # 3️⃣ Connetti usando il contesto async
+        '''
+        print("Connessione a IBKR in corso...")
+        if ib.isConnected():
+             ib.disconnect()
+
+        await ib.connectAsync(
+            host="127.0.0.1",
+            port=7497,
+            clientId=2,
+            timeout=10
+        )
+        app.state.ib = ib
+        print("IBKR Connesso con successo!")
+        '''
+        live_task = asyncio.create_task(live_loop())
+        thread_h = asyncio.create_task(hourly_task())
+
+        yield
+
+        print("DONE")
+    except:
+        logger.error("ERROR", exc_info=True)
+    finally:
+        # 4️⃣ Chiudi la connessione allo spegnimento
+        print("Chiusura connessione IBKR...")
+        #ib.disconnect()
+        live_task.cancel()
+        thread_h.cancel()
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 def fetch_all_new(fetcher, symbols, timeframe):
     all_new = []
@@ -94,28 +147,35 @@ def health():
 
 
 @app.get("/api/ohlc_chart")
-def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
-    '''
-    df = get_df("""
-        SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
-        FROM ohlc_history
-        WHERE symbol=? AND timeframe=?
-        ORDER BY timestamp ASC
-        LIMIT ?
-    """, (symbol, timeframe, limit))
-    '''
-    #df = fetcher.ohlc_data(pair,timeframe,limit)
+async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
     
-    df1 = db.dataframe(timeframe, symbol)
-    df_co = (
-            df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
-            .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
-            .copy()
-    )
-    
-    #print("chart",df_co)
-    
-    return JSONResponse(df_co.to_dict(orient="records"))
+    try:
+        '''
+        df = get_df("""
+            SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
+            FROM ib_ohlc_history
+            WHERE symbol=? AND timeframe=?
+            ORDER BY timestamp ASC
+            LIMIT ?
+        """, (symbol, timeframe, limit))
+        '''
+        df = await fetcher.ohlc_data(symbol,timeframe,limit)
+        
+        '''
+        df1 = db.dataframe(timeframe, symbol)
+        df_co = (
+                df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
+                .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
+                .copy()
+        )
+        '''
+        
+        #logger.debug(f"!!!!!!!!!!!! chart {df}")
+        
+        return JSONResponse(df.to_dict(orient="records"))
+    except:
+        logger.error("Error", exc_info=True)
+        return HTMLResponse("error", 500)
 
 @app.get("/api/report")
 def ohlc_chart(name: str):
@@ -131,10 +191,14 @@ def get_symbols(limit: int = 1000):
 
 ####################
 
+
 ws_manager = WSManager()
 render_page = RenderPage(ws_manager)
 layout = Layout(fetcher,db)
 layout.read(DEF_LAYOUT)
+
+
+
 #layout.setDefault()
 
 @app.get("/api/layout/select")
@@ -189,8 +253,7 @@ async def live_loop():
                 "ts": int(time.time() * 1000)
             }
             
-           
-
+            
             await ws_manager.broadcast(msg)
 
             
@@ -201,7 +264,7 @@ async def live_loop():
             if len(new_candles) < 500:
                 await layout.notify_candles(new_candles,render_page)
 
-            db.tick()
+            #db.tick()
             
             await layout.tick(render_page)
            
@@ -209,4 +272,5 @@ async def live_loop():
             logger.error("errore live loop:", exc_info=True)
 
         await asyncio.sleep(1)
+
 
