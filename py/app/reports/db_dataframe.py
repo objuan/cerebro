@@ -44,7 +44,7 @@ class DBDataframe_Symbol:
 
 class DBDataframe_TimeFrame:
     def __init__(self,fetcher,timeframe):
-        self.pairs=fetcher.live_symbols()
+        self.symbols=fetcher.live_symbols()
         self.fetcher=fetcher
         self.timeframe = timeframe
         self.lastTime = datetime.now()
@@ -63,7 +63,7 @@ class DBDataframe_TimeFrame:
 
     def update(self):
         if not self.last_timestamp:
-            self.df = self.fetcher.history_data(self.pairs , self.timeframe , limit= 999999 )
+            self.df = self.fetcher.history_data(self.symbols , self.timeframe , limit= 999999 )
             #print(self.df)
             #self.df = self.df.set_index("timestamp", drop=True)
 
@@ -74,7 +74,7 @@ class DBDataframe_TimeFrame:
             
         else:            
             #logger.info(f"UPDATE {self.timeframe} last_timestamp {self.last_timestamp}")
-            new_df = self.fetcher.history_data(self.pairs , self.timeframe ,since = self.last_timestamp, limit= 9999)
+            new_df = self.fetcher.history_data(self.symbols , self.timeframe ,since = self.last_timestamp, limit= 9999)
              
             #print( "NEW ",new_df)
             
@@ -86,7 +86,7 @@ class DBDataframe_TimeFrame:
             self.df  = (
                     self.df .sort_values("timestamp")
                     .drop_duplicates(
-                        subset=["exchange", "pair", "timeframe", "timestamp"],
+                        subset=["exchange", "symbol", "timeframe", "timestamp"],
                         keep="last"
                     )
                 )
@@ -94,14 +94,14 @@ class DBDataframe_TimeFrame:
             
             
             self.df  = self.df.drop_duplicates(
-                        subset=["exchange", "pair", "timeframe", "timestamp"],
+                        subset=["exchange", "symbol", "timeframe", "timestamp"],
                         keep="last"
                     )
             
             #self.df .sort_values("timestamp")
 
             # tieni solo gli ultimi N arrivi
-            self.df = self.df.tail(TIMEFRAME_LEN_CANDLES[self.timeframe] * len(self.pairs)).reset_index(drop=True)
+            self.df = self.df.tail(TIMEFRAME_LEN_CANDLES[self.timeframe] * len(self.symbols)).reset_index(drop=True)
 
             self.set_indicators(self.df)
 
@@ -110,18 +110,18 @@ class DBDataframe_TimeFrame:
             #print( "NEW ",self.df.tail())
         #print( "DB ",self.df )
 
-    def dataframe(self,pair="") -> pd.DataFrame:
-        if pair=="":
+    def dataframe(self,symbol="") -> pd.DataFrame:
+        if symbol=="":
             return self.df
         else:
             cp =  self.df.copy()
-            return cp[cp["pair"]== pair]
+            return cp[cp["symbol"]== symbol]
     
 ###########
 
 class DBDataframe:
     def __init__(self, fetcher):
-        self.pairs=fetcher.live_symbols()
+        self.symbols=fetcher.live_symbols()
         self.fetcher=fetcher
         self.map = {}
      
@@ -130,9 +130,9 @@ class DBDataframe:
        for x,v in self.map.items():
             v.tick()
 
-    def dataframe(self,timeframe,pair="")-> pd.DataFrame:
+    def dataframe(self,timeframe,symbol="")-> pd.DataFrame:
         if not timeframe in self.map :
             self.map[timeframe] = DBDataframe_TimeFrame(self.fetcher,timeframe)
         
-        return self.map[timeframe].dataframe(pair)
+        return self.map[timeframe].dataframe(symbol)
         

@@ -2,7 +2,7 @@
 // =============== CHART ===============
 
 
-function createChart(widget_ele,id_chart, pair, timeframe,plot_config) {
+function createChart(widget_ele,id_chart, symbol, timeframe,plot_config) {
     const container = document.getElementById(id_chart);
     //console.log("container",container)
 
@@ -178,7 +178,7 @@ function createChart(widget_ele,id_chart, pair, timeframe,plot_config) {
       function refresh()
       {
         //console.log("....",this);
-          fetch(`/api/ohlc_chart?pair=${this.pair}&timeframe=${this.timeframe}`)
+          fetch(`/api/ohlc_chart?symbol=${this.symbol}&timeframe=${this.timeframe}`)
             .then(r => r.json())
             .then(data => {
                 console.log(data)
@@ -220,13 +220,13 @@ function createChart(widget_ele,id_chart, pair, timeframe,plot_config) {
       function save()
       {
         //alert("save");
-        return {"pair":this.pair,"timeframe":this.timeframe,"plot_config": this.plot_config}
+        return {"symbol":this.symbol,"timeframe":this.timeframe,"plot_config": this.plot_config}
       }
 
-    chart_list[id_chart] = { id : id_chart, widget_ele:widget_ele, pair:pair, timeframe:timeframe, charts:[chart,chart2], mainSeries ,volumeSeries: volumeSeries, 
+    chart_list[id_chart] = { id : id_chart, widget_ele:widget_ele, symbol:symbol, timeframe:timeframe, charts:[chart,chart2], mainSeries ,volumeSeries: volumeSeries, 
       plot_config:plot_config, indicators : indicators, refresh: refresh , save:save};
 
-    chart_map[pair] = chart_list[id_chart] ;
+    chart_map[symbol] = chart_list[id_chart] ;
     widget_list.push(chart_list[id_chart]);
 
     //console.log("!!!!!!!!!!",widget_list);

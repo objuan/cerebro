@@ -37,7 +37,7 @@
 </div>
 
 <button onclick="addTopVolume()">➕ Top Volume</button>
-<button onclick="layout_addWidget({'type':'chart','pair': 'BTC/USDC', 'timeframe':'1m'})">➕ BTC 1m</button>
+<button onclick="layout_addWidget({'type':'chart','symbol': 'BTC/USDC', 'timeframe':'1m'})">➕ BTC 1m</button>
 
 <div class="grid-stack"></div>
 
@@ -73,7 +73,7 @@ ws.onmessage = (event) => {
       //console.log("comp",msg)
       if (msg.widget.type =="chart")
       {
-         addCandleWidget(msg.id, msg.widget.pair,msg.widget.timeframe,msg.widget.plot_config, msg.rect )
+         addCandleWidget(msg.id, msg.widget.symbol,msg.widget.timeframe,msg.widget.plot_config, msg.rect )
       }
       else if (msg.widget.type =="report")
       {
@@ -92,11 +92,11 @@ ws.onmessage = (event) => {
   else if (msg.type === "candle") {
     //console.log("🕯️ nuova candle", msg);
     const id = msg.id;
-    const pair = msg.pair;
+    const symbol = msg.symbol;
     const chartObj = chart_list[id];
 
     if (!chartObj) {
-        console.warn("Grafico non trovato per", pair);
+        console.warn("Grafico non trovato per", symbol);
         return;
     }
     
@@ -280,7 +280,7 @@ function addTopVolume() {
       $(`#${id}`).DataTable({
         data,
         columns: [
-          { title:"Pair", data:"pair" },
+          { title:"Symbol", data:"symbol" },
           { title:"Volume", data:"volume" }
         ]
       });
@@ -288,25 +288,25 @@ function addTopVolume() {
 }
 
 
-function chart_selectpair(item,id)
+function chart_select_symbol(item,id)
 {
     chartObj = chart_list[id];
     //console.log("chart_selectpair",chartObj)
     $.getJSON('/api/symbols', function (data) {
-      PopupList(data["pairs"], chartObj.pair, (newPair)=>
+      PopupList(data["symbols"], chartObj.symbol, (newSymbol)=>
       {
         //console.log("SELTA ", newPair ,id )
         chartObj = chart_list[id];
          //console.log("chart_selectpair1",chartObj)
-         chartObj.pair = newPair;
+         chartObj.symbol = newSymbol;
          console.log(chartObj.titleElement)
-         chartObj.titleElement.innerHTML = newPair;
+         chartObj.titleElement.innerHTML = newSymbol;
          chartObj.refresh();
       } );
     });
 }
 
-function addCandleWidget(id, pair,timeframe,plot_config,rect) {
+function addCandleWidget(id, symbol,timeframe,plot_config,rect) {
 
   console.log("plot_config",plot_config)
 
@@ -347,10 +347,10 @@ function addCandleWidget(id, pair,timeframe,plot_config,rect) {
      
       <div class="header  grid-stack-handle">
         <div class="header-title">
-             📈 <span id='${id}_pair'>${pair} </span>
+             📈 <span id='${id}_symbol'>${symbol} </span>
         </div>
         
-        <button class="pair-btn" title="Select Pair" onclick="chart_selectpair(this.closest('.grid-stack-item'),'${id_chart}')" >^</button>
+        <button class="pair-btn" title="Select Symbol" onclick="chart_select_symbol(this.closest('.grid-stack-item'),'${id_chart}')" >^</button>
      
         <select class="timeframe-selector" >
             <option value="1m">1m</option>
@@ -376,8 +376,8 @@ function addCandleWidget(id, pair,timeframe,plot_config,rect) {
 
   //createChart(id, pair, timeframe);
   setTimeout(() => {
-    chartObj = createChart(el,id_chart, pair, timeframe, plot_config);
-    chartObj.titleElement = document.getElementById(id+"_pair");
+    chartObj = createChart(el,id_chart, symbol, timeframe, plot_config);
+    chartObj.titleElement = document.getElementById(id+"_symbol");
 
     //bind_get(chartObj.pair,id+"_pair", (val)=> { return "."+val; } );
   }, 0);
@@ -394,7 +394,7 @@ function addReportWidget(id, rect, data) {
      
       <div class="header  grid-stack-handle">
         <div class="header-title">
-             📈 <span id='${id}_pair'>${data["title"]} </span>
+             📈 <span id='${id}_symbol'>${data["title"]} </span>
         </div>
         
       <button class="close-btn" title="Chiudi" onclick="layout_closeWidget(this.closest('.grid-stack-item'),'${id}')" >✕</button>
@@ -410,7 +410,7 @@ function addReportWidget(id, rect, data) {
 
   setTimeout(() => {
     chartObj = createReport(el,id, data);
-    //chartObj.titleElement = document.getElementById(id+"_pair");
+    //chartObj.titleElement = document.getElementById(id+"_symbol");
   }, 0);
 
 }

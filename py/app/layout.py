@@ -91,13 +91,13 @@ class Layout:
     def create_widget(self,id, cmd):
         if cmd["type"] =="chart":
                 logger.info(f'CREATE CHART {cmd}')
-                return ChartWidget(id, cmd["pair"] ,cmd["timeframe"],cmd["plot_config"] )
+                return ChartWidget(id, cmd["symbol"] ,cmd["timeframe"],cmd["plot_config"] )
         if cmd["type"] =="report":
                 logger.info(f'CREATE REPORT {cmd}')
                 report_type = cmd["report_type"]
                 if report_type =="top_gain":
                     return TopGainReportWidget(id,self.fetcher,self.db)
-                #return ChartWidget(id, cmd["pair"] ,cmd["timeframe"],cmd["plot_config"] )
+                #return ChartWidget(id, cmd["symbol"] ,cmd["timeframe"],cmd["plot_config"] )
         return None
     
     async def process_cmd(self,cmd,page:RenderPage):

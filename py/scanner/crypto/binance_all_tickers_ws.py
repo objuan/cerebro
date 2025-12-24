@@ -20,9 +20,9 @@ cur.execute("PRAGMA journal_mode=WAL;")
 cur.execute("PRAGMA synchronous=NORMAL;")
 
 cur.execute("""
-CREATE TABLE IF NOT EXISTS ohlc_live (
+CREATE TABLE IF NOT EXISTS cry_ohlc_live (
     exchange TEXT,
-    pair TEXT,
+    symbol TEXT,
     timeframe TEXT,
     timestamp INTEGER, -- epoch ms
     open REAL,
@@ -35,12 +35,12 @@ CREATE TABLE IF NOT EXISTS ohlc_live (
     quote_volume_24h REAL,
     updated_at INTEGER, -- epoch ms
     ds_updated_at TEXT, -- epoch ms
-    PRIMARY KEY(exchange, pair, timeframe, timestamp)
+    PRIMARY KEY(exchange, symbol, timeframe, timestamp)
 )""")
 
 cur.execute("""
-CREATE INDEX IF NOT EXISTS idx_ohlc_ts
-    ON ohlc_live(timestamp)
+CREATE INDEX IF NOT EXISTS cry_idx_ohlc_ts
+    ON cry_ohlc_live(timestamp)
 """)
 
 TIMEFRAMES = {
@@ -59,7 +59,7 @@ async def cleanup_task():
         )
 
         cur.execute("""
-        DELETE FROM ohlc_live
+        DELETE FROM cry_ohlc_live
         WHERE timestamp < ?
         """, (cutoff_ms,))
 
@@ -85,10 +85,10 @@ def normalize_symbol(pair):
     else:
         return pair
 
-def update_ohlc(pair, price, d_base, d_quote,d_base_24, d_quote_24, ts_ms):
+def update_ohlc(symbol, price, d_base, d_quote,d_base_24, d_quote_24, ts_ms):
     for tf, sec in TIMEFRAMES.items():
         t = floor_ts(ts_ms, sec)
-        key = (pair, tf, t)
+        key = (symbol, tf, t)
         c = agg_cache.get(key)
 
         if c is None:
@@ -113,9 +113,9 @@ def update_ohlc(pair, price, d_base, d_quote,d_base_24, d_quote_24, ts_ms):
 
         save = agg_cache[key]
         cur.execute("""
-        INSERT OR REPLACE INTO ohlc_live VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ? , ?)
+        INSERT OR REPLACE INTO cry_ohlc_live VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ? , ?)
         """, (
-            "binance", normalize_symbol(pair), tf, t,
+            "binance", normalize_symbol(symbol), tf, t,
             save["open"], save["high"], save["low"], save["close"],
             save["base_vol"], save["quote_vol"],save["base_vol_24h"], save["quote_vol_24h"],
             int(time.time() * 1000),
@@ -132,24 +132,24 @@ async def run():
             msg = json.loads(await ws.recv())
 
             for t in msg:
-                pair = t["s"]
+                symbol = t["s"]
               
-                if pair.endswith("USDC") or pair.endswith("BTC"):
+                if symbol.endswith("USDC") or symbol.endswith("BTC"):
                     #print(pair)
                     price = float(t["c"])
                     v = float(t["v"])
                     q = float(t["q"])
                     ts = t["E"]
                     
-                    prev = last_stats.get(pair)
+                    prev = last_stats.get(symbol)
                     if prev:
                         d_base = max(0.0, v - prev["v"])
                         d_quote = max(0.0, q - prev["q"])
                     else:
                         d_base = d_quote = 0.0
 
-                    last_stats[pair] = {"v": v, "q": q}
+                    last_stats[symbol] = {"v": v, "q": q}
 
-                    update_ohlc(pair, price, d_base, d_quote,v,q, ts)
+                    update_ohlc(symbol, price, d_base, d_quote,v,q, ts)
 
 asyncio.run(run())

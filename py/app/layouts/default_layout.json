@@ -11,8 +11,8 @@
             },
             "widget": {
                 "type": "chart",
-                "pair": "BTC/USDC",
-                "timeframe": "5m",
+                "symbol": "BTC/USDC",
+                "timeframe": "1h",
                 "plot_config": {
                     "main_plot": {
                         "ema9": {
@@ -45,25 +45,46 @@
                 "title": "Top Gainer",
                 "columns": [
                     {
-                        "title": "Change From 60 m(%)"
+                        "title": "Change From 60 m(%)",
+                        "decimals": 2,
+                        "colors": {
+                            "range_min": -2,
+                            "range_max": 10,
+                            "color_min": "#FFFFFF",
+                            "color_max": "#14A014"
+                        }
                     },
                     {
-                        "title": "Pair/News"
+                        "title": "Symbol/News",
+                        "type": "str"
                     },
                     {
-                        "title": "Price"
+                        "title": "Price",
+                        "decimals": 5
                     },
                     {
                         "title": "Volume"
                     },
                     {
-                        "title": "Rel Vol (DaylyRate)"
+                        "title": "Volume (QUOTE)"
                     },
                     {
-                        "title": "Rel Vol (5 min %)"
+                        "title": "Rel Vol (DaylyRate)",
+                        "decimals": 2
                     },
                     {
-                        "title": "Gap"
+                        "title": "Rel Vol (5 min %)",
+                        "decimals": 2
+                    },
+                    {
+                        "title": "Gap",
+                        "decimals": 1,
+                        "colors": {
+                            "range_min": -2,
+                            "range_max": 10,
+                            "color_min": "#7B9AFD",
+                            "color_max": "#3800B9"
+                        }
                     }
                 ]
             }

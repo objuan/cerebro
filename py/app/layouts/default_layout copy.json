@@ -11,7 +11,7 @@
             },
             "widget": {
                 "type": "chart",
-                "pair": "BTC/USDC",
+                "symbol": "BTC/USDC",
                 "timeframe": "1m",
                 "plot_config": {
                     "main_plot": {

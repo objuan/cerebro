@@ -46,7 +46,7 @@ from layout import *
 DB_FILE = "../db/crypto.db"
 DEF_LAYOUT = "./layouts/default_layout.json"
 
-fetcher = CryptoJob(DB_FILE,10,historyActive=False,liveActive=True)
+fetcher = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
 db = DBDataframe(fetcher)
 
 @asynccontextmanager
@@ -60,11 +60,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-def fetch_all_new(fetcher, pairs, timeframe):
+def fetch_all_new(fetcher, symbols, timeframe):
     all_new = []
 
-    for pair in pairs:
-            candles = fetcher.fetch_new_candles(pair, timeframe)
+    for symbol in symbols:
+            candles = fetcher.fetch_new_candles(symbol, timeframe)
             if candles:
                 all_new.extend(candles)
 
@@ -92,35 +92,21 @@ def index():
 def health():
     return {"status": "ok"}
 
-@app.get("/api/top_volume")
-def top_volume(timeframe: str = "5m", limit: int = 20):
-    df = get_df("""
-        SELECT pair, SUM(quote_volume) AS volume
-        FROM ohlc_history
-        WHERE timeframe=?
-        GROUP BY pair
-        ORDER BY volume DESC
-        LIMIT ?
-    """, (timeframe, limit))
-    df["datetime"] = df["timestamp"].apply(ts_to_local_str)
-
-    return JSONResponse(df.to_dict(orient="records"))
-
 
 @app.get("/api/ohlc_chart")
-def ohlc_chart(pair: str, timeframe: str, limit: int = 1000):
+def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
     '''
     df = get_df("""
         SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
         FROM ohlc_history
-        WHERE pair=? AND timeframe=?
+        WHERE symbol=? AND timeframe=?
         ORDER BY timestamp ASC
         LIMIT ?
-    """, (pair, timeframe, limit))
+    """, (symbol, timeframe, limit))
     '''
     #df = fetcher.ohlc_data(pair,timeframe,limit)
     
-    df1 = db.dataframe(timeframe, pair)
+    df1 = db.dataframe(timeframe, symbol)
     df_co = (
             df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
             .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
@@ -139,9 +125,9 @@ def ohlc_chart(name: str):
 
 @app.get("/api/symbols")
 def get_symbols(limit: int = 1000):
-    pairs = fetcher.live_symbols()
-    print(pairs)
-    return JSONResponse({"pairs":pairs})
+    symbols = fetcher.live_symbols()
+    print(symbols)
+    return JSONResponse({"symbols":symbols})
 
 ####################
 

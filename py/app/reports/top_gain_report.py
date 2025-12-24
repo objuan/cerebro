@@ -24,11 +24,11 @@ class TopGainReportWidget(ReportWidget):
         return f"{self.gain_time_min} m"
 
     def onStart(self,render_page)-> bool:
-        self.columns= [f"Change From {self.format_time(self.gain_time_min)}(%)","Pair/News","Rank","Price","Volume","Rel Vol (DaylyRate)", "Rel Vol (5 min %)","Gap"]
+        self.columns= [f"Change From {self.format_time(self.gain_time_min)}(%)","Symbol/News","Rank","Price","Volume","Rel Vol (DaylyRate)", "Rel Vol (5 min %)","Gap"]
         
         self.columnsData = [
             {"title": f"Change From {self.format_time(self.gain_time_min)}(%)", "data":"gain" },
-            {"title": "Pair/News", "data":"pair" },
+            {"title": "Symbol/News", "data":"symbol" },
             {"title": "Price", "data":"close" },
             {"title": "Volume", "data":"base_volume" },
             {"title": "Rel Vol (DaylyRate)", "data":"rel_vol_24" },
@@ -38,7 +38,7 @@ class TopGainReportWidget(ReportWidget):
         ]
         self.columnsData = [
             {"title": f"Change From {self.format_time(self.gain_time_min)}(%)" ,"decimals": 2, "colors":{ "range_min": -2 , "range_max":10 ,  "color_min": "#FFFFFF" , "color_max":"#14A014"   } },
-            {"title": "Pair/News" , "type" :"str" },
+            {"title": "Symbol/News" , "type" :"str" },
             {"title": "Price","decimals": 5 },
             {"title": "Volume" },
             {"title": "Volume (QUOTE)" },
@@ -62,14 +62,14 @@ class TopGainReportWidget(ReportWidget):
             #dt = datetime.now() - timedelta(minutes=self.gain_time_min)
 
             df_5m = self.db.dataframe("5m")
-            df_5m = df_5m.sort_values(["pair", "timestamp"]).reset_index(drop=True)
+            df_5m = df_5m.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
 
             mean_base_volume_5m = (
                             df_5m
                             .sort_values("timestamp")
-                            .groupby("pair")
+                            .groupby("symbol")
                             .tail(self.history_days)
-                            .groupby("pair")["base_volume"]
+                            .groupby("symbol")["base_volume"]
                             .mean()
                             .reset_index(name="avg_base_volume_5m")
                         )
@@ -84,16 +84,16 @@ class TopGainReportWidget(ReportWidget):
             mean_base_volume_1d = (
                 df_1d
                 .sort_values("timestamp")
-                .groupby("pair")
+                .groupby("symbol")
                 .tail(self.history_days)
-                .groupby("pair")["base_volume"]
+                .groupby("symbol")["base_volume"]
                 .mean()
                 .reset_index(name="avg_base_volume_1d")
             )
 
             ####
 
-            df = self.db.dataframe("1m")[["timestamp","pair","close","open","quote_volume","base_volume"]].copy()
+            df = self.db.dataframe("1m")[["timestamp","symbol","close","open","quote_volume","base_volume"]].copy()
 
             #self.df = pd.DataFrame(columns=self.columns)
 
@@ -102,7 +102,7 @@ class TopGainReportWidget(ReportWidget):
 
             #print("history_shapshot",history_shapshot)
             #df['datetime_local'] = (pd.to_datetime(df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
-            df = df.sort_values(["pair", "timestamp"]).reset_index(drop=True)
+            df = df.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
 
             df["gain"] =  ((df['close'] - df['close'].shift(60) ) / df['close'].shift(60))  * 100
 
@@ -116,7 +116,7 @@ class TopGainReportWidget(ReportWidget):
             
             base_vol_24h = (
                 df
-                .groupby("pair", group_keys=False)
+                .groupby("symbol", group_keys=False)
                 .apply(
                     lambda g: (
                         g
@@ -129,7 +129,7 @@ class TopGainReportWidget(ReportWidget):
             )
             quote_vol_24h = (
                 df
-                .groupby("pair", group_keys=False)
+                .groupby("symbol", group_keys=False)
                 .apply(
                     lambda g: (
                         g
@@ -145,8 +145,8 @@ class TopGainReportWidget(ReportWidget):
 
             #ogger.info(mean_quote_volume)
 
-            df = df.merge(  mean_base_volume_1d, on="pair",    how="left")
-            df = df.merge(  mean_base_volume_5m, on="pair",    how="left")
+            df = df.merge(  mean_base_volume_1d, on="symbol",    how="left")
+            df = df.merge(  mean_base_volume_5m, on="symbol",    how="left")
 
             #  df_5m["base_volume_history"]
 
@@ -160,34 +160,34 @@ class TopGainReportWidget(ReportWidget):
             
             
 
-            df = df.sort_values(["pair", "timestamp"]).reset_index(drop=True)
+            df = df.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
 
-            #df = df.merge(  mean_quote_volume, on="pair",    how="left")
+            #df = df.merge(  mean_quote_volume, on="symbol",    how="left")
             
             
-            #df["Vol50 media"]  = df['pair'].map(mean_quote_volume)
+            #df["Vol50 media"]  = df['symbol'].map(mean_quote_volume)
 
-            #logger.info(df[df["pair"] == 'BTC/USDC'])
+            #logger.info(df[df["symbol"] == 'BTC/USDC'])
 
-            #logger.info(df[df["pair"] == 'ETH/USDC'])
+            #logger.info(df[df["symbol"] == 'ETH/USDC'])
 
             '''
             df['Rel Vol (DaylyRate)'] = (
                 df['quote_volume_24h'] /
-                df.groupby('pair')['quote_volume_24h']
+                df.groupby('symbol')['quote_volume_24h']
                 .transform(lambda x: x.rolling(self.history_days*1440, min_periods=1).mean())
             )
             '''
 
             '''
             vol_5m = (
-                df.groupby('pair')['quote_volume']
+                df.groupby('symbol')['quote_volume']
                 .rolling(5).sum()
                 .reset_index(level=0, drop=True)
             )
 
             avg_vol_5m = (
-                vol_5m.groupby(df['pair'])
+                vol_5m.groupby(df['symbol'])
                     .rolling(20)
                     .mean()
                     .reset_index(level=0, drop=True)
@@ -202,7 +202,7 @@ class TopGainReportWidget(ReportWidget):
 
             ###################
 
-            latest_rows = df.loc[df.groupby("pair")["timestamp"].idxmax()]
+            latest_rows = df.loc[df.groupby("symbol")["timestamp"].idxmax()]
             latest_rows.sort_values(by = "gain", ascending=True).reset_index(drop=True)
 
             logger.info(latest_rows)
@@ -211,7 +211,7 @@ class TopGainReportWidget(ReportWidget):
             await render_page.send({
                    "id" : self.id,
                    "type" : "report",
-                   "data": latest_rows[["gain","pair","close", "base_volume_24h","quote_volume_24h","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
+                   "data": latest_rows[["gain","symbol","close", "base_volume_24h","quote_volume_24h","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
                })
           
         

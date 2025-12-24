@@ -53,7 +53,10 @@ cur.execute("""
         high REAL,
         low REAL,
         close REAL,
+        bid REAL,
+        ask REAL,
         volume REAL,
+        volume_day REAL,
         updated_at INTEGER, -- epoch ms
         ds_updated_at TEXT, -- epoch ms
         PRIMARY KEY(symbol, timeframe, timestamp)
@@ -100,13 +103,14 @@ def floor_ts(ts_ms, sec):
     return (ts_ms // (sec*1000)) * (sec*1000)
 
 
-def update_ohlc(conindex,symbol, price, volume, ts_ms):
+def update_ohlc(conindex,symbol, price,bid,ask, volume, ts_ms):
+    volume=volume*100
     for tf, sec in TIMEFRAMES.items():
         t = floor_ts(int(ts_ms)*1000, sec)
         #print(ts_ms,t)
         key = (conindex, tf, t)
         c = agg_cache.get(key)
-
+        
         if c is None:
             agg_cache[key] = {
                 "timeframe" : t,
@@ -116,6 +120,8 @@ def update_ohlc(conindex,symbol, price, volume, ts_ms):
                 "close": price,
                 "volume": volume, #volume in giornata
                 "volume_acc": 0, #volume in giornata
+                "bid" : 0,
+                "ask" : 0,
             }
         else:
             if (t != c["timeframe"]):
@@ -124,16 +130,19 @@ def update_ohlc(conindex,symbol, price, volume, ts_ms):
             c["high"] = max(c["high"], price)
             c["low"] = min(c["low"], price)
             c["close"] = price
-            c["volume_acc"] =  (c["volume_acc"] + (volume - c["volume"]))
-            c["volume"] = volume 
+            c["volume_acc"] =  (c["volume_acc"] + (volume- c["volume"]))
+            c["volume"] = volume
+            c["bid"] = bid
+            c["ask"] = ask
 
         save = agg_cache[key]
         cur.execute("""
-        INSERT OR REPLACE INTO ib_ohlc_live VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO ib_ohlc_live VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             conindex, symbol, tf, t,
             save["open"], save["high"], save["low"], save["close"],
-            save["volume_acc"], 
+            save["bid"],save["ask"],
+            save["volume_acc"], save["volume"], 
             int(time.time() * 1000),
             datetime.utcnow().isoformat()
         ))
@@ -355,13 +364,13 @@ if __name__ =="__main__":
     try:
         #scan(config)
 
-        updateLive(config, 0,1)
+        updateLive(config, 0,2)
         
         def receive(symbol, ticker: Ticker):
-            #print(ticker)
+            logger.info(ticker)
             print(">>", symbol_to_conid_map[symbol] , symbol, ticker.last,ticker.volume, ticker.time )
 
-            update_ohlc(symbol_to_conid_map[symbol] , symbol, ticker.last,ticker.volume,ticker.time .timestamp())
+            update_ohlc(symbol_to_conid_map[symbol] , symbol, ticker.last,ticker.bid, ticker.ask, ticker.volume,ticker.time .timestamp())
 
         start_watch(receive)
 

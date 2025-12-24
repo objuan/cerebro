@@ -9,22 +9,22 @@ from renderpage import RenderPage
 
 class ChartWidget(Widget):
 
-    def __init__(self,id, pair, timeframe,plot_config={}):
+    def __init__(self,id, symbol, timeframe,plot_config={}):
        super().__init__()
        self.id=id
        self.plot_config=plot_config
     
-       self.set(pair,timeframe)
+       self.set(symbol,timeframe)
        
-    def set(self,pair,timeframe):
-        self.pair=pair
+    def set(self,symbol,timeframe):
+        self.symbol=symbol
         self.timeframe=timeframe
         
 
     async def notify_candles(self, candles,page:RenderPage):
 
        for candle in candles:
-           if candle["pair"] == self.pair and candle["tf"] == self.timeframe:
+           if candle["symbol"] == self.symbol and candle["tf"] == self.timeframe:
                #logger.info(f"notify_candles {candle}")
 
                await page.send({
@@ -39,7 +39,7 @@ class ChartWidget(Widget):
 
     def from_data(self,data):
       
-        self.pair = data["pair"]
+        self.symbol = data["symbol"]
         self.timeframe = data["timeframe"]
         self.plot_config = data["plot_config"]
 
@@ -47,7 +47,7 @@ class ChartWidget(Widget):
         #print( "...",self.plot_config)
         return {
             "type":"chart",
-            "pair" : self.pair,
+            "symbol" : self.symbol,
             "timeframe": self.timeframe,
             "plot_config":  self.plot_config,
         }
