@@ -125,7 +125,32 @@ export default function StockDashboard({
 
   return (
     <div className="flex flex-col h-screen">
-         {selectedStock ? (
+      <StockHeader />
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+        <aside className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r">
+          <WatchlistSidebar
+            stocks={stocks}
+            selectedStock={selectedStock}
+            onSelectStock={handleSelectStock}
+          />
+        </aside>
+        <section className="flex-1 flex flex-col overflow-hidden">
+          <nav aria-label="Stock tabs">
+            <StockTabs
+              selectedStock={selectedStock}
+              onSelectStock={handleSelectStock}
+              onRemoveStock={handleRemoveStock}
+              tabStocks={tabStocks}
+            />
+          </nav>
+          <section className="flex-1 p-4 overflow-hidden">
+            <div className="h-full flex flex-col">
+              <ChartControls
+                onIntervalChange={handleIntervalChange}
+                currentInterval={chartInterval}
+              />
+              <div className="flex-1 overflow-hidden" aria-live="polite">
+                {selectedStock ? (
                   <TradingViewChart
                     symbol={selectedStock.symbol}
                     interval={chartInterval}
@@ -137,6 +162,14 @@ export default function StockDashboard({
                     fullScreen
                   />
                 )}
+              </div>
+            </div>
+          </section>
+          <section aria-label="Portfolio holdings" className="mx-4 mb-5">
+            <PortfolioTable stocks={stocks} />
+          </section>
+        </section>
       </div>
+    </div>
   );
 }

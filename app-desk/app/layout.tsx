@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export function generateMetadata(): Metadata {
   return {
-    title: "Stock Trading Platform",
-    description: "A comprehensive stock trading platform with real-time data",
+    title: "Cerebro",
+    description: "...",
   };
 }
 

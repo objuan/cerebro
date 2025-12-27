@@ -1,0 +1,59 @@
+{
+	"database":
+		{
+			"scanner":
+			{
+				"enabled" : false,
+				"update_time" : "10m" ,
+				 "params": {
+					"instrument": "STK",
+					"location": "STK.US.MAJOR",
+					"type": "TOP_PERC_GAIN",
+					"type1": "HIGH_OPEN_GAP",
+					"filter": 
+					{
+						"abovePrice": 10,
+						"belowPrice": 10000,
+						"aboveVolume": 100000,
+						"usdVolumeBelow": 10,
+						"marketCapAbove" : 1000000
+					}
+				}
+			},
+			"live":
+			{
+				"enabled" : false,
+				"max_symbols" : 2
+			}
+			,"logic":
+			{
+				"fetch_enabled" : false,
+				"max_symbols": 2,
+				"TIMEFRAME_UPDATE_SECONDS" : {
+					"10s": 10,
+					"30s": 30,
+					"1m": 5,
+					"5m": 300,
+					"15m": 900,
+					"30m": 1800,
+					"1h": 3600,
+					"2h": 7200,
+					"4h": 14400,
+					"1d": 43200
+				},
+				"TIMEFRAME_LEN_CANDLES" : {
+					"10s": 30,
+					"30s": 30,
+					"1m": "2d",
+					"5m": "7d",
+					"15m": "7d",
+					"30m": "7d",
+					"1h": "30d",
+					"2h": "30d",
+					"4h": "30d",
+					"1d": "60d"
+				}
+			}
+
+		}
+}

@@ -67,6 +67,7 @@ report_map=[];
 
 const ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 ws.onmessage = (event) => {
+  //console.log(event.data)
   const msg = JSON.parse(event.data);
   //console.log(msg)
   if (msg.type === "comp") {
@@ -353,6 +354,7 @@ function addCandleWidget(id, symbol,timeframe,plot_config,rect) {
         <button class="pair-btn" title="Select Symbol" onclick="chart_select_symbol(this.closest('.grid-stack-item'),'${id_chart}')" >^</button>
      
         <select class="timeframe-selector" >
+           <option value="10s">10s</option>
             <option value="1m">1m</option>
             <option value="5m">5m</option>
             <option value="15m" selected>15m</option> <option value="30m">30m</option>

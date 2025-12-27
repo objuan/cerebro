@@ -2,6 +2,7 @@ import { fetchStockData } from "./api";
 import type { Stock } from "../types";
 import { sanitizeNumber } from "../utils/stock";
 
+// fa le 3 REST per prezzo, gap e valori 30d
 export async function getInitialStocks(symbols: string[]): Promise<Stock[]> {
   const rawData = await fetchStockData(symbols);
 

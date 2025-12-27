@@ -1,10 +1,12 @@
 import { useStockStore } from "@/store";
 
-const TWELVE_DATA_API_KEY = process.env.NEXT_PUBLIC_TWELVE_DATA_API_KEY ?? "";
+//const TWELVE_DATA_API_KEY = process.env.NEXT_PUBLIC_TWELVE_DATA_API_KEY ?? "";
 
+/*
 if (!TWELVE_DATA_API_KEY) {
   console.warn("Missing Twelve Data API Key for WebSocket connection.");
 }
+  */
 
 const MAX_CHART_LENGTH = 30;
 
@@ -29,7 +31,7 @@ class WebSocketService {
         this.worker.onmessage = this.handleWorkerMessage;
         this.worker.postMessage({ type: "init", data: { symbols } });
         this.isInitialized = true;
-        console.info("WebSocket worker initialized.");
+        //console.info("WebSocket worker initialized.");
       } catch (error) {
         console.error("WebSocket worker initialization failed:", error);
         this.attemptReconnect(symbols);
@@ -47,20 +49,27 @@ class WebSocketService {
 
   private handleWorkerMessage = (event: MessageEvent) => {
     const { type, data } = event.data;
+    //console.log("handleWorkerMessage",type, event.data)
     if (type === "price_update") this.updateStockPrice(data);
   };
 
   private updateStockPrice(data: { symbol: string; price: string }) {
     if (!data?.symbol) return;
+    console.log("updateStockPrice", data)
     const store = useStockStore.getState();
     const stock = store.stocks.find((s) => s.symbol === data.symbol);
     if (!stock) return;
+
+    console.log("stock", stock)
 
     const newPrice = parseFloat(data.price);
     if (isNaN(newPrice) || stock.price === 0) return;
 
     const priceChange = newPrice - stock.price;
     const priceChangePercent = (priceChange / stock.price) * 100;
+
+    console.log("priceChange", priceChange)
+    console.log("priceChangePercent", priceChangePercent)
 
     store.updateStock(data.symbol, {
       price: newPrice,

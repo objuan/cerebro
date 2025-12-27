@@ -8,6 +8,21 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+        ],
+      },
+    ];
+  },
+
   webpack: (config) => {
     config.module.rules.push({
       test: /\.js$/,

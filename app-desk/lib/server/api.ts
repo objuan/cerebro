@@ -11,7 +11,8 @@ if (!TWELVE_DATA_API_KEY) {
   console.warn("Missing Twelve Data API Key");
 }
 
-const BASE_URL = "https://api.twelvedata.com";
+//const BASE_URL = "https://api.twelvedata.com";
+const BASE_URL = "http://localhost:8000/api";
 
 /**
  * Fetch stock price, quote, and chart data from Twelve Data
@@ -29,6 +30,8 @@ export async function fetchStockData(symbols: string[]): Promise<Stock[]> {
 
     return symbols.map((symbol, i) => {
       const price = safeParseFloat(prices[i]?.price, 100);
+
+      //console.log(prices[i],symbol,i,price)
       const priceChange = safeParseFloat(quotes[i]?.change);
       const priceChangePercent = safeParseFloat(quotes[i]?.percent_change);
       const rawSeries = series[i];
@@ -37,10 +40,12 @@ export async function fetchStockData(symbols: string[]): Promise<Stock[]> {
         rawSeries?.values?.length > 0
           ? rawSeries.values
               .slice(0, 30)
-              .map((v: any) => safeParseFloat(v.close, price))
+              .map((v: any) => safeParseFloat(v, price))
+              //.map((v: any) => safeParseFloat(v.close, price))
               .reverse()
           : generateMockChartData(30, price, priceChange >= 0);
 
+      //console.log("chartData",rawSeries.values,chartData)
       const shares =
         i < 2 ? safeParseFloat((Math.random() * 20).toFixed(6)) : 0;
       const averagePrice = i < 2 ? price * (0.8 + Math.random() * 0.4) : 0;
@@ -74,7 +79,7 @@ async function fetchBatch(
     symbols.map(async (symbol) => {
       const url = new URL(`${BASE_URL}/${endpoint}`);
       url.searchParams.set("symbol", symbol);
-      url.searchParams.set("apikey", TWELVE_DATA_API_KEY);
+      //url.searchParams.set("apikey", TWELVE_DATA_API_KEY);
 
       Object.entries(extraParams).forEach(([key, value]) =>
         url.searchParams.set(key, value)

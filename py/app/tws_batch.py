@@ -1,9 +1,11 @@
 import asyncio
+from contextlib import asynccontextmanager
 import json
 import websockets
 import sqlite3
 from datetime import datetime
 import time
+import math
 import os
 import signal
 import json
@@ -14,6 +16,13 @@ import pandas as pd
 import logging
 from logging.handlers import RotatingFileHandler
 from ib_insync import *
+from utils import convert_json
+#from message_bridge import *
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, HTMLResponse
+import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 util.startLoop()  # uncomment this line when in a notebook
 
 logger = logging.getLogger()
@@ -23,17 +32,40 @@ ib = IB()
 ib.connect('127.0.0.1', 7497, clientId=1)
 
 DB_FILE = "db/crypto.db"
-CONFIG_FILE = "scanner/ibroker/config.json"
+CONFIG_FILE = "config/cerebro.json"
 DB_TABLE = "ib_ohlc_live"
 
-try:
-    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-        config = json.load(f)
-        #print(config)
-except FileNotFoundError:
-    print("File non trovato")
-except json.JSONDecodeError as e:
-    print("JSON non valido:", e)
+with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+    config = json.load(f)
+config = convert_json(config)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        yield
+        print("DONE")
+    except:
+        logger.error("ERROR", exc_info=True)
+    finally:
+        pass
+
+app = FastAPI(  )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js / React
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+@app.middleware("http")
+async def add_referrer_policy(request, call_next):
+    response = await call_next(request)
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 ################################
 
@@ -68,12 +100,15 @@ cur.execute("""
         ON ib_ohlc_live(timestamp)
     """)
 
+#
 
-cur.execute("""
-    CREATE TABLE IF NOT EXISTS ib_cmd (
-        command TEXT,
-        updated_at INTEGER,  -- epoch ms
-    )""")
+'''
+db = MessageDatabase(DB_FILE)
+db.init()
+server = MessageServer(db, "tws_batch")
+server.clear()
+'''
+###
 
 last_stats = {}
 agg_cache = {}
@@ -165,18 +200,32 @@ def display_with_stock_symbol(scanData):
     return df[["rank","contractDetails","contract","symbol"]]
 
 def scan(config):
+    cfg = config["database"]["scanner"]["params"]
+    logger.info(f'SCANNING DATAS ...{cfg}')
+
     sub = ScannerSubscription(
         numberOfRows=50,
-        instrument='STK',
-        locationCode='STK.US.MAJOR',
-        scanCode='TOP_PERC_GAIN', marketCapAbove= 1_000_000 , abovePrice= 100, aboveVolume= 100000
+        instrument=cfg["instrument"],
+        locationCode=cfg["location"],
+        scanCode=cfg["type"]
+        # marketCapAbove= 1_000_000 , abovePrice= 100, aboveVolume= 100000
     )
+    filter = cfg["filter"]
+    logger.info(f'filter ...{filter}')
+
+    if "abovePrice" in filter:
+        sub.abovePrice = filter["abovePrice" ]
+    if "belowPrice" in filter:
+        sub.belowPrice = filter["belowPrice" ]
+    if "aboveVolume" in filter:
+        sub.aboveVolume = filter["aboveVolume" ]
+    if "marketCapAbove" in filter:
+        sub.marketCapAbove = filter["marketCapAbove" ]
+       
 
     scanData = ib.reqScannerData(sub)
 
-    #df = util.df(scanData)
-
-    logger.debug(f'FIND #{len(scanData)}')
+    logger.info(f'FIND #{len(scanData)}')
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -184,8 +233,8 @@ def scan(config):
     run_time = int(time.time() * 1000)
     ds_run_time  = datetime.utcnow().isoformat()
 
-    Contract              
-    print(display_with_stock_symbol(scanData))
+                  
+    print(display_with_stock_symbol(scanData)["symbol"])
     # inserimento dati
     #for row in display_with_stock_symbol(scanData).iterrows():
     for contract, details in display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
@@ -275,7 +324,7 @@ def manage_live( symbol_list_add, symbol_list_remove):
     global actual_requests
     global tickers
 
-    logger.info(f"manage_live {symbol_list_add,symbol_list_remove}")
+    logger.info(f"Manage_live {symbol_list_add,symbol_list_remove}")
 
     for symbol in symbol_list_add:
         exchange = symbol_map[symbol]
@@ -328,18 +377,54 @@ def updateLive(config,range_min=None,range_max=None):
 
 ######################
 
-def start_watch(receiveHandler):
+async def start_watch(receiveHandler):
     # Stream market data in a loop
     try:
         while True:
-            ib.sleep(0.5)  # Sleep for 1 second and wait for updates
-            for symbol, ticker  in tickers.items():
 
+            '''
+            for req in server.fetch_requests():
+                data = json.loads(req["payload"])
+                logger.info(f"<< {data}")
+                if "cmd" in data and  data["cmd"] =="scanner":
+                    scan(config)
+
+                    updateLive(config,0, config["database"]["live"]["max_symbols"])
+                    result = {"state": "ok"}
+                    server.send_response(req, result)
+                else:
+                    # logica
+                    result = {"state": "ok"}
+                    server.send_response(req, result)
+
+            await asyncio.sleep(0.2)
+            '''
+            #ib.sleep(0.5)  # Sleep for 1 second and wait for updates
+            for symbol, ticker  in tickers.items():
                 receiveHandler(symbol,ticker)  # Print the latest market data
+
     except KeyboardInterrupt:
         # Gracefully disconnect on exit
         print("Disconnecting from TWS...")
         ib.disconnect()
+
+#########################
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
+
+@app.get("/scanner")
+async def scanner():
+    scan(config)
+
+    updateLive(config,0, config["database"]["live"]["max_symbols"])
+                   
+    return {"status": "ok"}
 
 #############
 
@@ -370,24 +455,69 @@ if __name__ =="__main__":
     logger.info("               IBROKER SCANNER V1.0")
     logger.info("=================================================")
 
-    try:
-        #scan(config)
+    async def main():
+        try:
+            #scan(config)
 
-        #exit(0)
-        cleanup_task()
+            #exit(0)
+            cleanup_task()
 
-        updateLive(config, 0,2)
+            updateLive(config, 0,2)
+            
+            def receive(symbol, ticker: Ticker):
+                #logger.info(ticker)
+                #print(">>", symbol_to_conid_map[symbol] , symbol, ticker.last,ticker.volume, ticker.time )
+                if ticker.time  and  not math.isnan(ticker.last):
+                    ts = ticker.time .timestamp()
+                    logger.info(ts)
+                    update_ohlc(symbol_to_conid_map[symbol] , symbol,symbol_map[symbol], ticker.last,ticker.bid, ticker.ask, ticker.volume,ts)
+
+            #start_watch(receive)
+            #asyncio.run(start_watch(receive))
+
+            u_config = uvicorn.Config(
+                app=app, 
+                host="0.0.0.0", 
+                port=2000,
+                log_level="info",
+                #access_log=False
+            )
+            server = uvicorn.Server(u_config)
+
+            async def tick_loop():
+                while True:
+                    try:
+                        #print("TICK",tickers)
+                        for symbol, ticker  in tickers.items():
+                            receive(symbol,ticker)  # Print the latest market data
+                        await asyncio.sleep(0.5)
+                    except:
+                        logger.error("ERR", exc_info=True)
+
+            server_task = asyncio.create_task(server.serve())
+            tick_task = asyncio.create_task(tick_loop())
+
+
+            await asyncio.wait(
+                [server_task, tick_task],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
+          #loop = asyncio.new_event_loop()
+        #asyncio.set_event_loop(loop)
+
+        # 4. Esegui il server nel loop che abbiamo creato
+        #loop.run_until_complete(server.serve())
+        #asyncio.run(start_watch(server,receive))
+
+        except:
+            logger.error("ERROR", exc_info=True)
         
-        def receive(symbol, ticker: Ticker):
-            #logger.info(ticker)
-            #print(">>", symbol_to_conid_map[symbol] , symbol, ticker.last,ticker.volume, ticker.time )
-            if ticker.time:
-                ts = ticker.time .timestamp()
-                #logger.info(ts)
-                update_ohlc(symbol_to_conid_map[symbol] , symbol,symbol_map[symbol], ticker.last,ticker.bid, ticker.ask, ticker.volume,ts)
+            print("Disconnecting from TWS...")
+            ib.disconnect()
+            exit(0)
 
-        start_watch(receive)
 
-    except:
-        logger.error("ERROR", exc_info=True)
+    asyncio.run(main())
+
     #clean_up()

@@ -23,31 +23,29 @@ from ib_insync import IB,util,Stock
 
 DB_FILE = "../db/crypto.db"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-)
+logging.getLogger("yfinance").setLevel(logging.INFO)
+logging.getLogger("peewee").setLevel(logging.INFO)
+
+logging.basicConfig(level=logging.INFO,format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+
 logger = logging.getLogger(__name__)
-
-
-conn_exe = sqlite3.connect(DB_FILE, isolation_level=None)
-cur_exe = conn_exe.cursor()
-
-cur_exe.execute("PRAGMA journal_mode=WAL;")
-cur_exe.execute("PRAGMA synchronous=NORMAL;")
 
 ###########
 
-TIMEFRAMES = ['1m', '5m']
-
-conn_read = sqlite3.connect(DB_FILE, isolation_level=None)
-
+#TIMEFRAMES = ['1m', '5m']
+#conn_read = sqlite3.connect(DB_FILE, isolation_level=None)
 
 class IBrokerJob(Job):
 
-    def __init__(self, ib,db_file, max_symbols, historyActive=True, liveActive=True):
-      
-        super().__init__(db_file,max_symbols, "ib_ohlc_history","ib_ohlc_live",historyActive,liveActive)
+    def __init__(self, ib,db_file, config):
+
+        super().__init__(db_file,config, "ib_ohlc_history","ib_ohlc_live")
+
+        self.conn_exe=sqlite3.connect(db_file, isolation_level=None)
+        self.cur_exe = self.conn_exe.cursor()
+        self.cur_exe.execute("PRAGMA journal_mode=WAL;")
+        self.cur_exe.execute("PRAGMA synchronous=NORMAL;")
+
         self.ib=ib
         conn = sqlite3.connect(self.db_file)
         cur = conn.cursor()
@@ -74,6 +72,14 @@ class IBrokerJob(Job):
         PRIMARY KEY (exchange, symbol, timeframe, timestamp)
     )""")
         conn.close()
+
+    async def scanner(self):
+        logger.info(f".. Scanner call {time.ctime()}")
+
+        await self.send_batch("scanner",{})
+        #await self.batch_client.send_request("tws_batch", {"cmd":"scanner"})
+        self.on_update_symbols()
+        logger.info(f".. Scanner call DONE {time.ctime()}")
 
     def tick(self):
        pass 
@@ -103,8 +109,8 @@ class IBrokerJob(Job):
         
         if self.liveActive:
           
-            #print(self.sql_pairs)
-            cur_exe.execute(f"""
+            #print(self.sql_symbols,last_seen)
+            sql=f"""
             INSERT OR REPLACE INTO ib_ohlc_history
             SELECT
                 exchange,
@@ -115,32 +121,35 @@ class IBrokerJob(Job):
                 high,
                 low,
                 close,
-                base_volume,
-                quote_volume,
+                volume,
+                volume_day,
                 'live',
                 updated_at,
                 ds_updated_at
             FROM ib_ohlc_live
             WHERE symbol in ({self.sql_symbols})
-                AND updated_at > ?
-            """, ( last_seen))
-
+                AND updated_at >  {last_seen}
+            """
+ 
+            self.cur_exe.execute(sql)
+   
         conn = sqlite3.connect(self.db_file)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
         # get 
-        cur.execute("""
+        cur.execute(f"""
             SELECT symbol, timeframe as tf ,updated_at as ts, timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
             FROM ib_ohlc_history
-            WHERE  updated_at >= ?
+            WHERE  updated_at >= {last_seen}
             ORDER BY updated_at ASC
-        """, ( last_seen))
+        """)
 
         rows = cur.fetchall()
 
         conn.close()
 
+        #print(rows)
         if rows:
             self.last_ts[key] = rows[-1]["ts"]
 
@@ -163,7 +172,7 @@ class IBrokerJob(Job):
             while ( True):
                 i=i+1
 
-                logger.info(f"{i} ASK  {dt_start}")
+                #logger.info(f"{i} ASK  {dt_start}")
 
                 ###########
                 df = yf.download(
@@ -200,7 +209,7 @@ class IBrokerJob(Job):
 
                 ################
 
-                logger.info(f"{i} Find rows # {len(ohlcv)}")
+                logger.debug(f"{i} Find rows # {len(ohlcv)}")
                 if len(ohlcv) <1:
                     break
 
@@ -292,14 +301,18 @@ if __name__ == "__main__":
     logger.addHandler(console_handler)
     
     #############
+    import json
 
-    job = IBrokerJob(None,DB_FILE, 1, True,False)
+    with open("config/cerebro.json", "r", encoding="utf-8") as f:
+            config = json.load(f)
+    config = convert_json(config)
+
+    job = IBrokerJob(None, "db/crypto.db",config)
+    job.on_update_symbols()
  
     async def test():
-        
-            await job.ohlc_data("AAPL","1m",1000)
+        await job.ohlc_data("AAPL","1m",1000)
            
-        
         #logger.info(df)   
     asyncio.run(test())
     #logger.info(df)

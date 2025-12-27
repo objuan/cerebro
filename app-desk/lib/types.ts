@@ -4,7 +4,7 @@ export interface Stock {
   price: number;
   priceChange: number;
   priceChangePercent: number;
-  chartData: number[];
+  chartData: number[]; //solo close
   shares?: number;
   averagePrice?: number;
 }

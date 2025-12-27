@@ -1,6 +1,5 @@
 import asyncio
 import json
-import websockets
 import sqlite3
 from datetime import datetime
 import time

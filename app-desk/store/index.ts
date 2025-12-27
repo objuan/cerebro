@@ -15,7 +15,7 @@ export const useStockStore = create<StockState>((set) => ({
   stocks: [],
   selectedStock: null,
   portfolioValue: 668.17,
-  currency: "BGN",
+  currency: "USD",
 
   setStocks: (stocks) =>
     set({

@@ -146,7 +146,7 @@ export function TradingViewChart({
       aria-labelledby={`chart-title-${containerId}`}
     >
       <h2 id={`chart-title-${containerId}`} className="sr-only">
-        {ariaLabel ?? `${symbol} stock chart`}
+       ssssss {ariaLabel ?? `${symbol} stock chart`}
       </h2>
 
       {isLoading && <ChartLoader />}

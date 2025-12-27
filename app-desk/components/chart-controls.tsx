@@ -25,6 +25,7 @@ export function ChartControls({
   };
 
   const intervalMap: Record<string, string> = {
+    "10s": "10 Secs",
     "1": "1 Minute",
     "5": "5 Minutes",
     "15": "15 Minutes",
@@ -49,6 +50,7 @@ export function ChartControls({
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="10s">10 Secs</SelectItem>
           <SelectItem value="1">1 Minute</SelectItem>
           <SelectItem value="5">5 Minutes</SelectItem>
           <SelectItem value="15">15 Minutes</SelectItem>

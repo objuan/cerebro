@@ -114,6 +114,9 @@ function createChart(widget_ele,id_chart, symbol, timeframe,plot_config) {
                 }
               )
           }
+          indicators[key].series.applyOptions({
+                lastValueVisible: false,
+            });
         }
         
     });
@@ -153,9 +156,21 @@ function createChart(widget_ele,id_chart, symbol, timeframe,plot_config) {
             let priceFormatted = '';
             const price =  dataPoint.close;
             priceFormatted = price.toFixed(3);
+
+            o_formatted = dataPoint.open.toFixed(3);
+            h_formatted = dataPoint.high.toFixed(3);
+            l_formatted = dataPoint.low.toFixed(3);
+
+          
+            //console.log(param.seriesData)
+            //const volume = param.seriesPrices.get(volumeSeries);
+
+            v_formatted=""
+            //if (volume != undefined) 
+            //    v_formatted = vPoint.value
         
             // legend is a html element which has already been created
-            lbl=`C:<strong>${priceFormatted}</strong>`
+            lbl=`C:<strong>${priceFormatted}</strong> O:<strong>${o_formatted}</strong> L:<strong>${l_formatted}</strong> H:<strong>${h_formatted}</strong> V:<strong>${v_formatted}</strong>`
             
             Object.entries(indicators).forEach(([key, chartMeta]) => {
                // const valPoint = getCrosshairDataPoint(chartMeta["series"],param)
@@ -208,12 +223,16 @@ function createChart(widget_ele,id_chart, symbol, timeframe,plot_config) {
                       chartMeta["series"].setData(ind_data);
                   });
 
-                  /*chart.timeScale().setVisibleRange({
-                     from: data[0].time,
-                     to: data[data.length - 1].time
+                  const barsToShow = 50;
+                  const totalBars = data.length;
+                  chart.timeScale().setVisibleLogicalRange({
+                     from: totalBars - barsToShow,
+                    to: totalBars,
+                     //   from: data[0].time,
+                      //  to: data[data.length - 1].time
                     });
-                    */
-                  chart.timeScale().fitContent();
+                    
+                  //chart.timeScale().fitContent();
                 }
             });
       }

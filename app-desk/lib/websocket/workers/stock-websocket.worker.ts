@@ -1,4 +1,4 @@
-const TWELVE_DATA_API_KEY = (self as any).TWELVE_DATA_API_KEY as string;
+//const TWELVE_DATA_API_KEY = (self as any).TWELVE_DATA_API_KEY as string;
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -43,7 +43,8 @@ function initWebSocket(stockSymbols: string[]) {
   cleanupSocket();
 
   socket = new WebSocket(
-    `wss://ws.twelvedata.com/v1/quotes/price?apikey=${TWELVE_DATA_API_KEY}`
+    `ws://127.0.0.1:8000/ws/live`
+    //`wss://ws.twelvedata.com/v1/quotes/price?apikey=${TWELVE_DATA_API_KEY}`
   );
 
   socket.addEventListener("open", handleOpen);
@@ -69,6 +70,8 @@ function handleMessage(event: MessageEvent<string>) {
   try {
     const data = JSON.parse(event.data);
     const message: MessageToMain = { type: "price_update", data };
+    //console.log("handleMessage",message)
+
     postMessage(message);
   } catch (err) {
     console.error("[WS] JSON parse error:", err);
@@ -118,6 +121,7 @@ function cleanupSocket() {
 self.addEventListener("message", (event: MessageEvent<MessageFromMain>) => {
   const message = event.data;
 
+  console.log("message",message)
   switch (message.type) {
     case "init":
       initWebSocket(message.data.symbols);

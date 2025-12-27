@@ -6,8 +6,10 @@ from datetime import datetime, timedelta
 import time
 import logging
 from typing import List, Dict
-
+import requests
 from utils import *
+from message_bridge import *
+from job_cache import JobCache
 from job import *
 from renderpage import RenderPage
 from config import TIMEFRAME_LEN_CANDLES
@@ -31,17 +33,23 @@ def week_ago_ms():
 
 class Job:
 
-    def __init__(self,db_file,max_symbols, table_name, live_table_name,historyActive=True, liveActive=True):
+    def __init__(self,db_file, config,table_name, live_table_name):
         
+        self.cache = JobCache()
+        self.config=config
         self.symbols=[]
         self.db_file=db_file
         self.table_name=table_name
         self.live_table_name=live_table_name
-        self.historyActive=historyActive
-        self.liveActive=liveActive
+        self.liveActive=config["database"]["live"]["enabled"]
         self.last_ts = {}
-        self.max_symbols=max_symbols
+        self.max_symbols=config["database"]["live"]["max_symbols"]
+        self.historyActive =config["database"]["logic"]["fetch_enabled"]  
+        #self.batch_client = MessageClient(MessageDatabase(db_file), "fetcher")
+        #self.batch_client = AsyncMessageClient(MessageDatabase(db_file), "fetcher")
 
+        #asyncio.create_task(self.on_receive())
+             
         '''
         conn = sqlite3.connect(self.db_file, isolation_level=None)
         cur = conn.cursor()
@@ -50,9 +58,33 @@ class Job:
         """)
         conn.close()
         '''
-        self.update_stats()
+        #self.update_stats()
+    
+    '''
+    async def on_receive(self):
+        while True:
+            self.batch_client.tick()
+            await asyncio.sleep(0.5)
+    '''
+    
+    async def send_batch(self,rest_point, msg):
+        
+        url = "http://127.0.0.1:2000/"+rest_point
+        params = msg
 
-    def update_stats(self):
+        response = requests.get(url, params=params, timeout=5)
+
+        if response.ok:
+            data = response.json()
+            print(data)
+        else:
+            print("Errore:", response.status_code)
+
+    async def scanner(self):
+        pass
+
+    def on_update_symbols(self):
+        logger.info(f"UPDATE SYMBOLS .. MAX:{self.max_symbols}")
         self.monitor = self.live_symbols_dict()
         logger.debug(self.monitor)
         self.symbols = [ x["symbol"]  for x in self.monitor ]
@@ -103,9 +135,12 @@ class Job:
     async def  _fetch_missing_history(self,cursor, symbol, timeframe, since):
         pass
 
-    async def align_data(self, timeframe):
-
+    async def align_data(self, symbol, timeframe):
+        if not self.historyActive:
+            return
         try:
+            #logger.info(f"align_data {symbol} {timeframe}")
+
             query_min = f"""
                 SELECT min(timestamp) as min
                 FROM {self.table_name}
@@ -120,7 +155,8 @@ class Job:
 
             conn = sqlite3.connect(self.db_file)
             
-            for symbol in self.live_symbols():
+            #for symbol in self.live_symbols():
+            if True:
                     max_dt=None
                     update = False
                     df_min = pd.read_sql_query(query_min, conn, params= (symbol, timeframe))
@@ -132,10 +168,12 @@ class Job:
                         else:
                             max_dt = int(df_min.iloc[0]["min"]/1000) # ultima data in unix time 
                     
+
+                    #logger.info(f"max_dt {max_dt}")
                     if max_dt:
                         last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
 
-                        logger.info(f"LAST UPDATE DELTA {last_update_delta_min}")
+                        logger.info(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
                         # devo aggiornare ??? 
                         
                         if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 5):
@@ -154,17 +192,24 @@ class Job:
                             )
                     #update=True
                     if update:
-                        logger.debug("MAX.. ",max_dt)
-                        logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
+                        cache_key = f"{symbol}_{timeframe}_{max_dt}"
+                        val = self.cache.getCache(cache_key)
+                        #print("CACHE",df)
+                        if not val:
+                            #logger.debug(f"MAX.. {max_dt}")
+                            logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
 
-                        await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000)
+                            await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000)
+                            self.cache.addCache_str(cache_key,cache_key)
+                        else:
+                            pass
                         
             conn.close()     
         except: 
             logger.error("ERROR",exc_info=True)
 
     async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000):
-        await self.align_data(timeframe)
+        await self.align_data(symbol,timeframe)
        
         query = f"""
             SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
@@ -180,12 +225,15 @@ class Job:
         conn.close()     
         return df
     
-    
-    def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
+    ########## tutti insieme
+    async def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
         if len(symbols) == 0:
             logger.error("symbol empty !!!")
             return None
-        self.align_data(timeframe)
+
+        for symbol in symbols:
+            await self.align_data(symbol,timeframe)
+
         sql_symbols = str(symbols)[1:-1]
      
         conn = sqlite3.connect(self.db_file)
@@ -216,7 +264,7 @@ class Job:
         conn.close()     
         return df
     
-    async def history_at_time(self, timeframe, datetime):
+    async def history_at_time_NOT_USED(self, timeframe, datetime):
         await self.align_data(timeframe)
         #sql_pairs = str(pairs)[1:-1]
 
@@ -237,4 +285,48 @@ class Job:
         conn = sqlite3.connect(self.db_file)
         df = pd.read_sql_query(query, conn, params= (unix_from,unix_to,timeframe))
         conn.close()     
+        return df
+    
+    def last_price(self,symbol: str)-> float:
+        df = self.get_df(f"""
+                SELECT close 
+                FROM ib_ohlc_live
+                WHERE symbol='{symbol}' AND timeframe='1m'
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """)
+        
+        if len(df)>0:
+            return  df.iloc[0][0]
+        else:
+            return 0
+        
+    def last_close(self,symbol: str)-> float:
+
+        ieri_mezzanotte = (
+                (datetime.now()
+                - timedelta(days=1))
+                .replace(hour=23, minute=59, second=59, microsecond=0)
+                
+            )
+        unix_time = int(ieri_mezzanotte.timestamp()) * 1000
+        print("Last close time ", unix_time)
+        df = self.get_df(f"""
+                SELECT close 
+                FROM ib_ohlc_live
+                WHERE symbol='{symbol}' AND timeframe='1m'
+                AND timestamp < {unix_time}
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """)
+        
+        if len(df)>0:
+            return  df.iloc[0][0]
+        else:
+            return 0
+        
+    def get_df(self,query, params=()):
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, conn, params=params)
+        conn.close()
         return df
