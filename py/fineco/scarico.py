@@ -10,6 +10,36 @@ logger = logging.getLogger(__name__)
 #yf.enable_debug_mode()
 yf.set_tz_cache_location("cache")
 
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+}
+
+def get_yahoo_session():
+    s = requests.Session()
+    r = s.get("https://finance.yahoo.com", headers=HEADERS, timeout=10)
+    r.raise_for_status()
+    return s
+
+def get_floating_shares(symbol):
+    session = get_yahoo_session()
+
+    url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
+    params = {
+        "modules": "defaultKeyStatistics"
+    }
+
+    r = session.get(url, headers=HEADERS, params=params, timeout=10)
+    r.raise_for_status()
+
+    stats = r.json()["quoteSummary"]["result"][0]["defaultKeyStatistics"]
+
+    return {
+        "floatShares": stats["floatShares"]["raw"],
+        "sharesOutstanding": stats["sharesOutstanding"]["raw"]
+    }
+
+
 def cerca_ticker(query):
     url = "https://query2.finance.yahoo.com/v1/finance/search"
     params = {"q": query}
@@ -103,10 +133,13 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
     )
         
+    get_floating_shares("NVDA")
+    exit()
+    
     #search 
     for r in cerca_ticker("apple"):
         print(r)
-    #exit()
+    exit()
 
     #tickers = get_tickers(conn,"prima")
     #tickers = select("SELECT id from ticker where fineco=1")["id"].to_list()

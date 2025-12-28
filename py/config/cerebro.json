@@ -1,5 +1,8 @@
 {
-	"database":
+	"company":{
+		"stock_update_days" : 10
+	}
+	,"database":
 		{
 			"scanner":
 			{
@@ -44,10 +47,10 @@
 				"TIMEFRAME_LEN_CANDLES" : {
 					"10s": 30,
 					"30s": 30,
-					"1m": "2d",
-					"5m": "7d",
-					"15m": "7d",
-					"30m": "7d",
+					"1m": "7d",
+					"5m": "15d",
+					"15m": "15d",
+					"30m": "15d",
 					"1h": "30d",
 					"2h": "30d",
 					"4h": "30d",

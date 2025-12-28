@@ -15,12 +15,17 @@ logger = logging.getLogger(__name__)
 
 class Layout:
 
-    def __init__(self, fetcher: Job, db : DBDataframe):
+    def __init__(self, fetcher: Job, db : DBDataframe, config):
        self.components=[]
        self.fetcher=fetcher
        self.db = db
+       self.config=config
        pass
 
+    async def on_render_page_connect(self,render_page):
+          for comp in self.components:
+            await comp.on_render_page_connect(render_page)
+            
     async def tick(self,render_page):
         for comp in self.components:
             await comp.tick(render_page)
@@ -33,8 +38,6 @@ class Layout:
         except:
             logger.error("ERROR",exc_info=True)
 
-
-
     def read(self,filePath):
         self.filePath=filePath
         try:
@@ -46,7 +49,7 @@ class Layout:
 
                     w = self.create_widget(comp["id"],comp["widget"])
                     if w:
-                        self.addWidget(comp["id"], w).rect = comp["rect"]
+                        self.addWidget(comp["id"], w,comp["widget"]["update_time_secs"]).rect = comp["rect"]
                 
         except :
             logger.error("Error", exc_info=True)
@@ -81,8 +84,8 @@ class Layout:
         #chart = ChartWidget("BTC/USDC","1m")
         #self.addWidget( chart)
 
-    def addWidget(self,id,widget)-> "LayoutComponent":
-        comp = LayoutComponent(id)
+    def addWidget(self,id,widget,update_time_secs)-> "LayoutComponent":
+        comp = LayoutComponent(id,update_time_secs)
         comp.setWidget(widget)
         self.components.append(comp)
         return comp
@@ -104,7 +107,7 @@ class Layout:
         if cmd["cmd"] =="add":
            id = str(uuid.uuid4())
            w = self.create_widget(id,cmd)
-           comp = self.addWidget(id, w)
+           comp = self.addWidget(id, w,cmd["update_time_secs"])
            comp.rect = {"w":4, "h":4}
            if comp :
                await comp.load(page)
@@ -124,20 +127,44 @@ class Layout:
 
 class LayoutComponent:
 
-    def __init__(self, id):
+    def __init__(self, id,update_time_secs):
        self.id=id
        self.rect=""
        self.widget=None
+       self.update_time_secs=update_time_secs
+       self.last_update = datetime.now()
+       self.firstTime = True
        #self.id = str(uuid.uuid4())
 
+    '''
+    async def on_render_page_connect(self,render_page):
+        if  self.firstTime:
+            msg=self.serialize()
+            logger.info(f"--> {msg}")
+            await render_page.send(msg)
+    
+       #await self.widget.tick(render_page)
+       # self.firstTime=False
+    '''
+
     async def tick(self,render_page):
-        await self.widget.tick(render_page)
+        if self.firstTime:
+             await self.widget.tick(render_page)
+             self.firstTime=False
+        else:
+            if (datetime.now() - self.last_update).total_seconds() > self.update_time_secs:
+                self.last_update = datetime.now()
+                await self.widget.tick(render_page)
 
     async def load(self,page:RenderPage):
         ''' at startup '''
+        #await self.widget.tick(page)
+
         msg=self.serialize()
-        logger.info(f"--> {msg}")
+        logger.info(f"LOAD --> {msg}")
         await page.send(msg)
+
+        await self.widget.tick(page)
         #self.widget.load(page)
 
     def from_data(self,data):

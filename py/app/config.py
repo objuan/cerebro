@@ -1,3 +1,7 @@
+DB_FILE = "db/crypto.db"
+CONFIG_FILE = "config/cerebro.json"
+
+'''
 TIMEFRAME_UPDATE_SECONDS = {
     "1s": 1,
     "5s": 5,
@@ -28,3 +32,4 @@ TIMEFRAME_LEN_CANDLES = {
     "4h": 14400,
     "1d": 120, # 2 mesi
 }
+'''

@@ -24,9 +24,8 @@ from layout import *
 
 #if sys.platform == 'win32':
     #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+from config import DB_FILE,CONFIG_FILE
 
-CONFIG_FILE = "../config/cerebro.json"
-DB_FILE = "../db/crypto.db"
 DEF_LAYOUT = "./layouts/default_layout.json"
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
@@ -77,14 +76,14 @@ logger.addHandler(console_handler)
 ########################################
 
 try:
-    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+    with open("../"+CONFIG_FILE, "r", encoding="utf-8") as f:
         config = json.load(f)
 
         #print(config)
 except FileNotFoundError:
-    print("File non trovato")
+    logger.error("Config File non trovato")
 except json.JSONDecodeError as e:
-    print("JSON non valido:", e)
+    logger.error("JSON non valido:", e)
 
 
 config = convert_json(config)
@@ -98,7 +97,7 @@ logger.info(f"CONFIG {config}")
 
 #fetcher = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
 
-fetcher = IBrokerJob(None,DB_FILE,config)
+fetcher = IBrokerJob(None,"../"+DB_FILE,config)
 
 db = DBDataframe(config,fetcher)
 
@@ -303,7 +302,7 @@ async def get_timeseries(symbol: str,interval: str,outputsize: str):
 ws_manager = WSManager()
 
 render_page = RenderPage(ws_manager)
-layout = Layout(fetcher,db)
+layout = Layout(fetcher,db,config)
 layout.read(DEF_LAYOUT)
 
 #layout.setDefault()
@@ -333,6 +332,11 @@ async def layout_cmd(request: Request):
 @app.websocket("/ws/live")
 async def ws_live(ws: WebSocket):
     await ws_manager.connect(ws)
+
+    #logger.info(f"Start WS socket")
+    #render_page.connected=False
+
+    
     try:
         while True:
             message = await ws.receive_text()
@@ -343,19 +347,7 @@ async def ws_live(ws: WebSocket):
             #await ws.send_text(f"Echo: {message}")
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
-
-
-'''
-async def hourly_task():
-    while True:
-        await asyncio.sleep(60 * 60)  # 1 ora
-        try:
-            #print("Task eseguito")
-            fetcher.update_stats()
-        except Exception as e:
-            logger.error("❌ errore hourly_task:", exc_info=True)
-        
-'''     
+    
 
 async def live_loop():
     while True:
@@ -378,7 +370,6 @@ async def live_loop():
 
             await ws_manager.broadcast(msg1)
             '''
-
             
             new_candles = await fetcher.fetch_live_candles()
 

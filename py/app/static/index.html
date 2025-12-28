@@ -122,7 +122,7 @@ ws.onmessage = (event) => {
   else  if (msg.type === "report") {
       
       const reportObj = report_map[msg["id"]];
-      //console.log(" report ", msg,reportObj);
+      console.log("report ..", msg,reportObj);
       reportObj.update(msg.data)
   }
   else if (msg.type === "heartbeat") {

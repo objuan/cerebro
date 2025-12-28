@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 from report import *
 from renderpage import RenderPage
-from config import TIMEFRAME_UPDATE_SECONDS,TIMEFRAME_LEN_CANDLES
+#from config import TIMEFRAME_UPDATE_SECONDS,TIMEFRAME_LEN_CANDLES
 from utils import AsyncScheduler
 
 # si autoaggiorna ogni tot
@@ -19,7 +19,7 @@ class DBDataframe_SymbolTimeFrame:
         self.lastTime = datetime.now()
 
     def tick(self):
-        if (datetime.now() - self.lastTime  > timedelta(seconds= TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
+        if (datetime.now() - self.lastTime  > timedelta(seconds= self.fetcher.TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
             #logger.info(f"Update {self.symbol} {self.timeframe}")
             self.lastTime = datetime.now()
 
@@ -59,7 +59,7 @@ class DBDataframe_TimeFrame:
         await self.update()
 
     async def tick(self):
-        if (datetime.now() - self.lastTime  > timedelta(seconds= TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
+        if (datetime.now() - self.lastTime  > timedelta(seconds= self.fetcher.TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
             #logger.info(f"Update  {self.timeframe}")
             await self.update()
             self.lastTime = datetime.now()
@@ -114,7 +114,7 @@ class DBDataframe_TimeFrame:
             #self.df .sort_values("timestamp")
 
             # tieni solo gli ultimi N arrivi
-            self.df = self.df.tail(TIMEFRAME_LEN_CANDLES[self.timeframe] * len(self.symbols)).reset_index(drop=True)
+            self.df = self.df.tail(self.fetcher.TIMEFRAME_LEN_CANDLES[self.timeframe] * len(self.symbols)).reset_index(drop=True)
 
             self.set_indicators(self.df)
 

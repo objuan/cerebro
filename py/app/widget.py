@@ -13,6 +13,7 @@ class Widget:
        pass
 
     async def tick(self,render_page):
+        logger.info(f" tick {self.tickCont}")
         if self.tickCont==0:
             if self.onStart(render_page) :
                 self.tickCont=self.tickCont+1

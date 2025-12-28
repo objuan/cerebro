@@ -11,7 +11,6 @@ import asyncio
 from utils import *
 from job import *
 from renderpage import RenderPage
-from config import TIMEFRAME_LEN_CANDLES
 import yfinance as yf
 import warnings
 warnings.filterwarnings("ignore")

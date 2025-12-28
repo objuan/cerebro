@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import logging
 import asyncio
@@ -42,6 +42,19 @@ def timeframe_to_milliseconds(timeframe: str) -> int:
     else:
         raise ValueError(f"Timeframe non supportato: {timeframe}")
 
+def numero_candele(minutes, timeframe: str) -> int:
+    unit = timeframe[-1]
+    value = int(timeframe[:-1])
+    mult = 1
+    if unit == 'm':
+        mult= 1
+    elif unit == 'h':
+        mult= 60
+    elif unit == 'd':
+        mult= 60*60
+   
+    return int(minutes / mult)
+    
 def calculate_since(timeframe: str, N: int) -> int:
     now_ms = int(time.time() * 1000)
     tf_ms = timeframe_to_milliseconds(timeframe)
@@ -50,6 +63,26 @@ def calculate_since(timeframe: str, N: int) -> int:
 
 def ts_to_local_str(ts_ms: int) -> str:
     return datetime.fromtimestamp(ts_ms / 1000).strftime("%Y-%m-%d %H:%M:%S")
+
+def datetime_to_unix(dt:datetime) -> int:
+    return int(dt.timestamp())
+
+def datetime_to_unix_ms(dt:datetime) -> int:
+    return int(dt.timestamp())*1000
+
+def prev_day_before_24(dt: datetime) -> datetime:
+    #return datetime.fromtimestamp(ts_ms / 1000).strftime("%Y-%m-%d %H:%M:%S")
+    return (
+                (dt
+                - timedelta(days=1))
+                .replace(hour=23, minute=59, second=59, microsecond=0)
+                
+            )
+
+def begin_day(dt: datetime) -> datetime:
+    #return datetime.fromtimestamp(ts_ms / 1000).strftime("%Y-%m-%d %H:%M:%S")
+    return dt.replace(hour=0, minute=0, second=1, microsecond=0)
+                
 
 TIME_MULTIPLIERS = {
     "s": 1,

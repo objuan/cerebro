@@ -7,8 +7,7 @@ logger = logging.getLogger(__name__)
 from report import *
 from reports.db_dataframe import *
 from renderpage import RenderPage
-
-
+from utils import *
 
 class TopGainReportWidget(ReportWidget):
 
@@ -24,6 +23,7 @@ class TopGainReportWidget(ReportWidget):
         return f"{self.gain_time_min} m"
 
     def onStart(self,render_page)-> bool:
+        logger.info("onStart")
         self.columns= [f"Change From {self.format_time(self.gain_time_min)}(%)","Symbol/News","Rank","Price","Volume","Rel Vol (DaylyRate)", "Rel Vol (5 min %)","Gap"]
         
         self.columnsData = [
@@ -41,7 +41,6 @@ class TopGainReportWidget(ReportWidget):
             {"title": "Symbol/News" , "type" :"str" },
             {"title": "Price","decimals": 5 },
             {"title": "Volume" },
-            {"title": "Volume (QUOTE)" },
             {"title": "Rel Vol (DaylyRate)","decimals": 2 },
             {"title": "Rel Vol (5 min %)","decimals": 2},
             {"title": "Gap", "decimals": 1, "colors":{ "range_min": -2 , "range_max":10 ,  "color_min": "#7B9AFD" , "color_max":"#3800B9"   } }
@@ -53,7 +52,6 @@ class TopGainReportWidget(ReportWidget):
     
     async def onTick(self,render_page):
         
-     
         try:
             # situazione attuale
             live_df = self.job.live_symbols_df()
@@ -80,6 +78,7 @@ class TopGainReportWidget(ReportWidget):
            
             #           
             df_1d = self.db.dataframe("1d")
+            #logger.info(df_1d)
 
             mean_base_volume_1d = (
                 df_1d
@@ -93,8 +92,77 @@ class TopGainReportWidget(ReportWidget):
 
             ####
 
-            df = self.db.dataframe("1m")[["timestamp","symbol","close","open","quote_volume","base_volume"]].copy()
+            df_1m = self.db.dataframe("1m")[["timestamp","symbol","close","open","low","high","base_volume"]]
 
+            df = self.get_last(df_1m)#.drop(columns=["quote_volume"])
+
+            logger.info(f"df_1m {df_1m}")
+        
+            #self.add_last_close(df_1m)
+            ######## LAST CLOSE, FIRST OPEN #########
+
+            first_open = self.open_by_symbols(df_1m) 
+            #logger.info(f"OPEN {first_open}")
+            last_close = self.close_by_symbols(df_1m,df_1d) 
+            #logger.info(f"CLOSE {last_close}")
+
+            df = df.merge(  last_close[["symbol","last_close"]], on="symbol",    how="left")
+            df = df.merge(  first_open[["symbol","first_open"]], on="symbol",    how="left")
+            
+            ## GAIN 
+            df["gain"] =  ((df['close'] - df['last_close'] ) / df['last_close'])  * 100
+
+            ## GAP
+            df["gap"] =  ((df['first_open'] - df['last_close'] ) /df['last_close'])  * 100
+            logger.info(f"result {df}")
+
+            #volume 24
+            win_24 = self.get_window(df_1m,60*24,"1m")
+
+            vol_24h = (
+                win_24
+                .groupby("symbol", group_keys=False,as_index=False)
+                .sum()
+                .rename(columns={"base_volume": "volume_24h"})
+            )
+
+            logger.debug(f"win_24 {vol_24h}")
+
+            df = df.merge(  vol_24h[["symbol","volume_24h"]], on="symbol",    how="left")
+
+            logger.info(f"result {df}")
+
+            # volume oggi
+
+            win_oggi = self.get_day_window(df_1m)
+            logger.info(f"day {win_oggi}")
+        
+            vol_day = (
+                win_oggi
+                .groupby("symbol", group_keys=False,as_index=False)
+                .sum()
+                .rename(columns={"base_volume": "volume_day"})
+            )
+            df = df.merge(  vol_day[["symbol","volume_day"]], on="symbol",    how="left")
+
+            logger.info(f"result {df}")
+
+            #volume delle ultime 24 ore con il volume medio giornaliero storico.
+            df = df.merge(  mean_base_volume_1d, on="symbol",    how="left")
+            df = df.merge(  mean_base_volume_5m, on="symbol",    how="left")
+
+            df['rel_vol_24'] = (df['volume_24h'] / df['avg_base_volume_1d'])  * 100
+            df['rel_vol_5m'] = ((df['base_volume'] / df['avg_base_volume_5m']) ) * 100
+
+            logger.info(f"result {df}")
+
+            await render_page.send({
+                   "id" : self.id,
+                   "type" : "report",
+                   "data": df[["gain","symbol","close", "volume_24h","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
+               })
+            
+            return   
             #self.df = pd.DataFrame(columns=self.columns)
 
             #self.df[self.columns[0]] = 1
@@ -127,6 +195,7 @@ class TopGainReportWidget(ReportWidget):
                     )
                 )
             )
+            '''
             quote_vol_24h = (
                 df
                 .groupby("symbol", group_keys=False)
@@ -140,8 +209,9 @@ class TopGainReportWidget(ReportWidget):
                     )
                 )
             )
+            '''
             df["base_volume_24h"] = base_vol_24h.explode().astype(float).values
-            df["quote_volume_24h"] = quote_vol_24h.explode().astype(float).values
+            #df["quote_volume_24h"] = quote_vol_24h.explode().astype(float).values
 
             #ogger.info(mean_quote_volume)
 
@@ -204,6 +274,7 @@ class TopGainReportWidget(ReportWidget):
 
             latest_rows = df.loc[df.groupby("symbol")["timestamp"].idxmax()]
             latest_rows.sort_values(by = "gain", ascending=True).reset_index(drop=True)
+            latest_rows = latest_rows.fillna(0)
 
             logger.info(latest_rows)
                         
@@ -211,7 +282,7 @@ class TopGainReportWidget(ReportWidget):
             await render_page.send({
                    "id" : self.id,
                    "type" : "report",
-                   "data": latest_rows[["gain","symbol","close", "base_volume_24h","quote_volume_24h","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
+                   "data": latest_rows[["gain","symbol","close", "base_volume_24h","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
                })
           
         

@@ -12,7 +12,6 @@ from message_bridge import *
 from job_cache import JobCache
 from job import *
 from renderpage import RenderPage
-from config import TIMEFRAME_LEN_CANDLES
 import warnings
 warnings.filterwarnings("ignore")
 #from scanner.crypto import ohlc_history_manager
@@ -45,6 +44,10 @@ class Job:
         self.last_ts = {}
         self.max_symbols=config["database"]["live"]["max_symbols"]
         self.historyActive =config["database"]["logic"]["fetch_enabled"]  
+
+        self.TIMEFRAME_UPDATE_SECONDS =config["database"]["logic"]["TIMEFRAME_UPDATE_SECONDS"]  
+        self.TIMEFRAME_LEN_CANDLES =config["database"]["logic"]["TIMEFRAME_LEN_CANDLES"]  
+        #logger.info(f"TIMEFRAME_LEN_CANDLES {self.TIMEFRAME_LEN_CANDLES}")
         #self.batch_client = MessageClient(MessageDatabase(db_file), "fetcher")
         #self.batch_client = AsyncMessageClient(MessageDatabase(db_file), "fetcher")
 
@@ -165,8 +168,8 @@ class Job:
                     if df_max.iloc[0]["max"]:
                         if not df_min.iloc[0]["min"]:
                             max_dt = int(df_max.iloc[0]["max"]/1000) # ultima data in unix time    
-                        else:
-                            max_dt = int(df_min.iloc[0]["min"]/1000) # ultima data in unix time 
+                        #else:
+                        #    max_dt = int(df_min.iloc[0]["min"]/1000) # ultima data in unix time 
                     
 
                     #logger.info(f"max_dt {max_dt}")
@@ -187,9 +190,11 @@ class Job:
                     else:
                         update=True
                         max_dt = int(
-                            (datetime.now() - timedelta(seconds=seconds_from_candles(TIMEFRAME_LEN_CANDLES[timeframe], timeframe)))
+                            (datetime.now() - timedelta(seconds=self.TIMEFRAME_LEN_CANDLES[timeframe]))
                             .timestamp()
                             )
+                        logger.info(f"BEGIN HISTORY {max_dt} ")
+
                     #update=True
                     if update:
                         cache_key = f"{symbol}_{timeframe}_{max_dt}"

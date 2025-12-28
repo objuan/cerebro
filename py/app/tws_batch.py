@@ -24,6 +24,7 @@ import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 util.startLoop()  # uncomment this line when in a notebook
+from config import DB_FILE,CONFIG_FILE
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -31,23 +32,12 @@ logger.setLevel(logging.INFO)
 ib = IB()
 ib.connect('127.0.0.1', 7497, clientId=1)
 
-DB_FILE = "db/crypto.db"
-CONFIG_FILE = "config/cerebro.json"
 DB_TABLE = "ib_ohlc_live"
 
 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     config = json.load(f)
 config = convert_json(config)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    try:
-        yield
-        print("DONE")
-    except:
-        logger.error("ERROR", exc_info=True)
-    finally:
-        pass
 
 app = FastAPI(  )
 
@@ -99,15 +89,6 @@ cur.execute("""
     CREATE INDEX IF NOT EXISTS ib_idx_ohlc_ts
         ON ib_ohlc_live(timestamp)
     """)
-
-#
-
-'''
-db = MessageDatabase(DB_FILE)
-db.init()
-server = MessageServer(db, "tws_batch")
-server.clear()
-'''
 ###
 
 last_stats = {}
@@ -309,7 +290,6 @@ def scan(config):
 
 #######################################################
 
-
 actual_df=None
 #conidex_to_symbol=None
 symbol_map=None
@@ -375,40 +355,28 @@ def updateLive(config,range_min=None,range_max=None):
         manage_live(delta_new["symbol"].to_list(),delta_removed["symbol"].to_list())
         
 
-######################
+##################################################
+@app.get("/market")
+def health(symbol):
+    logger.info(f"Market {symbol}")
 
-async def start_watch(receiveHandler):
-    # Stream market data in a loop
-    try:
-        while True:
+    exchange = symbol_map[symbol]
+    contract = Stock(symbol, exchange, 'USD')
+    ib.qualifyContracts(contract)
 
-            '''
-            for req in server.fetch_requests():
-                data = json.loads(req["payload"])
-                logger.info(f"<< {data}")
-                if "cmd" in data and  data["cmd"] =="scanner":
-                    scan(config)
+    ticker = ib.reqMktData(contract, '', False, False)
+    ib.sleep(2)
 
-                    updateLive(config,0, config["database"]["live"]["max_symbols"])
-                    result = {"state": "ok"}
-                    server.send_response(req, result)
-                else:
-                    # logica
-                    result = {"state": "ok"}
-                    server.send_response(req, result)
+    print("Last:", ticker.last)
+    print("Bid:", ticker.bid)
+    print("Ask:", ticker.ask)
+    print("Volume:", ticker.volume)
+    print("High:", ticker.high)
+    print("Low:", ticker.low)
 
-            await asyncio.sleep(0.2)
-            '''
-            #ib.sleep(0.5)  # Sleep for 1 second and wait for updates
-            for symbol, ticker  in tickers.items():
-                receiveHandler(symbol,ticker)  # Print the latest market data
+    logger.info(f"Market1 {symbol}")
 
-    except KeyboardInterrupt:
-        # Gracefully disconnect on exit
-        print("Disconnecting from TWS...")
-        ib.disconnect()
-
-#########################
+    return {"status": "ok"}
 
 @app.get("/health")
 def health():
@@ -426,7 +394,7 @@ async def scanner():
                    
     return {"status": "ok"}
 
-#############
+##################################################
 
 if __name__ =="__main__":
 
@@ -502,13 +470,6 @@ if __name__ =="__main__":
                 [server_task, tick_task],
                 return_when=asyncio.FIRST_COMPLETED
             )
-
-          #loop = asyncio.new_event_loop()
-        #asyncio.set_event_loop(loop)
-
-        # 4. Esegui il server nel loop che abbiamo creato
-        #loop.run_until_complete(server.serve())
-        #asyncio.run(start_watch(server,receive))
 
         except:
             logger.error("ERROR", exc_info=True)
