@@ -27,6 +27,7 @@ util.startLoop()  # uncomment this line when in a notebook
 from config import DB_FILE,CONFIG_FILE
 from market import *
 from utils import datetime_to_unix_ms
+from company_loaders import *
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -42,6 +43,7 @@ config = convert_json(config)
 
 ms = MarketService(config)          # o datetime.now()
 market = ms.getMarket("AUTO")
+symbols = []
 
 app = FastAPI(  )
 
@@ -207,7 +209,8 @@ def display_with_stock_symbol(scanData):
     df["symbol"] = df.apply( lambda l:l['contract'].symbol,axis=1)
     return df[["rank","contractDetails","contract","symbol"]]
 
-def scan(config):
+async def scan(config):
+
     cfg = config["database"]["scanner"]["params"]
     logger.info(f'SCANNING DATAS ...{cfg}')
 
@@ -227,6 +230,7 @@ def scan(config):
     logger.info(f'filter ...{filter}')
 
     if zone == MarketZone.LIVE:
+        sub.stockTypeFilter = "COMMON" # solo azione vere, no nETF
         if "abovePrice" in filter:
             sub.abovePrice = filter["abovePrice" ]
         if "belowPrice" in filter:
@@ -257,39 +261,36 @@ def scan(config):
 
         run_time = int(_time.time() * 1000)
         ds_run_time  = datetime.utcnow().isoformat()
+        
+        logger.info(display_with_stock_symbol(scanData)["symbol"])
 
-                    
-        print(display_with_stock_symbol(scanData)["symbol"])
+        symbols = [] 
+        for contract, details in display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
+            if contract.conId!=0:
+                symbols.append(contract.symbol)
+
+        logger.info(f"find df_fundamentals \n{symbols}")
+        df_fundamentals = await Yahoo(DB_FILE, config).get_float_list(symbols)
+
+        #scarto stocke senza float 
+        for _, row in df_fundamentals.iterrows():
+            if not  row["float"] :
+                logger.warning(f"DISCARD STOCK : {row['symbol']}")
+                for i,m in  enumerate(symbols):
+                    #e = self.monitor[row['symbol']]
+                    if m == row['symbol']:
+                        del symbols[i]                
+                        break
+        # filtro df_fundamentals                  
+        mask = df_fundamentals.apply(
+            lambda row: not not row["float"],
+            axis=1
+            )
+        df_fundamentals = df_fundamentals[mask]
+        
         # inserimento dati
         #for row in display_with_stock_symbol(scanData).iterrows():
         for contract, details in display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
-                #contract = row["contract"]
-                #details = row["contractDetails"]
-
-                #logger.debug(contract.symbol)
-                #details = contract.contractDetails
-
-                '''
-                data =  ib.reqMktData(
-                    contract=contract,
-                    genericTickList="",
-                    snapshot=True,
-                    regulatorySnapshot=False
-                )
-                ib.sleep(2)
-                '''
-                #print(data)
-                '''
-                print(details.validExchanges)
-                print(details.longName)
-                print(details.industry)
-                print(details.category)
-                print(details.subcategory)
-                print(details.lastTradeTime)
-                print(details.stockType)
-                print(details.minSize)
-                '''
-
 
                 sql = """
                     INSERT INTO ib_contracts (
@@ -325,7 +326,8 @@ def scan(config):
                     run_time,
                     ds_run_time
                 ))
-                    
+                
+          
                 conn.commit()
             
                 ##### stocks
@@ -338,8 +340,38 @@ def scan(config):
                         
                     conn.commit()
                     
+                sql = f"UPDATE STOCKS SET ib_conid={contract.conId} , currency='{contract.currency}' WHERE symbol ='{contract.symbol}'"
+                conn.execute(sql)
+                conn.commit()
+
                 
         conn.close()
+
+        max_symbols=config["database"]["live"]["max_symbols"]
+        if max_symbols != None:
+             symbols = symbols [:max_symbols]
+
+        logger.info(f"df_fundamentals \n{df_fundamentals}")
+        items=[]
+        for symbol in symbols:
+            new_row = {"symbol": symbol}
+            
+            for contract, details in display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
+                if contract.symbol == symbol:
+                    #print(contract)
+                    new_row["conid"]=  contract.conId
+            for _, row in df_fundamentals.iterrows():
+                if  row["symbol"]  == symbol:
+                    new_row["listing_exchange"]= row["exchange"] 
+   
+            items.append(new_row)
+
+        #print(items)
+        df = pd.DataFrame(
+            [(o["symbol"], o["conid"], o["listing_exchange"]) for o in items],
+            columns=["symbol", "conidex","listing_exchange"]
+        )
+        return df
 
 #######################################################
 
@@ -360,7 +392,7 @@ def manage_live( symbol_list_add, symbol_list_remove):
     logger.info(f"Manage_live add:{symbol_list_add} del: {symbol_list_remove}")
 
     for symbol in symbol_list_add:
-        exchange = symbol_map[symbol]
+        exchange = "SMART"#symbol_map[symbol]
         contract = Stock(symbol, exchange, 'USD')
 
         logger.info(f"Open  feeds {contract}")
@@ -371,13 +403,13 @@ def manage_live( symbol_list_add, symbol_list_remove):
 
 ##########################################################
 
-def updateLive(config,range_min=None,range_max=None):
+def updateLive(config,df_symbols, range_min=None,range_max=None):
     global actual_df
     global symbol_map
     global symbol_to_conid_map
     # get last lives
     
-    
+    '''
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query("select max(updated_at) as max from ib_contracts", conn)
     max_date = df.iloc[0]["max"]
@@ -386,12 +418,13 @@ def updateLive(config,range_min=None,range_max=None):
     #print("df",last_df)
     conn.close()
 
+    '''
     if range_min!=None:
-        last_df = last_df.iloc[range_min:range_max]
+        df_symbols = df_symbols.iloc[range_min:range_max]
 
-    logger.info(f"START LISTENING \n{last_df}")
+    logger.info(f"START LISTENING")
     if not symbol_map :
-        actual_df = last_df
+        actual_df = df_symbols
         #manage_live(last_df,[])
         symbol_map = actual_df.set_index("symbol")["listing_exchange"].to_dict()
         symbol_to_conid_map = actual_df.set_index("symbol")["conidex"].to_dict()
@@ -399,10 +432,10 @@ def updateLive(config,range_min=None,range_max=None):
         manage_live(actual_df["symbol"].to_list(),[])
     else:
 
-        delta_removed = actual_df[~actual_df["symbol"].isin(last_df["symbol"])]
-        delta_new = last_df[~last_df["symbol"].isin(actual_df["symbol"])]
+        delta_removed = actual_df[~actual_df["symbol"].isin(df_symbols["symbol"])]
+        delta_new = df_symbols[~df_symbols["symbol"].isin(actual_df["symbol"])]
 
-        actual_df = last_df
+        actual_df = df_symbols
         symbol_map = actual_df.set_index("symbol")["listing_exchange"].to_dict()
         symbol_to_conid_map = actual_df.set_index("symbol")["conidex"].to_dict()
 
@@ -442,7 +475,7 @@ async def favicon():
 
 @app.get("/scanner")
 async def scanner():
-    scan(config)
+    await scan(config)
 
     updateLive(config,0, config["database"]["live"]["max_symbols"])
                    
@@ -457,6 +490,14 @@ async def conId(symbol,exchange,currency):
     logger.info(f"....... {contract.conId}")
     return {"status": "ok" , "data": { "conId" : str(contract.conId)}}
 
+@app.get("/symbols")
+async def symbols():
+
+    logger.info(f"get symbols {actual_df}")
+
+    rows = actual_df[["symbol", "conidex", "listing_exchange"]].to_dict(orient="records")
+    
+    return {"status": "ok" , "data": rows}
 
 ##################################################
 
@@ -494,9 +535,16 @@ if __name__ =="__main__":
     async def main():
         trade_mode
         try:
+            df_symbols = await scan(config)
             #await cleanup_task()
+            logger.info("-------------------")
+            logger.info(f" Start with synbols : \n{df_symbols}")
+            logger.info("-------------------")
 
-            updateLive(config, 0,2)
+           
+
+            #updateLive(config, df_symbols, 0,2)
+            updateLive(config, df_symbols)
             
             def receive(symbol, ticker: Ticker):
    

@@ -33,25 +33,25 @@
 				"update_time" : "10m" ,
 				 "params": {
 					"instrument": "STK",
-					"location": "STK.US.MAJOR",
-					"type2": "TOP_PERC_GAIN",
+					"location": "STK.NASDAQ",
+					"type": "TOP_PERC_GAIN",
 					"type1": "HIGH_OPEN_GAP",
-					"type": "HIGH_PRICE",
+					"type22": "HIGH_PRICE",
 					"filter": 
 					{
-						"abovePrice": 10,
+						"abovePrice": 1,
 						"belowPrice": 10000,
-						"aboveVolume": 100000,
+						"aboveVolume": 10,
 						"usdVolumeBelow": 10,
-						"marketCapAbove" : 1000000
+						"marketCapAbove" : 1000
 					}
 				}
 			},
 			"live":
 			{
 				"enabled" : true,
-				"max_symbols" : 1,
-				"debug_symbols" : ["SOPA"]
+				"max_symbols" : 10,
+				"debug_symbols1" : ["SOPA"]
 			}
 			,"logic":
 			{
