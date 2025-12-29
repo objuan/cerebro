@@ -77,13 +77,13 @@ class IBrokerJob(Job):
 
         await self.send_batch("scanner",{})
         #await self.batch_client.send_request("tws_batch", {"cmd":"scanner"})
-        self.on_update_symbols()
+        await self.on_update_symbols()
         logger.info(f".. Scanner call DONE {time.ctime()}")
 
     def tick(self):
        pass 
 
-    def live_symbols_query(self, max_symbols)-> str:
+    def live_symbols_query(self)-> str:
 
         conn = sqlite3.connect(self.db_file)
         df = pd.read_sql_query("select max(updated_at) as max from ib_contracts", conn)
@@ -96,19 +96,49 @@ class IBrokerJob(Job):
         #if self.max_symbols!=None:
         #    last_df = last_df.iloc[:self.max_symbols]
 
-        self.symbol_map = last_df.set_index("symbol")["listing_exchange"].to_dict()
-        self.symbol_to_conid_map = last_df.set_index("symbol")["conidex"].to_dict()
-
-        return f"select symbol from ib_contracts where updated_at={max_date}"
+        if "debug_symbols" in self.config["database"]["live"]:
+            symbols = self.config["database"]["live"]["debug_symbols"]
+            #list = s.replace("\"","'")[1:-1]
+            #logger.debug(symbols)
+            #return f"select {list} as  symbol "
+            query = " UNION ALL ".join(
+                f"SELECT '{s}' AS symbol" if i == 0 else f"SELECT '{s}'"
+                for i, s in enumerate(symbols)
+            )
+            return query
+                        
+        else:
+            return f"select symbol from ib_contracts where updated_at={max_date}"
             
+    async def on_update_symbols(self):
+        await super().on_update_symbols()
+
+        #dict = self.df_fundamentals.to_dict(orient="records")
+        #logger.debug(dict)
+
+        self.symbol_to_conid_map = {}
+        self.symbol_to_exchange_map = {}
+        for _, row in self.df_fundamentals.iterrows():
+            
+            self.symbol_to_conid_map[row["symbol"]] = row["ib_conid"]
+            self.symbol_to_exchange_map[row["symbol"]] = row["exchange"]
+
+        #logger.info(f"symbol_map {self.symbol_map}")
+        #logger.info(f"symbol_to_conid_map {self.symbol_map}")
+        #self.symbol_map = last_df.set_index("symbol")["listing_exchange"].to_dict()
+        #self.symbol_to_conid_map = last_df.set_index("symbol")["conidex"].to_dict()
+
     async def fetch_live_candles(self):
         
         key = "all"
         last_seen = self.last_ts.get(key, 0)
         
-        if self.liveActive:
+        self.marketZone = self.market.getCurrentZone()
+
+        if self.liveActive and self.marketZone == MarketZone.LIVE:
           
             #print(self.sql_symbols,last_seen)
+          
             sql=f"""
             INSERT OR REPLACE INTO ib_ohlc_history
             SELECT
@@ -132,27 +162,50 @@ class IBrokerJob(Job):
  
             self.cur_exe.execute(sql)
    
-        conn = sqlite3.connect(self.db_file)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
+            conn = sqlite3.connect(self.db_file)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
 
-        # get 
-        cur.execute(f"""
-            SELECT symbol, timeframe as tf ,updated_at as ts, timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
-            FROM ib_ohlc_history
-            WHERE  updated_at >= {last_seen}
-            ORDER BY updated_at ASC
-        """)
+            # get 
+            cur.execute(f"""
+                SELECT symbol, timeframe as tf ,updated_at as ts, timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
+                FROM ib_ohlc_history
+                WHERE  updated_at >= {last_seen}
+                ORDER BY updated_at ASC
+            """)
 
-        rows = cur.fetchall()
+            rows = cur.fetchall()
 
-        conn.close()
+            conn.close()
 
-        #print(rows)
-        if rows:
-            self.last_ts[key] = rows[-1]["ts"]
+            #print(rows)
+            if rows:
+                self.last_ts[key] = rows[-1]["ts"]
 
-        return [dict(r) for r in rows]
+            return [dict(r) for r in rows]
+        else:
+            if self.liveActive:
+                conn = sqlite3.connect(self.db_file)
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+
+                # get 
+                cur.execute(f"""
+                    SELECT   exchange,   symbol,   timeframe as tf ,updated_at as ts, timestamp as t, open as o, high as h , low as l, close as c, volume as qv, volume as bv
+                    FROM ib_ohlc_live
+                    WHERE symbol in ({self.sql_symbols})
+                    GROUP BY tf
+                    ORDER BY timestamp desc LIMIT 3
+                """)
+                rows = cur.fetchall()
+                conn.close()
+                if rows:
+                    #logger.debug(rows)
+                    return [dict(r) for r in rows]
+                else:
+                    return  []
+            else:
+                return  []
 
     async def _fetch_missing_history(self,cursor, symbol, timeframe, since):
         #since = week_ago_ms()
@@ -307,7 +360,7 @@ if __name__ == "__main__":
     config = convert_json(config)
 
     job = IBrokerJob(None, "db/crypto.db",config)
-    job.on_update_symbols()
+    #await job.on_update_symbols()
  
     async def test():
         await job.ohlc_data("AAPL","1m",1000)

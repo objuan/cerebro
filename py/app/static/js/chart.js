@@ -63,6 +63,7 @@ function createChart(widget_ele,id_chart, symbol, timeframe,plot_config) {
 
     
     // SUB VOLUME
+    //console.log(document.getElementById(id_chart))
     const chart2 = LightweightCharts.createChart(
         document.getElementById(id_chart),
         {
@@ -215,7 +216,7 @@ function createChart(widget_ele,id_chart, symbol, timeframe,plot_config) {
                           color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
                       }))
                   );
-
+                
                   Object.entries(this.indicators).forEach(([key, chartMeta]) => {
                       //console.log("REFRESH", key, chartMeta);
                       const ind_data = chartMeta["fun"]( data, chartMeta["args"]);

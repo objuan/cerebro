@@ -13,6 +13,9 @@ from job_cache import JobCache
 from job import *
 from renderpage import RenderPage
 import warnings
+from company_loaders import *
+from market import *
+from dataclasses import dataclass
 warnings.filterwarnings("ignore")
 #from scanner.crypto import ohlc_history_manager
 
@@ -30,6 +33,17 @@ def week_ago_ms():
     return ms(time.time() - RETENTION_DAYS * 86400)
 
 
+class Ticker:
+    symbol:str
+    price: float
+    bid:float
+    ask:float
+    volume: float
+    timestamp : datetime
+
+    def __init__(self,symbol):
+        self.symbol=symbol
+
 class Job:
 
     def __init__(self,db_file, config,table_name, live_table_name):
@@ -37,6 +51,7 @@ class Job:
         self.cache = JobCache()
         self.config=config
         self.symbols=[]
+        self.tickers = {}
         self.db_file=db_file
         self.table_name=table_name
         self.live_table_name=live_table_name
@@ -47,6 +62,8 @@ class Job:
 
         self.TIMEFRAME_UPDATE_SECONDS =config["database"]["logic"]["TIMEFRAME_UPDATE_SECONDS"]  
         self.TIMEFRAME_LEN_CANDLES =config["database"]["logic"]["TIMEFRAME_LEN_CANDLES"]  
+
+        self.market = MarketService(config).getMarket("AUTO")
         #logger.info(f"TIMEFRAME_LEN_CANDLES {self.TIMEFRAME_LEN_CANDLES}")
         #self.batch_client = MessageClient(MessageDatabase(db_file), "fetcher")
         #self.batch_client = AsyncMessageClient(MessageDatabase(db_file), "fetcher")
@@ -69,7 +86,7 @@ class Job:
             self.batch_client.tick()
             await asyncio.sleep(0.5)
     '''
-    
+
     async def send_batch(self,rest_point, msg):
         
         url = "http://127.0.0.1:2000/"+rest_point
@@ -79,46 +96,106 @@ class Job:
 
         if response.ok:
             data = response.json()
-            print(data)
+            if data["status"] == "ok":
+                return data["data"]
+            else:
+                logger.error("Errore:", response.status_code)
+                return None
         else:
-            print("Errore:", response.status_code)
+            logger.error("Errore:", response.status_code)
+            return None
 
     async def scanner(self):
         pass
 
-    def on_update_symbols(self):
+    async def on_update_symbols(self):
         logger.info(f"UPDATE SYMBOLS .. MAX:{self.max_symbols}")
-        self.monitor = self.live_symbols_dict()
-        logger.debug(self.monitor)
+        self.monitor = self._live_symbols_dict()
+        logger.debug(f" {self.monitor} .. { [x['symbol'] for x in self.monitor]}")
+
+        if len(self.monitor) > 0:
+            self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( [x['symbol'] for x in self.monitor])
+
+        redo=False
+        for _, row in self.df_fundamentals.iterrows():
+            if row["ib_conid"] == 0:
+                logger.debug(f'ASK CONID {row["symbol"]}')
+                ret = await self.send_batch("conId",
+                    {
+                        "symbol": row["symbol"],
+                        "exchange": "SMART",
+                        "currency":"USD"
+                    }
+                )
+                if ret:
+                    redo=True
+                    conId = ret["conId"]
+                    logger.debug(f"<< {conId}")
+                    # update table
+                    conn = sqlite3.connect(self.db_file)
+                    cur = conn.cursor()
+                    sql = f"UPDATE STOCKS SET ib_conid={conId} WHERE symbol =?"
+                    logger.debug(sql)
+                    cur.execute(sql, (row["symbol"],))
+                    conn.commit()
+        if redo:
+           self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( [x['symbol'] for x in self.monitor]) 
+
+        logger.debug(f"Fundamentals \n{self.df_fundamentals}")
+
+        #scarto stocke senza float 
+        for _, row in self.df_fundamentals.iterrows():
+            if not  row["float"] or row["ib_conid"] ==0:
+                logger.warning(f"DISCARD STOCK : {row['symbol']}")
+                for i,m in  enumerate(self.monitor):
+                    #e = self.monitor[row['symbol']]
+                    if m["symbol"] == row['symbol']:
+                        del self.monitor[i]                
+                        break
+        # filtro df_fundamentals                  
+        mask = self.df_fundamentals.apply(
+            lambda row: not not row["float"],
+            axis=1
+            )
+        self.df_fundamentals = self.df_fundamentals[mask]
+                                                                          
+        #logger.debug(f"self.monitor \n{self.monitor} \n{self.df_fundamentals}")
+        
         self.symbols = [ x["symbol"]  for x in self.monitor ]
         if self.max_symbols != None:
              self.symbols = self.symbols [:self.max_symbols]
         
         self.sql_symbols = str(self.symbols)[1:-1]
+        for s in self.symbols:
+            self.tickers[s] = Ticker(symbol=s)
+
         logger.info(f"LISTEN SYMBOLS {self.symbols}")
 
     def live_symbols(self)->List[str]:
         ''' get array '''
         return  self.symbols
 
-    def live_symbols_query(self, max_symbols)-> str:
+    def live_symbols_query(self)-> str:
         pass
 
-    def live_symbols_df(self)-> pd.DataFrame:
-        sql=self.live_symbols_query(self.max_symbols)
+    def _live_symbols_df(self)-> pd.DataFrame:
+        sql=self.live_symbols_query()
 
-        #logger.info(sql)
+        #logger.info(f"..{sql}")
         conn = sqlite3.connect(self.db_file)
         df = pd.read_sql_query(sql, conn)
         conn.close()
         #print("---",len(df))
+        if self.max_symbols!=None:
+            df = df.iloc[:self.max_symbols]
         return df
     
-    def live_symbols_dict(self):
+    def _live_symbols_dict(self):
         #print("live_symbols_dict",self.max_symbols)
-        sql=self.live_symbols_query(self.max_symbols)
+        sql=self.live_symbols_query()
 
         #print(sql)
+        #ogger.info(f"..{sql}")
         conn = sqlite3.connect(self.db_file)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
@@ -127,8 +204,11 @@ class Job:
         
         #print(rows)
         conn.close()
+        if self.max_symbols!=None:
+            rows = rows[:self.max_symbols]
         return [dict(r) for r in rows]
-
+      
+ 
     def tick(self):
        pass
     
@@ -143,6 +223,8 @@ class Job:
             return
         try:
             #logger.info(f"align_data {symbol} {timeframe}")
+
+           
 
             query_min = f"""
                 SELECT min(timestamp) as min
@@ -166,7 +248,7 @@ class Job:
                     df_max = pd.read_sql_query(query_max, conn, params= (symbol, timeframe))
                     #print(df)
                     if df_max.iloc[0]["max"]:
-                        if not df_min.iloc[0]["min"]:
+                        #if not df_min.iloc[0]["min"]:
                             max_dt = int(df_max.iloc[0]["max"]/1000) # ultima data in unix time    
                         #else:
                         #    max_dt = int(df_min.iloc[0]["min"]/1000) # ultima data in unix time 
@@ -176,7 +258,10 @@ class Job:
                     if max_dt:
                         last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
 
-                        logger.info(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
+                        cache_key = f"{symbol}_{timeframe}_{max_dt}"
+                        val = self.cache.getCache(cache_key)
+                        if not val:
+                            logger.info(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
                         # devo aggiornare ??? 
                         
                         if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 5):
@@ -187,6 +272,7 @@ class Job:
                             update=True
                         if (timeframe =="1d" and last_update_delta_min.total_seconds()/60 > 24*60):
                             update=True
+
                     else:
                         update=True
                         max_dt = int(
@@ -335,3 +421,4 @@ class Job:
         df = pd.read_sql_query(query, conn, params=params)
         conn.close()
         return df
+    

@@ -15,11 +15,11 @@ class Widget:
     async def tick(self,render_page):
         logger.info(f" tick {self.tickCont}")
         if self.tickCont==0:
-            if self.onStart(render_page) :
+            if await self.onStart(render_page) :
                 self.tickCont=self.tickCont+1
         await self.onTick(render_page)
 
-    def onStart(self,render_page)-> bool:
+    async def onStart(self,render_page)-> bool:
         return True
 
     async def onTick(self,render_page):

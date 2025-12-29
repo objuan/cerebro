@@ -65,8 +65,7 @@ file_handler.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s"
-)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s")
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
@@ -186,11 +185,14 @@ def fetch_all_new(fetcher, symbols, timeframe):
     return all_new
 
  '''
+'''
 def get_df(query, params=()):
+    logger.debug(DB_FILE)
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query(query, conn, params=params)
     conn.close()
     return df
+'''
 
 ###################################################################
 # API
@@ -210,32 +212,35 @@ def health():
 async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
     
     try:
-        '''
-        df = get_df("""
+        
+
+
+        if True:
+            df = fetcher.get_df("""
             SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
-            FROM ib_ohlc_history
-            WHERE symbol=? AND timeframe=?
-            ORDER BY timestamp ASC
-            LIMIT ?
-        """, (symbol, timeframe, limit))
-        '''
-       
-        
-    
-        
-        if False:
+                FROM ib_ohlc_history
+                WHERE symbol=? AND timeframe=?
+                ORDER BY timestamp ASC
+                LIMIT ?
+            """, (symbol, timeframe, limit))
+            
+
             df = await fetcher.ohlc_data(symbol,timeframe,limit)
          
-            #logger.debug(f"!!!!!!!!!!!! chart {df}")
+            logger.debug(f"!!!!!!!!!!!! chart {df}")
         
             return JSONResponse(df.to_dict(orient="records"))
         else:
             df1 = db.dataframe(timeframe, symbol)
+            #logger.debug(f"{symbol} {timeframe} {df1}")
             df_co = (
                 df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
                 .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
                 .copy()
             )
+            logger.debug(df_co.isna().any().any())
+
+            logger.info(df_co)
             return JSONResponse(df_co.to_dict(orient="records"))
     except:
         logger.error("Error", exc_info=True)
@@ -375,8 +380,8 @@ async def live_loop():
 
             #logger.info(f"NEW # {len(new_candles)}")
 
-            if len(new_candles) < 500:
-                await layout.notify_candles(new_candles,render_page)
+            #if len(new_candles) < 500:
+            #    await layout.notify_candles(new_candles,render_page)
 
             await db.tick()
             

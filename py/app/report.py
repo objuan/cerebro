@@ -58,15 +58,17 @@ class ReportWidget(Widget):
             '''
             use df_1m
             '''
-            last_date = datetime.fromtimestamp(df_1m.iloc[-1]["timestamp"]/1000)
+            #last_date = datetime.fromtimestamp(df_1m.iloc[-1]["timestamp"]/1000)
  
-            prev_close = prev_day_before_24(last_date)
-            _prev_close = datetime_to_unix_ms(prev_close)
+            #prev_close = prev_day_before_24(last_date)
+            #_prev_close = datetime_to_unix_ms(prev_close)
 
-            logger.info(f"First date {last_date} close {prev_close} ")
+            #logger.info(f"First date {last_date} close {prev_close} ")
+
+            win = self.get_day_window(df_1m)
 
             open_by_symbol = (
-                df_1m[df_1m["timestamp"] > _prev_close]     # 1️⃣ filtro
+                win#[df_1m["timestamp"] > _prev_close]     # 1️⃣ filtro
                 #.sort_values("timestamp")          # 2️⃣ ordina
                 .groupby("symbol", as_index=False)
                 .head(1)                            # 3️⃣ ultima riga per symbol
@@ -76,18 +78,19 @@ class ReportWidget(Widget):
             return open_by_symbol[["symbol","timestamp", "first_open"]]
 
     def close_by_symbols(self,df_1m, df_1d)-> pd.DataFrame:
+            
             '''
             use df_1d
             '''
+            
             last_date = datetime.fromtimestamp(df_1m.iloc[-1]["timestamp"]/1000)
             #test
-            #last_date = prev_day_before_24(last_date)
-            #last_date = prev_day_before_24(last_date)
+           
             
             prev_close = prev_day_before_24(last_date)
             _prev_close = datetime_to_unix_ms(prev_close)
 
-            logger.info(f"Last date {last_date} close {prev_close} ")
+            #logger.info(f"Last date {last_date} close {prev_close} ")
 
             close_by_symbol = (
                 df_1d[df_1d["timestamp"] < _prev_close]     # 1️⃣ filtro
@@ -97,6 +100,7 @@ class ReportWidget(Widget):
             )
             close_by_symbol.rename(columns={"close": "last_close"}, inplace=True)
             return close_by_symbol[["symbol","timestamp","last_close"]]
+            
     
     def get_window(self,df,minutes, timeframe)-> pd.DataFrame:
          
@@ -104,9 +108,10 @@ class ReportWidget(Widget):
         logger.debug(f"win  {minutes}-> #{n}")
         return (df.tail(n))
     
+    
     def get_day_window(self,df)-> pd.DataFrame:
          
-        df["date"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True).dt.date
+        ##df["date"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True).dt.date
 
         last_day = df.groupby("symbol")["date"].max()
 

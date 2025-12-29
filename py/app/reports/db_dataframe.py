@@ -55,7 +55,7 @@ class DBDataframe_TimeFrame:
 
     async def bootstrap(self):
         # load symbols
-        self.on_update_symbols()
+        await self.on_update_symbols()
         await self.update()
 
     async def tick(self):
@@ -68,7 +68,7 @@ class DBDataframe_TimeFrame:
         pass
         #df['datetime_local'] = (pd.to_datetime(df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
 
-    def on_update_symbols(self):
+    async def on_update_symbols(self):
         self.symbols=self.fetcher.live_symbols()
 
     async def update(self):
@@ -77,6 +77,8 @@ class DBDataframe_TimeFrame:
 
         if not self.last_timestamp:
             self.df = await self.fetcher.history_data(self.symbols , self.timeframe , limit= 999999 )
+
+            #logger.debug(f"GETTING HISTORY {self.symbols} {self.df }")
             #print(self.df)
             #self.df = self.df.set_index("timestamp", drop=True)
 
@@ -160,7 +162,7 @@ class DBDataframe:
             if self.config["scanner"]["enabled"]:
                 await self.update_scanner()
             else:
-                self.fetcher.on_update_symbols()
+                await self.fetcher.on_update_symbols()
             
             #leggo dal db l'esistente
             await self.db_dataframe("1m").bootstrap()

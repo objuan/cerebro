@@ -19,8 +19,8 @@ logging.getLogger("yfinance").setLevel(logging.INFO)
 logging.getLogger("peewee").setLevel(logging.INFO)
 
 
-def init_company_db():
-    conn = sqlite3.connect(DB_FILE, isolation_level=None)
+def init_company_db(db_path):
+    conn = sqlite3.connect(db_path, isolation_level=None)
     cur = conn.cursor()
 
     cur.execute("""
@@ -47,15 +47,16 @@ def init_company_db():
             market_cap INTEGER,
             float INTEGER,
             shares_outstanding INTEGER,
-            updated_at TEXT
+            updated_at TEXT,
+            ib_conid INTEGER
         )
     """)
     conn.commit()
     conn.close()
 
 
-def get_df(query, params=()):
-    conn = sqlite3.connect(DB_FILE)
+def c_get_df(db_path,query, params=()):
+    conn = sqlite3.connect(db_path)
     df = pd.read_sql_query(query, conn, params=params)
     conn.close()
     return df
@@ -97,24 +98,36 @@ class StockUtils:
 
 class Yahoo:
     
-    def __init__(self):
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            self.config = json.load(f)
-        self.config = convert_json(self.config)
+    def __init__(self,db_path=None, config = None):
+        if not config:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                self.config = json.load(f)
+            self.config = convert_json(self.config)
+        else:
+            self.config=config
+        if not db_path:
+            self.db_path = DB_FILE
+        else:
+            self.db_path=db_path
+
+        init_company_db(self.db_path)
     # -------------------------------------------------
     # FETCH FUNDAMENTALS (Yahoo)
     # -
     
     def fetch_fundamentals(self,symbol):
         toupdate=True
-        df = get_df("SELECT * FROM STOCKS WHERE SYMBOL = ?",(symbol,))
+        df = c_get_df(self.db_path,"SELECT * FROM STOCKS WHERE SYMBOL = ?",(symbol,))
         if not df.empty:
-            last_date = datetime.fromisoformat( df.iloc[0]["updated_at"])
-            time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
+            if df.iloc[0]["updated_at"]:
+                last_date = datetime.fromisoformat( df.iloc[0]["updated_at"])
+                time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
          
-            c_time = self.config["company"]["stock_update_days"]
-            logger.info(f"time to update {time_to_update_days}/{c_time}")
-            toupdate=time_to_update_days > c_time 
+                c_time = self.config["instruments"]["stock_update_days"]
+                logger.debug(f"time to update {symbol} {time_to_update_days}/{c_time}")
+                toupdate=time_to_update_days > c_time 
+            else:
+                toupdate=True
         
         if toupdate:
             logger.debug(f"GETTING {symbol}")
@@ -140,36 +153,38 @@ class Yahoo:
 
             except Exception:
                 logger.error("Errro", exc_info=True)
-            df = get_df("SELECT * FROM stocks WHERE SYMBOL = ?",(symbol,))
+            df = c_get_df(self.db_path,"SELECT * FROM stocks WHERE SYMBOL = ?",(symbol,))
+            return df
         else:
             return df
         
     def save_row(self,row):
             logger.info(f"save {row}")
-            conn = sqlite3.connect(DB_FILE)
+            conn = sqlite3.connect(self.db_path)
             c = conn.cursor()
             c.execute("""
                 INSERT OR REPLACE INTO stocks VALUES (
                     :symbol, :name, :exchange, :currency, :sector, :price,
                     :volume, :avg_volume, :market_cap,
-                    :float, :shares_outstanding, :updated_at
+                    :float, :shares_outstanding, :updated_at ,:ib_conid
                 )
-            """, {**row, "updated_at": datetime.utcnow().isoformat()})
+            """, {**row, "updated_at": datetime.utcnow().isoformat(),"ib_conid":0}, )
             conn.commit()
             conn.close()
 
     async def get_float_list(self,symbols):
-
+        logger.debug(f"get_float_list {symbols}")
         # 2. Chiama la funzione per ogni symbol
         float_dfs = []
         for symbol in symbols:
             data = self.fetch_fundamentals(symbol)
             #float_dfs.append(df)
-            print(data)
+            #logger.debug(data)
+            float_dfs.append(data)
             
         # 3. Unisci tutti i risultati in un unico DataFrame
-        #float_df = pd.concat(float_dfs, ignore_index=True)
-        #return float_df[["symbol","free_float",  "float_shares",  "outstanding_shares"]]
+        float_df = pd.concat(float_dfs, ignore_index=True)
+        return float_df[["symbol","exchange","currency","name","sector","market_cap","float",  "shares_outstanding","ib_conid"]]
 
 
 ###################################################
@@ -232,12 +247,12 @@ class Financialmodelingprep:
     async def get_float(self,symbol):
     
         toupdate=True
-        df = get_df("SELECT * FROM COMPANY WHERE SYMBOL = ?",(symbol,))
+        df = c_get_df("SELECT * FROM COMPANY WHERE SYMBOL = ?",(symbol,))
         if not df.empty:
             last_date = datetime.fromisoformat( df.iloc[0]["shares_update_dt"])
             time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
          
-            c_time = self.config["company"]["stock_update_days"]
+            c_time = self.config["instruments"]["stock_update_days"]
             logger.info(f"time to update {time_to_update_days}/{c_time}")
             toupdate=time_to_update_days > c_time 
         if toupdate:
@@ -257,7 +272,7 @@ class Financialmodelingprep:
                 db_path=DB_FILE,
                 rows=data)
             
-            df = get_df("SELECT * FROM COMPANY WHERE SYMBOL = ?",(symbol,))
+            df = c_get_df("SELECT * FROM COMPANY WHERE SYMBOL = ?",(symbol,))
         else:
             return df
     

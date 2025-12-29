@@ -71,7 +71,7 @@ ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
   //console.log(msg)
   if (msg.type === "comp") {
-      //console.log("comp",msg)
+      console.log("comp",msg)
       if (msg.widget.type =="chart")
       {
          addCandleWidget(msg.id, msg.widget.symbol,msg.widget.timeframe,msg.widget.plot_config, msg.rect )
@@ -91,7 +91,7 @@ ws.onmessage = (event) => {
        
   }
   else if (msg.type === "candle") {
-    //console.log("🕯️ nuova candle", msg);
+    console.log("🕯️ nuova candle", msg);
     const id = msg.id;
     const symbol = msg.symbol;
     const chartObj = chart_list[id];

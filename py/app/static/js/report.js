@@ -6,7 +6,7 @@ function createReport(widget_ele,id, report_data) {
         report_data : report_data,
         save: ()=>
         {
-            alert("save");
+            //alert("save");
             return {
                 "type": "report",
                 "report_type": "top_gain"}
@@ -23,7 +23,7 @@ function createReport(widget_ele,id, report_data) {
         
     }
     
-    console.log("container",widget_ele,container)
+    //console.log("container",widget_ele,container)
 
     report_map[id] = report_obj
     widget_list.push(report_obj);
@@ -107,7 +107,8 @@ function createReport(widget_ele,id, report_data) {
       
       $(`#${id}`).DataTable({
             columnDefs: columnDefs,
-            columns:report_data.columns
+            columns:report_data.columns,
+            searching: false, paging: false, info: false
       });
 
 }

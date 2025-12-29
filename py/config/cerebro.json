@@ -1,6 +1,29 @@
 {
-	"company":{
+	"instruments":{
 		"stock_update_days" : 10
+	},
+	"markets":
+	{
+		"USA":{
+			"exchanges": ["NYSE","NASDAQ","AMEX","ARCA","NMS","Small Cap","BATS","AUTO"],
+			"timezone" : "ET",
+			"premarket" : 
+			{
+				"start" : "4:00",
+				"end" : "9:30"
+			}
+			,"market":  
+			{
+				"start" : "9:30",
+				"end" : "16:00"
+			},
+			"after" : 
+			{
+				"start" : "16:00",
+				"end" : "20:00"
+			}
+		}
+
 	}
 	,"database":
 		{
@@ -11,8 +34,9 @@
 				 "params": {
 					"instrument": "STK",
 					"location": "STK.US.MAJOR",
-					"type": "TOP_PERC_GAIN",
+					"type2": "TOP_PERC_GAIN",
 					"type1": "HIGH_OPEN_GAP",
+					"type": "HIGH_PRICE",
 					"filter": 
 					{
 						"abovePrice": 10,
@@ -25,12 +49,13 @@
 			},
 			"live":
 			{
-				"enabled" : false,
-				"max_symbols" : 2
+				"enabled" : true,
+				"max_symbols" : 1,
+				"debug_symbols" : ["SOPA"]
 			}
 			,"logic":
 			{
-				"fetch_enabled" : false,
+				"fetch_enabled" : true,
 				"max_symbols": 2,
 				"TIMEFRAME_UPDATE_SECONDS" : {
 					"10s": 10,

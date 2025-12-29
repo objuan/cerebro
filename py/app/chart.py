@@ -22,8 +22,9 @@ class ChartWidget(Widget):
         
 
     async def notify_candles(self, candles,page:RenderPage):
-
+       
        for candle in candles:
+           #logger.info(candle["tf"] )
            if candle["symbol"] == self.symbol and candle["tf"] == self.timeframe:
                #logger.info(f"notify_candles {candle}")
 

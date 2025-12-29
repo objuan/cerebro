@@ -4,16 +4,16 @@
             "id": "def_0",
             "type": "comp",
             "rect": {
-                "w": 4,
-                "h": 3,
+                "w": 5,
+                "h": 4,
                 "x": 0,
                 "y": 0
             },
+            "update_time_secs": 60,
             "widget": {
                 "type": "chart",
-                "symbol": "AVGO",
+                "symbol": "SOPA",
                 "timeframe": "1m",
-                "update_time_secs" : 50,
                 "plot_config": {
                     "main_plot": {
                         "ema9": {
@@ -37,17 +37,17 @@
             "rect": {
                 "w": 7,
                 "h": 3,
-                "x": 4,
+                "x": 5,
                 "y": 0
             },
+            "update_time_secs": 60,
             "widget": {
                 "type": "report",
                 "report_type": "top_gain",
                 "title": "Top Gainer",
-                "update_time_secs" : 60,
                 "columns": [
                     {
-                        "title": "Change From 60 m(%)",
+                        "title": "Change From Close",
                         "decimals": 2,
                         "colors": {
                             "range_min": -2,
@@ -68,7 +68,7 @@
                         "title": "Volume"
                     },
                     {
-                        "title": "Volume (QUOTE)"
+                        "title": "Float"
                     },
                     {
                         "title": "Rel Vol (DaylyRate)",
@@ -82,10 +82,10 @@
                         "title": "Gap",
                         "decimals": 1,
                         "colors": {
-                            "range_min": -2,
+                            "range_min": -10,
                             "range_max": 10,
-                            "color_min": "#7B9AFD",
-                            "color_max": "#3800B9"
+                            "color_min": "#FF0101",
+                            "color_max": "#002FFF"
                         }
                     }
                 ]

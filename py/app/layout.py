@@ -49,7 +49,7 @@ class Layout:
 
                     w = self.create_widget(comp["id"],comp["widget"])
                     if w:
-                        self.addWidget(comp["id"], w,comp["widget"]["update_time_secs"]).rect = comp["rect"]
+                        self.addWidget(comp["id"], w,comp["update_time_secs"]).rect = comp["rect"]
                 
         except :
             logger.error("Error", exc_info=True)
@@ -178,6 +178,7 @@ class LayoutComponent:
             "id": self.id ,
             "type": "comp",
             "rect" : self.rect,
+            "update_time_secs" : self.update_time_secs,
             "widget" : self.widget.serialize()
         }
 
