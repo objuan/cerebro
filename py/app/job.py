@@ -35,14 +35,33 @@ def week_ago_ms():
 
 class Ticker:
     symbol:str
+    timestamp : datetime
     price: float
     bid:float
     ask:float
-    volume: float
-    timestamp : datetime
+    volume_day: float
 
+    last_close:float
+    day_open:float
+    
     def __init__(self,symbol):
         self.symbol=symbol
+        self.timestamp=0
+        self.price=0
+        self.bid=0
+        self.ask=0
+        self.volume_day=0
+        self.last_close=0
+        self.day_open=0
+
+    def copy(self, other:"Ticker"):
+        self.price=other.price
+        self.bid=other.bid
+        self.ask=other.ask
+        self.timestamp=other.timestamp
+        self.volume_day=other.volume_day
+    def __str__(self):
+        return f"{self.symbol} p:{self.price} ask:{self.ask} bid:{self.bid} vol:{self.volume_day}"
 
 class Job:
 
@@ -87,12 +106,15 @@ class Job:
             await asyncio.sleep(0.5)
     '''
 
-    async def send_batch(self,rest_point, msg):
+    async def send_batch(self,rest_point, msg=None):
         
         url = "http://127.0.0.1:2000/"+rest_point
-        params = msg
 
-        response = requests.get(url, params=params, timeout=5)
+        if msg:
+            params = msg
+            response = requests.get(url, params=params, timeout=5)
+        else:
+            response = requests.get(url,  timeout=5)
 
         if response.ok:
             data = response.json()
@@ -109,56 +131,19 @@ class Job:
         pass
 
     async def on_update_symbols(self):
-        logger.info(f"UPDATE SYMBOLS .. MAX:{self.max_symbols}")
-        self.monitor = self._live_symbols_dict()
+        logger.info(f"UPDATE SYMBOLS ..")#MAX:{self.max_symbols}")
+
+        self.monitor = await self.send_batch("symbols")
+        #logger.info(f"<< {df_symbols}")
+
+        #self.monitor = self._live_symbols_dict()
         logger.debug(f" {self.monitor} .. { [x['symbol'] for x in self.monitor]}")
 
         if len(self.monitor) > 0:
             self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( [x['symbol'] for x in self.monitor])
 
-        redo=False
-        for _, row in self.df_fundamentals.iterrows():
-            if row["ib_conid"] == 0:
-                logger.debug(f'ASK CONID {row["symbol"]}')
-                ret = await self.send_batch("conId",
-                    {
-                        "symbol": row["symbol"],
-                        "exchange": "SMART",
-                        "currency":"USD"
-                    }
-                )
-                if ret:
-                    redo=True
-                    conId = ret["conId"]
-                    logger.debug(f"<< {conId}")
-                    # update table
-                    conn = sqlite3.connect(self.db_file)
-                    cur = conn.cursor()
-                    sql = f"UPDATE STOCKS SET ib_conid={conId} WHERE symbol =?"
-                    logger.debug(sql)
-                    cur.execute(sql, (row["symbol"],))
-                    conn.commit()
-        if redo:
-           self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( [x['symbol'] for x in self.monitor]) 
-
         logger.debug(f"Fundamentals \n{self.df_fundamentals}")
-
-        #scarto stocke senza float 
-        for _, row in self.df_fundamentals.iterrows():
-            if not  row["float"] or row["ib_conid"] ==0:
-                logger.warning(f"DISCARD STOCK : {row['symbol']}")
-                for i,m in  enumerate(self.monitor):
-                    #e = self.monitor[row['symbol']]
-                    if m["symbol"] == row['symbol']:
-                        del self.monitor[i]                
-                        break
-        # filtro df_fundamentals                  
-        mask = self.df_fundamentals.apply(
-            lambda row: not not row["float"],
-            axis=1
-            )
-        self.df_fundamentals = self.df_fundamentals[mask]
-                                                                          
+                                              
         #logger.debug(f"self.monitor \n{self.monitor} \n{self.df_fundamentals}")
         
         self.symbols = [ x["symbol"]  for x in self.monitor ]
@@ -170,45 +155,12 @@ class Job:
             self.tickers[s] = Ticker(symbol=s)
 
         logger.info(f"LISTEN SYMBOLS {self.symbols}")
+      
 
     def live_symbols(self)->List[str]:
         ''' get array '''
         return  self.symbols
 
-    def live_symbols_query(self)-> str:
-        pass
-
-    def _live_symbols_df(self)-> pd.DataFrame:
-        sql=self.live_symbols_query()
-
-        #logger.info(f"..{sql}")
-        conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(sql, conn)
-        conn.close()
-        #print("---",len(df))
-        if self.max_symbols!=None:
-            df = df.iloc[:self.max_symbols]
-        return df
-    
-    def _live_symbols_dict(self):
-        #print("live_symbols_dict",self.max_symbols)
-        sql=self.live_symbols_query()
-
-        #print(sql)
-        #ogger.info(f"..{sql}")
-        conn = sqlite3.connect(self.db_file)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute(sql)
-        rows = cur.fetchall()
-        
-        #print(rows)
-        conn.close()
-        if self.max_symbols!=None:
-            rows = rows[:self.max_symbols]
-        return [dict(r) for r in rows]
-      
- 
     def tick(self):
        pass
     
@@ -218,7 +170,7 @@ class Job:
     async def  _fetch_missing_history(self,cursor, symbol, timeframe, since):
         pass
 
-    async def align_data(self, symbol, timeframe):
+    async def _align_data(self, symbol, timeframe):
         if not self.historyActive:
             return
         try:
@@ -300,7 +252,7 @@ class Job:
             logger.error("ERROR",exc_info=True)
 
     async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000):
-        await self.align_data(symbol,timeframe)
+        await self._align_data(symbol,timeframe)
        
         query = f"""
             SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
@@ -323,7 +275,7 @@ class Job:
             return None
 
         for symbol in symbols:
-            await self.align_data(symbol,timeframe)
+            await self._align_data(symbol,timeframe)
 
         sql_symbols = str(symbols)[1:-1]
      
@@ -356,7 +308,7 @@ class Job:
         return df
     
     async def history_at_time_NOT_USED(self, timeframe, datetime):
-        await self.align_data(timeframe)
+        await self._align_data(timeframe)
         #sql_pairs = str(pairs)[1:-1]
 
         query = f"""
@@ -416,6 +368,40 @@ class Job:
         else:
             return 0
         
+    def updateTicker(self,ticker:Ticker):
+        if ticker.symbol in self.tickers:
+            self.tickers[ticker.symbol].copy(ticker)
+        else:
+            self.tickers[ticker.symbol] = ticker
+
+    def getTicker(self,symbol):
+        if symbol in self.tickers:
+            return self.tickers[symbol]
+        else:
+            return None
+        
+    def getTickersDF(self):
+        if not self.tickers:
+            return pd.DataFrame(
+                columns=["symbol", "timestamp", "price", "bid", "ask", "volume_day"]
+            )
+        df = pd.DataFrame(
+            [{
+                "symbol": t.symbol,
+                "timestamp": t.timestamp ,
+                "price": t.price,
+                "bid": t.bid,
+                "ask": t.ask,
+                "volume_day": t.volume_day
+            } for k,t in self.tickers.items()]
+        )
+    
+        # sicurezza: timestamp come datetime
+        #df["datetime"] = pd.to_datetime(df["timestamp"]/1000, utc=True, errors="coerce")
+        df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        return df
+        
+
     def get_df(self,query, params=()):
         conn = sqlite3.connect(self.db_file)
         df = pd.read_sql_query(query, conn, params=params)

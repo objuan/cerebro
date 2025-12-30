@@ -34,8 +34,8 @@
 				 "params": {
 					"instrument": "STK",
 					"location": "STK.NASDAQ",
-					"type": "TOP_PERC_GAIN",
-					"type1": "HIGH_OPEN_GAP",
+					"type1": "TOP_PERC_GAIN",
+					"type": "HIGH_OPEN_GAP",
 					"type22": "HIGH_PRICE",
 					"filter": 
 					{

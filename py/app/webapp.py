@@ -380,8 +380,8 @@ async def live_loop():
 
             #logger.info(f"NEW # {len(new_candles)}")
 
-            #if len(new_candles) < 500:
-            #    await layout.notify_candles(new_candles,render_page)
+            if len(new_candles) < 500:
+                await layout.notify_candles(new_candles,render_page)
 
             await db.tick()
             

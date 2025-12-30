@@ -53,7 +53,6 @@ class TopGainReportWidget(ReportWidget):
         
         logger.debug(f"live_df \n{live_df}")
 
-    
         return len(live_df)>0
     
     async def onTick(self,render_page):
@@ -65,6 +64,9 @@ class TopGainReportWidget(ReportWidget):
 
             #dt = datetime.now() - timedelta(minutes=self.gain_time_min)
 
+            df_tickers = self.job.getTickersDF()
+            logger.info(f"Tickers \n{df_tickers}")
+        
             df_5m = self.db.dataframe("5m")
             df_5m = df_5m.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
 
@@ -83,7 +85,7 @@ class TopGainReportWidget(ReportWidget):
 
             #           
             df_1d = self.db.dataframe("1d")
-            df_df_1d5m = df_1d.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
+            #df_df_1d5m = df_1d.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
             #logger.info(df_1d)
 
             mean_base_volume_1d = (
@@ -105,17 +107,17 @@ class TopGainReportWidget(ReportWidget):
          
             df = self.get_last(df_1m)#.drop(columns=["quote_volume"])
 
-            logger.info(f"df \n{df.to_string(index=False)}")
+            #logger.info(f"df \n{df.to_string(index=False)}")
 
             ######## LAST CLOSE, FIRST OPEN #########
 
             first_open = self.open_by_symbols(df_1m) 
 
-            logger.info(f"OPEN \n{first_open.to_string(index=False)}")
+            #logger.info(f"OPEN \n{first_open.to_string(index=False)}")
             
             last_close = self.close_by_symbols(df_1m,df_1d) 
              
-            logger.info(f"CLOSE \n{last_close.to_string(index=False)}")
+            #logger.info(f"CLOSE \n{last_close.to_string(index=False)}")
 
             df = df.merge(  last_close[["symbol","last_close"]], on="symbol",    how="left")
             df = df.merge(  first_open[["symbol","first_open"]], on="symbol",    how="left")
@@ -148,8 +150,9 @@ class TopGainReportWidget(ReportWidget):
             '''
             # volume oggi
 
+            '''
             win_oggi = self.get_day_window(df_1m)
-            #logger.info(f"day \n{win_oggi}")
+            logger.info(f"day \n{win_oggi}")
         
             vol_day = (
                 win_oggi
@@ -158,6 +161,8 @@ class TopGainReportWidget(ReportWidget):
                 .rename(columns={"base_volume": "volume_day"})
             )
             df = df.merge(  vol_day[["symbol","volume_day"]], on="symbol",    how="left")
+            '''
+            df = df.merge(  df_tickers[["symbol","volume_day"]], on="symbol",    how="left")
 
             #logger.info(f"result \n{df}")
 
@@ -166,7 +171,12 @@ class TopGainReportWidget(ReportWidget):
             df = df.merge(  mean_base_volume_1d, on="symbol",    how="left")
             df = df.merge(  mean_base_volume_5m, on="symbol",    how="left")
 
-            df['base_volume_5m'] = df_1m.tail(1)['base_volume'].sum()
+            #df['base_volume_5m'] = df_1m.tail(5)['base_volume'].sum()
+            df['base_volume_5m'] = (
+                  df#.sort_values('timestamp')
+                .groupby('symbol')['base_volume']
+                .transform(lambda x: x.tail(5).sum())
+            )
 
             df['rel_vol_24'] = (df['volume_day'] / df['avg_base_volume_1d'])  * 100
             df['rel_vol_5m'] = ((df['base_volume_5m'] / df['avg_base_volume_5m']) ) * 100
@@ -175,6 +185,7 @@ class TopGainReportWidget(ReportWidget):
 
             df = df.merge(  self.job.df_fundamentals[["symbol","float"]], on="symbol",    how="left")
             
+            logger.info(f"df \n{df.to_string(index=False)}")
             #logger.info(f"df_1m \n{df_1m.to_string(index=False)}")
             #logger.info(f"result \n{df.to_string(index=False)}")
 

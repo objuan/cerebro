@@ -12,8 +12,8 @@
             "update_time_secs": 60,
             "widget": {
                 "type": "chart",
-                "symbol": "SOPA",
-                "timeframe": "1m",
+                "symbol": "CBC",
+                "timeframe": "5m",
                 "plot_config": {
                     "main_plot": {
                         "ema9": {

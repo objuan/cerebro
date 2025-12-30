@@ -83,33 +83,7 @@ class IBrokerJob(Job):
     def tick(self):
        pass 
 
-    def live_symbols_query(self)-> str:
 
-        conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query("select max(updated_at) as max from ib_contracts", conn)
-        max_date = df.iloc[0]["max"]
-        #print("max_date",max_date)
-        last_df = pd.read_sql_query(f"select conidex,symbol,listing_exchange from ib_contracts where updated_at={max_date}", conn)
-        #print("df",last_df)
-        conn.close()
-
-        #if self.max_symbols!=None:
-        #    last_df = last_df.iloc[:self.max_symbols]
-
-        if "debug_symbols" in self.config["database"]["live"]:
-            symbols = self.config["database"]["live"]["debug_symbols"]
-            #list = s.replace("\"","'")[1:-1]
-            #logger.debug(symbols)
-            #return f"select {list} as  symbol "
-            query = " UNION ALL ".join(
-                f"SELECT '{s}' AS symbol" if i == 0 else f"SELECT '{s}'"
-                for i, s in enumerate(symbols)
-            )
-            return query
-                        
-        else:
-            return f"select symbol from ib_contracts where updated_at={max_date}"
-            
     async def on_update_symbols(self):
         await super().on_update_symbols()
 
@@ -175,12 +149,42 @@ class IBrokerJob(Job):
             """)
 
             rows = cur.fetchall()
-
-            conn.close()
+           
 
             #print(rows)
             if rows:
                 self.last_ts[key] = rows[-1]["ts"]
+
+            #### tickers
+
+            cur.execute(f"""
+                  SELECT l.*
+                        FROM ib_ohlc_live l
+                        JOIN (
+                            SELECT symbol, MAX(timestamp) AS max_ts
+                            FROM ib_ohlc_live
+                            WHERE symbol IN  ({self.sql_symbols})
+                            AND timeframe = '1m'
+                            GROUP BY symbol
+                        ) t
+                        ON l.symbol = t.symbol
+                        AND l.timestamp = t.max_ts
+                        WHERE l.timeframe = '1m'
+                        ORDER BY l.symbol;
+                """)
+            tickers_rows = cur.fetchall()
+            conn.close()
+            symbol =""
+            for r in tickers_rows:
+                    symbol = r["symbol"]
+                    ticker = Ticker(symbol)
+                    ticker.ask = r["ask"]
+                    ticker.bid = r["bid"]
+                    ticker.price = r["close"]
+                    ticker.volume_day = r["volume_day"]
+                    ticker.timestamp = r["timestamp"]
+                    #logger.debug(ticker)
+                    self.updateTicker(ticker)
 
             return [dict(r) for r in rows]
         else:
@@ -217,7 +221,7 @@ class IBrokerJob(Job):
             logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
             
             dt_start =  datetime.fromtimestamp(float(since)/1000)
-            exchange = self.symbol_map[symbol]
+            exchange = self.symbol_to_exchange_map[symbol]
         
             batch_count = 500
             i = 0
