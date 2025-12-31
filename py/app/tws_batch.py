@@ -26,20 +26,21 @@ from fastapi.responses import Response
 util.startLoop()  # uncomment this line when in a notebook
 from config import DB_FILE,CONFIG_FILE
 from market import *
-from utils import datetime_to_unix_ms
+from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-ib = IB()
-ib.connect('127.0.0.1', 7497, clientId=1)
-
-DB_TABLE = "ib_ohlc_live"
-
 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     config = json.load(f)
 config = convert_json(config)
+
+ib = IB()
+ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
+
+DB_TABLE = "ib_ohlc_live"
+
 
 ms = MarketService(config)          # o datetime.now()
 market = ms.getMarket("AUTO")
@@ -92,17 +93,44 @@ cur.execute("""
     )""")
 
 cur.execute("""
+    CREATE TABLE IF NOT EXISTS ib_ohlc_live_pre (
+        mode  TEXT,
+        conindex INTEGER,
+        symbol TEXT,
+        exchange TEXT,
+        timeframe TEXT,
+        timestamp INTEGER, -- epoch ms
+        open REAL,
+        high REAL,
+        low REAL,
+        close REAL,
+        bid REAL,
+        ask REAL,
+        volume REAL,
+        volume_day REAL,
+        updated_at INTEGER, -- epoch ms
+        ds_updated_at TEXT, -- epoch ms
+        PRIMARY KEY(symbol, timeframe, timestamp)
+    )""")
+
+cur.execute("""
     CREATE INDEX IF NOT EXISTS ib_idx_ohlc_ts
         ON ib_ohlc_live(timestamp)
     """)
+
+cur.execute("""
+    CREATE INDEX IF NOT EXISTS ib_idx_ohlc_ts_pre
+        ON ib_ohlc_live_pre(timestamp)
+    """)
+
 ###
 trade_mode=None
 pre_ts_date={}
 
 last_stats = {}
 agg_cache = {}
-RETENTION_HOURS = 48      # quante ore tenere
-CLEANUP_INTERVAL = 3600  # ogni quanto pulire (1h)
+RETENTION_HOURS = config["database"]["live"]["RETENTION_HOURS"]      # quante ore tenere
+CLEANUP_INTERVAL = config["database"]["live"]["CLEANUP_INTERVAL_HOURS"] * 3600   # ogni quanto pulire (1h)
 
 TIMEFRAMES = {
     "10s": 10,
@@ -132,35 +160,17 @@ async def cleanup_task():
         )
        
 
-def floor_ts(ts_ms, sec):
-    # ritorna in ms
-    return (ts_ms // (sec*1000)) * (sec*1000)
+def update_ohlc(conindex,symbol, exchange,price,bid,ask, volume, ts_ms, trade_mode:MarketZone):
+    #volume=volume*100 # ????
 
+    #logger.info(f"<< {symbol} {price} {volume} {ts_ms}" )
+    for tf, sec in TIMEFRAMES.items():
+            if trade_mode != MarketZone.LIVE and tf !="1m":
+                continue
 
-def update_ohlc(conindex,symbol, exchange,price,bid,ask, volume, ts_ms, preMode):
-    volume=volume*100 # ????
-    if preMode:
-        ts_ms = pre_ts_date[symbol]
-        for tf, sec in TIMEFRAMES.items():
-          
-            
-            t = floor_ts(int(ts_ms), sec)
-            cur.execute("""
-            INSERT OR REPLACE INTO ib_ohlc_live VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                conindex, symbol, exchange,  tf, t,
-                price,price, price,price,
-                bid,ask,
-                volume, volume, 
-                int(_time.time() * 1000),
-                datetime.utcnow().isoformat()
-            ))
-             
-    else:
-        #logger.info(f"<< {symbol} {price} {volume} {ts_ms}" )
-        for tf, sec in TIMEFRAMES.items():
             t = floor_ts(int(ts_ms)*1000, sec)
-            #print(ts_ms,t)
+            #t = floor_ts(int(ts_ms)*1000, sec) / 1000
+            #logger.info(f"{ts_ms} {t}")
             key = (conindex, tf, t)
             c = agg_cache.get(key)
             
@@ -189,16 +199,31 @@ def update_ohlc(conindex,symbol, exchange,price,bid,ask, volume, ts_ms, preMode)
                 c["ask"] = ask
 
             save = agg_cache[key]
-            cur.execute("""
-            INSERT OR REPLACE INTO ib_ohlc_live VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                conindex, symbol, exchange,  tf, t,
-                save["open"], save["high"], save["low"], save["close"],
-                save["bid"],save["ask"],
-                save["volume_acc"], save["volume"], 
-                int(_time.time() * 1000),
-                datetime.utcnow().isoformat()
-            ))
+            if trade_mode==MarketZone.LIVE:
+                cur.execute(f"""
+                INSERT OR REPLACE INTO ib_ohlc_live VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    conindex, symbol, exchange,  tf, t,
+                    save["open"], save["high"], save["low"], save["close"],
+                    save["bid"],save["ask"],
+                    save["volume_acc"], save["volume"], 
+                    int(_time.time() * 1000),
+                    #int(_time.time() ),
+                    datetime.utcnow().isoformat()
+                ))
+            else:
+                cur.execute(f"""
+                INSERT OR REPLACE INTO ib_ohlc_live_pre VALUES (?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    "CLOSE" if trade_mode == MarketZone.CLOSED else "PRE",
+                    conindex, symbol, exchange,  tf, t,
+                    save["open"], save["high"], save["low"], save["close"],
+                    save["bid"],save["ask"],
+                    save["volume_acc"], save["volume"], 
+                    int(_time.time() * 1000),
+                    #int(_time.time() ),
+                    datetime.utcnow().isoformat()
+                ))
 
 
 ############################
@@ -209,27 +234,37 @@ def display_with_stock_symbol(scanData):
     df["symbol"] = df.apply( lambda l:l['contract'].symbol,axis=1)
     return df[["rank","contractDetails","contract","symbol"]]
 
-async def scan(config):
+async def scan(config,max_symbols):
 
-    cfg = config["database"]["scanner"]["params"]
-    logger.info(f'SCANNING DATAS ...{cfg}')
-
+    cfg = config["database"]["scanner"]
+    logger.info(f'SCANNING DATAS ... {cfg}')
 
     zone = market.getCurrentZone()
     
     logger.info(f'MARKET ZONE {zone}')
 
-    sub = ScannerSubscription(
-        numberOfRows=50,
-        instrument=cfg["instrument"],
-        locationCode=cfg["location"],
-        scanCode=cfg["type"]
-        # marketCapAbove= 1_000_000 , abovePrice= 100, aboveVolume= 100000
-    )
-    filter = cfg["filter"]
+
+    filter=None
+    for prof in cfg["profiles"]:
+        print(prof)
+        if prof["name"] == "LIVE" and zone == MarketZone.LIVE:
+            filter = prof
+        if prof["name"] == "PRE" and zone == MarketZone.PRE:
+            filter = prof
+    
     logger.info(f'filter ...{filter}')
 
-    if zone == MarketZone.LIVE:
+
+    sub = ScannerSubscription(
+        numberOfRows=50,
+        instrument=filter["instrument"],
+        locationCode=filter["location"],
+        scanCode=filter["type"]
+        # marketCapAbove= 1_000_000 , abovePrice= 100, aboveVolume= 100000
+    )
+
+    #if zone == MarketZone.LIVE:
+    if True:
         sub.stockTypeFilter = "COMMON" # solo azione vere, no nETF
         if "abovePrice" in filter:
             sub.abovePrice = filter["abovePrice" ]
@@ -239,18 +274,20 @@ async def scan(config):
             sub.aboveVolume = filter["aboveVolume" ]
         if "marketCapAbove" in filter:
             sub.marketCapAbove = filter["marketCapAbove" ]
+    '''
     else:
         sub.instrument="STK"
         sub.locationCode="STK.US.MAJOR"
         sub.scanCode="TOP_PERC_GAIN"
         sub.stockTypeFilter = "COMMON" # solo azione vere, no nETF
         sub.abovePrice = 1
-        sub.belowPrice = 999999
-        sub.aboveVolume = 100000
+        sub.belowPrice = 100
+        sub.aboveVolume = 1
         #sub.marketCapAbove = 0
-      
+    '''
        
-    #logger.info(f'sub ...{sub}')
+    logger.info(f'FILTER ...{sub}')
+
     scanData = ib.reqScannerData(sub)
 
     logger.info(f'FIND #{len(scanData)}')
@@ -260,9 +297,10 @@ async def scan(config):
         cursor = conn.cursor()
 
         run_time = int(_time.time() * 1000)
+        #run_time = int(_time.time() )
         ds_run_time  = datetime.utcnow().isoformat()
         
-        logger.info(display_with_stock_symbol(scanData)["symbol"])
+        #logger.info(display_with_stock_symbol(scanData)["symbol"])
 
         symbols = [] 
         for contract, details in display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
@@ -347,7 +385,7 @@ async def scan(config):
                 
         conn.close()
 
-        max_symbols=config["database"]["live"]["max_symbols"]
+        #max_symbols=config["database"]["live"]["max_symbols"]
         if max_symbols != None:
              symbols = symbols [:max_symbols]
 
@@ -389,7 +427,7 @@ def manage_live( symbol_list_add, symbol_list_remove):
     global actual_requests
     global tickers
 
-    logger.info(f"Manage_live add:{symbol_list_add} del: {symbol_list_remove}")
+    logger.info(f"===== Manage_live add:{symbol_list_add} del: {symbol_list_remove} =======")
 
     for symbol in symbol_list_add:
         exchange = "SMART"#symbol_map[symbol]
@@ -399,7 +437,19 @@ def manage_live( symbol_list_add, symbol_list_remove):
         # Request market data for the contract
         market_data = ib.reqMktData(contract)
         tickers[symbol]  = market_data
-    
+
+    for symbol in symbol_list_remove:
+        contract = Stock(symbol, exchange, 'USD')
+        logger.info(f"Remove  feeds {contract}")
+        try:
+            ib.cancelMktData(contract)
+        except:
+            logger.error("CANCEL ERROR", exc_info=True)
+        ib.sleep(1)
+
+        del  tickers[symbol]
+        
+    logger.info(f"tickers {tickers}")
 
 ##########################################################
 
@@ -407,39 +457,34 @@ def updateLive(config,df_symbols, range_min=None,range_max=None):
     global actual_df
     global symbol_map
     global symbol_to_conid_map
+
     # get last lives
-    
-    '''
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("select max(updated_at) as max from ib_contracts", conn)
-    max_date = df.iloc[0]["max"]
-    #print("max_date",max_date)
-    last_df = pd.read_sql_query(f"select conidex,symbol,listing_exchange from ib_contracts where updated_at={max_date}", conn)
-    #print("df",last_df)
-    conn.close()
-
-    '''
-    if range_min!=None:
-        df_symbols = df_symbols.iloc[range_min:range_max]
-
-    logger.info(f"START LISTENING")
-    if not symbol_map :
-        actual_df = df_symbols
-        #manage_live(last_df,[])
-        symbol_map = actual_df.set_index("symbol")["listing_exchange"].to_dict()
-        symbol_to_conid_map = actual_df.set_index("symbol")["conidex"].to_dict()
-
-        manage_live(actual_df["symbol"].to_list(),[])
+    if df_symbols.empty:
+         if actual_df:
+            manage_live([],actual_df["symbol"].to_list())
+         actual_df=None
     else:
+        if range_min!=None:
+            df_symbols = df_symbols.iloc[range_min:range_max]
 
-        delta_removed = actual_df[~actual_df["symbol"].isin(df_symbols["symbol"])]
-        delta_new = df_symbols[~df_symbols["symbol"].isin(actual_df["symbol"])]
+        logger.info(f"START LISTENING")
+        if not symbol_map :
+            actual_df = df_symbols
+            #manage_live(last_df,[])
+            symbol_map = actual_df.set_index("symbol")["listing_exchange"].to_dict()
+            symbol_to_conid_map = actual_df.set_index("symbol")["conidex"].to_dict()
 
-        actual_df = df_symbols
-        symbol_map = actual_df.set_index("symbol")["listing_exchange"].to_dict()
-        symbol_to_conid_map = actual_df.set_index("symbol")["conidex"].to_dict()
+            manage_live(actual_df["symbol"].to_list(),[])
+        else:
 
-        manage_live(delta_new["symbol"].to_list(),delta_removed["symbol"].to_list())
+            delta_removed = actual_df[~actual_df["symbol"].isin(df_symbols["symbol"])]
+            delta_new = df_symbols[~df_symbols["symbol"].isin(actual_df["symbol"])]
+
+            actual_df = df_symbols
+            symbol_map = actual_df.set_index("symbol")["listing_exchange"].to_dict()
+            symbol_to_conid_map = actual_df.set_index("symbol")["conidex"].to_dict()
+
+            manage_live(delta_new["symbol"].to_list(),delta_removed["symbol"].to_list())
         
 
 ##################################################
@@ -475,9 +520,18 @@ async def favicon():
 
 @app.get("/scanner")
 async def scanner():
-    await scan(config)
+    df_symbols = await scan(config,config["database"]["live"]["max_symbols"])
 
-    updateLive(config,0, config["database"]["live"]["max_symbols"])
+    updateLive(config,df_symbols )
+                   
+    return {"status": "ok"}
+
+@app.get("/scannerLimit")
+async def scanner_limit(start:int,end:int):
+    logger.info(f"scanner_limit s:{start} e:{end}")
+    df_symbols = await scan(config, end)
+
+    updateLive(config,df_symbols,start, end)
                    
     return {"status": "ok"}
 
@@ -491,13 +545,30 @@ async def conId(symbol,exchange,currency):
     return {"status": "ok" , "data": { "conId" : str(contract.conId)}}
 
 @app.get("/symbols")
-async def symbols():
+async def get_symbols():
 
+    '''
     logger.info(f"get symbols {actual_df}")
 
     rows = actual_df[["symbol", "conidex", "listing_exchange"]].to_dict(orient="records")
+    '''
+    data=[]
+    for symbol, ticker  in tickers.items():
+        if ticker.time  and  not math.isnan(ticker.last):
+            data.append(symbol)
     
-    return {"status": "ok" , "data": rows}
+    return {"status": "ok" , "data": data}
+
+@app.get("/tickers")
+async def get_tickers():
+
+    data=[]
+    for symbol, ticker  in tickers.items():
+        if ticker.time  and  not math.isnan(ticker.last):
+            data.append({"symbol": symbol, "last": ticker.last, "bid" : ticker.bid , "ask": ticker.ask,"low": ticker.low , "high" : ticker.high,"volume": ticker.volume*100, "ts":   ticker.time .timestamp()  })
+    data = sanitize(data)
+    #logger.info(data)
+    return {"status": "ok" , "data": data}
 
 ##################################################
 
@@ -535,28 +606,39 @@ if __name__ =="__main__":
     async def main():
         trade_mode
         try:
-            df_symbols = await scan(config)
+
+            max_symbols=config["database"]["live"]["max_symbols"]
+            df_symbols = await scan(config,max_symbols)
             #await cleanup_task()
             logger.info("-------------------")
             logger.info(f" Start with synbols : \n{df_symbols}")
             logger.info("-------------------")
 
            
-
             #updateLive(config, df_symbols, 0,2)
             updateLive(config, df_symbols)
             
+            
             def receive(symbol, ticker: Ticker):
-   
+                '''
+                live receive
+                '''
                 #logger.info(ticker)
                 #print(">>", symbol_to_conid_map[symbol] , symbol, ticker.last,ticker.volume, ticker.time )
                 
-                if trade_mode == MarketZone.LIVE or trade_mode == MarketZone.PRE:
+                if trade_mode != MarketZone.AFTER:#trade_mode == MarketZone.LIVE or trade_mode == MarketZone.PRE:
 
                     if ticker.time  and  not math.isnan(ticker.last):
-                        #logger.info(ts)
+                        '''
+                        Ticker(contract=Stock(symbol='AEHL', exchange='SMART', currency='USD'), time=datetime.datetime(2025, 12, 30, 7, 49, 31, 129975, tzinfo=datetime.timezone.utc), minTick=0.0001, bid=1.71, bidSize=300.0, ask=1.72, askSize=200.0, last=1.71, lastSize=100.0, volume=1490.0, close=1.13, halted=0.0, bboExchange='9c0001', snapshotPermissions=3)
+                        Ticker(contract=Stock(symbol='AEHL', exchange='SMART', currency='USD'), time=datetime.datetime(2025, 12, 30, 7, 50, 7, 622112, tzinfo=datetime.timezone.utc), minTick=0.0001, bid=1.71, bidSize=300.0, ask=1.72, askSize=300.0, last=1.71, lastSize=100.0, prevAskSize=200.0, volume=1490.0, close=1
+                        '''
+                        #logger.info(ticker)
                         ts = ticker.time .timestamp()
-                        update_ohlc(symbol_to_conid_map[symbol] , symbol,symbol_map[symbol], ticker.last,ticker.bid, ticker.ask, ticker.volume,ts,trade_mode == MarketZone.PRE)
+                        if symbol in symbol_to_conid_map:
+                            update_ohlc(symbol_to_conid_map[symbol] , symbol,symbol_map[symbol], ticker.last,ticker.bid, ticker.ask, ticker.volume*100,ts,trade_mode)
+                        else:
+                            logger.warning(f"Ticker not removed !!! {symbol}")
                      
             #start_watch(receive)
             #asyncio.run(start_watch(receive))
@@ -572,11 +654,17 @@ if __name__ =="__main__":
 
             async def tick_loop():
                 global trade_mode
+                global last_stats
+                global agg_cache
                 while True:
                     try:
                         if market.getCurrentZone() != trade_mode:
                             trade_mode = market.getCurrentZone()
                             logger.info(f"TRADE MODE CHANGED {trade_mode}")
+                            
+                            last_stats = {}
+                            agg_cache = {}
+                            '''
                             if trade_mode == MarketZone.PRE:
 
                                 prevDate = market.getPrevCloseDate()
@@ -584,18 +672,8 @@ if __name__ =="__main__":
 
                                 for symbol, ticker  in tickers.items():
                                     pre_ts_date[symbol]=datetime_to_unix_ms(prevDate)
-                                '''
-                                conn = sqlite3.connect(DB_FILE)
-                                for symbol, ticker  in tickers.items():
-                                    df = pd.read_sql_query("select max(timestamp) as ts from ib_ohlc_history where symbol = ?", conn,params=[symbol])
-                                    if len(df)>0:
-                                            ts = df.iloc[0]["ts"]
-                                            pre_ts_date[symbol]=ts
-                               
-                                conn.close()
-                                '''
                                 logger.info(f"PRE DATE MAP {pre_ts_date}")
-  
+                            '''
 
                         #print("TICK",tickers)
                         for symbol, ticker  in tickers.items():

@@ -1,6 +1,7 @@
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
+from datetime import time, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -82,18 +83,29 @@ class ReportWidget(Widget):
             '''
             use df_1d
             '''
+            last_date = df_1m["date"].max()
+            #if (last_date == datetime().date()):
+                 
             
-            last_date = datetime.fromtimestamp(df_1m.iloc[-1]["timestamp"]/1000)
+            if str(last_date) == str(datetime.now().date()):
+                 # prendo la data di ieri
+                 logger.debug("take yesterday")
+                 last_date = datetime.now().date() - timedelta(days=1)
+
+            logger.info(f"Last date {last_date} now { datetime.now().date()} ")
+            
+            last_date = datetime(last_date.year, last_date.month, last_date.day, 23,59,59)
+           
+            #last_date = datetime.fromtimestamp(df_1m.iloc[-1]["timestamp"]/1000)
             #test
            
-            
-            prev_close = prev_day_before_24(last_date)
-            _prev_close = datetime_to_unix_ms(prev_close)
+            #prev_close = prev_day_before_24(last_date)
+            _prev_close = datetime_to_unix_ms(last_date)
 
-            #logger.info(f"Last date {last_date} close {prev_close} ")
+            logger.info(f"Last date {last_date} close {_prev_close} ")
 
             close_by_symbol = (
-                df_1d[df_1d["timestamp"] < _prev_close]     # 1️⃣ filtro
+                df_1m[df_1m["timestamp"] < _prev_close]     # 1️⃣ filtro
                 #.sort_values("timestamp")          # 2️⃣ ordina
                 .groupby("symbol", as_index=False)
                 .tail(1)                            # 3️⃣ ultima riga per symbol

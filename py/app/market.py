@@ -78,7 +78,9 @@ class Market:
             tzinfo=tz
         )
         
-
+    def isLiveZone(self) -> MarketZone:
+        return self.getCurrentZone() == MarketZone.LIVE
+    
     def getCurrentZone(self) -> MarketZone:
         return self.getZone(datetime.now(ZoneInfo("Europe/Rome")) )
 

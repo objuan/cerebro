@@ -42,6 +42,7 @@ class TopGainReportWidget(ReportWidget):
             {"title": "Symbol/News" , "type" :"str" },
             {"title": "Price","decimals": 5 },
             {"title": "Volume" },
+            {"title": "VolumeAVG" },
             {"title": "Float" },
             {"title": "Rel Vol (DaylyRate)","decimals": 2 },
             {"title": "Rel Vol (5 min %)","decimals": 2},
@@ -58,6 +59,9 @@ class TopGainReportWidget(ReportWidget):
     async def onTick(self,render_page):
         
         try:
+
+            isLiveZone = self.job.market.isLiveZone()
+
             # situazione attuale
             #live_df = self.job.live_symbols()
             #logger.info(live_df)
@@ -105,7 +109,7 @@ class TopGainReportWidget(ReportWidget):
             df_1d["date"] = pd.to_datetime(df_1d["timestamp"], unit="ms", utc=True).dt.date
             #logger.info(f"df_1m \n{df_1m.to_string(index=False)}")
          
-            df = self.get_last(df_1m)#.drop(columns=["quote_volume"])
+            df = df_tickers.copy()#self.get_last(df_1m)#.drop(columns=["quote_volume"])
 
             #logger.info(f"df \n{df.to_string(index=False)}")
 
@@ -113,57 +117,31 @@ class TopGainReportWidget(ReportWidget):
 
             first_open = self.open_by_symbols(df_1m) 
 
-            #logger.info(f"OPEN \n{first_open.to_string(index=False)}")
+            logger.info(f"OPEN \n{first_open.to_string(index=False)}")
             
             last_close = self.close_by_symbols(df_1m,df_1d) 
              
-            #logger.info(f"CLOSE \n{last_close.to_string(index=False)}")
+            logger.info(f"CLOSE \n{last_close.to_string(index=False)}")
 
             df = df.merge(  last_close[["symbol","last_close"]], on="symbol",    how="left")
-            df = df.merge(  first_open[["symbol","first_open"]], on="symbol",    how="left")
+            if isLiveZone:
+                df = df.merge(  first_open[["symbol","first_open"]], on="symbol",    how="left")
             
+            #logger.info(f"df \n{df.to_string(index=False)}")
+
             ## GAIN 
             #df["gain"] =  ((df['close'] - df['last_close'] ) / df['last_close'])  * 100
-            df["gain"] =  ((df['close'] - df['last_close'] ) / df['last_close'])  * 100
+            df["gain"] =  ((df['last'] - df['last_close'] ) / df['last_close'])  * 100
 
             ## GAP
-            df["gap"] =  ((df['first_open'] - df['last_close'] ) /df['last_close'])  * 100
+            if isLiveZone:
+                df["gap"] =  ((df['first_open'] - df['last_close'] ) /df['last_close'])  * 100
+            else:
+                df["gap"] =  df["gain"] 
             #logger.info(f"result {df}")
 
-            
-            #volume 24
-            '''
-            win_24 = self.get_window(df_1m,60*24,"1m")
-
-            vol_24h = (
-                win_24
-                .groupby("symbol", group_keys=False,as_index=False)
-                .sum()
-                .rename(columns={"base_volume": "volume_24h"})
-            )
-            
-            logger.debug(f"win_24 {vol_24h}")
-
-            df = df.merge(  vol_24h[["symbol","volume_24h"]], on="symbol",    how="left")
-
-            logger.info(f"result {df}")
-            '''
-            # volume oggi
-
-            '''
-            win_oggi = self.get_day_window(df_1m)
-            logger.info(f"day \n{win_oggi}")
-        
-            vol_day = (
-                win_oggi
-                .groupby("symbol", group_keys=False,as_index=False)
-                .sum()
-                .rename(columns={"base_volume": "volume_day"})
-            )
-            df = df.merge(  vol_day[["symbol","volume_day"]], on="symbol",    how="left")
-            '''
-            df = df.merge(  df_tickers[["symbol","volume_day"]], on="symbol",    how="left")
-
+            #logger.info(f"df \n{df.to_string(index=False)}")
+   
             #logger.info(f"result \n{df}")
 
             #volume delle ultime 24 ore con il volume medio giornaliero storico.
@@ -172,14 +150,14 @@ class TopGainReportWidget(ReportWidget):
             df = df.merge(  mean_base_volume_5m, on="symbol",    how="left")
 
             #df['base_volume_5m'] = df_1m.tail(5)['base_volume'].sum()
-            df['base_volume_5m'] = (
-                  df#.sort_values('timestamp')
+            df['volume_5m'] = (
+                  df_1m#.sort_values('timestamp')
                 .groupby('symbol')['base_volume']
                 .transform(lambda x: x.tail(5).sum())
             )
 
-            df['rel_vol_24'] = (df['volume_day'] / df['avg_base_volume_1d'])  * 100
-            df['rel_vol_5m'] = ((df['base_volume_5m'] / df['avg_base_volume_5m']) ) * 100
+            df['rel_vol_24'] = (df['volume'] / df['avg_base_volume_1d'])  * 100
+            df['rel_vol_5m'] = ((df['volume_5m'] / df['avg_base_volume_5m']) ) * 100
 
             #float
 
@@ -192,7 +170,7 @@ class TopGainReportWidget(ReportWidget):
             await render_page.send({
                    "id" : self.id,
                    "type" : "report",
-                   "data": df[["gain","symbol","close", "volume_day","float","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
+                   "data": df[["gain","symbol","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
                })
 
         except:

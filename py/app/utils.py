@@ -219,3 +219,18 @@ class AsyncScheduler:
                     self._tasks.append(
                         (next_run, coro, args, kwargs, True, interval)
                     )
+import math
+
+def sanitize(obj):
+    if isinstance(obj, float) and math.isnan(obj):
+        return None
+    if isinstance(obj, dict):
+        return {k: sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [sanitize(v) for v in obj]
+    return obj
+
+
+def floor_ts(ts_ms, sec):
+    # ritorna in ms
+    return (ts_ms // (sec*1000)) * (sec*1000)

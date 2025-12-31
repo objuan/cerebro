@@ -104,11 +104,21 @@ class IBrokerJob(Job):
 
     async def fetch_live_candles(self):
         
+      
         key = "all"
-        last_seen = self.last_ts.get(key, 0)
+        if not key in  self.last_ts:
+
+            last_date = datetime.now() - timedelta(minutes=10)
+            last_seen = datetime_to_unix_ms(last_date)
+
+            logger.info(f"START LIVE FROM {last_date}")
+            self.last_ts[key] =last_seen
         
+        last_seen= self.last_ts[key]
         self.marketZone = self.market.getCurrentZone()
 
+        await self.updateTickers()
+   
         if self.liveActive and self.marketZone == MarketZone.LIVE:
           
             #print(self.sql_symbols,last_seen)
@@ -156,7 +166,7 @@ class IBrokerJob(Job):
                 self.last_ts[key] = rows[-1]["ts"]
 
             #### tickers
-
+            '''
             cur.execute(f"""
                   SELECT l.*
                         FROM ib_ohlc_live l
@@ -185,9 +195,11 @@ class IBrokerJob(Job):
                     ticker.timestamp = r["timestamp"]
                     #logger.debug(ticker)
                     self.updateTicker(ticker)
-
+            '''
             return [dict(r) for r in rows]
         else:
+            # PRE ZONE
+            '''
             if self.liveActive:
                 conn = sqlite3.connect(self.db_file)
                 conn.row_factory = sqlite3.Row
@@ -196,9 +208,9 @@ class IBrokerJob(Job):
                 # get 
                 cur.execute(f"""
                     SELECT   exchange,   symbol,   timeframe as tf ,updated_at as ts, timestamp as t, open as o, high as h , low as l, close as c, volume as qv, volume as bv
-                    FROM ib_ohlc_live
+                    FROM ib_ohlc_live_pre
                     WHERE symbol in ({self.sql_symbols})
-                    GROUP BY tf
+                    and tf='1m'
                     ORDER BY timestamp desc LIMIT 3
                 """)
                 rows = cur.fetchall()
@@ -208,8 +220,12 @@ class IBrokerJob(Job):
                     return [dict(r) for r in rows]
                 else:
                     return  []
+                
+                
             else:
                 return  []
+                '''
+            return  []
 
     async def _fetch_missing_history(self,cursor, symbol, timeframe, since):
         #since = week_ago_ms()
@@ -276,6 +292,7 @@ class IBrokerJob(Job):
                 for o in ohlcv:
                     ts, open_, high, low, close, vol = o
                     
+                    #logger.debug(f"add {exchange} {symbol} {timeframe} {ts}")
                     cursor.execute("""
                 INSERT INTO ib_ohlc_history (
                         exchange,
@@ -323,7 +340,7 @@ class IBrokerJob(Job):
                     ))
         
                     
-                cursor.commit()
+                    cursor.commit()
                 break
         except:
             logger.error("ERROR", exc_info=True)

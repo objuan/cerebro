@@ -120,7 +120,7 @@ class Yahoo:
         df = c_get_df(self.db_path,"SELECT * FROM STOCKS WHERE SYMBOL = ?",(symbol,))
         if not df.empty:
             if df.iloc[0]["updated_at"]:
-                logger.debug(f"time to update {symbol}")
+                #logger.debug(f"time to update {symbol}")
                                                 
                 last_date = datetime.fromisoformat( df.iloc[0]["updated_at"])
                 time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)

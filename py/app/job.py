@@ -32,13 +32,15 @@ def now_ms():
 def week_ago_ms():
     return ms(time.time() - RETENTION_DAYS * 86400)
 
-
+'''
 class Ticker:
     symbol:str
     timestamp : datetime
-    price: float
+    last: float
     bid:float
     ask:float
+    high:float
+    low:float
     volume_day: float
 
     last_close:float
@@ -47,22 +49,33 @@ class Ticker:
     def __init__(self,symbol):
         self.symbol=symbol
         self.timestamp=0
-        self.price=0
+        self.last=0
         self.bid=0
         self.ask=0
+        self.high=0
+        self.low=0
         self.volume_day=0
         self.last_close=0
         self.day_open=0
 
+    def copyFromDict(self, other):
+        self.last=other["last"]
+        self.bid=other["bid"] if "bid" in other else None
+        self.ask=other["ask"] if "ask" in other else None
+        self.high=other["high"] if "high" in other else None
+        self.low=other["low"] if "low" in other else None
+        self.timestamp=other["ts"] if "ts" in other else None
+        self.volume_day=other["volume"] if "volume" in other else None
+
     def copy(self, other:"Ticker"):
-        self.price=other.price
+        self.prilastce=other.last
         self.bid=other.bid
         self.ask=other.ask
         self.timestamp=other.timestamp
         self.volume_day=other.volume_day
     def __str__(self):
         return f"{self.symbol} p:{self.price} ask:{self.ask} bid:{self.bid} vol:{self.volume_day}"
-
+'''
 class Job:
 
     def __init__(self,db_file, config,table_name, live_table_name):
@@ -133,26 +146,25 @@ class Job:
     async def on_update_symbols(self):
         logger.info(f"UPDATE SYMBOLS ..")#MAX:{self.max_symbols}")
 
-        self.monitor = await self.send_batch("symbols")
+        self.symbols = await self.send_batch("symbols")
         #logger.info(f"<< {df_symbols}")
 
         #self.monitor = self._live_symbols_dict()
-        logger.debug(f" {self.monitor} .. { [x['symbol'] for x in self.monitor]}")
+        logger.debug(f" {self.symbols}")
 
-        if len(self.monitor) > 0:
-            self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( [x['symbol'] for x in self.monitor])
+        if len(self.symbols) > 0:
+            self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
 
         logger.debug(f"Fundamentals \n{self.df_fundamentals}")
                                               
         #logger.debug(f"self.monitor \n{self.monitor} \n{self.df_fundamentals}")
         
-        self.symbols = [ x["symbol"]  for x in self.monitor ]
-        if self.max_symbols != None:
-             self.symbols = self.symbols [:self.max_symbols]
+        #if self.max_symbols != None:
+        #     self.symbols = self.symbols [:self.max_symbols]
         
         self.sql_symbols = str(self.symbols)[1:-1]
-        for s in self.symbols:
-            self.tickers[s] = Ticker(symbol=s)
+        #for s in self.symbols:
+        #    self.tickers[s] = Ticker(symbol=s)
 
         logger.info(f"LISTEN SYMBOLS {self.symbols}")
       
@@ -173,10 +185,9 @@ class Job:
     async def _align_data(self, symbol, timeframe):
         if not self.historyActive:
             return
+
         try:
             #logger.info(f"align_data {symbol} {timeframe}")
-
-           
 
             query_min = f"""
                 SELECT min(timestamp) as min
@@ -208,22 +219,24 @@ class Job:
 
                     #logger.info(f"max_dt {max_dt}")
                     if max_dt:
-                        last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
+                        if  self.market.isLiveZone():
+        
+                            last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
 
-                        cache_key = f"{symbol}_{timeframe}_{max_dt}"
-                        val = self.cache.getCache(cache_key)
-                        if not val:
-                            logger.info(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
-                        # devo aggiornare ??? 
-                        
-                        if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 5):
-                            update=True
-                        if (timeframe =="5m" and last_update_delta_min.total_seconds()/60 > 30):
-                            update=True
-                        if (timeframe =="1h" and last_update_delta_min.total_seconds()/60 > 1):
-                            update=True
-                        if (timeframe =="1d" and last_update_delta_min.total_seconds()/60 > 24*60):
-                            update=True
+                            cache_key = f"{symbol}_{timeframe}_{max_dt}"
+                            val = self.cache.getCache(cache_key)
+                            if not val:
+                                logger.info(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
+                            # devo aggiornare ??? 
+                            
+                            if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 5):
+                                update=True
+                            if (timeframe =="5m" and last_update_delta_min.total_seconds()/60 > 30):
+                                update=True
+                            if (timeframe =="1h" and last_update_delta_min.total_seconds()/60 > 1):
+                                update=True
+                            if (timeframe =="1d" and last_update_delta_min.total_seconds()/60 > 24*60):
+                                update=True
 
                     else:
                         update=True
@@ -367,13 +380,25 @@ class Job:
             return  df.iloc[0][0]
         else:
             return 0
-        
+    
+    #######################
+
+    async def updateTickers(self):
+        self.tickers.clear()
+        new_tickers = await self.send_batch("tickers")
+        #logger.debug(tickers)
+        for tick in new_tickers:
+            self.tickers[tick["symbol"]] =tick
+
+        #self.updateTicker()
+    
+    '''
     def updateTicker(self,ticker:Ticker):
         if ticker.symbol in self.tickers:
             self.tickers[ticker.symbol].copy(ticker)
         else:
             self.tickers[ticker.symbol] = ticker
-
+        '''
     def getTicker(self,symbol):
         if symbol in self.tickers:
             return self.tickers[symbol]
@@ -385,6 +410,7 @@ class Job:
             return pd.DataFrame(
                 columns=["symbol", "timestamp", "price", "bid", "ask", "volume_day"]
             )
+        '''
         df = pd.DataFrame(
             [{
                 "symbol": t.symbol,
@@ -395,13 +421,16 @@ class Job:
                 "volume_day": t.volume_day
             } for k,t in self.tickers.items()]
         )
+        '''
+        df = pd.DataFrame( [ t for k,t in self.tickers.items()])
     
         # sicurezza: timestamp come datetime
         #df["datetime"] = pd.to_datetime(df["timestamp"]/1000, utc=True, errors="coerce")
-        df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
         return df
         
-
+    #######################
+    
     def get_df(self,query, params=()):
         conn = sqlite3.connect(self.db_file)
         df = pd.read_sql_query(query, conn, params=params)

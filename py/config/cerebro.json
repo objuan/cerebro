@@ -31,27 +31,48 @@
 			{
 				"enabled" : false,
 				"update_time" : "10m" ,
-				 "params": {
-					"instrument": "STK",
-					"location": "STK.NASDAQ",
-					"type1": "TOP_PERC_GAIN",
-					"type": "HIGH_OPEN_GAP",
-					"type22": "HIGH_PRICE",
-					"filter": 
+				"profiles": 
+				[
 					{
-						"abovePrice": 1,
-						"belowPrice": 10000,
-						"aboveVolume": 10,
-						"usdVolumeBelow": 10,
-						"marketCapAbove" : 1000
+						"name" : "LIVE",
+						"instrument": "STK",
+						"location": "STK.NASDAQ",
+						"type1": "TOP_PERC_GAIN",
+						"type": "HIGH_OPEN_GAP",
+						"type22": "HIGH_PRICE",
+						"filter": 
+						{
+							"abovePrice": 1,
+							"belowPrice": 10000,
+							"aboveVolume": 10,
+							"usdVolumeBelow": 10,
+							"marketCapAbove" : 1000
+						}
+					},
+					{
+						"name" : "PRE",
+						"instrument": "STK",
+						"location": "STK.NASDAQ",
+						"type": "TOP_PERC_GAIN",
+						"filter": 
+						{
+							"abovePrice": 1,
+							"belowPrice": 10000,
+							"aboveVolume": 10,
+							"usdVolumeBelow": 10,
+							"marketCapAbove" : 1000
+						}
 					}
-				}
+				]
 			},
 			"live":
 			{
+				"ib_port" : 7497,
 				"enabled" : true,
-				"max_symbols" : 10,
-				"debug_symbols1" : ["SOPA"]
+				"max_symbols" :10,
+				"debug_symbols1" : ["SOPA"],
+				"RETENTION_HOURS" : 48,
+				"CLEANUP_INTERVAL_HOURS" : 8
 			}
 			,"logic":
 			{

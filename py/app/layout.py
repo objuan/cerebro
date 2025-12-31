@@ -43,9 +43,9 @@ class Layout:
         try:
             with open(filePath, 'r', encoding='utf-8') as file:
                 dati_python = json.load(file)
-                logger.info(f"LOAD LAYOUT {dati_python}")
+                logger.debug(f"LOAD LAYOUT {dati_python}")
                 for comp  in dati_python["components"]:
-                    logger.info(f"LOAD {comp}")
+                    logger.debug(f"LOAD {comp}")
 
                     w = self.create_widget(comp["id"],comp["widget"])
                     if w:
@@ -93,10 +93,10 @@ class Layout:
 
     def create_widget(self,id, cmd):
         if cmd["type"] =="chart":
-                logger.info(f'CREATE CHART {cmd}')
+                logger.debug(f'CREATE CHART {cmd}')
                 return ChartWidget(id, cmd["symbol"] ,cmd["timeframe"],cmd["plot_config"] )
         if cmd["type"] =="report":
-                logger.info(f'CREATE REPORT {cmd}')
+                logger.debug(f'CREATE REPORT {cmd}')
                 report_type = cmd["report_type"]
                 if report_type =="top_gain":
                     return TopGainReportWidget(id,self.fetcher,self.db)

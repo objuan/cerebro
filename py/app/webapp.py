@@ -30,6 +30,7 @@ DEF_LAYOUT = "./layouts/default_layout.json"
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
+
 ############# LOGS #############
 #print(" STAT FROM ",os.getcwd())
 
@@ -91,6 +92,8 @@ logger.info("=====================================")
 logger.info("========   CEREBRO V0.1   ===========")
 logger.info("=====================================")
 logger.info(f"CONFIG {config}")
+
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
 #############
 
