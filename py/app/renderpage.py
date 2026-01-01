@@ -3,6 +3,7 @@ import pandas as pd
 from fastapi import WebSocket, WebSocketDisconnect
 from datetime import datetime, timedelta
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,12 @@ class WSManager:
         #logger.info(f"WS SEND {self.connections} ->{message}")
         for ws in self.connections:
             await self.send_safe(ws,message)
+            #await ws.send_json(message)
+
+    async def broadcastObj(self, obj):
+        #logger.info(f"WS SEND {self.connections} ->{message}")
+        for ws in self.connections:
+            await self.send_safe(ws,json.dumps(obj))
             #await ws.send_json(message)
 
 # ====================================================

@@ -1,7 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
 import json
-import websockets
 import sqlite3
 from datetime import datetime,time
 import time as _time
@@ -18,16 +17,18 @@ from logging.handlers import RotatingFileHandler
 from ib_insync import *
 from utils import convert_json
 #from message_bridge import *
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import JSONResponse, HTMLResponse
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from fastapi import WebSocket, WebSocketDisconnect
 util.startLoop()  # uncomment this line when in a notebook
 from config import DB_FILE,CONFIG_FILE
 from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
+from renderpage import WSManager
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -48,6 +49,7 @@ symbols = []
 
 app = FastAPI(  )
 
+'''
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -58,11 +60,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+'''
+'''
 @app.middleware("http")
 async def add_referrer_policy(request, call_next):
     response = await call_next(request)
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+'''
+
+#Configura le origini permesse
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # "*" permette tutto, utile per test. In produzione metti l'URL specifico.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+ws_manager = WSManager()
 
 ################################
 
@@ -243,6 +259,20 @@ async def scan(config,max_symbols):
     
     logger.info(f'MARKET ZONE {zone}')
 
+    if "debug_symbols" in cfg:
+        symbols = cfg["debug_symbols"]
+        items=[]
+        conn = sqlite3.connect(DB_FILE)
+        for symbol in symbols:
+            df_stocks = pd.read_sql_query(f"select * from STOCKS where symbol='{symbol}'", conn)
+            if len(df_stocks)!=0:
+                items.append({"symbol": symbol, "conid":df_stocks.iloc[0]["ib_conid"],"listing_exchange":df_stocks.iloc[0]["exchange"] })
+        conn.close()   
+        df = pd.DataFrame(
+            [(o["symbol"], o["conid"], o["listing_exchange"]) for o in items],
+            columns=["symbol", "conidex","listing_exchange"]
+        )
+        return df
 
     filter=None
     for prof in cfg["profiles"]:
@@ -546,7 +576,7 @@ async def conId(symbol,exchange,currency):
 
 @app.get("/symbols")
 async def get_symbols():
-
+    offline_mode = config["database"]["scanner"]["offline_mode"]
     '''
     logger.info(f"get symbols {actual_df}")
 
@@ -554,23 +584,42 @@ async def get_symbols():
     '''
     data=[]
     for symbol, ticker  in tickers.items():
-        if ticker.time  and  not math.isnan(ticker.last):
+        if (ticker.time  and  not math.isnan(ticker.last)) or offline_mode:
             data.append(symbol)
     
     return {"status": "ok" , "data": data}
 
 @app.get("/tickers")
 async def get_tickers():
-
+    offline_mode = config["database"]["scanner"]["offline_mode"]
     data=[]
     for symbol, ticker  in tickers.items():
-        if ticker.time  and  not math.isnan(ticker.last):
+        if (ticker.time  and  not math.isnan(ticker.last)) or offline_mode:
             data.append({"symbol": symbol, "last": ticker.last, "bid" : ticker.bid , "ask": ticker.ask,"low": ticker.low , "high" : ticker.high,"volume": ticker.volume*100, "ts":   ticker.time .timestamp()  })
     data = sanitize(data)
     #logger.info(data)
     return {"status": "ok" , "data": data}
 
+####################
+
+
+@app.websocket("/ws/tickers")
+async def ws_tickers(ws: WebSocket):
+    await ws_manager.connect(ws)
+
+    try:
+        while True:
+            message = await ws.receive_text()
+            logger.info(f"Messaggio ricevuto: {message}")
+            # {"action":"subscribe","params":{"symbols":"NVDA,AAPL"}}
+            # {"action":"unsubscribe","params":{"symbols":"*"}}
+            #await ws.send_text(f"Echo: {message}")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(ws)
+    
+
 ##################################################
+
 
 if __name__ =="__main__":
 
@@ -652,7 +701,7 @@ if __name__ =="__main__":
             )
             server = uvicorn.Server(u_config)
 
-            async def tick_loop():
+            async def tick_candles():
                 global trade_mode
                 global last_stats
                 global agg_cache
@@ -664,31 +713,37 @@ if __name__ =="__main__":
                             
                             last_stats = {}
                             agg_cache = {}
-                            '''
-                            if trade_mode == MarketZone.PRE:
-
-                                prevDate = market.getPrevCloseDate()
-                                logger.info(f"PREV CLOSE DATE {prevDate} {datetime_to_unix_ms(prevDate)}")
-
-                                for symbol, ticker  in tickers.items():
-                                    pre_ts_date[symbol]=datetime_to_unix_ms(prevDate)
-                                logger.info(f"PRE DATE MAP {pre_ts_date}")
-                            '''
 
                         #print("TICK",tickers)
                         for symbol, ticker  in tickers.items():
                             receive(symbol,ticker)  # Print the latest market data
-                        await asyncio.sleep(0.5)
+                        
                     except:
                         logger.error("ERR", exc_info=True)
+                    await asyncio.sleep(0.5)
+
+            async def tick_tickers():
+                while True:
+                    try:
+                        data=[]
+                        for symbol, ticker  in tickers.items():
+                            if ticker.time  and  not math.isnan(ticker.last):
+                                data.append({"symbol": symbol, "last": ticker.last, "bid" : ticker.bid , "ask": ticker.ask,"low": ticker.low , "high" : ticker.high,"volume": ticker.volume*100, "ts":   ticker.time .timestamp()  })
+                        data = sanitize(data)
+                        #logger.info(f">> {data}")
+                        await ws_manager.broadcast(data)
+                    except:
+                        logger.error("ERR", exc_info=True)
+                    await asyncio.sleep(0.1)
 
             server_task = asyncio.create_task(server.serve())
-            tick_task = asyncio.create_task(tick_loop())
+            _tick_candles = asyncio.create_task(tick_candles())
+            _tick_tickers = asyncio.create_task(tick_tickers())
             _cleanup_task = asyncio.create_task(cleanup_task())
 
 
             await asyncio.wait(
-                [server_task, tick_task],
+                [server_task, _tick_tickers,_tick_candles],
                 return_when=asyncio.FIRST_COMPLETED
             )
 

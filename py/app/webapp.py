@@ -94,6 +94,8 @@ logger.info("=====================================")
 logger.info(f"CONFIG {config}")
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("websockets").setLevel(logging.WARNING)
+
 
 #############
 
@@ -136,20 +138,32 @@ async def lifespan(app: FastAPI):
         '''
 
         #await db.bootstrap()
-        asyncio.create_task(db.bootstrap())
+        job_db=None
+        live_task=None
 
-        live_task = asyncio.create_task(live_loop())
+        def on_job_started():
+            global job_db
+            global live_task
+
+            job_db=  asyncio.create_task(db.bootstrap())
+            live_task = asyncio.create_task(live_loop())
+          
+        job_task = asyncio.create_task(fetcher.bootstrap(on_job_started))
+        
+       
         #thread_h = asyncio.create_task(hourly_task())
 
         yield
 
-        print("DONE")
+        logger.info("DONE")
     except:
         logger.error("ERROR", exc_info=True)
     finally:
         # 4️⃣ Chiudi la connessione allo spegnimento
         #print("Chiusura connessione IBKR...")
         #ib.disconnect()
+        job_task.cancel()
+        job_db.cancel()
         live_task.cancel()
         #thread_h.cancel()
 
@@ -163,6 +177,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",  # Next.js / React
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+        "http://localhost:8080"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -317,8 +333,8 @@ layout.read(DEF_LAYOUT)
 
 @app.get("/api/layout/select")
 async def load_layout():
-    await layout.load(render_page)
-    return {"status": "ok"}
+    all = await layout.load()
+    return {"status": "ok", "data": json.dumps(all)}
 
 @app.post("/api/layout/save")
 async def save_layout(request: Request):
@@ -344,7 +360,6 @@ async def ws_live(ws: WebSocket):
     #logger.info(f"Start WS socket")
     #render_page.connected=False
 
-    
     try:
         while True:
             message = await ws.receive_text()
@@ -362,12 +377,19 @@ async def live_loop():
         #print("tick")
         try:
             msg = {
-                "type": "heartbeat",
-                "ts": int(time.time() * 1000)
+                "path": "root.heartbeat",
+                "data": int(time.time() * 1000)
             }
             
+            #await ws_manager.broadcast(msg)
+
             
-            await ws_manager.broadcast(msg)
+            if fetcher.marketZone:
+                msg = {
+                    "path": "root.tz",
+                    "data": MZ_TABLE[fetcher.marketZone]
+                }
+                #await ws_manager.broadcast(msg)
 
             '''
             msg1 = {

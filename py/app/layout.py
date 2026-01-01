@@ -30,11 +30,13 @@ class Layout:
         for comp in self.components:
             await comp.tick(render_page)
 
-    async def load(self,page:RenderPage):
+    async def load(self):#,page:RenderPage):
         try:
             ''' at startup '''
+            all=[]
             for comp in self.components:
-                await comp.load(page)
+                all.append(await comp.load())
+            return all
         except:
             logger.error("ERROR",exc_info=True)
 
@@ -95,6 +97,11 @@ class Layout:
         if cmd["type"] =="chart":
                 logger.debug(f'CREATE CHART {cmd}')
                 return ChartWidget(id, cmd["symbol"] ,cmd["timeframe"],cmd["plot_config"] )
+        
+        if cmd["type"] =="multi_chart":
+                logger.debug(f'CREATE CHART {cmd}')
+                return ChartWidget(id, cmd["symbol"] ,0,cmd["plot_config"] )
+    
         if cmd["type"] =="report":
                 logger.debug(f'CREATE REPORT {cmd}')
                 report_type = cmd["report_type"]
@@ -156,15 +163,16 @@ class LayoutComponent:
                 self.last_update = datetime.now()
                 await self.widget.tick(render_page)
 
-    async def load(self,page:RenderPage):
+    async def load(self):#,page:RenderPage):
         ''' at startup '''
         #await self.widget.tick(page)
 
         msg=self.serialize()
-        logger.info(f"LOAD --> {msg}")
-        await page.send(msg)
+        #logger.info(f"LOAD --> {msg}")
+        return msg
+        #await page.send(msg)
 
-        await self.widget.tick(page)
+        #await self.widget.tick(page)
         #self.widget.load(page)
 
     def from_data(self,data):

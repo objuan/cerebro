@@ -78,7 +78,7 @@ class ReportWidget(Widget):
             open_by_symbol.rename(columns={"open": "first_open"}, inplace=True)
             return open_by_symbol[["symbol","timestamp", "first_open"]]
 
-    def close_by_symbols(self,df_1m, df_1d)-> pd.DataFrame:
+    def close_by_symbols(self,df_1m)-> pd.DataFrame:
             
             '''
             use df_1d

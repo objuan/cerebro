@@ -4,16 +4,16 @@
             "id": "def_0",
             "type": "comp",
             "rect": {
-                "w": 5,
-                "h": 4,
+                "h": 7,
                 "x": 0,
-                "y": 0
+                "y": 0,
+                "w": 12
             },
             "update_time_secs": 60,
             "widget": {
-                "type": "chart",
-                "symbol": "EKSO",
-                "timeframe": "1m",
+                "type": "multi_chart",
+                "symbol": "FANG",
+                "timeframe": 0,
                 "plot_config": {
                     "main_plot": {
                         "ema9": {
@@ -29,66 +29,6 @@
                     },
                     "subplots": {}
                 }
-            }
-        },
-        {
-            "id": "def_1",
-            "type": "comp",
-            "rect": {
-                "w": 7,
-                "h": 5,
-                "x": 5,
-                "y": 0
-            },
-            "update_time_secs": 60,
-            "widget": {
-                "type": "report",
-                "report_type": "top_gain",
-                "title": "Top Gainer",
-                "columns": [
-                    {
-                        "title": "Change From Close",
-                        "decimals": 2,
-                        "colors": {
-                            "range_min": -2,
-                            "range_max": 10,
-                            "color_min": "#FFFFFF",
-                            "color_max": "#14A014"
-                        }
-                    },
-                    {
-                        "title": "Symbol/News",
-                        "type": "str"
-                    },
-                    {
-                        "title": "Price",
-                        "decimals": 5
-                    },
-                    {
-                        "title": "Volume"
-                    },
-                    {
-                        "title": "Float"
-                    },
-                    {
-                        "title": "Rel Vol (DaylyRate)",
-                        "decimals": 2
-                    },
-                    {
-                        "title": "Rel Vol (5 min %)",
-                        "decimals": 2
-                    },
-                    {
-                        "title": "Gap",
-                        "decimals": 1,
-                        "colors": {
-                            "range_min": -10,
-                            "range_max": 10,
-                            "color_min": "#FF0101",
-                            "color_max": "#002FFF"
-                        }
-                    }
-                ]
             }
         }
     ]

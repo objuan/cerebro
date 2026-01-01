@@ -1,0 +1,72 @@
+
+     .header {
+      height: 40px;
+      background: #253248;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      border-bottom: 1px solid #334158;
+    }
+
+    .header-title {
+      font-weight: bold;
+      margin-right: 16px;
+    }
+
+    .header-status {
+      font-size: 13px;
+      color: #9fb3c8;
+    }
+    body { background:#111; color:#eee; font-family:Arial }
+    .grid-stack { background: #FAFAD2; }
+    .grid-stack-item-content {
+      background:#1e1e1e;
+      border-radius:8px;
+      padding:8px;
+      /*overflow:auto;*/
+    }
+    button { margin:5px }
+    .no-drag {
+         pointer-events: auto;
+    }
+    .no-drag * {
+    cursor: default;
+    }
+    .chart-container {
+         width: 100%;
+        height: calc(100% - 170px); /* spazio per titolo */
+        min-height: 200px;   /* 🔴 IMPORTANTISSIMO */
+    }
+
+.grid-stack-handle {
+      cursor: move;
+      user-select: none;
+}
+
+.grid-stack-item.closing {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: 0.2s;
+}
+.close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: auto; 
+}
+
+.chart-container .chart-legend {
+  position: absolute;
+  left: 12px;
+  top: 42px;
+  z-index: 10;
+  font-size: 14px;
+  font-family: sans-serif;
+  line-height: 18px;
+  font-weight: 300;
+  background-color: gray;
+  border-color: black;
+}

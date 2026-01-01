@@ -15,6 +15,14 @@ class MarketZone(Enum):
     AFTER = "AFTER"
     CLOSED = "CLOSED"
 
+MZ_TABLE = {
+                MarketZone.CLOSED: 0,
+                MarketZone.AFTER: 3,
+                MarketZone.LIVE: 2,
+                MarketZone.PRE: 1,
+}
+
+
 @dataclass
 class Session:
     start: datetime.time

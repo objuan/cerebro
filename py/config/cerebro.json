@@ -30,7 +30,9 @@
 			"scanner":
 			{
 				"enabled" : false,
+				"offline_mode" : true,
 				"update_time" : "10m" ,
+				"debug_symbols" : ["SOPA","FANG"],
 				"profiles": 
 				[
 					{
@@ -69,8 +71,7 @@
 			{
 				"ib_port" : 7497,
 				"enabled" : true,
-				"max_symbols" :10,
-				"debug_symbols1" : ["SOPA"],
+				"max_symbols" :2,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8
 			}

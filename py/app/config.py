@@ -1,6 +1,8 @@
 DB_FILE = "db/crypto.db"
 CONFIG_FILE = "config/cerebro.json"
 
+
+
 '''
 TIMEFRAME_UPDATE_SECONDS = {
     "1s": 1,

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, HTMLResponse
+import websockets
 import pandas as pd
 import sqlite3
 from datetime import datetime, timedelta
@@ -32,54 +33,11 @@ def now_ms():
 def week_ago_ms():
     return ms(time.time() - RETENTION_DAYS * 86400)
 
-'''
-class Ticker:
-    symbol:str
-    timestamp : datetime
-    last: float
-    bid:float
-    ask:float
-    high:float
-    low:float
-    volume_day: float
-
-    last_close:float
-    day_open:float
-    
-    def __init__(self,symbol):
-        self.symbol=symbol
-        self.timestamp=0
-        self.last=0
-        self.bid=0
-        self.ask=0
-        self.high=0
-        self.low=0
-        self.volume_day=0
-        self.last_close=0
-        self.day_open=0
-
-    def copyFromDict(self, other):
-        self.last=other["last"]
-        self.bid=other["bid"] if "bid" in other else None
-        self.ask=other["ask"] if "ask" in other else None
-        self.high=other["high"] if "high" in other else None
-        self.low=other["low"] if "low" in other else None
-        self.timestamp=other["ts"] if "ts" in other else None
-        self.volume_day=other["volume"] if "volume" in other else None
-
-    def copy(self, other:"Ticker"):
-        self.prilastce=other.last
-        self.bid=other.bid
-        self.ask=other.ask
-        self.timestamp=other.timestamp
-        self.volume_day=other.volume_day
-    def __str__(self):
-        return f"{self.symbol} p:{self.price} ask:{self.ask} bid:{self.bid} vol:{self.volume_day}"
-'''
 class Job:
 
     def __init__(self,db_file, config,table_name, live_table_name):
         
+        self.ready=False
         self.cache = JobCache()
         self.config=config
         self.symbols=[]
@@ -96,6 +54,10 @@ class Job:
         self.TIMEFRAME_LEN_CANDLES =config["database"]["logic"]["TIMEFRAME_LEN_CANDLES"]  
 
         self.market = MarketService(config).getMarket("AUTO")
+        self.marketZone = None
+        # live feeds
+
+
         #logger.info(f"TIMEFRAME_LEN_CANDLES {self.TIMEFRAME_LEN_CANDLES}")
         #self.batch_client = MessageClient(MessageDatabase(db_file), "fetcher")
         #self.batch_client = AsyncMessageClient(MessageDatabase(db_file), "fetcher")
@@ -112,6 +74,48 @@ class Job:
         '''
         #self.update_stats()
     
+    async def bootstrap(self, onStartHandler):
+        uri = "ws://localhost:2000/ws/tickers"
+        
+        try:
+            # Ci si connette al server
+            
+            async with websockets.connect(uri) as websocket:
+                logger.info(f"Connesso a {uri}")
+                
+                # Invia un messaggio al server
+                message = {"id": "client"}
+                await websocket.send(json.dumps(message))
+                
+                def updateTickers(new_tickers):
+                    self.tickers.clear()
+                    for tick in new_tickers:
+                        self.tickers[tick["symbol"]] =tick
+
+                    #logger.debug(self.tickers)
+
+                # first
+                new_tickers = await websocket.recv()
+                updateTickers(json.loads(new_tickers))
+
+                self.ready=True
+                onStartHandler()
+
+                while True:
+                    # Riceve la risposta dal server
+                    new_tickers = await websocket.recv()
+                    updateTickers(json.loads(new_tickers))
+
+                    #logger.info(f"< Ricevuto: {response}")
+
+
+        except ConnectionRefusedError:
+            logger.error("Errore: Assicurati che il server sia attivo!")
+            exit(-1)
+        except Exception as e:
+            logger.error(f"Errore: {e}")
+            exit(-1)
+
     '''
     async def on_receive(self):
         while True:
@@ -177,6 +181,7 @@ class Job:
        pass
     
     async def fetch_live_candles(self):
+       
         pass
 
     async def  _fetch_missing_history(self,cursor, symbol, timeframe, since):
@@ -219,7 +224,7 @@ class Job:
 
                     #logger.info(f"max_dt {max_dt}")
                     if max_dt:
-                        if  self.market.isLiveZone():
+                        if  self.marketZone == MarketZone.LIVE:
         
                             last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
 

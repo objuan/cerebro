@@ -40,15 +40,25 @@ class ChartWidget(Widget):
 
     def from_data(self,data):
       
+        if "timeframe" in data:
+            self.timeframe = data["timeframe"]
+
         self.symbol = data["symbol"]
-        self.timeframe = data["timeframe"]
         self.plot_config = data["plot_config"]
 
     def serialize(self):
         #print( "...",self.plot_config)
-        return {
-            "type":"chart",
-            "symbol" : self.symbol,
-            "timeframe": self.timeframe,
-            "plot_config":  self.plot_config,
+        if self.timeframe == 0:
+            return {
+                "type":"multi_chart",
+                "symbol" : self.symbol,
+                "timeframe": self.timeframe,
+                "plot_config":  self.plot_config,
         }
+        else:
+            return {
+                "type":"chart",
+                "symbol" : self.symbol,
+                "timeframe": self.timeframe,
+                "plot_config":  self.plot_config,
+            }

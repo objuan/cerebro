@@ -24,6 +24,9 @@ class TopGainReportWidget(ReportWidget):
         return f"{self.gain_time_min} m"
 
     async def onStart(self,render_page)-> bool:
+        if not self.job.ready:
+            return False
+        
         logger.info("onStart")
         self.columns= [f"Change From {self.format_time(self.gain_time_min)}(%)","Symbol/News","Rank","Price","Volume","Rel Vol (DaylyRate)", "Rel Vol (5 min %)","Gap"]
         
@@ -104,9 +107,9 @@ class TopGainReportWidget(ReportWidget):
 
             ####
 
-            df_1m = self.db.dataframe("1m")[["timestamp","symbol","close","open","low","high","base_volume"]]
-            df_1m["date"] = pd.to_datetime(df_1m["timestamp"], unit="ms", utc=True).dt.date
-            df_1d["date"] = pd.to_datetime(df_1d["timestamp"], unit="ms", utc=True).dt.date
+            df_1m = self.db.dataframe("1m")[["timestamp","symbol","close","open","low","high","base_volume","date"]]
+            #df_1m["date"] = pd.to_datetime(df_1m["timestamp"], unit="ms", utc=True).dt.date
+            #df_1d["date"] = pd.to_datetime(df_1d["timestamp"], unit="ms", utc=True).dt.date
             #logger.info(f"df_1m \n{df_1m.to_string(index=False)}")
          
             df = df_tickers.copy()#self.get_last(df_1m)#.drop(columns=["quote_volume"])
@@ -119,7 +122,7 @@ class TopGainReportWidget(ReportWidget):
 
             logger.info(f"OPEN \n{first_open.to_string(index=False)}")
             
-            last_close = self.close_by_symbols(df_1m,df_1d) 
+            last_close = self.close_by_symbols(df_1m) 
              
             logger.info(f"CLOSE \n{last_close.to_string(index=False)}")
 

@@ -122,8 +122,9 @@ class DBDataframe_TimeFrame:
 
             self.last_timestamp = self.df['timestamp'].max()
 
+        self.df["date"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True).dt.date
             #print( "NEW ",self.df.tail())
-        #print( "DB ",self.df )
+        #logger.info( f"DB {self.df}" )
 
     def dataframe(self,symbol="") -> pd.DataFrame:
         if not self.last_timestamp:
@@ -156,6 +157,12 @@ class DBDataframe:
     async def bootstrap(self):
         logger.info(f"DB BOOTSTRAP")
         try:
+            # WAIT FOR JOB READY
+            #while not self.fetcher.ready:
+            #    asyncio.sleep(0.5)
+            #    yield
+
+            logger.info(f"DB BOOTSTRAP READY")
             self.scheduler = AsyncScheduler()
             self.scheduler.schedule_every( self.config["scanner"]["update_time"], self.update_scanner)
 

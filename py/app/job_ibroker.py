@@ -103,7 +103,12 @@ class IBrokerJob(Job):
         #self.symbol_to_conid_map = last_df.set_index("symbol")["conidex"].to_dict()
 
     async def fetch_live_candles(self):
-        
+       
+        super().fetch_live_candles()
+
+        if self.market.getCurrentZone() != self.marketZone:
+            self.marketZone = self.market.getCurrentZone()
+            logger.info(f"MARKET ZONE {self.marketZone}")
       
         key = "all"
         if not key in  self.last_ts:
@@ -115,9 +120,8 @@ class IBrokerJob(Job):
             self.last_ts[key] =last_seen
         
         last_seen= self.last_ts[key]
-        self.marketZone = self.market.getCurrentZone()
-
-        await self.updateTickers()
+       
+        #await self.updateTickers()
    
         if self.liveActive and self.marketZone == MarketZone.LIVE:
           
