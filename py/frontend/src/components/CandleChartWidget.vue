@@ -147,33 +147,34 @@ const handleRefresh = async () => {
 
 // --- INIZIALIZZAZIONE ---
 onMounted(() => {
-  const { width, height } = container.value.getBoundingClientRect()
+ // const { width, height } = container.value.getBoundingClientRect()
 
-  console.log("onMounted ",width-10,height-10);
+ // console.log("onMounted ",width-10,height-10);
   buildChart();
   handleRefresh();
 
-    resize(width,height)
+  resize()
 });
 
-const fullResize =  (w,h) => {
-    console.log("c full resize ",w,h);
+const fullResize =  () => {
+    //console.log("c full resize ",w,h);
 
     //charts.main.resize(w,h-100);
     //charts.volume.resize(w,100);
 };
 
-const resize =  (w,h) => {
-   //const rect = container.value.getBoundingClientRect()
-  
-    console.log("c resize ",w,h);
-    console.log(charts.main)
+const resize =  () => {
+    const { width, height } = container.value.getBoundingClientRect()
 
-    charts.main.resize(w,h-100);
-    charts.volume.resize(w,100);
+    console.log("c resize ",width,height,container);
+   // console.log(charts.main)
+
+    charts.main.resize(width-10,height-100);
+    charts.volume.resize(width-10,94);
 
     handleRefresh();
 };
+
 
 
 const buildChart =  () => {

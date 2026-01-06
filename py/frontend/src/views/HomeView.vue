@@ -343,13 +343,15 @@ onMounted(() => {
     //localStorage.setItem("grid-layout", JSON.stringify(layout));
   }
   grid.on("change", saveLayout);
+  /*
   grid.on('added', (event, items) => {
       items.forEach(item => {
         const el = item.el;
         const h = el.clientHeight;
         console.log('added height:', h);
       });
-});
+  
+  });    */
     
 });
 

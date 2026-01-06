@@ -31,7 +31,7 @@
     <div class="position-relative p-0 charts-grid"  style="height: calc(100% - 45px); overflow: hidden;" >
      
         <div v-if="currentMode!=''" style="height:100%" >
-          <div class="multi-chart-container">
+          <div class="multi-chart-container"  style="height:100%" >
             <div ref="chartContainer1" class="chart-container cell">
               <CandleChartWidget style="width:100%;height:100%"
                 :id="chart_all"
@@ -143,7 +143,7 @@ function selectMode(mode)
 {
   console.log("select ", mode)
   currentMode.value = mode
-  resize(0,0);
+  resize();
 }
 
 // --- LOGICA REFRESH DATI ---
@@ -170,23 +170,20 @@ onMounted( async() => {
 });
 
 
-const resize =  (w,h) => {
-    const rect = multi_container.value.getBoundingClientRect()
+const resize =  () => {
+   
+    //console.log("m resize ",rect,currentMode.value);
 
-    console.log("m resize ",rect,currentMode.value);
-
-    w = Math.max(100,rect.width-40);
-    h = Math.max(100,rect.height-40);
     if (currentMode.value?.trim() =="")
     {
-      console.log("lll",widgetRefs.value["chart_1"])
-      if (widgetRefs.value["chart_1"])   widgetRefs.value["chart_1"].resize(w/2,h/2);
-      if (widgetRefs.value["chart_2"])  widgetRefs.value["chart_2"].resize(w/2,h/2);
-      if (widgetRefs.value["chart_3"])  widgetRefs.value["chart_3"].resize(w/2,h/2);
-      if (widgetRefs.value["chart_4"])  widgetRefs.value["chart_4"].resize(w/2,h/2);
+      //console.log("lll",widgetRefs.value["chart_1"])
+      if (widgetRefs.value["chart_1"])   widgetRefs.value["chart_1"].resize();
+      if (widgetRefs.value["chart_2"])  widgetRefs.value["chart_2"].resize();
+      if (widgetRefs.value["chart_3"])  widgetRefs.value["chart_3"].resize();
+      if (widgetRefs.value["chart_4"])  widgetRefs.value["chart_4"].resize();
     }
     else
-    if (widgetRefs.value["chart_all"])   widgetRefs.value["chart_all"].resize(w-1,h-10);
+        if (widgetRefs.value["chart_all"])   widgetRefs.value["chart_all"].resize();
 
 };
 
@@ -211,18 +208,8 @@ defineExpose({
 
 <style scoped>
 
-.charts-grid {
-  /*
-  display: grid;
-  
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  
-  flex-wrap: wrap;
-  flex-direction: row;
 
-  gap: 4px;
-  */
+.charts-grid {
   height: 100%;
 }
 
@@ -249,6 +236,7 @@ defineExpose({
   border: yellow;
   border-width: 0px;
   border-style: dashed;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
