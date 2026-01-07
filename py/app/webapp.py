@@ -400,12 +400,13 @@ async def live_loop():
             await ws_manager.broadcast(msg1)
             '''
             
-            new_candles = await fetcher.fetch_live_candles()
+            #new_candles = await fetcher.fetch_live_candles()
 
             #logger.info(f"NEW # {len(new_candles)}")
-
+            '''
             if len(new_candles) < 500:
                 await layout.notify_candles(new_candles,render_page)
+            '''
 
             await db.tick()
             

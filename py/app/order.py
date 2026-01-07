@@ -190,6 +190,85 @@ class OrderManager:
         trade.statusEvent += onStatus
         '''
 
+    def sell(symbol,totalQuantity,lmtPrice):
+        '''
+        '''
+
+        logger.debug(f"SELL LIMIT ORDER {symbol} q:{totalQuantity} p:{lmtPrice}")
+        contract = Stock(symbol, 'SMART', 'USD')
+        OrderManager.ib.qualifyContracts(contract)
+
+        # 🔹 ORDINE DI VENDITA
+        entry = LimitOrder(
+            action='SELL',
+            totalQuantity=totalQuantity,
+            lmtPrice=lmtPrice,
+            tif='GTC' ,
+            outsideRth=True
+        )
+        OrderManager.ib.placeOrder(contract, entry)
+
+    def sell_all(symbol):
+        '''
+        Vende tutte le azioni possedute per il simbolo specificato.
+        '''
+        logger.debug(f"SELL ALL {symbol}")
+        contract = Stock(symbol, 'SMART', 'USD')
+        OrderManager.ib.qualifyContracts(contract)
+
+        # Trova la posizione corrente
+        positions = OrderManager.ib.positions()
+        position_qty = 0
+        for pos in positions:
+            if pos.contract.symbol == symbol:
+                position_qty = pos.position
+                break
+
+        if position_qty > 0:
+            # Vendi tutto a mercato
+            entry = MarketOrder(
+                action='SELL',
+                totalQuantity=position_qty
+            )
+            OrderManager.ib.placeOrder(contract, entry)
+            logger.info(f"Placed sell order for {position_qty} shares of {symbol}")
+        else:
+            logger.warning(f"No position found for {symbol} to sell")
+
+    def buy_at_level(symbol, quantity, level_price):
+        '''
+        Compra quando il prezzo raggiunge il livello specificato (ordine stop).
+        '''
+        logger.debug(f"BUY AT LEVEL {symbol} q:{quantity} level:{level_price}")
+        contract = Stock(symbol, 'SMART', 'USD')
+        OrderManager.ib.qualifyContracts(contract)
+
+        # Ordine stop di acquisto al livello di prezzo
+        entry = StopOrder(
+            action='BUY',
+            totalQuantity=quantity,
+            stopPrice=level_price,
+            tif='GTC',
+            outsideRth=True
+        )
+        OrderManager.ib.placeOrder(contract, entry)
+        logger.info(f"Placed stop buy order for {quantity} shares of {symbol} at {level_price}")
+
+    def cancel_order(permId):
+        '''
+        Cancella un ordine pendente dato il suo permId.
+        '''
+        logger.debug(f"CANCEL ORDER permId: {permId}")
+        for trade in OrderManager.ib.trades():
+            if trade.order.permId == permId:
+                OrderManager.ib.cancelOrder(trade.order)
+                logger.info(f"Cancelled order with permId {permId}")
+                return True
+        logger.warning(f"No order found with permId {permId}")
+        return False
+
+#####################################
+
 def onStatus(trade):
         print("STATUS",
             trade.orderStatus.status,

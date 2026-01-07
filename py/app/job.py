@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, HTMLResponse
 import websockets
+import time as _time
 import pandas as pd
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,time
 import time
 import logging
 from typing import List, Dict
@@ -22,6 +23,13 @@ warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
+tf_map = {
+    10 : "10s",
+    30 : "30s",
+    60 : "1m",
+    300 : "5m"
+}
+
 RETENTION_DAYS = 1
 
 def ms(ts):
@@ -35,7 +43,7 @@ def week_ago_ms():
 
 class Job:
 
-    def __init__(self,db_file, config,table_name, live_table_name):
+    def __init__(self,db_file, config,table_name):
         
         self.ready=False
         self.cache = JobCache()
@@ -44,7 +52,6 @@ class Job:
         self.tickers = {}
         self.db_file=db_file
         self.table_name=table_name
-        self.live_table_name=live_table_name
         self.liveActive=config["database"]["live"]["enabled"]
         self.last_ts = {}
         self.max_symbols=config["database"]["live"]["max_symbols"]
@@ -55,31 +62,21 @@ class Job:
 
         self.market = MarketService(config).getMarket("AUTO")
         self.marketZone = None
+
+        self.conn_exe=sqlite3.connect(db_file, isolation_level=None)
+        self.cur_exe = self.conn_exe.cursor()
+        self.cur_exe.execute("PRAGMA journal_mode=WAL;")
+        self.cur_exe.execute("PRAGMA synchronous=NORMAL;")
+
         # live feeds
-
-
-        #logger.info(f"TIMEFRAME_LEN_CANDLES {self.TIMEFRAME_LEN_CANDLES}")
-        #self.batch_client = MessageClient(MessageDatabase(db_file), "fetcher")
-        #self.batch_client = AsyncMessageClient(MessageDatabase(db_file), "fetcher")
-
-        #asyncio.create_task(self.on_receive())
-             
-        '''
-        conn = sqlite3.connect(self.db_file, isolation_level=None)
-        cur = conn.cursor()
-        cur.execute(f"""
-            DELETE FROM {self.live_table_name}
-        """)
-        conn.close()
-        '''
-        #self.update_stats()
     
     async def bootstrap(self, onStartHandler):
         uri = "ws://localhost:2000/ws/tickers"
         
         try:
             # Ci si connette al server
-            
+            await self.on_update_symbols()
+
             async with websockets.connect(uri) as websocket:
                 logger.info(f"Connesso a {uri}")
                 
@@ -87,15 +84,58 @@ class Job:
                 message = {"id": "client"}
                 await websocket.send(json.dumps(message))
                 
-                def updateTickers(new_tickers):
+                def updateTickers(new_ticker):
+                    print(new_ticker)
+                    
+                    run_time = int(_time.time() * 1000)*1000
+                    ds_run_time  = datetime.utcnow().isoformat()
+
+                    symbol = new_ticker["s"]
+                    ex = self.symbol_to_exchange_map[symbol]
+                    sql=f"""
+                          INSERT INTO ib_ohlc_history (
+                        exchange,
+                            symbol,
+                            timeframe,
+                            timestamp,
+                            open,
+                            high,
+                            low,
+                            close,
+                            base_volume,
+                            quote_volume,
+                            source,
+                            updated_at,
+                            ds_updated_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(exchange, symbol, timeframe, timestamp)
+                        DO UPDATE SET
+                            open = excluded.open,
+                            high = excluded.high,
+                            low = excluded.low,
+                            close = excluded.close,
+                            base_volume = excluded.base_volume,
+                            quote_volume = excluded.quote_volume,
+                            source = excluded.source,
+                            updated_at = excluded.updated_at,
+                            ds_updated_at = excluded.ds_updated_at
+ 
+                    """
+
+                    self.cur_exe.execute(sql,(ex,symbol,tf_map[new_ticker["tf"]],new_ticker["ts"],new_ticker["o"],
+                                              new_ticker["h"],new_ticker["l"],new_ticker["c"],
+                                               new_ticker["v"],new_ticker["v"]* new_ticker["c"] , "live",  run_time, ds_run_time))
+                    '''
                     self.tickers.clear()
                     for tick in new_tickers:
                         self.tickers[tick["symbol"]] =tick
+                    '''
 
                     #logger.debug(self.tickers)
 
                 # live on last scanner
-                
+
                 # first
                 new_tickers = await websocket.recv()
                 updateTickers(json.loads(new_tickers))
@@ -118,12 +158,6 @@ class Job:
             logger.error(f"Errore: {e}")
             exit(-1)
 
-    '''
-    async def on_receive(self):
-        while True:
-            self.batch_client.tick()
-            await asyncio.sleep(0.5)
-    '''
 
     async def send_batch(self,rest_point, msg=None):
         
@@ -146,9 +180,21 @@ class Job:
             logger.error("Errore:", response.status_code)
             return None
 
-    async def scanner(self):
-        pass
+    #########
+    async def scanner(self,profileName):
+        logger.info(f".. Scanner call {time.ctime()}")
 
+        await self.send_batch("scanner",{"name":profileName})
+        #await self.batch_client.send_request("tws_batch", {"cmd":"scanner"})
+        await self.on_update_symbols()
+        logger.info(f".. Scanner call DONE {time.ctime()}")
+
+    #########
+    
+    def live_symbols(self)->List[str]:
+        ''' get array '''
+        return  self.symbols
+    
     async def on_update_symbols(self):
         logger.info(f"UPDATE SYMBOLS ..")#MAX:{self.max_symbols}")
 
@@ -173,21 +219,130 @@ class Job:
         #    self.tickers[s] = Ticker(symbol=s)
 
         logger.info(f"LISTEN SYMBOLS {self.symbols}")
+
+        self.symbol_to_exchange_map = {}
+        for _, row in self.df_fundamentals.iterrows():
+            self.symbol_to_exchange_map[row["symbol"]] = row["exchange"]
       
 
-    def live_symbols(self)->List[str]:
-        ''' get array '''
-        return  self.symbols
+    ##############
+    async def _fetch_missing_history(self,cursor, symbol, timeframe, since):
+        #since = week_ago_ms()
 
-    def tick(self):
-       pass
-    
-    async def fetch_live_candles(self):
-       
-        pass
+        try:
+            update_delta_min = datetime.now() - datetime.fromtimestamp(float(since)/1000)
+            candles= candles_from_seconds(update_delta_min.total_seconds(),timeframe)
 
-    async def  _fetch_missing_history(self,cursor, symbol, timeframe, since):
-        pass
+            logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
+            
+            dt_start =  datetime.fromtimestamp(float(since)/1000)
+            exchange = self.symbol_to_exchange_map[symbol]
+        
+            batch_count = 500
+            i = 0
+            while ( True):
+                i=i+1
+
+                #logger.info(f"{i} ASK  {dt_start}")
+
+                ###########
+                df = yf.download(
+                    tickers=symbol,
+                    start=dt_start.strftime("%Y-%m-%d"),
+                    #period="1d",
+                    interval=timeframe,
+                    auto_adjust=False,
+                    progress=False,
+                )
+                df = df.reset_index()
+                df.columns = [
+                    c[0] if isinstance(c, tuple) else c
+                    for c in df.columns
+                ]
+                #logger.debug(df.head())      
+                dateName = "Date"
+                if not dateName in df.columns:
+                    dateName ="Datetime"
+                
+                df[dateName] = df[dateName].astype("int64") // 10**9
+
+                #logger.debug(df.head())      
+                # 3. Converti i dati in un formato leggibile (List of Dicts)
+                # util.df(bars) creerebbe un DataFrame, ma per JSON usiamo una lista
+                ohlcv =  [
+                    (b[0]*1000, b.Open, b.High, b.Low, b.Close, b.Volume)
+                        for b in df.itertuples(index=False)
+                ]
+
+                # lì'ultima è parsiale
+                ohlcv = ohlcv[:-1]
+                #print(data)
+
+                ################
+
+                logger.debug(f"{i} Find rows # {len(ohlcv)}")
+                if len(ohlcv) <1:
+                    break
+
+                last = ohlcv[-1]
+                since = last[0] + 1
+                #logger.info(f"last # {last}")
+
+                for o in ohlcv:
+                    ts, open_, high, low, close, vol = o
+                    
+                    #logger.debug(f"add {exchange} {symbol} {timeframe} {ts}")
+                    cursor.execute("""
+                INSERT INTO ib_ohlc_history (
+                        exchange,
+                        symbol,
+                        timeframe,
+                        timestamp,
+                        open,
+                        high,
+                        low,
+                        close,
+                        base_volume,
+                        quote_volume,
+                        source,
+                        updated_at,
+                        ds_updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(exchange, symbol, timeframe, timestamp)
+                    DO UPDATE SET
+                        open = excluded.open,
+                        high = excluded.high,
+                        low = excluded.low,
+                        close = excluded.close,
+                        base_volume = excluded.base_volume,
+                        quote_volume = excluded.quote_volume,
+                        source = excluded.source,
+                        updated_at = excluded.updated_at,
+                        ds_updated_at = excluded.ds_updated_at
+                    
+                                
+                    """, (
+                        exchange,
+                        symbol,
+                        timeframe,
+                        ts,
+                        open_,
+                        high,
+                        low,
+                        close,
+                        vol,
+                        vol * close,
+                        "yahoo",
+                        int(time.time() * 1000),
+                        datetime.utcnow().isoformat()
+                    ))
+        
+                    
+                    cursor.commit()
+                break
+        except:
+            logger.error("ERROR", exc_info=True)
 
     async def _align_data(self, symbol, timeframe):
         if not self.historyActive:
@@ -196,12 +351,6 @@ class Job:
         try:
             #logger.info(f"align_data {symbol} {timeframe}")
 
-            query_min = f"""
-                SELECT min(timestamp) as min
-                FROM {self.table_name}
-                WHERE symbol = ? and timeframe=? and source == 'live'
-                """
-        
             query_max = f"""
                 SELECT max(timestamp) as max
                 FROM {self.table_name}
@@ -214,7 +363,7 @@ class Job:
             if True:
                     max_dt=None
                     update = False
-                    df_min = pd.read_sql_query(query_min, conn, params= (symbol, timeframe))
+                    #df_min = pd.read_sql_query(query_min, conn, params= (symbol, timeframe))
                     df_max = pd.read_sql_query(query_max, conn, params= (symbol, timeframe))
                     #print(df)
                     if df_max.iloc[0]["max"]:
@@ -326,86 +475,11 @@ class Job:
         df = df.iloc[::-1].reset_index(drop=True)
         conn.close()     
         return df
-    
-    async def history_at_time_NOT_USED(self, timeframe, datetime):
-        await self._align_data(timeframe)
-        #sql_pairs = str(pairs)[1:-1]
 
-        query = f"""
-            SELECT *
-            FROM {self.table_name}
-            WHERE timestamp >= ? and timestamp < ? AND timeframe=?
-            """
+
         
-        #datetime_after =  + timedelta(minutes=1)
-        delta = timeframe_to_milliseconds(timeframe)
-
-        unix_from = int(datetime.timestamp()) * 1000
-        unix_to= unix_from+delta
-
-       # logger.info(f"history_at_time -{sql_pairs}- {unix_from} {unix_to}")
-
-        conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(query, conn, params= (unix_from,unix_to,timeframe))
-        conn.close()     
-        return df
-    
-    def last_price(self,symbol: str)-> float:
-        df = self.get_df(f"""
-                SELECT close 
-                FROM ib_ohlc_live
-                WHERE symbol='{symbol}' AND timeframe='1m'
-                ORDER BY timestamp DESC
-                LIMIT 1
-            """)
-        
-        if len(df)>0:
-            return  df.iloc[0][0]
-        else:
-            return 0
-        
-    def last_close(self,symbol: str)-> float:
-
-        ieri_mezzanotte = (
-                (datetime.now()
-                - timedelta(days=1))
-                .replace(hour=23, minute=59, second=59, microsecond=0)
-                
-            )
-        unix_time = int(ieri_mezzanotte.timestamp()) * 1000
-        print("Last close time ", unix_time)
-        df = self.get_df(f"""
-                SELECT close 
-                FROM ib_ohlc_live
-                WHERE symbol='{symbol}' AND timeframe='1m'
-                AND timestamp < {unix_time}
-                ORDER BY timestamp DESC
-                LIMIT 1
-            """)
-        
-        if len(df)>0:
-            return  df.iloc[0][0]
-        else:
-            return 0
-    
     #######################
 
-    async def updateTickers(self):
-        self.tickers.clear()
-        new_tickers = await self.send_batch("tickers")
-        #logger.debug(tickers)
-        for tick in new_tickers:
-            self.tickers[tick["symbol"]] =tick
-
-        #self.updateTicker()
-    
-    '''
-    def updateTicker(self,ticker:Ticker):
-        if ticker.symbol in self.tickers:
-            self.tickers[ticker.symbol].copy(ticker)
-        else:
-            self.tickers[ticker.symbol] = ticker
-        '''
     def getTicker(self,symbol):
         if symbol in self.tickers:
             return self.tickers[symbol]

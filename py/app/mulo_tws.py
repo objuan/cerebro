@@ -648,7 +648,7 @@ async def get_news(symbol, start: Optional[str] = None):
     return {"status": "ok" , "data": list}
 
 ####################
-
+# no nsi ferma ?????
 @app.get("/order/limit")
 async def do_limit_order(symbol, qty,price):
     try:
@@ -657,7 +657,25 @@ async def do_limit_order(symbol, qty,price):
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
+    
+@app.get("/order/buy_at_level")
+async def do_limit_order(symbol, qty,price):
+    try:
+        OrderManager.buy_at_level(symbol, qty,price)
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
 
+@app.get("/order/sell/all")
+async def do_sell_order(symbol):
+    try:
+        OrderManager.sell_all(symbol)
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
 @app.get("/order/list")
 async def get_orders(start: Optional[str] = None):
     if not start:
@@ -686,6 +704,18 @@ async def get_orders(start: Optional[str] = None):
         data = [dict(zip(columns, row)) for row in rows]
         
         return {"status": "ok", "data": data}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.get("/order/cancel")
+async def cancel_order(permId: int):
+    try:
+        result = OrderManager.cancel_order(permId)
+        if result:
+            return {"status": "ok", "message": f"Order with permId {permId} cancelled"}
+        else:
+            return {"status": "error", "message": f"No order found with permId {permId}"}
     except Exception as e:
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
@@ -843,7 +873,7 @@ if __name__ =="__main__":
                         close_p = prices[-1]
                         high = max(prices)
                         low = min(prices)
-                        data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":start_time  }
+                        data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":int(start), "dts":start_time  }
 
                         pack = f"o:{open_p:.2f} h:{high:.2f} l:{low:.2f} c:{close_p:.2f} v:{vol_diff:.0f} ({start_time}, {time_str})"
                     else:
@@ -858,7 +888,7 @@ if __name__ =="__main__":
                         if toSend:
                             live_send_key[key]=pack
 
-                            logger.info(f"SEND {data}")
+                            #logger.info(f"SEND {data}")
 
                             await ws_manager.broadcast(data)
 
@@ -868,7 +898,7 @@ if __name__ =="__main__":
                 table.add_row(symbol, f"{ticker.last:.6f}", f"{ticker.ask:.6f}", f"{ticker.bid:.6f}", hls[0], hls[1], hls[2], hls[3])
                 data = sanitize(data)
 
-                #live_display.update(table)
+                live_display.update(table)
 
             server_task = asyncio.create_task(server.serve())
              #_tick_candles = asyncio.create_task(tick_candles())
