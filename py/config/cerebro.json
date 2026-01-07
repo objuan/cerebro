@@ -39,9 +39,8 @@
 						"name" : "TOP_PERC_GAIN",
 						"instrument": "STK",
 						"location": "STK.NASDAQ",
-						"type1": "TOP_PERC_GAIN",
-						"type": "HIGH_OPEN_GAP",
-						"type22": "HIGH_PRICE|MOST_ACTIVE",
+						"type": "TOP_PERC_GAIN",
+						"type22": "HIGH_PRICE|MOST_ACTIVE|HIGH_OPEN_GAP|TOP_PERC_GAIN",
 						
 						"filter": 
 						{

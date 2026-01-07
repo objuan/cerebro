@@ -94,6 +94,8 @@ class Job:
 
                     #logger.debug(self.tickers)
 
+                # live on last scanner
+                
                 # first
                 new_tickers = await websocket.recv()
                 updateTickers(json.loads(new_tickers))

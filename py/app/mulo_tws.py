@@ -34,6 +34,7 @@ from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
 from renderpage import WSManager
+from order import OrderManager
 
 use_yahoo=False
 
@@ -48,36 +49,11 @@ config = convert_json(config)
 ib = IB()
 ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
 
-print("-----------")
-'''
-newsProviders = ib.reqNewsProviders()
-print("News providers:", newsProviders)
-codes = 'BRFG'  # Use Briefing for full articles
-#codes = '+'.join(np.code for np in newsProviders)
-
-amd = Stock('AIR', 'SMART', 'USD')
-ib.qualifyContracts(amd)
-headlines = ib.reqHistoricalNews(amd.conId, codes, '', '', 10)
-for new in headlines:
-    print("Headline:", new.headline)
-    article = ib.reqNewsArticle(new.providerCode, new.articleId)
-    print("Article length:", len(article))
-    print("Article start:", article[:200])  # Print first 200 chars
-    print("Full article:", repr(article))  # To see if it's truncated
-
-exit()
-
-print("-----------")
-
-'''
-
+OrderManager(ib)
 # Subscribe to news bulletins
 ib.reqNewsBulletins(allMessages=True)
 
 #print(ib.newsBulletins())
-
-
-
 
 def on_news_bulletin(newsBulletin):
     logger.info(f"NEWS BULLETIN {newsBulletin}")
@@ -108,6 +84,7 @@ DB_TABLE = "ib_ohlc_live"
 ms = MarketService(config)          # o datetime.now()
 market = ms.getMarket("AUTO")
 symbols = []
+live_send_key={}
 
 app = FastAPI(  )
 
@@ -472,20 +449,18 @@ async def manage_live( symbol_list_add, symbol_list_remove):
             market_data = ib.reqMktData(contract)
             amd = Stock(symbol, 'SMART', 'USD')
 
-            list = ib.reqRealTimeBars(amd,5,"TRADES",False)
-
-            logger.info(f"list {list}")
-
             #news
-            '''
-            amd = Stock(symbol, 'SMART', 'USD')
-            headlines = ib.reqHistoricalNews(amd.conId, codes, '', '', 10)
+            yesterday = datetime.now() - timedelta(days=1)
+            startDateTime = yesterday.strftime('%Y%m%d %H:%M:%S'),
+
+            headlines = ib.reqHistoricalNews(amd.conId, "BRFG+BRFUPDN+FLY",startDateTime, '', 10)
+            logger.info(f"-----> {headlines}")
             if len(headlines)>0:
                 latest = headlines[0]
                 print("-------",latest)
                 article = ib.reqNewsArticle(latest.providerCode, latest.articleId)
                 print("-------",article)
-            '''
+            
 
         tickers[symbol]  = market_data
 
@@ -647,6 +622,73 @@ async def get_tickers():
     #logger.info(data)
     return {"status": "ok" , "data": data}
 
+@app.get("/news")
+async def get_news(symbol, start: Optional[str] = None):
+
+    amd = Stock(symbol, 'SMART', 'USD')
+    ib.qualifyContracts(amd)
+
+    if not start:
+        yesterday = datetime.now() - timedelta(minutes=1)
+        startDateTime = yesterday.strftime('%Y%m%d %H:%M:%S'),
+    else:
+        startDateTime=start
+
+    headlines = ib.reqHistoricalNews(amd.conId, "BRFG+BRFUPDN+FLY", startDateTime, '', 10)
+    list=[]
+    for new in headlines:
+        #print("Headline:", new.headline)
+        article = ib.reqNewsArticle(new.providerCode, new.articleId)
+        list.append(article)
+        #print("Article length:", len(article))
+        #print("Article start:", article[:200])  # Print first 200 chars
+        #print("Full article:", repr(article))  # To see if it's truncated
+
+    #logger.info(data)
+    return {"status": "ok" , "data": list}
+
+####################
+
+@app.get("/order/limit")
+async def do_limit_order(symbol, qty,price):
+    try:
+        OrderManager.order_limit(symbol, qty,price)
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+
+@app.get("/order/list")
+async def get_orders(start: Optional[str] = None):
+    if not start:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        start = today_start.isoformat().replace("T"," ")
+    try:
+        # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
+        query = """
+        SELECT * FROM ib_orders 
+        WHERE id IN (
+            SELECT MAX(id) FROM ib_orders 
+            WHERE timestamp >= ? 
+            GROUP BY trade_id
+        )
+        ORDER BY timestamp DESC
+        """
+        cur.execute(query, (start,))
+        rows = cur.fetchall()
+
+        logger.info(f"get orders {start}")
+        
+        # Ottieni i nomi delle colonne
+        columns = [desc[0] for desc in cur.description]
+        
+        # Converti in lista di dizionari
+        data = [dict(zip(columns, row)) for row in rows]
+        
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
     
 ####################
 
@@ -758,12 +800,12 @@ if __name__ =="__main__":
                         #data=[]
                         for symbol, ticker in tickers.items():
                             if ticker.time and not math.isnan(ticker.last):
-                                add_ticker(symbol,ticker)
+                                await add_ticker(symbol,ticker)
                     except:
                         logger.error("ERR", exc_info=True)
                     await asyncio.sleep(0.1)
 
-            def add_ticker(symbol,ticker):
+            async def add_ticker(symbol,ticker):
                 #logger.info(f"!!!!!!! {symbol} ticker {ticker}")
                 data=[]
                 table = Table("Symbol", "Last", "Ask", "Bid", "10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
@@ -782,39 +824,61 @@ if __name__ =="__main__":
 
                 # Compute OHLC for each interval
                 hls = []
+                toSend=True
                 for interval in intervals:
-                                    start = ts - (ts % interval)
-                                    prices = [p for t, p, v in ticker_history[symbol] if t >= start]
-                                    volumes = [v for t, p, v in ticker_history[symbol] if t >= start]
-                                    start_time = datetime.fromtimestamp(start).strftime("%H:%M:%S")
-                                    remaining = interval - (ts % interval)
-                                    time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
-                                    vol_diff = volumes[-1] - volumes[0] if len(volumes) >= 2 else 0#(volumes[0] if volumes else 0)
-                                    if not use_yahoo: 
-                                        vol_diff=vol_diff*100
-                                    if prices:
-                                        open_p = prices[0]
-                                        close_p = prices[-1]
-                                        high = max(prices)
-                                        low = min(prices)
-                                        hls.append(f"o:{open_p:.2f} h:{high:.2f} l:{low:.2f} c:{close_p:.2f} v:{vol_diff:.0f} ({start_time}, {time_str})")
-                                    else:
-                                        hls.append(f"- ({start_time}, {time_str})")
+                    start = ts - (ts % interval)
+                    start_time = datetime.fromtimestamp(start).strftime("%H:%M:%S")
+
+                    prices = [p for t, p, v in ticker_history[symbol] if t >= start]
+                    volumes = [v for t, p, v in ticker_history[symbol] if t >= start]
+                    
+                    remaining = interval - (ts % interval)
+                    time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
+                    
+                    vol_diff = volumes[-1] - volumes[0] if len(volumes) >= 2 else 0#(volumes[0] if volumes else 0)
+                    if not use_yahoo: 
+                        vol_diff=vol_diff*100
+                    if prices:
+                        open_p = prices[0]
+                        close_p = prices[-1]
+                        high = max(prices)
+                        low = min(prices)
+                        data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":start_time  }
+
+                        pack = f"o:{open_p:.2f} h:{high:.2f} l:{low:.2f} c:{close_p:.2f} v:{vol_diff:.0f} ({start_time}, {time_str})"
+                    else:
+                        pack = f"- ({start_time}, {time_str})"
+
+                    key = symbol+str(interval)
+
+                    if prices:
+                        if key in live_send_key:
+                            toSend = live_send_key[key] != pack
+
+                        if toSend:
+                            live_send_key[key]=pack
+
+                            logger.info(f"SEND {data}")
+
+                            await ws_manager.broadcast(data)
+
+                    hls.append(pack)
 
                 #data.append({"symbol": symbol, "last": ticker.last, "bid": ticker.bid, "ask": ticker.ask, "low": ticker.low, "high": ticker.high, "volume": ticker.volume*100, "ts": ticker.time.timestamp()})
                 table.add_row(symbol, f"{ticker.last:.6f}", f"{ticker.ask:.6f}", f"{ticker.bid:.6f}", hls[0], hls[1], hls[2], hls[3])
                 data = sanitize(data)
-                live_display.update(table)
+
+                #live_display.update(table)
 
             server_task = asyncio.create_task(server.serve())
              #_tick_candles = asyncio.create_task(tick_candles())
             
           
             async def yahoo_tick_tickers():
-                def message_handler(message):
+                async def message_handler(message):
                     #print("Received message from YAHOO:", message)
                     t = Ticker(last= message["price"], volume= int(message["day_volume"]), time=int(message["time"]), ask=0, bid=0 )
-                    add_ticker(message["id"],t)
+                    await add_ticker(message["id"],t)
                 print("1")
                 await  ws_yahoo.listen(message_handler)
                 print("2")

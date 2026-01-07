@@ -125,3 +125,24 @@ cur.execute("""
         PRIMARY KEY(ts_exec)
         )
     """)
+
+
+# Crea la tabella ib_orders se non esiste
+cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trade_id TEXT,
+    symbol TEXT,
+    action TEXT,
+    quantity INTEGER,
+    price REAL,
+    status TEXT,
+    filled REAL DEFAULT 0.0,
+    remaining REAL DEFAULT 0.0,
+    event_action TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)''')
+
+cur.execute("""
+    CREATE INDEX IF NOT EXISTS ib_ib_orders
+        ON ib_orders(trade_id)
+    """)

@@ -322,7 +322,6 @@ async def get_timeseries(symbol: str,interval: str,outputsize: str):
 
 ####################
 
-
 ws_manager = WSManager()
 
 render_page = RenderPage(ws_manager)
