@@ -30,18 +30,19 @@
 			"scanner":
 			{
 				"enabled" : false,
-				"offline_mode" : true,
+				"offline_mode" : false,
 				"update_time" : "10m" ,
 				"debug_symbols" : ["SOPA","FANG"],
 				"profiles": 
 				[
 					{
-						"name" : "LIVE",
+						"name" : "TOP_PERC_GAIN",
 						"instrument": "STK",
 						"location": "STK.NASDAQ",
 						"type1": "TOP_PERC_GAIN",
 						"type": "HIGH_OPEN_GAP",
-						"type22": "HIGH_PRICE",
+						"type22": "HIGH_PRICE|MOST_ACTIVE",
+						
 						"filter": 
 						{
 							"abovePrice": 1,
@@ -56,6 +57,20 @@
 						"instrument": "STK",
 						"location": "STK.NASDAQ",
 						"type": "TOP_PERC_GAIN",
+						"filter": 
+						{
+							"abovePrice": 1,
+							"belowPrice": 10000,
+							"aboveVolume": 10,
+							"usdVolumeBelow": 10,
+							"marketCapAbove" : 1000
+						}
+					},
+					{
+						"name" : "MOST_ACTIVE",
+						"instrument": "STK",
+						"location": "STK.NASDAQ",
+						"type": "MOST_ACTIVE",
 						"filter": 
 						{
 							"abovePrice": 1,
