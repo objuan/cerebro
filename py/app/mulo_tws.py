@@ -35,8 +35,11 @@ from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
 from renderpage import WSManager
 from order import OrderManager
+from mulo_job import MuloJob
 
 use_yahoo=False
+
+DB_TABLE = "ib_ohlc_live"
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -45,6 +48,7 @@ with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     config = json.load(f)
 config = convert_json(config)
 
+fetcher = MuloJob(DB_FILE,config)
 
 ib = IB()
 ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
@@ -57,6 +61,7 @@ ib.reqNewsBulletins(allMessages=True)
 
 def on_news_bulletin(newsBulletin):
     logger.info(f"NEWS BULLETIN {newsBulletin}")
+    '''
     asyncio.create_task(ws_manager.broadcast({
         "type": "news_bulletin",
         "msgId": newsBulletin.msgId,
@@ -64,9 +69,11 @@ def on_news_bulletin(newsBulletin):
         "newsMessage": newsBulletin.newsMessage,
         "originExch": newsBulletin.originExch
     }))
+    '''
 
 def on_news_events(newsBulletin):
     logger.info(f"NEWS EVT {newsBulletin}")
+    '''
     asyncio.create_task(ws_manager.broadcast({
         "type": "news",
         "msgId": newsBulletin.msgId,
@@ -74,12 +81,11 @@ def on_news_events(newsBulletin):
         "newsMessage": newsBulletin.newsMessage,
         "originExch": newsBulletin.originExch
     }))
+    '''
 
 
 ib.newsBulletinEvent += on_news_bulletin
 ib.tickNewsEvent += on_news_events
-
-DB_TABLE = "ib_ohlc_live"
 
 ms = MarketService(config)          # o datetime.now()
 market = ms.getMarket("AUTO")
@@ -220,6 +226,7 @@ def update_ohlc(conindex,symbol, exchange,price,bid,ask, volume, ts_ms, trade_mo
 
 
 ############################
+        
 
 def display_with_stock_symbol(scanData):
     df = util.df(scanData)
@@ -409,6 +416,7 @@ async def do_scanner(config,name, max_symbols):
     
                 items.append(new_row)
 
+            
             #print(items)
             df = pd.DataFrame(
                 [(o["symbol"], o["conid"], o["listing_exchange"]) for o in items],
@@ -455,7 +463,7 @@ async def manage_live( symbol_list_add, symbol_list_remove):
 
             headlines = ib.reqHistoricalNews(amd.conId, "BRFG+BRFUPDN+FLY",startDateTime, '', 10)
             logger.info(f"-----> {headlines}")
-            if len(headlines)>0:
+            if headlines and len(headlines)>0:
                 latest = headlines[0]
                 print("-------",latest)
                 article = ib.reqNewsArticle(latest.providerCode, latest.articleId)
@@ -476,6 +484,16 @@ async def manage_live( symbol_list_add, symbol_list_remove):
         del  tickers[symbol]
         
     logger.info(f"tickers {tickers}")
+
+    ###
+    offline_mode = config["database"]["scanner"]["offline_mode"]
+    symbols=[]
+    for symbol, ticker  in tickers.items():
+        if (ticker.time  and  not math.isnan(ticker.last)) or offline_mode:
+            symbols.append(symbol)
+
+    await fetcher.on_update_symbols(symbols)
+
 
 def on_news(symbol, news_list):
     for news in news_list:
@@ -568,7 +586,7 @@ async def scanner(name:str, start: Optional[int] = None, end: Optional[int] = No
         return {"status": "ok","data" : df_symbols.to_dict('records') if df_symbols is not None else []}
     except:
         logger.error("ERROR", exc_info=True)
-        return {"status": "ko"}
+        return {"status": "error"}
 
 @app.get("/live")
 async def do_live( symbols: str ):
@@ -760,6 +778,28 @@ async def ws_tickers(ws: WebSocket):
 
 ##################################################
 
+async def bootstrap():
+    # start live ?? 
+    df = pd.read_sql_query("""SELECT * FROM ib_scanner
+        WHERE ts_exec = (
+            SELECT MAX(ts_exec) FROM ib_scanner 
+        )
+        ORDER BY pos ASC""",conn)
+    if len(df)>0:
+        max_symbols=config["database"]["live"]["max_symbols"]
+
+        df = df [:max_symbols]
+        symbols =  df["symbol"].tolist()
+
+        logger.info(f"START OLD LIVE {symbols}")
+        filter = str(symbols)[1:-1]
+
+        df_symbols = pd.read_sql_query(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})",conn)
+        
+        await updateLive(config,df_symbols )
+
+#############   
+
 if __name__ =="__main__":
 
     #############
@@ -805,24 +845,7 @@ if __name__ =="__main__":
             )
             server = uvicorn.Server(u_config)
 
-            async def tick_candles():
-                global trade_mode
-                global last_stats
-                global agg_cache
-                while True:
-                    try:
-                        if market.getCurrentZone() != trade_mode:
-                            trade_mode = market.getCurrentZone()
-                            logger.info(f"TRADE MODE CHANGED {trade_mode}")
-                            last_stats = {}
-                            agg_cache = {}
-
-                      
-                        
-                    except:
-                        logger.error("ERR", exc_info=True)
-                    await asyncio.sleep(0.5)
-
+        
             async def tick_tickers():
                 while True:
                     try:
@@ -873,7 +896,7 @@ if __name__ =="__main__":
                         close_p = prices[-1]
                         high = max(prices)
                         low = min(prices)
-                        data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":int(start), "dts":start_time  }
+                        data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":int(start)*1000, "dts":start_time  }
 
                         pack = f"o:{open_p:.2f} h:{high:.2f} l:{low:.2f} c:{close_p:.2f} v:{vol_diff:.0f} ({start_time}, {time_str})"
                     else:
@@ -889,7 +912,7 @@ if __name__ =="__main__":
                             live_send_key[key]=pack
 
                             #logger.info(f"SEND {data}")
-
+                            await fetcher.db_updateTicker(data)
                             await ws_manager.broadcast(data)
 
                     hls.append(pack)
@@ -898,11 +921,9 @@ if __name__ =="__main__":
                 table.add_row(symbol, f"{ticker.last:.6f}", f"{ticker.ask:.6f}", f"{ticker.bid:.6f}", hls[0], hls[1], hls[2], hls[3])
                 data = sanitize(data)
 
-                live_display.update(table)
+                #live_display.update(table)
 
             server_task = asyncio.create_task(server.serve())
-             #_tick_candles = asyncio.create_task(tick_candles())
-            
           
             async def yahoo_tick_tickers():
                 async def message_handler(message):
@@ -917,6 +938,8 @@ if __name__ =="__main__":
                 _tick_tickers = asyncio.create_task(yahoo_tick_tickers())
             else:
                 _tick_tickers = asyncio.create_task(tick_tickers())
+
+            await bootstrap()
 
             await asyncio.wait(
                 [server_task, _tick_tickers],

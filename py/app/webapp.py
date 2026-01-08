@@ -18,9 +18,10 @@ import shutil
 
 from utils import *
 #from job_binance import *
-from job_ibroker import *
+#from job_ibroker import *
 #from ib_insync import IB,util
 from layout import *
+from mulo_client import MuloClient
 
 #if sys.platform == 'win32':
     #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -99,11 +100,12 @@ logging.getLogger("websockets").setLevel(logging.WARNING)
 
 #############
 
-#fetcher = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
+client = MuloClient("../"+DB_FILE,config)
+#fetchclienter = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
 
-fetcher = IBrokerJob(None,"../"+DB_FILE,config)
+#fetcher = IBrokerJob(None,"../"+DB_FILE,config)
 
-db = DBDataframe(config,fetcher)
+db = DBDataframe(config,client)
 
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
 if sys.platform == 'win32':
@@ -148,7 +150,7 @@ async def lifespan(app: FastAPI):
             job_db=  asyncio.create_task(db.bootstrap())
             live_task = asyncio.create_task(live_loop())
           
-        job_task = asyncio.create_task(fetcher.bootstrap(on_job_started))
+        job_task = asyncio.create_task(client.bootstrap(on_job_started))
         
        
         #thread_h = asyncio.create_task(hourly_task())
@@ -235,16 +237,17 @@ async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
 
 
         if True:
-            df = fetcher.get_df("""
+            '''
+            df = client.get_df("""
             SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
                 FROM ib_ohlc_history
                 WHERE symbol=? AND timeframe=?
                 ORDER BY timestamp ASC
                 LIMIT ?
             """, (symbol, timeframe, limit))
-            
+            '''
 
-            df = await fetcher.ohlc_data(symbol,timeframe,limit)
+            df = await client.ohlc_data(symbol,timeframe,limit)
          
             logger.debug(f"!!!!!!!!!!!! chart {df}")
         
@@ -273,8 +276,7 @@ def ohlc_chart(name: str):
 
 @app.get("/api/symbols")
 def get_symbols(limit: int = 1000):
-    symbols = fetcher.live_symbols()
-    print(symbols)
+    symbols = client.live_symbols()
     return JSONResponse({"symbols":symbols})
 
 ##############################
@@ -285,14 +287,14 @@ def get_price(symbol: str):
   
     print("get_price", symbol)
 
-    return JSONResponse({"symbol":symbol,  "price":fetcher.last_price(symbol)})
+    return JSONResponse({"symbol":symbol,  "price":client.last_price(symbol)})
 
 
 @app.get("/api/quote")
 async def get_quote(symbol: str):
   
-    last_price = fetcher.last_price(symbol)
-    last_close = fetcher.last_close(symbol)
+    last_price = client.last_price(symbol)
+    last_close = client.last_close(symbol)
     print(last_price,last_close)
     if last_close!=0:
         perc = ((last_price- last_close) / last_close) * 100
@@ -312,7 +314,7 @@ async def get_timeseries(symbol: str,interval: str,outputsize: str):
     #return JSONResponse({"symbol":symbol,"values":[0,0,0,0,0]}) 
     timeframe = DECODE_INTERVAL[interval]
     limit = outputsize
-    df = await fetcher.ohlc_data(symbol,timeframe,limit)
+    df = await client.ohlc_data(symbol,timeframe,limit)
     if len(df)>0:
         #logger.info(df)
         return JSONResponse({"symbol":symbol,"values":df["c"].tolist()})    
@@ -325,7 +327,7 @@ async def get_timeseries(symbol: str,interval: str,outputsize: str):
 ws_manager = WSManager()
 
 render_page = RenderPage(ws_manager)
-layout = Layout(fetcher,db,config)
+layout = Layout(client,db,config)
 layout.read(DEF_LAYOUT)
 
 #layout.setDefault()
@@ -382,14 +384,14 @@ async def live_loop():
             
             #await ws_manager.broadcast(msg)
 
-            
+            '''
             if fetcher.marketZone:
                 msg = {
                     "path": "root.tz",
                     "data": MZ_TABLE[fetcher.marketZone]
                 }
                 #await ws_manager.broadcast(msg)
-
+            '''
             '''
             msg1 = {
                 "type": "price_update",

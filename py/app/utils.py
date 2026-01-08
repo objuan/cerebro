@@ -9,6 +9,7 @@ logger = logging.getLogger()
 TIMEFRAME_SECONDS = {
     "1s": 1,
     "5s": 5,
+    "10s": 10,
     "15s": 15,
     "30s": 30,
     "1m": 60,
@@ -234,3 +235,22 @@ def sanitize(obj):
 def floor_ts(ts_ms, sec):
     # ritorna in ms
     return (ts_ms // (sec*1000)) * (sec*1000)
+
+
+class MyEvent:
+    def __init__(self):
+        self._handlers = []
+
+    def __iadd__(self, handler):
+        if handler not in self._handlers:
+            self._handlers.append(handler)
+        return self
+
+    def __isub__(self, handler):
+        if handler in self._handlers:
+            self._handlers.remove(handler)
+        return self
+
+    def __call__(self, *args, **kwargs):
+        for handler in self._handlers:
+            handler(*args, **kwargs)

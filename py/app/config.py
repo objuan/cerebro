@@ -7,6 +7,7 @@ CONFIG_FILE = "config/cerebro.json"
 TIMEFRAME_UPDATE_SECONDS = {
     "1s": 1,
     "5s": 5,
+    "10s": 10,
     "15s": 15,
     "30s": 30,
     "1m": 5,
@@ -22,6 +23,7 @@ TIMEFRAME_UPDATE_SECONDS = {
 TIMEFRAME_LEN_CANDLES = {
     "1s": 1,
     "5s": 5,
+    "10s": 10*6* 30,
     "15s": 15,
     "30s": 30,
     "1m": 60*24*4,# 2 gg

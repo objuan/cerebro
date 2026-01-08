@@ -8,27 +8,27 @@ from report import *
 from renderpage import RenderPage
 #from config import TIMEFRAME_UPDATE_SECONDS,TIMEFRAME_LEN_CANDLES
 from utils import AsyncScheduler
+from mulo_client import MuloClient
 
 # si autoaggiorna ogni tot
 
 class DBDataframe_SymbolTimeFrame:
-    def __init__(self,fetcher,symbol,timeframe):
+    def __init__(self,symbol,timeframe):
         self.symbol=symbol
-        self.fetcher=fetcher
         self.timeframe = timeframe
         self.lastTime = datetime.now()
 
     def tick(self):
-        if (datetime.now() - self.lastTime  > timedelta(seconds= self.fetcher.TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
-            #logger.info(f"Update {self.symbol} {self.timeframe}")
-            self.lastTime = datetime.now()
+        pass
+        #if (datetime.now() - self.lastTime  > timedelta(seconds= self.fetcher.TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
+        #    #logger.info(f"Update {self.symbol} {self.timeframe}")
+        #    self.lastTime = datetime.now()
 
 ######################################
 
 class DBDataframe_Symbol:
-    def __init__(self,fetcher,symbol):
+    def __init__(self,symbol):
         self.symbol=symbol
-        self.fetcher=fetcher
         self.map = {}
      
     def tick(self):
@@ -37,29 +37,34 @@ class DBDataframe_Symbol:
 
     def df(self, timeframe) -> DBDataframe_SymbolTimeFrame:
         if not timeframe in map :
-            map[timeframe] = DBDataframe_SymbolTimeFrame(self.fetcher,self.symbol,timeframe)
+            map[timeframe] = DBDataframe_SymbolTimeFrame(self.symbol,timeframe)
         return map[timeframe].df
 
 ######################################
 
 class DBDataframe_TimeFrame:
-    def __init__(self,fetcher,timeframe):
-        self.symbols=fetcher.live_symbols()
-        self.fetcher=fetcher
+    def __init__(self,config,client : MuloClient,timeframe):
+        #self.symbols=fetcher.live_symbols()
         self.timeframe = timeframe
+        self.client=client
         self.lastTime = datetime.now()
         self.last_timestamp=None
         self.df=None
+        
+        self.TIMEFRAME_UPDATE_SECONDS =config["logic"]["TIMEFRAME_UPDATE_SECONDS"]  
+        self.TIMEFRAME_LEN_CANDLES =config["logic"]["TIMEFRAME_LEN_CANDLES"]  
+
+        self.client.on_symbols_update += self.on_update_symbols
        #self.update_symbols()
         #self.update()
 
     async def bootstrap(self):
         # load symbols
-        await self.on_update_symbols()
+        await self.on_update_symbols(self.client.live_symbols())
         await self.update()
 
     async def tick(self):
-        if (datetime.now() - self.lastTime  > timedelta(seconds= self.fetcher.TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
+        if (datetime.now() - self.lastTime  > timedelta(seconds= self.TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
             #logger.info(f"Update  {self.timeframe}")
             await self.update()
             self.lastTime = datetime.now()
@@ -68,15 +73,16 @@ class DBDataframe_TimeFrame:
         pass
         #df['datetime_local'] = (pd.to_datetime(df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
 
-    async def on_update_symbols(self):
-        self.symbols=self.fetcher.live_symbols()
+    async def on_update_symbols(self, symbols):
+        logger.info(f"DB reset symbols {symbols}")
+        self.symbols=symbols
 
     async def update(self):
      
         #logger.info(f"---- DF UPDATE ------- {self.timeframe}")
 
         if not self.last_timestamp:
-            self.df = await self.fetcher.history_data(self.symbols , self.timeframe , limit= 999999 )
+            self.df = await self.client.history_data(self.symbols , self.timeframe , limit= 999999 )
 
             #logger.debug(f"GETTING HISTORY {self.symbols} {self.df }")
             #print(self.df)
@@ -88,10 +94,10 @@ class DBDataframe_TimeFrame:
             
             
         else:            
-            #logger.info(f"UPDATE {self.timeframe} last_timestamp {self.last_timestamp}")
-            new_df = await self.fetcher.history_data(self.symbols , self.timeframe ,since = self.last_timestamp, limit= 9999)
+            logger.info(f"UPDATE {self.timeframe} last_timestamp {self.last_timestamp}")
+            new_df = await self.client.history_data(self.symbols , self.timeframe ,since = self.last_timestamp- timeframe_to_milliseconds(self.timeframe)*2, limit= 9999)
              
-            #print( "NEW ",new_df)
+            logger.info( f"NEW \n{new_df.head()}")
             
             self.df = pd.concat([self.df, new_df], ignore_index=True)
 
@@ -116,7 +122,7 @@ class DBDataframe_TimeFrame:
             #self.df .sort_values("timestamp")
 
             # tieni solo gli ultimi N arrivi
-            self.df = self.df.tail(self.fetcher.TIMEFRAME_LEN_CANDLES[self.timeframe] * len(self.symbols)).reset_index(drop=True)
+            self.df = self.df.tail(self.TIMEFRAME_LEN_CANDLES[self.timeframe] * len(self.symbols)).reset_index(drop=True)
 
             self.set_indicators(self.df)
 
@@ -134,26 +140,29 @@ class DBDataframe_TimeFrame:
         else:
             cp =  self.df.copy()
             return cp[cp["symbol"]== symbol]
+            
+    def dump(self,symbol=""):
+        return f"{self.dataframe(symbol)}"
     
 ################################################################
 
 class DBDataframe:
-    def __init__(self,config, fetcher):
+    def __init__(self,config,client):
         #self.symbols=fetcher.live_symbols()
-        self.fetcher=fetcher
+        self.client=client
         self.config=config["database"]
         self.map = {}
         #self.scheduler = Scheduler()
 
         #self.scheduler.schedule_every( self.config["scanner"]["update_time"], self.update_scanner)
     
-    async def update_scanner(self):
+    
+    async def task_update_scanner(self):
         if self.config["scanner"]["enabled"]:
-            #logger.info(f"update_scanner {self}! {time.ctime()}")
+            logger.info(f"update_scanner {self}! {time.ctime()}")
 
-            await self.fetcher.scanner()
-            
-
+            #await self.fetcher.scanner()
+           
     async def bootstrap(self):
         logger.info(f"DB BOOTSTRAP")
         try:
@@ -163,13 +172,17 @@ class DBDataframe:
             #    yield
 
             logger.info(f"DB BOOTSTRAP READY")
-            self.scheduler = AsyncScheduler()
-            self.scheduler.schedule_every( self.config["scanner"]["update_time"], self.update_scanner)
 
+            
+            self.scheduler = AsyncScheduler()
+            self.scheduler.schedule_every( self.config["scanner"]["update_time"], self.task_update_scanner)
+
+            '''
             if self.config["scanner"]["enabled"]:
                 await self.update_scanner()
             else:
                 await self.fetcher.on_update_symbols()
+            '''
             
             #leggo dal db l'esistente
             await self.db_dataframe("1m").bootstrap()
@@ -179,15 +192,17 @@ class DBDataframe:
             logger.error("BOOT ERROR" , exc_info=True)
 
     async def tick(self):
-       #print(self.db)
-       await self.scheduler.tick()
+       
+        await self.scheduler.tick()
 
-       for x,v in self.map.items():
+        for x,v in self.map.items():
             await v.tick()
+
+        print(self.db_dataframe("1m").dump("VTYX"))
 
     def db_dataframe(self,timeframe)-> DBDataframe_TimeFrame:
         if not timeframe in self.map :
-            self.map[timeframe] = DBDataframe_TimeFrame(self.fetcher,timeframe)
+            self.map[timeframe] = DBDataframe_TimeFrame(self.config,self.client,timeframe)
         
         return self.map[timeframe]
 

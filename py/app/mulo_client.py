@@ -1,0 +1,247 @@
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse, HTMLResponse
+import websockets
+import time as _time
+import pandas as pd
+import sqlite3
+from datetime import datetime, timedelta,time
+import time
+import logging
+from typing import List, Dict
+import requests
+from utils import *
+from message_bridge import *
+from renderpage import RenderPage
+import warnings
+from company_loaders import *
+from market import *
+from dataclasses import dataclass
+warnings.filterwarnings("ignore")
+#from scanner.crypto import ohlc_history_manager
+
+logger = logging.getLogger(__name__)
+
+
+class MuloClient:
+
+    def __init__(self,db_file, config):
+        
+        self.ready=False
+        self.config=config
+        self.symbols=[]
+        self.tickers = {}
+        self.db_file=db_file
+        self.table_name="ib_ohlc_history"
+        self.liveActive=config["database"]["live"]["enabled"]
+        self.last_ts = {}
+        self.max_symbols=config["database"]["live"]["max_symbols"]
+        self.historyActive =config["database"]["logic"]["fetch_enabled"]  
+
+        self.TIMEFRAME_UPDATE_SECONDS =config["database"]["logic"]["TIMEFRAME_UPDATE_SECONDS"]  
+        self.TIMEFRAME_LEN_CANDLES =config["database"]["logic"]["TIMEFRAME_LEN_CANDLES"]  
+
+        self.market = MarketService(config).getMarket("AUTO")
+        self.marketZone = None
+
+        self.conn_exe=sqlite3.connect(db_file, isolation_level=None)
+        self.cur_exe = self.conn_exe.cursor()
+        self.cur_exe.execute("PRAGMA journal_mode=WAL;")
+        self.cur_exe.execute("PRAGMA synchronous=NORMAL;")
+        self.on_symbols_update = MyEvent()
+        # live feeds
+    
+    async def bootstrap(self, onStartHandler):
+        uri = "ws://localhost:2000/ws/tickers"
+        
+        try:
+            # Ci si connette al server
+            await self.update_symbols()
+
+            async with websockets.connect(uri) as websocket:
+                logger.info(f"Connesso a {uri}")
+                
+                # Invia un messaggio al server
+                message = {"id": "client"}
+                await websocket.send(json.dumps(message))
+                
+                def updateTickers(new_ticker):
+                    pass
+                    #print(new_ticker)
+                   
+                # live on last scanner
+
+                # first
+                new_tickers = await websocket.recv()
+                updateTickers(json.loads(new_tickers))
+
+                self.ready=True
+                onStartHandler()
+
+                while True:
+                    # Riceve la risposta dal server
+                    new_tickers = await websocket.recv()
+                    updateTickers(json.loads(new_tickers))
+
+                    #logger.info(f"< Ricevuto: {response}")
+
+
+        except ConnectionRefusedError:
+            logger.error("Errore: Assicurati che il server sia attivo!")
+            exit(-1)
+        except Exception as e:
+            logger.error(f"Errore: {e}")
+            exit(-1)
+
+
+    async def send_cmd(self,rest_point, msg=None):
+        
+        url = "http://127.0.0.1:2000/"+rest_point
+
+        if msg:
+            params = msg
+            response = requests.get(url, params=params, timeout=5)
+        else:
+            response = requests.get(url,  timeout=5)
+
+        if response.ok:
+            data = response.json()
+            if data["status"] == "ok":
+                return data["data"]
+            else:
+                logger.error("Errore:", response.status_code)
+                return None
+        else:
+            logger.error("Errore:", response.status_code)
+            return None
+
+    #########
+
+    async def scanner(self,profileName):
+        logger.info(f".. Scanner call {time.ctime()}")
+
+        await self.send_batch("scanner",{"name":profileName})
+        #await self.batch_client.send_request("tws_batch", {"cmd":"scanner"})
+        await self.update_symbols()
+        logger.info(f".. Scanner call DONE {time.ctime()}")
+
+    #########
+    
+    def live_symbols(self)->List[str]:
+        ''' get array '''
+        return  self.symbols
+    
+    async def update_symbols(self):
+        logger.info(f"UPDATE SYMBOLS ..")#MAX:{self.max_symbols}")
+
+        self.symbols = await self.send_cmd("symbols")
+
+        logger.debug(f" {self.symbols}")
+
+        if len(self.symbols) > 0:
+            self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
+
+        logger.debug(f"Fundamentals \n{self.df_fundamentals}")
+                                              
+        self.sql_symbols = str(self.symbols)[1:-1]
+
+        self.symbol_to_exchange_map = {}
+        for _, row in self.df_fundamentals.iterrows():
+            self.symbol_to_exchange_map[row["symbol"]] = row["exchange"]
+
+        self.on_symbols_update(self.symbols)
+
+
+    async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000):
+       
+        query = f"""
+            SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
+            FROM {self.table_name}
+            WHERE symbol=? AND timeframe=?
+            ORDER BY timestamp DESC
+            LIMIT ?"""
+             
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
+        df = df.iloc[::-1].reset_index(drop=True)
+      
+        conn.close()     
+        return df
+    
+    ########## tutti insieme
+    async def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
+        if len(symbols) == 0:
+            logger.error("symbol empty !!!")
+            return None
+
+        sql_symbols = str(symbols)[1:-1]
+     
+        conn = sqlite3.connect(self.db_file)
+        if since:
+            #since = int(dt_from.timestamp()) * 1000
+            query = f"""
+                SELECT *
+                FROM {self.table_name}
+                WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
+                and timestamp>= {since}
+                ORDER BY timestamp DESC
+                LIMIT {limit}"""
+                
+            #print("since",since)
+            df = pd.read_sql_query(query, conn)
+        else:
+            query = f"""
+                SELECT *
+                FROM {self.table_name}
+                WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
+                ORDER BY timestamp DESC
+                LIMIT {limit}"""
+          
+            df = pd.read_sql_query(query, conn)
+            #print(query)
+
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()     
+        return df
+
+
+        
+    #######################
+
+    def getTicker(self,symbol):
+        if symbol in self.tickers:
+            return self.tickers[symbol]
+        else:
+            return None
+        
+    def getTickersDF(self):
+        if not self.tickers:
+            return pd.DataFrame(
+                columns=["symbol", "timestamp", "price", "bid", "ask", "volume_day"]
+            )
+        '''
+        df = pd.DataFrame(
+            [{
+                "symbol": t.symbol,
+                "timestamp": t.timestamp ,
+                "price": t.price,
+                "bid": t.bid,
+                "ask": t.ask,
+                "volume_day": t.volume_day
+            } for k,t in self.tickers.items()]
+        )
+        '''
+        df = pd.DataFrame( [ t for k,t in self.tickers.items()])
+    
+        # sicurezza: timestamp come datetime
+        #df["datetime"] = pd.to_datetime(df["timestamp"]/1000, utc=True, errors="coerce")
+        df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
+        return df
+        
+    #######################
+    
+    def get_df(self,query, params=()):
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, conn, params=params)
+        conn.close()
+        return df
+    

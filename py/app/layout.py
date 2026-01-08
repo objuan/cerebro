@@ -5,7 +5,7 @@ from chart import *
 from renderpage import *
 from reports.top_gain_report import *
 from reports.db_dataframe import *
-from job import *
+from mulo_client import MuloClient
 import uuid
 import logging
 import asyncio
@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 class Layout:
 
-    def __init__(self, fetcher: Job, db : DBDataframe, config):
+    def __init__(self, client: MuloClient, db : DBDataframe, config):
        self.components=[]
-       self.fetcher=fetcher
+       self.client=client
        self.db = db
        self.config=config
        pass
@@ -106,7 +106,7 @@ class Layout:
                 logger.debug(f'CREATE REPORT {cmd}')
                 report_type = cmd["report_type"]
                 if report_type =="top_gain":
-                    return TopGainReportWidget(id,self.fetcher,self.db)
+                    return TopGainReportWidget(id,self.client,self.db)
                 #return ChartWidget(id, cmd["symbol"] ,cmd["timeframe"],cmd["plot_config"] )
         return None
     
