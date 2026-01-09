@@ -75,7 +75,7 @@ const widgetRefs = ref({})
 
 // Riferimenti non reattivi (istanze tecniche)
 let grid = null;
-const chart_list = {}; // Mappa degli oggetti grafico
+//const chart_list = {}; // Mappa degli oggetti grafico
 //const report_map = {}; 
 //const widget_instances = [];
 
@@ -98,7 +98,7 @@ const initWebSocket = () => {
   ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 
   ws.onmessage = (event) => {
-     //console.log(event.data)
+    // console.log(event.data)
     const msg = JSON.parse(event.data);
    
     if (msg.path) {
@@ -110,29 +110,50 @@ const initWebSocket = () => {
     
       case "candle":
         {
+          const componentInstance = widgetRefs.value[msg.id];
+          if (componentInstance)
+          {
+            //console.log("WS CANDLE",msg.id,componentInstance) 
+            componentInstance.on_candle(msg.data);  
+          }
+          /*
           const chartObj = chart_list[msg.id];
           if (chartObj) {
             const c = msg.data;
             chartObj.mainSeries.update({
-              time: window.db_localTime(c.t),
+              time: window.db_localTime(c.ts),
               open: c.o, high: c.h, low: c.l, close: c.c
             });
             chartObj.volumeSeries.update({
-              time: window.db_localTime(c.t),
+              time: window.db_localTime(c.ts),
               value: c.bv,
               color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
             });
           }
+            */
         }
         break;
-        
+      case "ticker":
+        {
+          //console.log("WS TICKER",msg.data);
+          //for x in widgetRefs.value 
+           for(var i=0;i<widgetList.value.length;i++)
+          {
+              const componentInstance = widgetRefs.value[widgetList.value[i].id];
+              componentInstance.on_ticker(msg.data);  
+          }
+
+        } 
+        break
       case "del":
         {
+          /*
           const target = chart_list[msg.id];
           if (target) {
             grid.removeWidget(target.widget_ele);
             delete chart_list[msg.id];
           }
+            */
        }
         break;
     }
@@ -161,7 +182,7 @@ const addWidgetToDashboard = (id, rect, data,type) => {
       
       requestAnimationFrame(() => {
         const h = el.clientHeight;
-      console.log('clientHeight:', h);
+        console.log('clientHeight:', h);
         //const container = el.querySelector(".chart-container");
        // const container = el.querySelector(".multi-chart-container");
         //console.log("container",coneltainer.clientWidth,el.clientHeight,container)

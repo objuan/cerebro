@@ -31,5 +31,8 @@ class Widget:
     def render_html():
         pass
 
+    async def notify_ticker(self, ticker,page:RenderPage):
+       pass
+
 
 

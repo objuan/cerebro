@@ -30,9 +30,8 @@
 			"scanner":
 			{
 				"enabled" : false,
-				"offline_mode" : false,
 				"update_time" : "10m" ,
-				"debug_symbols" : ["SOPA","FANG"],
+				"debug_symbols" : ["NVDA","AAPL"],
 				"profiles": 
 				[
 					{

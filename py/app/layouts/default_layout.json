@@ -4,15 +4,15 @@
             "id": "def_0",
             "type": "comp",
             "rect": {
-                "h": 7,
+                "h": 6,
                 "x": 0,
                 "y": 0,
-                "w": 12
+                "w": 11
             },
             "update_time_secs": 60,
             "widget": {
                 "type": "multi_chart",
-                "symbol": "FANG",
+                "symbol": "NVDA",
                 "timeframe": 0,
                 "plot_config": {
                     "main_plot": {

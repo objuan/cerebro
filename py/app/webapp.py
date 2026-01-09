@@ -249,7 +249,7 @@ async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
 
             df = await client.ohlc_data(symbol,timeframe,limit)
          
-            logger.debug(f"!!!!!!!!!!!! chart {df}")
+            #logger.debug(f"!!!!!!!!!!!! chart {df}")
         
             return JSONResponse(df.to_dict(orient="records"))
         else:
@@ -279,6 +279,11 @@ def get_symbols(limit: int = 1000):
     symbols = client.live_symbols()
     return JSONResponse({"symbols":symbols})
 
+
+@app.get("/api/fundamentals")
+def get_fundamentals(symbol:str):
+    df =  client.get_fundamentals(symbol).iloc[0]
+    return JSONResponse(df.to_dict())
 ##############################
 
     
@@ -329,6 +334,9 @@ ws_manager = WSManager()
 render_page = RenderPage(ws_manager)
 layout = Layout(client,db,config)
 layout.read(DEF_LAYOUT)
+layout.set_render_page(render_page)   
+client.on_candle_receive += layout.notify_candles    
+client.on_ticker_receive += layout.notify_ticker    
 
 #layout.setDefault()
 

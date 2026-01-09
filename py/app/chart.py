@@ -21,11 +21,11 @@ class ChartWidget(Widget):
         self.timeframe=timeframe
         
 
-    async def notify_candles(self, candles,page:RenderPage):
+    async def notify_candles(self, candle,page:RenderPage):
        
-       for candle in candles:
-           #logger.info(candle["tf"] )
-           if candle["symbol"] == self.symbol and candle["tf"] == self.timeframe:
+       #for candle in candles:
+           #logger.info(f"{candle['tf']} { self.timeframe} { self.symbol}" )
+           if candle["s"] == self.symbol and (self.timeframe==0 or candle["tf"] == self.timeframe):
                #logger.info(f"notify_candles {candle}")
 
                await page.send({
@@ -34,6 +34,12 @@ class ChartWidget(Widget):
                    "data": candle
                })
        
+    async def notify_ticker(self, ticker,page:RenderPage):
+        #logger.info(f"notify_ticker {ticker}")
+        await page.send({
+                   "type" : "ticker",
+                   "data": ticker
+               })
 
     def render_html():
         pass

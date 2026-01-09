@@ -4,8 +4,8 @@
       <div class="d-flex align-items-center"  >
         <span class="me-2">📈</span>
         <strong class="text-uppercase">Single {{ currentSymbol }}</strong>
-
-         <select 
+        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
+        <select 
           v-model="currentSymbol" 
           @change="handleSymbols"
           class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
@@ -15,7 +15,7 @@
             :key="s"
             :value="s"
           >
-            {{ s }}
+           {{ s }}
           </option>
         </select>
       </div>
@@ -25,6 +25,7 @@
           @change="handleRefresh" 
           class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
         >
+          <option value="10s">10s</option>
           <option value="1m">1m</option>
           <option value="5m">5m</option>
           <option value="1h">1h</option>
@@ -34,15 +35,37 @@
       </div>
     </div>
    <div v-if="props.multi_mode" class="bulk_header" >
-        {{ currentTimeframe }}
+        <span>{{ currentTimeframe }}</span>
+        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
     </div>
     <div class="position-relative flex-grow-1 p-0" style="height: calc(100%-45px ); overflow: hidden;">
-      <div class="chart-legend position-absolute top-0 start-10 p-2 z-4 small" v-html="legendHtml"></div>
-      
+      <div class="chart-legend-up  small" v-html="legendHtml"></div>
+
       <div ref="chartContainer" class="chart-container h-100 w-100 d-flex flex-column">
-        <div ref="mainChartRef" class="flex-grow-1 w-100"></div>
+        <div ref="mainChartRef" class="flex-grow-1 w-100">
+            <div class="chart-legend-left-ind  small" v-html="legendIndHtml"></div>
+          <div class="chart-legend-left small"  >
+                <span class="text-white me-3">Vol: {{  formatValue(lastMainCandle?.volume) }}</span>
+              </div>
+        </div>
         <div ref="volumeChartRef" style="height: 100px;" class="w-100 border-top border-secondary"></div>
       </div>
+    </div>
+    <div class="button_bar">
+        <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
+          @click="setDrawMode('hline')">
+          ─
+        </button>
+
+      <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+          @click="setDrawMode('line')">
+        ／
+      </button>
+
+      <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+        @click="clearDrawings">
+        ✕
+      </button>
     </div>
   </div>
 </template>
@@ -51,6 +74,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
+import { formatValue } from '@/components/utils.js'; // Usa il percorso corretto
 
 const props = defineProps({
   multi_mode: { type: Boolean, default: false },
@@ -67,16 +91,29 @@ const emit = defineEmits(['close', 'initialized']);
 const mainChartRef = ref(null);
 const volumeChartRef = ref(null);
 const legendHtml = ref('');
+const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
 const symbolList = ref([]);
 const container = ref(null)
 
+const drawMode = ref(null); // null | 'hline' | 'line'
+let drawPoints = [];
+let drawSeries = [];
+
+function setDrawMode(mode) {
+  drawMode.value = mode;
+  drawPoints = [];
+  console.log("Draw mode:", mode);
+}
+
 // Oggetti Chart e Series (non reattivi per performance)
 let charts = { main: null, volume: null };
 let series = { main: null, volume: null, indicators: {} };
+let lastMainCandle=null
 
 let timeframe_start = {}
+timeframe_start["10s"] = 100
 timeframe_start["1m"] = 50
 timeframe_start["5m"] = 50
 timeframe_start["1h"] = 24
@@ -109,7 +146,7 @@ const handleRefresh = async () => {
       // Formatta dati per Candlestick
       const formattedData = data.map(d => ({
         time: window.db_localTime ? window.db_localTime(d.t) : d.t,
-        open: d.o, high: d.h, low: d.l, close: d.c
+        open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
       }));
 
       series.main.setData(formattedData);
@@ -120,6 +157,8 @@ const handleRefresh = async () => {
         value: d.bv,
         color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
       })));
+
+      lastMainCandle = formattedData[formattedData.length - 1];
 
       // Gestione Indicatori (EMA, etc)
       if (props.plot_config.main_plot!=null)
@@ -134,10 +173,13 @@ const handleRefresh = async () => {
 
 
       // Zoom finale
-      charts.main.timeScale().setVisibleLogicalRange({
-        from: data.length - timeframe_start[currentTimeframe.value],
-        to: data.length
-      });
+      if ( data.length >timeframe_start[currentTimeframe.value])
+      {
+        charts.main.timeScale().setVisibleLogicalRange({
+          from: data.length - timeframe_start[currentTimeframe.value],
+          to: data.length
+        });
+      }
     }
   } catch (err) {
     console.error("Errore fetch grafico:", err);
@@ -215,7 +257,8 @@ const buildChart =  () => {
         series.indicators[key] = charts.main.addSeries(LineSeries, {
           color: config.color,
           lineWidth: 1,
-          lastValueVisible: false
+          lastValueVisible: false,
+          priceLineVisible: false
         });
       }
     });
@@ -232,6 +275,7 @@ const buildChart =  () => {
   charts.main.subscribeCrosshairMove(param => {
     if (!param.time || !param.seriesData.get(series.main)) {
       legendHtml.value = '';
+      legendIndHtml.value = '';
       charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
       return;
     }
@@ -239,23 +283,67 @@ const buildChart =  () => {
       
     const data = param.seriesData.get(series.main);
 
-    //console.log("MOVE ",legendHtml)
+    //console.log("MOVE ",data)
 
     charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
 
+    //const dataVol = param.seriesData.get(series.volume);
+    //console.log(series.volume.data());
+    const bar = series.volume.data().find(x => x.time === param.time);
+    const vol = bar?.value;
+
+    //console.log("MOVE ",vol)
+
     // Update Legend
-    let lbl = `C: <strong>${data.close.toFixed(3)}</strong> O: <strong>${data.open.toFixed(3)}</strong> `;
+    let color = data.close >= data.open ? '#4bffb5' : '#ff4976';  
+    let lbl = `<span style="color:${color}"> C: <strong>${data.close.toFixed(3)}</strong> O: <strong>${data.open.toFixed(3)}</strong> `;
     lbl += `L: <strong>${data.low.toFixed(3)}</strong> H: <strong>${data.high.toFixed(3)}</strong>`;
-    
+    lbl += ` V: <strong>${vol}</strong></span>`;
+    legendHtml.value = lbl;
+
+    lbl=""
     // Aggiungi valori indicatori alla legenda
     Object.entries(series.indicators).forEach(([key, s]) => {
       const val = param.seriesData.get(s);
-      if (val) lbl += ` <span style="color:${props.plot_config.main_plot[key].color}">${key}: ${val.value.toFixed(3)}</span>`;
+      if (val) lbl += ` <span style="color:${props.plot_config.main_plot[key].color}">${key}: ${val.value.toFixed(3)}</span><br>`;
     });
     
-    legendHtml.value = lbl;
+    legendIndHtml.value = lbl;
   });
 
+  // DRAWING 
+
+  charts.main.subscribeClick(param => {
+    
+    if (!drawMode.value ) return;
+   if (!param || !param.point || !param.time) {
+    console.log("Click cancelled");
+    return;
+  }
+    //const candle_price = param.seriesData.get(series.main).close;
+    const price = series.main.coordinateToPrice(param.point.y);
+  
+    if (price == null) return;
+
+    console.log("Click at", param.time, price);  
+   
+    if (drawMode.value === 'hline') {
+      drawHorizontalLine(price);
+      drawMode.value = null;
+    }
+
+    if (drawMode.value === 'line') {
+      drawPoints.push({ time: param.time, value: price });
+
+      if (drawPoints.length === 2) {
+        drawTrendLine(drawPoints[0], drawPoints[1]);
+        drawPoints = [];
+        drawMode.value = null;
+      }
+    }
+  });
+
+  //
   // Caricamento Iniziale
   //buildChart();
   handleSymbols();
@@ -274,22 +362,132 @@ onUnmounted(() => {
   if (charts.volume) charts.volume.remove();
 });
 
+// =========================
+
+function on_candle(c)
+{
+  //console.log("on_candle",currentTimeframe.value) 
+  if (c.tf !== currentTimeframe.value) return;  
+  const new_value = {
+    time: window.db_localTime(c.ts),
+    open: c.o, high: c.h, low: c.l, close: c.c,volume: c.v
+  }
+  //console.log("new_value",c) 
+  if (lastMainCandle !=null && new_value.time >= lastMainCandle.time )
+  {
+    lastMainCandle =new_value;
+    series.main.update(new_value);
+    
+    series.volume.update({
+                time: window.db_localTime(c.ts),
+                value: c.v,
+                color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
+    });  
+
+  }
+  else
+  {
+    console.warn("Candle skipped" ) 
+  } 
+}
+
+// ===================================
+
+function drawHorizontalLine(price) {
+  console.log("Draw HLine at", price);
+
+  const line = series.main.createPriceLine({
+      price: price,
+      color: '#ffcc00',
+      lineWidth: 1,
+      lineStyle: 0, // solid
+      axisLabelVisible: true,
+      title: ''
+    });
+    
+
+  drawSeries.push(line);
+  console.log("HLine drawn",drawSeries );
+}
+
+function drawTrendLine(p1, p2) {
+  const line = charts.main.addSeries(LineSeries, {
+    color: '#00ffff',
+    lineWidth: 1,
+    lastValueVisible: false,
+    priceLineVisible: false
+  });
+  if (p1.time > p2.time) {
+    const temp = p1;
+    p1 = p2;
+    p2 = temp;
+  }
+  line.setData([
+    { time: p1.time, value: p1.value },
+    { time: p2.time, value: p2.value }
+  ]);
+
+  drawSeries.push(line);
+}
+
+function clearDrawings() {
+  if (!charts.main) return;
+  drawSeries.forEach(s => {
+    try {
+      if (s) {
+        charts.main.removeSeries(s);
+      }
+    } catch (e) {
+      console.warn("Serie già rimossa o non valida", s);
+    }
+  });
+
+  drawSeries.length = 0;
+}
+
+// ==========================
 defineExpose({
   resize,
   fullResize,
-  setSymbol
+  setSymbol,
+  on_candle
 });
 
 </script>
 
 <style scoped>
-.chart-legend {
-  left:  20px;
+.timeframe{
+  font-weight: 700;
+}
+.chart-legend-up{
+  left:  50px;
   pointer-events: none;
   background: rgba(19, 23, 34, 0.7);
   border-bottom-right-radius: 4px;
   z-index: 10 !important;
+  position: absolute;
 }
+.chart-legend-left {
+  left:  0px;
+  bottom: 130px;
+  text-align: left;
+  pointer-events: none;
+  background: rgba(19, 23, 34, 1);
+  border-bottom-right-radius: 4px;
+  z-index: 10 !important;
+  position: absolute;
+}
+.chart-legend-left-ind {
+  left:  0px;
+  top: 40px;
+  text-align: left;
+  pointer-events: none;
+  background: rgba(19, 23, 34, 0.7);
+  border-bottom-right-radius: 4px;
+  z-index: 10 !important;
+  position: absolute;
+}
+
 .timeframe-selector {
   width: auto;
   padding: 0 0.5rem;
@@ -297,6 +495,21 @@ defineExpose({
 .bulk_header{
   position:absolute;
   z-index: 20 !important;
+  font-weight: 300;
+  font-size: medium;
+  background-color: rgb(0, 0, 0);
+  border: white 1px solid ;
+  border-radius: 5px;
+  padding: 3px;
+}
+.button_bar{
+  position:absolute;
+  top:10px;
+  left:400px;
+  z-index: 20 !important;
+  font-weight: 300;
+  font-size: medium;
+  padding: 3px;
 }
 
 </style>

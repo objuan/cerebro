@@ -37,3 +37,10 @@ TIMEFRAME_LEN_CANDLES = {
     "1d": 120, # 2 mesi
 }
 '''
+
+TF_SEC_TO_DESC = {
+    10 : "10s",
+    30 : "30s",
+    60 : "1m",
+    300 : "5m",
+}

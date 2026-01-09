@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import re
 import logging
 import asyncio
+import inspect
 
 logger = logging.getLogger()
 
@@ -251,6 +252,15 @@ class MyEvent:
             self._handlers.remove(handler)
         return self
 
+    '''
     def __call__(self, *args, **kwargs):
         for handler in self._handlers:
             handler(*args, **kwargs)
+    '''
+
+    async def __call__(self, *args, **kwargs):
+        for handler in self._handlers:
+            if inspect.iscoroutinefunction(handler):
+                await handler(*args, **kwargs)
+            else:
+                handler(*args, **kwargs)

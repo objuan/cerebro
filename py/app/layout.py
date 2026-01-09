@@ -22,6 +22,11 @@ class Layout:
        self.config=config
        pass
 
+    
+    def set_render_page(self, render_page : RenderPage):
+        self.render_page = render_page
+
+
     async def on_render_page_connect(self,render_page):
           for comp in self.components:
             await comp.on_render_page_connect(render_page)
@@ -126,9 +131,15 @@ class Layout:
                self.components.remove(comp)
                await page.send({"type":"del","id": id})
 
-    async def notify_candles(self, candles,page:RenderPage):
+    async def notify_candles(self, candles):
+        #print("notify_candles layout ",candles )
         for comp in self.components:
-            await comp.notify_candles(candles,page)
+            await comp.notify_candles(candles,self.render_page)
+     
+    async def notify_ticker(self, candles):
+        #print("notify_candles layout ",candles )
+        for comp in self.components:
+            await comp.notify_ticker(candles,self.render_page)
        
 ##################################################
 
@@ -198,4 +209,5 @@ class LayoutComponent:
         await self.widget.notify_candles(candles,page)
 
 
-
+    async def notify_ticker(self, candles,page:RenderPage):
+        await self.widget.notify_ticker(candles,page)

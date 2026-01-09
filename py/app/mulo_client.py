@@ -18,6 +18,7 @@ from market import *
 from dataclasses import dataclass
 warnings.filterwarnings("ignore")
 #from scanner.crypto import ohlc_history_manager
+from config import TF_SEC_TO_DESC
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,10 @@ class MuloClient:
         self.cur_exe.execute("PRAGMA journal_mode=WAL;")
         self.cur_exe.execute("PRAGMA synchronous=NORMAL;")
         self.on_symbols_update = MyEvent()
+        self.on_candle_receive = MyEvent()
+        self.on_ticker_receive = MyEvent()
         # live feeds
-    
+
     async def bootstrap(self, onStartHandler):
         uri = "ws://localhost:2000/ws/tickers"
         
@@ -64,15 +67,27 @@ class MuloClient:
                 message = {"id": "client"}
                 await websocket.send(json.dumps(message))
                 
-                def updateTickers(new_ticker):
-                    pass
+                async def updateTickers(new_ticker):
+                    
+                    new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
+                    #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
                     #print(new_ticker)
+                    await self.on_candle_receive(new_ticker)
+                    
+                    if new_ticker["tf"]=="1m":
+                        t= self.tickers[new_ticker["s"]]
+                        t.update({"last": new_ticker["c"],"day_v": new_ticker["day_v"],"ask": new_ticker["ask"],"bid": new_ticker["bid"],
+                                    "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100})
+                        
+                        await self.on_ticker_receive(t)
+                        #print(self.tickers)
+                    #self.render_page.send({"type":"candle","data":new_ticker}) 
                    
                 # live on last scanner
 
                 # first
                 new_tickers = await websocket.recv()
-                updateTickers(json.loads(new_tickers))
+                await updateTickers(json.loads(new_tickers))
 
                 self.ready=True
                 onStartHandler()
@@ -80,7 +95,7 @@ class MuloClient:
                 while True:
                     # Riceve la risposta dal server
                     new_tickers = await websocket.recv()
-                    updateTickers(json.loads(new_tickers))
+                    await updateTickers(json.loads(new_tickers))
 
                     #logger.info(f"< Ricevuto: {response}")
 
@@ -148,7 +163,12 @@ class MuloClient:
         for _, row in self.df_fundamentals.iterrows():
             self.symbol_to_exchange_map[row["symbol"]] = row["exchange"]
 
+        self.tickers = {}
+        for s in self.symbols:
+            self.tickers[s] = { "symbol": s, "last_close": self.last_close(s)}
         self.on_symbols_update(self.symbols)
+
+        logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
 
 
     async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000):
@@ -236,7 +256,34 @@ class MuloClient:
         #df["datetime"] = pd.to_datetime(df["timestamp"]/1000, utc=True, errors="coerce")
         df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
         return df
+
+    def last_close(self,symbol: str)-> float:
+
+        ieri_mezzanotte = (
+                (datetime.now()
+                - timedelta(days=1))
+                .replace(hour=23, minute=59, second=59, microsecond=0)
+                
+            )
+        unix_time = int(ieri_mezzanotte.timestamp()) * 1000
+        print("Last close time ", unix_time)
+        df = self.get_df(f"""
+                SELECT close 
+                FROM ib_ohlc_history
+                WHERE symbol='{symbol}' AND timeframe='1m'
+                AND timestamp < {unix_time}
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """)
+
+        if len(df)>0:
+            return  float(df.iloc[0][0])
+        else:
+            return 0
         
+    def get_fundamentals(self,symbol)->pd.DataFrame:
+        return self.df_fundamentals[self.df_fundamentals["symbol"]==symbol  ]
+            
     #######################
     
     def get_df(self,query, params=()):

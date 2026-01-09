@@ -18,16 +18,12 @@ import warnings
 from company_loaders import *
 from market import *
 from dataclasses import dataclass
+from config import TF_SEC_TO_DESC
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
-tf_map = {
-    10 : "10s",
-    30 : "30s",
-    60 : "1m",
-    300 : "5m",
-}
+
 intervals = [10, 30, 60, 300] 
 
 RETENTION_DAYS = 1
@@ -81,7 +77,7 @@ class MuloJob:
         run_time = int(_time.time() * 1000)
         ds_run_time  = datetime.utcnow().isoformat()
         ex = self.symbol_to_exchange_map[symbol]
-        tf = tf_map[new_ticker["tf"]]
+        tf = TF_SEC_TO_DESC[new_ticker["tf"]]
 
         sql=f"""
                           INSERT INTO ib_ohlc_history (
@@ -126,10 +122,10 @@ class MuloJob:
 
             last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(self.update_ts[key])/1000)
             if tf=="1m" and last_update_delta_min.total_seconds() > 60:
-                await self._align_data(symbol,tf_map[new_ticker["tf"]])
+                await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
                 self.update_ts[key] = new_ticker["ts"]
             elif tf == "5m" and last_update_delta_min.total_seconds() > 60*5:
-                await self._align_data(symbol,tf_map[new_ticker["tf"]])
+                await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
                 self.update_ts[key] = new_ticker["ts"]
             #print("last_update_delta_min" , last_update_delta_min)
  
@@ -154,7 +150,7 @@ class MuloJob:
       
         # startup 
         for symbol in self.symbols:
-            for k,interval in tf_map.items():
+            for k,interval in TF_SEC_TO_DESC.items():
                 if int(k) > 30:
                     await self._align_data(symbol,interval)
 

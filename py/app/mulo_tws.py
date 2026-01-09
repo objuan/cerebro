@@ -238,7 +238,7 @@ async def do_scanner(config,name, max_symbols):
 
     
         cfg = config["database"]["scanner"]
-        offline_mode = "offline_mode" in cfg and cfg["offline_mode"] =="true"
+        #offline_mode = "offline_mode" in cfg and cfg["offline_mode"] =="true"
 
         logger.info(f'SCANNING DATAS ... {cfg}')
 
@@ -246,7 +246,7 @@ async def do_scanner(config,name, max_symbols):
         
         logger.info(f'MARKET ZONE {zone}')
 
-        if offline_mode and "debug_symbols" in cfg:
+        if "debug_symbols" in cfg:
             logger.info("Use OFFLINE")
             symbols = cfg["debug_symbols"]
             items=[]
@@ -486,7 +486,7 @@ async def manage_live( symbol_list_add, symbol_list_remove):
     logger.info(f"tickers {tickers}")
 
     ###
-    offline_mode = config["database"]["scanner"]["offline_mode"]
+    offline_mode = "debug_symbols" in config["database"]["scanner"]#:#config["database"]["scanner"]["offline_mode"]
     symbols=[]
     for symbol, ticker  in tickers.items():
         if (ticker.time  and  not math.isnan(ticker.last)) or offline_mode:
@@ -616,7 +616,9 @@ async def conId(symbol,exchange,currency):
 
 @app.get("/symbols")
 async def get_symbols():
-    offline_mode = config["database"]["scanner"]["offline_mode"]
+    #offline_mode = config["database"]["scanner"]["offline_mode"]
+    offline_mode = "debug_symbols" in config["database"]["scanner"]
+
     '''
     logger.info(f"get symbols {actual_df}")
 
@@ -780,23 +782,31 @@ async def ws_tickers(ws: WebSocket):
 
 async def bootstrap():
     # start live ?? 
-    df = pd.read_sql_query("""SELECT * FROM ib_scanner
-        WHERE ts_exec = (
-            SELECT MAX(ts_exec) FROM ib_scanner 
-        )
-        ORDER BY pos ASC""",conn)
-    if len(df)>0:
-        max_symbols=config["database"]["live"]["max_symbols"]
-
-        df = df [:max_symbols]
-        symbols =  df["symbol"].tolist()
-
-        logger.info(f"START OLD LIVE {symbols}")
+    offline_mode = "debug_symbols" in config["database"]["scanner"]
+    if offline_mode:
+        symbols =  config["database"]["scanner"]["debug_symbols"]   
         filter = str(symbols)[1:-1]
-
         df_symbols = pd.read_sql_query(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})",conn)
-        
+            
         await updateLive(config,df_symbols )
+    else:
+        df = pd.read_sql_query("""SELECT * FROM ib_scanner
+            WHERE ts_exec = (
+                SELECT MAX(ts_exec) FROM ib_scanner 
+            )
+            ORDER BY pos ASC""",conn)
+        if len(df)>0:
+            max_symbols=config["database"]["live"]["max_symbols"]
+
+            df = df [:max_symbols]
+            symbols =  df["symbol"].tolist()
+
+            logger.info(f"START OLD LIVE {symbols}")
+            filter = str(symbols)[1:-1]
+
+            df_symbols = pd.read_sql_query(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})",conn)
+            
+            await updateLive(config,df_symbols )
 
 #############   
 
@@ -911,6 +921,12 @@ if __name__ =="__main__":
                         if toSend:
                             live_send_key[key]=pack
 
+                            data["bid"]=ticker.bid
+                            data["ask"]=ticker.ask  
+                            if not use_yahoo: 
+                                data["day_v"]=ticker.volume*100
+                            else:
+                                data["day_v"]=ticker.volume
                             #logger.info(f"SEND {data}")
                             await fetcher.db_updateTicker(data)
                             await ws_manager.broadcast(data)
@@ -930,9 +946,9 @@ if __name__ =="__main__":
                     #print("Received message from YAHOO:", message)
                     t = Ticker(last= message["price"], volume= int(message["day_volume"]), time=int(message["time"]), ask=0, bid=0 )
                     await add_ticker(message["id"],t)
-                print("1")
+                
                 await  ws_yahoo.listen(message_handler)
-                print("2")
+               
                 
             if use_yahoo:
                 _tick_tickers = asyncio.create_task(yahoo_tick_tickers())

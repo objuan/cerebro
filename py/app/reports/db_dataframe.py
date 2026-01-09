@@ -74,7 +74,7 @@ class DBDataframe_TimeFrame:
         #df['datetime_local'] = (pd.to_datetime(df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
 
     async def on_update_symbols(self, symbols):
-        logger.info(f"DB reset symbols {symbols}")
+        logger.info(f"DB reset symbols {symbols} {self.timeframe}")
         self.symbols=symbols
 
     async def update(self):
@@ -89,15 +89,15 @@ class DBDataframe_TimeFrame:
             #self.df = self.df.set_index("timestamp", drop=True)
 
             self.last_timestamp = self.df['timestamp'].max()
-            logger.info(f"FIRST {self.timeframe} last_timestamp {self.last_timestamp}")
+            #logger.info(f"FIRST {self.timeframe} last_timestamp {self.last_timestamp}")
             #self.df['datetime_local'] = (pd.to_datetime(self.df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
             
             
         else:            
-            logger.info(f"UPDATE {self.timeframe} last_timestamp {self.last_timestamp}")
+            #logger.info(f"UPDATE {self.timeframe} last_timestamp {self.last_timestamp}")
             new_df = await self.client.history_data(self.symbols , self.timeframe ,since = self.last_timestamp- timeframe_to_milliseconds(self.timeframe)*2, limit= 9999)
              
-            logger.info( f"NEW \n{new_df.head()}")
+            #logger.info( f"NEW \n{new_df.head()}")
             
             self.df = pd.concat([self.df, new_df], ignore_index=True)
 
@@ -198,7 +198,7 @@ class DBDataframe:
         for x,v in self.map.items():
             await v.tick()
 
-        print(self.db_dataframe("1m").dump("VTYX"))
+        #print(self.db_dataframe("1m").dump("VTYX"))
 
     def db_dataframe(self,timeframe)-> DBDataframe_TimeFrame:
         if not timeframe in self.map :
