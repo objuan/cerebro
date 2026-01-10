@@ -146,3 +146,24 @@ cur.execute("""
     CREATE INDEX IF NOT EXISTS ib_ib_orders
         ON ib_orders(trade_id)
     """)
+
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS chart_lines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL,
+    timeframe TEXT NOT NULL,
+    guid TEXT NOT NULL,
+    type TEXT NOT NULL,
+    data TEXT NOT NULL
+)
+""")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS trade (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL,
+    timeframe TEXT NOT NULL,
+    data TEXT NOT NULL
+)
+""")

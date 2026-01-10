@@ -1,5 +1,5 @@
 from logging.handlers import RotatingFileHandler
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request,HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi import WebSocket, WebSocketDisconnect
@@ -192,28 +192,6 @@ async def add_referrer_policy(request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-######################
-
-'''
-def fetch_all_new(fetcher, symbols, timeframe):
-    all_new = []
-
-    for symbol in symbols:
-            candles = fetcher.fetch_new_candles(symbol, timeframe)
-            if candles:
-                all_new.extend(candles)
-
-    return all_new
-
- '''
-'''
-def get_df(query, params=()):
-    logger.debug(DB_FILE)
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
-    return df
-'''
 
 ###################################################################
 # API
@@ -284,48 +262,136 @@ def get_symbols(limit: int = 1000):
 def get_fundamentals(symbol:str):
     df =  client.get_fundamentals(symbol).iloc[0]
     return JSONResponse(df.to_dict())
+
+######################
+
+@app.post("/api/chart/save")
+def save_chart_line(payload: dict):
+    logger.info(f"SAVE CHART LINE {payload}")   
+    try:
+        symbol = payload["symbol"]
+        timeframe = payload["timeframe"]
+        guid = payload["guid"]
+        data = payload["data"]
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Campo mancante: {e.args[0]}"
+        )
+    client.execute("""
+        INSERT INTO chart_lines (guid,symbol, timeframe, type, data)
+        VALUES (?, ?, ?, ?,?)
+    """, (
+        guid,
+        symbol,
+        timeframe,
+        data.get("type"),
+        json.dumps(data)
+    ))
+
+    return {"status": "ok"}
+
+@app.delete("/api/chart/delete")
+def delete_chart_line(payload: dict  ):
+    try:
+        guid = payload["guid"]
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Campo mancante: {e.args[0]}"
+        )
+
+    logger.info(f"DELETE CHART LINE {guid}")
+    client.execute("""
+        DELETE FROM chart_lines WHERE guid = ?
+    """, (guid,))
+    return {"status": "ok" }
+
+@app.delete("/api/chart/delete/all")
+def delete_chart_all(payload: dict  ):
+    try:
+        symbol = payload["symbol"]
+        timeframe = payload["timeframe"]
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Campo mancante: {e.args[0]}"
+        )
+
+    logger.info(f"DELETE ALL CHART LINES {symbol} {timeframe}")
+    client.execute("""
+        DELETE FROM chart_lines WHERE symbol = ? and timeframe= ?   
+    """, (symbol,timeframe))
+    return {"status": "ok" }
+
+@app.get("/api/chart/read")
+def read_chart_lines(symbol: str, timeframe: str):
+    df = client.get_df("""
+        SELECT guid, symbol, timeframe, type, data
+        FROM chart_lines
+        WHERE symbol = ? AND timeframe = ?
+    """, (symbol, timeframe))
+
+    logger.info(f"READ CHART LINES {symbol} {timeframe} -> {df} ")    
+    
+    return JSONResponse(df.to_dict(orient="records"))
+
 ##############################
 
+@app.post("/api/trade/marker")
+def save_chart_marker(payload: dict):
+    logger.info(f"SAVE TRADE  {payload}")   
+    try:
+        symbol = payload["symbol"]
+        timeframe = payload["timeframe"]
+        data = payload["data"]
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Campo mancante: {e.args[0]}"
+        )
+    client.execute("DELETE FROM trade WHERE symbol=? AND timeframe=?",
+            (symbol, timeframe))
+    client.execute("""
+        INSERT INTO trade (symbol, timeframe,  data)
+        VALUES (?, ?, ?)
+    """, (
+        symbol,
+        timeframe,
+        json.dumps(data)
+    ))
+
+    return {"status": "ok"}
+
+@app.get("/api/trade/marker/read")
+def read_chart_lines(symbol: str, timeframe: str):
+    df = client.get_df("""
+        SELECT  symbol, timeframe,  data
+        FROM trade
+        WHERE symbol = ? AND timeframe = ?
+    """, (symbol, timeframe))
+
+    logger.info(f"READ TRADE MARKER {symbol} {timeframe} -> {df} ")    
     
-@app.get("/api/price")
-def get_price(symbol: str):
-  
-    print("get_price", symbol)
-
-    return JSONResponse({"symbol":symbol,  "price":client.last_price(symbol)})
-
-
-@app.get("/api/quote")
-async def get_quote(symbol: str):
-  
-    last_price = client.last_price(symbol)
-    last_close = client.last_close(symbol)
-    print(last_price,last_close)
-    if last_close!=0:
-        perc = ((last_price- last_close) / last_close) * 100
-        return JSONResponse({"symbol":symbol,  "change":(last_close-last_price),"percent_change":perc})
+    if df.empty:
+        return JSONResponse({})
     else:
-        return JSONResponse({"symbol":symbol,  "change":0,"percent_change":0})
+        return JSONResponse(df.iloc[0].to_dict())
 
-DECODE_INTERVAL = {
-    "1day" :"1d",
-    "1min" :"1m"
-}
-@app.get("/api/time_series")
-async def get_timeseries(symbol: str,interval: str,outputsize: str):
-    
-    #logger.info(f"get_timeseries {symbol} {interval} {outputsize}")
+@app.delete("/api/trade/marker/delete")
+def delete_trade_marker(payload: dict  ):
+    try:
+        symbol = payload["symbol"]
+        timeframe = payload["timeframe"]
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Campo mancante: {e.args[0]}"
+        )
 
-    #return JSONResponse({"symbol":symbol,"values":[0,0,0,0,0]}) 
-    timeframe = DECODE_INTERVAL[interval]
-    limit = outputsize
-    df = await client.ohlc_data(symbol,timeframe,limit)
-    if len(df)>0:
-        #logger.info(df)
-        return JSONResponse({"symbol":symbol,"values":df["c"].tolist()})    
-    else:
-        
-        return JSONResponse({"symbol":symbol,"values":[0,0,0,0,0]})
+    client.execute("DELETE FROM trade WHERE symbol=? AND timeframe=?",
+            (symbol, timeframe))
+    return {"status": "ok" }
 
 ####################
 

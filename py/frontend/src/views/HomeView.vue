@@ -83,7 +83,7 @@ let grid = null;
 let ws = null;
 
 const getWidgetComponent = (type) => {
-  console.log("crate" , type)
+  //console.log("crate" , type)
   switch (type) {
     case 'chart':
       return CandleChartWidget
@@ -165,7 +165,7 @@ const initWebSocket = () => {
 // Funzione chiamata quando un widget viene aggiunto via WS o caricamento iniziale
 const addWidgetToDashboard = (id, rect, data,type) => {
 
-  console.log("addWidgetToDashboard",id,rect,data,type)
+ // console.log("addWidgetToDashboard",id,rect,data,type)
 
   widgetList.value.push({ id, rect, data ,type});
   
@@ -173,7 +173,7 @@ const addWidgetToDashboard = (id, rect, data,type) => {
   nextTick(() => {
     const el = document.querySelector(`[data-gs-id="${id}"]`);
     const componentInstance = widgetRefs.value[id];
-    console.log("el",componentInstance)
+    //console.log("el",componentInstance)
     
     if (el) {
       //grid.makeWidget(el);
@@ -181,8 +181,8 @@ const addWidgetToDashboard = (id, rect, data,type) => {
       grid.addWidget(el, rect  );
       
       requestAnimationFrame(() => {
-        const h = el.clientHeight;
-        console.log('clientHeight:', h);
+       // const h = el.clientHeight;
+       // console.log('clientHeight:', h);
         //const container = el.querySelector(".chart-container");
        // const container = el.querySelector(".multi-chart-container");
         //console.log("container",coneltainer.clientWidth,el.clientHeight,container)
@@ -210,7 +210,8 @@ const removeWidget = (id) => {
 
 // Funzione chiamata dal componente quando il grafico è pronto
 const registerChart = (chartInstance) => {
-  console.log(chartInstance);
+
+  console.debug(chartInstance);
   // Salviamo l'istanza (mainSeries, refresh, etc.) nella nostra mappa globale
   // Questo ci permette di fare: chart_map[symbol].mainSeries.update(...)
   //window.chart_list[chartInstance.id] = chartInstance;
@@ -271,7 +272,7 @@ const addReportWidget = (id, rect, data) => {
 
 onMounted(() => {
 
-  console.log("main onMounted")
+  //console.log("main onMounted")
 
   // Inizializza GridStack
   grid = window.GridStack.init({
@@ -297,13 +298,13 @@ onMounted(() => {
 
   const loadLayout = async () => {
   try {
-      console.log("LOAD LAYOUT")
+      //console.log("LOAD LAYOUT")
       const response = await fetch('http://127.0.0.1:8000/api/layout/select')
       if (!response.ok) throw new Error('Errore nel caricamento')
         const data = await response.json();
         const msgs = JSON.parse(data["data"]);
 
-        console.log("LOAD LAYOUT OK",msgs)
+        //console.log("LOAD LAYOUT OK",msgs)
         msgs.forEach(msg => {
             if (msg.widget.type === "chart") {
               addCandleWidget(msg.id, msg.widget.symbol, msg.widget.timeframe, msg.widget.plot_config, msg.rect);
@@ -331,7 +332,7 @@ onMounted(() => {
   
   function saveLayout() {
     const layout = grid.save(false); // false = senza DOM
-    console.log("saveLayout",layout)
+    //console.log("saveLayout",layout)
     if (layout.length !=widgetList.value.length )
     {
       alert("ATTENZIONE LEN WINDGET");
@@ -344,12 +345,12 @@ onMounted(() => {
     for(var i=0;i<widgetList.value.length;i++)
     {
       const componentInstance = widgetRefs.value[widgetList.value[i].id];
-      console.log("save",componentInstance.save())
+      //console.log("save",componentInstance.save())
       save.push({"id": widgetList.value[i].id, "rect": layout[i],"type" : widgetList.value[i].type, "data": componentInstance.save()}) 
       
     }
 
-    console.log(save)
+    //console.log(save)
     fetch(`http://127.0.0.1:8000/api/layout/save`,
     {
       method: 'POST', 
@@ -377,7 +378,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  console.log("main onUnmounted")
+  //console.log("main onUnmounted")
   if (ws) ws.close();
 });
 </script>

@@ -34,7 +34,7 @@
         <button @click="$emit('close', id)" class="btn btn-sm btn-outline-light border-0 close-btn">✕</button>
       </div>
     </div>
-   <div v-if="props.multi_mode" class="bulk_header" >
+    <div v-if="props.multi_mode" class="bulk_header" >
         <span>{{ currentTimeframe }}</span>
         <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
     </div>
@@ -43,38 +43,74 @@
 
       <div ref="chartContainer" class="chart-container h-100 w-100 d-flex flex-column">
         <div ref="mainChartRef" class="flex-grow-1 w-100">
-            <div class="chart-legend-left-ind  small" v-html="legendIndHtml"></div>
+          <div class="chart-legend-left-ind  small" v-html="legendIndHtml"></div>
           <div class="chart-legend-left small"  >
                 <span class="text-white me-3">Vol: {{  formatValue(lastMainCandle?.volume) }}</span>
               </div>
         </div>
         <div ref="volumeChartRef" style="height: 100px;" class="w-100 border-top border-secondary"></div>
+
+        <div class="button_bar">
+          <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
+            @click="setDrawMode('hline')">
+            ─
+          </button>
+
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="setDrawMode('line')">
+            ／
+          </button>
+
+          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+            @click="setDrawMode('delete')">
+            D
+          </button>
+
+          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+            @click="setDrawMode('delete_all')">
+            ✕
+          </button>
+      </div>
+      <div class="trade_bar">
+          <button   class="btn btn-sm btn-outline-warning ms-2"   title="Set Trade"
+            @click="setDrawMode('trade_marker')" 
+            @pointerdown.stop
+            @pointerup.stop
+            @mousedown.stop
+            @mouseup.stop
+            @click.stop>
+            +
+          </button>
+
+          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Trade"
+            @click="setDrawMode('trade_delete')">
+            ✕
+          </button>
+
+          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Trade"
+            @click="testFunction()">
+            SL
+          </button>
+      </div>
+
       </div>
     </div>
-    <div class="button_bar">
-        <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
-          @click="setDrawMode('hline')">
-          ─
-        </button>
 
-      <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-          @click="setDrawMode('line')">
-        ／
-      </button>
-
-      <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-        @click="clearDrawings">
-        ✕
-      </button>
-    </div>
   </div>
 </template>
 
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
-import { formatValue } from '@/components/utils.js'; // Usa il percorso corretto
+import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
+
+//import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
+import { applySMA,createChart, CrosshairMode,  CandlestickSeries, 
+  HistogramSeries, LineSeries,
+createTradingLine,createInteractiveLineManager  } from '@pipsend/charts'; //createTradingLine
+
+import { formatValue,send_delete,send_get } from '@/components/utils.js'; // Usa il percorso corretto
+import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings, updateTradeMarker ,setTradeMarker
+ } from '@/components/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 
 const props = defineProps({
   multi_mode: { type: Boolean, default: false },
@@ -100,17 +136,16 @@ const container = ref(null)
 const drawMode = ref(null); // null | 'hline' | 'line'
 let drawPoints = [];
 let drawSeries = [];
-
-function setDrawMode(mode) {
-  drawMode.value = mode;
-  drawPoints = [];
-  console.log("Draw mode:", mode);
-}
+//let dragging=false;
+//let lastMouse=null;
 
 // Oggetti Chart e Series (non reattivi per performance)
 let charts = { main: null, volume: null };
 let series = { main: null, volume: null, indicators: {} };
 let lastMainCandle=null
+let tradeData = {}; 
+//let DEFAULT_INTERACTION=null;
+let manager = null;
 
 let timeframe_start = {}
 timeframe_start["10s"] = 100
@@ -119,17 +154,18 @@ timeframe_start["5m"] = 50
 timeframe_start["1h"] = 24
 timeframe_start["1d"] = 30
 
-
-const handleSymbols = async () => {
-  handleRefresh();
-};
-const setSymbol = async (symbol) => {
-  currentSymbol.value= symbol
-  handleRefresh();
-};
-
-
-// --- LOGICA REFRESH DATI ---
+function context() {
+    return {
+        currentSymbol,
+        currentTimeframe,
+        charts,
+        series,
+        drawSeries
+    };
+}
+/*
+ --- LOGICA REFRESH DATI ---
+*/
 const handleRefresh = async () => {
   try {
     const responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
@@ -139,6 +175,22 @@ const handleRefresh = async () => {
  
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     const data = await response.json();
+
+    const ind_response = await send_get(`/api/chart/read`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value  });
+    //ind_response.data = JSON.parse(ind_response.data)
+    ind_response.map( line => {
+        line.data = JSON.parse(line.data)
+    })  
+
+     // TRADE MARKER
+
+      const _trade_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
+     
+      if (_trade_data.data!=null)
+        _trade_data.data = JSON.parse(_trade_data.data)
+      console.log("trade marker",_trade_data)
+      
+    //console.log("ind_response",ind_response) 
 
     console.log("loading ",currentSymbol.value,currentTimeframe.value)
     
@@ -171,6 +223,21 @@ const handleRefresh = async () => {
         });
       }
 
+      // gestione lieen user
+      clearDrawings( context() );
+      ind_response.forEach( line =>
+      {
+          if (line.type ==='price_line')
+          {
+              drawHorizontalLine(context(),line.data.price, line.guid);
+          }
+          if (line.type ==='trend')
+          {
+             // console.log("draw trend",line.data)
+              drawTrendLine(context(),line.data.p1,line.data.p2, line.guid);
+          }
+      });
+
 
       // Zoom finale
       if ( data.length >timeframe_start[currentTimeframe.value])
@@ -180,52 +247,190 @@ const handleRefresh = async () => {
           to: data.length
         });
       }
+
+      // TRADE MARKER
+      if (_trade_data.data!=null)
+      {
+          tradeData = _trade_data.data;
+          updateTradeMarker(context(),tradeData)
+      }
+      //console.log("trade marker",data)
+
+      //DEFAULT_INTERACTION = charts.main.options();
     }
   } catch (err) {
-    console.error("Errore fetch grafico:", err);
+    console.error("Errore refresh:", err);
   }
 };
 
 
+// UI LINKS
+
+async function setDrawMode(mode) {
+  if (mode === 'delete_all') {
+    clearDrawings(context(),true);
+    return;
+  }
+  if (mode === 'trade_delete') {
+
+     let ret = await send_delete("/api/trade/marker/delete", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value}); 
+     console.log("trade delete",ret)  
+
+     tradeData = {};
+     updateTradeMarker(context(),tradeData)
+     return;
+  }
+
+  drawMode.value = mode;
+  drawPoints = [];
+  console.log("Draw mode:", mode);
+}
+
+const handleSymbols = async () => {
+  handleRefresh();
+};
+const setSymbol = async (symbol) => {
+  currentSymbol.value= symbol
+  handleRefresh();
+};
+
+// =========================
+/*
+const ENABLE_INTERACTION = {
+    handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+    },
+    handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: true,
+        axisDoubleClickReset: true,
+    },
+};
+
+
+const DISABLE_INTERACTION = {
+    handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: false,
+        horzTouchDrag: false,
+        vertTouchDrag: false,
+    },
+    handleScale: {
+        mouseWheel: false,
+        pinch: false,
+        axisPressedMouseMove: false,
+        axisDoubleClickReset: false,
+    },
+};
+
+function disableChartInteraction(chart) {
+  console.log("disableChartInteraction",DEFAULT_INTERACTION)  
+    chart.applyOptions(DISABLE_INTERACTION);
+   // chartInteractionDisabled = true;
+}
+
+function enableChartInteraction(chart) {
+  console.log("disableChartInteraction",ENABLE_INTERACTION)  
+    chart.applyOptions(ENABLE_INTERACTION);
+  //  chartInteractionDisabled = false;
+}
+
+function _onMouseDown(e) {
+    if (!drawMode.value) return;
+    if (drawMode.value === 'trade_marker') 
+    
+    container.value.setPointerCapture(e.pointerId);
+    dragging=true;
+    disableChartInteraction(charts.main);
+    onMouseDown( context(),e); 
+    
+}
+
+function _onMouseMove(e) {
+  //console.log("mousemove",dragging) 
+    if (!dragging) return;
+     //e.preventDefault();
+    onMouseMove( context(),e); 
+  }
+function _onMouseUp(e) {
+    dragging=false;
+    console.log("mouseup")
+    container.value.releasePointerCapture(e.pointerId);
+    enableChartInteraction(charts.main);
+    onMouseUp( context(),e); 
+    
+  }
+*/
 // --- INIZIALIZZAZIONE ---
 onMounted(() => {
- // const { width, height } = container.value.getBoundingClientRect()
 
- // console.log("onMounted ",width-10,height-10);
+  // MOUSE CLICK - DRAWING TOOLS 
+  /*
+  container.value.addEventListener("pointerdown", _onMouseDown);
+  container.value.addEventListener("pointermove", _onMouseMove);
+  container.value.addEventListener("pointerup", _onMouseUp);
+  container.value.addEventListener("pointercancel", _onMouseUp);
+  container.value.addEventListener("pointerleave", _onMouseUp);
+  container.value.addEventListener("pointercancel", _onMouseUp);
+*/
   buildChart();
   handleRefresh();
-
   resize()
 });
 
-const fullResize =  () => {
-    //console.log("c full resize ",w,h);
+onBeforeUnmount(() => {
+  /*
+   container.value.removeEventListener("pointerdown", _onMouseDown);
+    container.value.removeEventListener("pointermove", _onMouseMove);
+    container.value.removeEventListener("pointerup", _onMouseUp);
+     container.value.removeEventListener("pointercancel", _onMouseUp);
+     */
+});
 
-    //charts.main.resize(w,h-100);
-    //charts.volume.resize(w,100);
-};
+onUnmounted(() => {
 
-const resize =  () => {
-    const { width, height } = container.value.getBoundingClientRect()
+  if (charts.main) charts.main.remove();
+  if (charts.volume) charts.volume.remove();
+});
 
-    console.log("c resize ",width,height,container);
-   // console.log(charts.main)
+async function testFunction()
+{
+    console.log("testFunction");
 
-    charts.main.resize(width-10,height-100);
-    charts.volume.resize(width-10,94);
+    createTradingLine(series.main, charts.main, {
+        price: 185.35,
+        type: 'stop-loss',
+        onDragStart: (price) => console.log('Drag started',price),
+        onDragMove: (price) => console.log('Moving:', price),
+        onDragEnd: (price) => console.log('Final:', price)
+    });
 
-    handleRefresh();
-};
-
-
-
+   // await manager.enableClickToCreate('stop-loss');
+   /*
+    const line = await manager.enableClickToCreate('stop-loss', {
+        onDragEnd: (price) => console.log('SL:', price)
+    });
+    console.log("line",line) ;
+    */
+}
+/* Full resize for gridstack
+*/
 const buildChart =  () => {
  //console.log("buildChart")
   // 1. Main Chart
   charts.main = createChart(mainChartRef.value, {
     layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
     grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
-    crosshair: { mode: CrosshairMode.Normal },
+    crosshair: { 
+      mode: CrosshairMode.Normal,
+      horzLine: {
+            visible: false,
+        }, 
+    },
     timeScale: { timeVisible: true, borderColor: '#485c7b' }
   });
 
@@ -248,6 +453,23 @@ const buildChart =  () => {
     scaleMargins: { top: 0.7, bottom: 0 }
   });
  
+  // Add SMA (Simple Moving Average) - appears on main chart
+  applySMA(series.main, charts.main, { period: 20, color: '#FFFF00' });
+  /*
+  const stopLoss = createTradingLine(series.main, charts.main, {
+    price: 185.35,
+    type: 'stop-loss',
+    onDragStart: (price) => console.log('Drag started',price),
+    onDragMove: (price) => console.log('Moving:', price),
+    onDragEnd: (price) => console.log('Final:', price)
+});
+*/
+
+    //console.log("stopLoss",stopLoss );
+
+   // Click-to-create: Create lines by clicking on chart
+  manager = createInteractiveLineManager( charts.main,series.main);
+  console.log(manager);
   // 3. Indicatori Dinamici
   //console.log("plot_config",props.plot_config)
   if (props.plot_config.main_plot!=null)
@@ -271,8 +493,9 @@ const buildChart =  () => {
   mainTimeScale.subscribeVisibleLogicalRangeChange(range => volumeTimeScale.setVisibleLogicalRange(range));
   volumeTimeScale.subscribeVisibleLogicalRangeChange(range => mainTimeScale.setVisibleLogicalRange(range));
 
-  // 5. Crosshair Sync e Legend
-  charts.main.subscribeCrosshairMove(param => {
+  // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
+  charts.main.subscribeCrosshairMove(param => 
+  {
     if (!param.time || !param.seriesData.get(series.main)) {
       legendHtml.value = '';
       legendIndHtml.value = '';
@@ -280,15 +503,13 @@ const buildChart =  () => {
       return;
     }
 
-      
     const data = param.seriesData.get(series.main);
+    if (!data) return;
 
-    //console.log("MOVE ",data)
+    //lastMouse = data;
 
+    // VOLUUME LINK
     charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
-
-    //const dataVol = param.seriesData.get(series.volume);
-    //console.log(series.volume.data());
     const bar = series.volume.data().find(x => x.time === param.time);
     const vol = bar?.value;
 
@@ -311,15 +532,14 @@ const buildChart =  () => {
     legendIndHtml.value = lbl;
   });
 
-  // DRAWING 
 
   charts.main.subscribeClick(param => {
     
     if (!drawMode.value ) return;
-   if (!param || !param.point || !param.time) {
-    console.log("Click cancelled");
-    return;
-  }
+    if (!param || !param.point || !param.time) {
+      console.log("Click cancelled");
+      return;
+    }
     //const candle_price = param.seriesData.get(series.main).close;
     const price = series.main.coordinateToPrice(param.point.y);
   
@@ -328,7 +548,7 @@ const buildChart =  () => {
     console.log("Click at", param.time, price);  
    
     if (drawMode.value === 'hline') {
-      drawHorizontalLine(price);
+      drawHorizontalLine(context(),price);
       drawMode.value = null;
     }
 
@@ -336,18 +556,31 @@ const buildChart =  () => {
       drawPoints.push({ time: param.time, value: price });
 
       if (drawPoints.length === 2) {
-        drawTrendLine(drawPoints[0], drawPoints[1]);
+        drawTrendLine(context(),drawPoints[0], drawPoints[1]);
         drawPoints = [];
         drawMode.value = null;
       }
     }
+    if (drawMode.value === 'delete') {
+        clearLine(context(),param.time,price)
+        drawMode.value = null;
+    }
+     if (drawMode.value === 'trade_marker') {
+        //tradeData.price = price;
+        tradeData.price = price;  
+        setTradeMarker(context(),tradeData)
+
+        drawMode.value = null;
+
+    }
+
   });
 
   //
   // Caricamento Iniziale
   //buildChart();
   handleSymbols();
-
+    
   // Esponi l'oggetto al genitore (per aggiornamenti WS)
   emit('initialized', { 
     id: props.id, 
@@ -357,12 +590,19 @@ const buildChart =  () => {
   });
 };
 
-onUnmounted(() => {
-  if (charts.main) charts.main.remove();
-  if (charts.volume) charts.volume.remove();
-});
 
 // =========================
+
+const resize =  () => {
+    const { width, height } = container.value.getBoundingClientRect()
+    console.debug("c resize ",width,height,container);
+   // console.log(charts.main)
+    charts.main.resize(width-10,height-100);
+    charts.volume.resize(width-10,94);
+    handleRefresh();
+};
+
+
 
 function on_candle(c)
 {
@@ -391,71 +631,20 @@ function on_candle(c)
   } 
 }
 
-// ===================================
-
-function drawHorizontalLine(price) {
-  console.log("Draw HLine at", price);
-
-  const line = series.main.createPriceLine({
-      price: price,
-      color: '#ffcc00',
-      lineWidth: 1,
-      lineStyle: 0, // solid
-      axisLabelVisible: true,
-      title: ''
-    });
-    
-
-  drawSeries.push(line);
-  console.log("HLine drawn",drawSeries );
-}
-
-function drawTrendLine(p1, p2) {
-  const line = charts.main.addSeries(LineSeries, {
-    color: '#00ffff',
-    lineWidth: 1,
-    lastValueVisible: false,
-    priceLineVisible: false
-  });
-  if (p1.time > p2.time) {
-    const temp = p1;
-    p1 = p2;
-    p2 = temp;
-  }
-  line.setData([
-    { time: p1.time, value: p1.value },
-    { time: p2.time, value: p2.value }
-  ]);
-
-  drawSeries.push(line);
-}
-
-function clearDrawings() {
-  if (!charts.main) return;
-  drawSeries.forEach(s => {
-    try {
-      if (s) {
-        charts.main.removeSeries(s);
-      }
-    } catch (e) {
-      console.warn("Serie già rimossa o non valida", s);
-    }
-  });
-
-  drawSeries.length = 0;
-}
-
 // ==========================
+
 defineExpose({
   resize,
-  fullResize,
   setSymbol,
-  on_candle
+  on_candle,
 });
+
 
 </script>
 
 <style scoped>
+
+
 .timeframe{
   font-weight: 700;
 }
@@ -504,8 +693,17 @@ defineExpose({
 }
 .button_bar{
   position:absolute;
-  top:10px;
+  top:0px;
   left:400px;
+  z-index: 20 !important;
+  font-weight: 300;
+  font-size: medium;
+  padding: 3px;
+}
+.trade_bar{
+  position:absolute;
+  bottom:145px;
+  left:100px;
   z-index: 20 !important;
   font-weight: 300;
   font-size: medium;

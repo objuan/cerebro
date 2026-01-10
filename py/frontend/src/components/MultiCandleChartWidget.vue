@@ -134,20 +134,12 @@ const currentMode = ref(props.timeframe );
 
 // -------------
 
-//let timeframes= []
-
 const timeframes = computed(() =>
   props.timeframe_multi
     .split(',')
     .map(tf => tf.trim())
     .filter(Boolean)
 );
-/*
-props.timeframe_multi.split(",").forEach(item => {
-    //console.log(item.trim());
-    timeframes.push(item);
-});
-*/
 
 const handleSymbols = async () => {
   console.log("handleSymbols",widgetRefs.value["chart_1"])
@@ -156,8 +148,8 @@ const handleSymbols = async () => {
   widgetRefs.value["chart_2"].setSymbol(currentSymbol.value);
   widgetRefs.value["chart_3"].setSymbol(currentSymbol.value);
   widgetRefs.value["chart_4"].setSymbol(currentSymbol.value);
-
 };
+
 
 function selectMode(mode)
 {

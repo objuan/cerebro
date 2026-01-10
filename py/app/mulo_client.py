@@ -292,3 +292,11 @@ class MuloClient:
         conn.close()
         return df
     
+    def execute(self,sql, params=()):
+        conn = sqlite3.connect(self.db_file)
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        line_id = cur.lastrowid
+        conn.commit()
+        return line_id
+    

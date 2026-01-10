@@ -37,3 +37,96 @@ export function formatValue(v) {
     return v.toString();
 }
 
+export function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    if (dx === 0 && dy === 0) {
+        return Math.hypot(px - x1, py - y1);
+    }
+
+    const t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+    const clamped = Math.max(0, Math.min(1, t));
+
+    const cx = x1 + clamped * dx;
+    const cy = y1 + clamped * dy;
+
+    return Math.hypot(px - cx, py - cy);
+}
+
+export async function send_post(url, payload) {
+
+    let res = await fetch("http://localhost:8000"+url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        throw new Error("Errore nel salvataggio chart line");
+    }
+
+    return await res.json();
+}
+export async function send_delete(url, payload = null) {
+    const options = {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+    };
+
+    // opzionale: body (non tutti i backend lo usano)
+    if (payload) {
+        options.body = JSON.stringify(payload);
+    }
+
+    const res = await fetch("http://localhost:8000" + url, options);
+
+    if (!res.ok) {
+        throw new Error("Errore nella DELETE");
+    }
+
+    return await res.json();
+}
+
+export async function send_get(url, params = {}) {
+    const query = new URLSearchParams(params).toString();
+
+    const res = await fetch(
+        "http://localhost:8000" + url + (query ? `?${query}` : ""),
+        {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+        }
+    );
+
+    if (!res.ok) {
+        throw new Error("Errore nella GET");
+    }
+
+    return await res.json();
+}
+
+export async function saveChartLine(symbol, timeframe, data) {
+
+    let res = await fetch("http://localhost:8000/api/chart/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            symbol,
+            timeframe,
+            data,
+        }),
+    });
+    if (!res.ok) {
+        throw new Error("Errore nel salvataggio chart line");
+    }
+
+    return await res.json();
+}
+
+export function generateGUID() {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        const v = c === "x" ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
