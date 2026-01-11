@@ -33,14 +33,14 @@ class ChartWidget(Widget):
                    "type" : "candle",
                    "data": candle
                })
-       
+    '''
     async def notify_ticker(self, ticker,page:RenderPage):
         #logger.info(f"notify_ticker {ticker}")
         await page.send({
                    "type" : "ticker",
                    "data": ticker
                })
-
+    '''   
     def render_html():
         pass
 

@@ -3,18 +3,9 @@
     <PageHeader title="Cerebro V0.1"/>
     <main class="container">
 
-      <TickersSummary></TickersSummary>
-     <!--
-         <CandleChartWidget 
-            id="11"
-            symbol="ANGH"
-            timeframe="1m"
-            plot_config= ""
-            @initialized="registerChart"
-            @close="removeWidget"
-          />
--->
-          
+      <trade-config></trade-config>
+      <TickersSummary ref="tickets_summary"></TickersSummary>
+    
       <div class="grid-stack">
         <div 
           v-for="w in widgetList" 
@@ -47,8 +38,6 @@
         <button @click="showPopup = false" class="btn btn-secondary">Annulla</button>
       </div>
 
- 
-
     </main>
   </div>
 </template>
@@ -59,29 +48,27 @@ import { onMounted, onUnmounted, ref ,nextTick } from 'vue';
 
 import TickersSummary from '@/components/TickersSummary.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import TradeConfig from '@/components/TradeConfig.vue'
 import CandleChartWidget from '@/components/CandleChartWidget.vue';
 import MultiCandleChartWidget from '@/components/MultiCandleChartWidget.vue';
-//import { reactive } from 'vue';
+import { send_get } from '@/components/utils';
 
 // --- STATO REATTIVO ---
-//const liveData = reactive({});
+
 
 const showPopup = ref(false);
 const symbolsList = ref([]);
 const selectedSymbolChoice = ref('');
-//let activePopupCallback = null;
 const widgetList = ref([]); // Array di oggetti { id, rect, data }
 const widgetRefs = ref({})
+const tickets_summary = ref()
 
 // Riferimenti non reattivi (istanze tecniche)
 let grid = null;
-//const chart_list = {}; // Mappa degli oggetti grafico
-//const report_map = {}; 
-//const widget_instances = [];
-
 // --- LOGICA WEBSOCKET ---
 let ws = null;
 
+// crea un nuovo widget
 const getWidgetComponent = (type) => {
   //console.log("crate" , type)
   switch (type) {
@@ -98,7 +85,7 @@ const initWebSocket = () => {
   ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 
   ws.onmessage = (event) => {
-    // console.log(event.data)
+    //console.log(event.data)
     const msg = JSON.parse(event.data);
    
     if (msg.path) {
@@ -116,32 +103,28 @@ const initWebSocket = () => {
             //console.log("WS CANDLE",msg.id,componentInstance) 
             componentInstance.on_candle(msg.data);  
           }
-          /*
-          const chartObj = chart_list[msg.id];
-          if (chartObj) {
-            const c = msg.data;
-            chartObj.mainSeries.update({
-              time: window.db_localTime(c.ts),
-              open: c.o, high: c.h, low: c.l, close: c.c
-            });
-            chartObj.volumeSeries.update({
-              time: window.db_localTime(c.ts),
-              value: c.bv,
-              color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
-            });
-          }
-            */
         }
         break;
       case "ticker":
         {
           //console.log("WS TICKER",msg.data);
           //for x in widgetRefs.value 
+          
            for(var i=0;i<widgetList.value.length;i++)
           {
               const componentInstance = widgetRefs.value[widgetList.value[i].id];
               componentInstance.on_ticker(msg.data);  
           }
+          tickets_summary.value.updateSymbol(msg.data)
+
+        } 
+        break
+       case "props":
+        {
+          //console.log("WS props",msg);
+          //for x in widgetRefs.value 
+          
+           liveStore.updatePathData(msg.path, msg.value);
 
         } 
         break
@@ -227,7 +210,6 @@ const addMultiCandleWidget = (id, symbol,  plot_config, rect) => {
 
  addWidgetToDashboard(id,rect,{"symbol" : symbol,"plot_config": plot_config},"multi_chart");
 };
-
 
 const addReportWidget = (id, rect, data) => {
   const el = document.createElement("div");
@@ -316,6 +298,14 @@ onMounted(() => {
             } else if (msg.widget.type === "report") {
               addReportWidget(msg.id, msg.rect, msg.widget);
             }
+        });
+
+        // tutte le  props
+        let pdata = await send_get("/api/props/find", {path : ""})
+        //console.log(pdata)
+        pdata.forEach(  (val) =>{
+            //console.log(val.path, val.value)
+            liveStore.updatePathData(val.path, val.value);
         });
         
         

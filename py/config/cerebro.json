@@ -29,9 +29,10 @@
 		{
 			"scanner":
 			{
-				"enabled" : false,
+				"mode" : "sym",
+				"mode1" : "live|offline|sym",
 				"update_time" : "10m" ,
-				"debug_symbols" : ["NVDA","AAPL"],
+				"debug_symbols" : ["NVDA"],
 				"profiles": 
 				[
 					{

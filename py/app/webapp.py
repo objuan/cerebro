@@ -22,10 +22,12 @@ from utils import *
 #from ib_insync import IB,util
 from layout import *
 from mulo_client import MuloClient
+from trade_manager import TradeManager
 
 #if sys.platform == 'win32':
     #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 from config import DB_FILE,CONFIG_FILE
+from props_manager import PropertyManager
 
 DEF_LAYOUT = "./layouts/default_layout.json"
 LOG_DIR = "logs"
@@ -107,6 +109,8 @@ client = MuloClient("../"+DB_FILE,config)
 
 db = DBDataframe(config,client)
 
+propManager = PropertyManager()
+tradeManager = TradeManager(propManager)
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -215,15 +219,6 @@ async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
 
 
         if True:
-            '''
-            df = client.get_df("""
-            SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
-                FROM ib_ohlc_history
-                WHERE symbol=? AND timeframe=?
-                ORDER BY timestamp ASC
-                LIMIT ?
-            """, (symbol, timeframe, limit))
-            '''
 
             df = await client.ohlc_data(symbol,timeframe,limit)
          
@@ -263,11 +258,41 @@ def get_fundamentals(symbol:str):
     df =  client.get_fundamentals(symbol).iloc[0]
     return JSONResponse(df.to_dict())
 
+@app.get("/api/props/find")
+def read_props(path: str):
+    data = propManager.get(path)
+   
+    result = [
+        {"path": k, "value": v}
+        for item in data
+        for k, v in item.items()
+    ]
+
+    logger.info(f"data {result}")
+    return JSONResponse(result)
+
+@app.post("/api/props/save")
+async def write_props(payload:dict):
+    logger.info(f"write_props {payload}" )
+
+    async def on_computed_changed(comp):
+        
+        for k, v in comp.items():
+            msg =  {"type":"props", "path": k, "value": v()}
+
+        logger.info(f"send {msg}")
+        await render_page.send(msg)
+
+    await propManager.set(payload["path"], payload["value"],on_computed_changed)
+    #for k,val in payload.items():
+    #    propManager.setProp(k,val)
+    return JSONResponse("ok")
+
 ######################
 
 @app.post("/api/chart/save")
 def save_chart_line(payload: dict):
-    logger.info(f"SAVE CHART LINE {payload}")   
+    #logger.info(f"SAVE CHART LINE {payload}")   
     try:
         symbol = payload["symbol"]
         timeframe = payload["timeframe"]
@@ -301,7 +326,7 @@ def delete_chart_line(payload: dict  ):
             detail=f"Campo mancante: {e.args[0]}"
         )
 
-    logger.info(f"DELETE CHART LINE {guid}")
+    #logger.info(f"DELETE CHART LINE {guid}")
     client.execute("""
         DELETE FROM chart_lines WHERE guid = ?
     """, (guid,))
@@ -318,7 +343,7 @@ def delete_chart_all(payload: dict  ):
             detail=f"Campo mancante: {e.args[0]}"
         )
 
-    logger.info(f"DELETE ALL CHART LINES {symbol} {timeframe}")
+    #logger.info(f"DELETE ALL CHART LINES {symbol} {timeframe}")
     client.execute("""
         DELETE FROM chart_lines WHERE symbol = ? and timeframe= ?   
     """, (symbol,timeframe))
@@ -332,7 +357,7 @@ def read_chart_lines(symbol: str, timeframe: str):
         WHERE symbol = ? AND timeframe = ?
     """, (symbol, timeframe))
 
-    logger.info(f"READ CHART LINES {symbol} {timeframe} -> {df} ")    
+   # logger.info(f"READ CHART LINES {symbol} {timeframe} -> {df} ")    
     
     return JSONResponse(df.to_dict(orient="records"))
 
@@ -340,7 +365,7 @@ def read_chart_lines(symbol: str, timeframe: str):
 
 @app.post("/api/trade/marker")
 def save_chart_marker(payload: dict):
-    logger.info(f"SAVE TRADE  {payload}")   
+    #logger.info(f"SAVE TRADE  {payload}")   
     try:
         symbol = payload["symbol"]
         timeframe = payload["timeframe"]
@@ -371,7 +396,7 @@ def read_chart_lines(symbol: str, timeframe: str):
         WHERE symbol = ? AND timeframe = ?
     """, (symbol, timeframe))
 
-    logger.info(f"READ TRADE MARKER {symbol} {timeframe} -> {df} ")    
+    #logger.info(f"READ TRADE MARKER {symbol} {timeframe} -> {df} ")    
     
     if df.empty:
         return JSONResponse({})
@@ -402,7 +427,14 @@ layout = Layout(client,db,config)
 layout.read(DEF_LAYOUT)
 layout.set_render_page(render_page)   
 client.on_candle_receive += layout.notify_candles    
-client.on_ticker_receive += layout.notify_ticker    
+
+async def _on_ticker_receive(ticker):
+    await render_page.send({
+                   "type" : "ticker",
+                   "data": ticker
+               })
+      
+client.on_ticker_receive += _on_ticker_receive    
 
 #layout.setDefault()
 
@@ -448,16 +480,40 @@ async def ws_live(ws: WebSocket):
     
 
 async def live_loop():
-    while True:
-        #print("tick")
+    ticker_time = 0
+    scheduler = AsyncScheduler()
+    
+    async def one_second_timer():
         try:
-            msg = {
-                "path": "root.heartbeat",
-                "data": int(time.time() * 1000)
-            }
+            #logger.info("1 sec")
             
-            #await ws_manager.broadcast(msg)
+            if (client.sym_mode):
+                msg = {
+                    "path": "root.clock",
+                    "data": client.sym_time 
+                }
+            else:
+                msg = {
+                    "path": "root.clock",
+                    "data": int(time.time() * 1000)
+                }
+                
+            await ws_manager.broadcast(msg)
+            
+            await db.tick()
+                
+            await layout.tick(render_page)
+            
+        except:
+            logger.error("ERROR", exc_info=True)
 
+    scheduler.schedule_every(1,one_second_timer)
+
+    ########## main ###############
+
+    while True:
+        try:
+          
             '''
             if fetcher.marketZone:
                 msg = {
@@ -466,27 +522,12 @@ async def live_loop():
                 }
                 #await ws_manager.broadcast(msg)
             '''
-            '''
-            msg1 = {
-                "type": "price_update",
-                "symbol": "NVDA",
-                "price" : 222
-            }
-
-            await ws_manager.broadcast(msg1)
-            '''
             
-            #new_candles = await fetcher.fetch_live_candles()
-
-            #logger.info(f"NEW # {len(new_candles)}")
-            '''
-            if len(new_candles) < 500:
-                await layout.notify_candles(new_candles,render_page)
-            '''
-
-            await db.tick()
+            #await db.tick()
             
-            await layout.tick(render_page)
+            #await layout.tick(render_page)
+
+            await scheduler.tick()
            
         except Exception as e:
             logger.error("errore live loop:", exc_info=True)

@@ -51,6 +51,8 @@ class MuloClient:
         self.on_symbols_update = MyEvent()
         self.on_candle_receive = MyEvent()
         self.on_ticker_receive = MyEvent()
+        self.sym_mode = config["database"]["scanner"]["mode"]   == "sym"
+        self.sym_time = None
         # live feeds
 
     async def bootstrap(self, onStartHandler):
@@ -68,37 +70,38 @@ class MuloClient:
                 await websocket.send(json.dumps(message))
                 
                 async def updateTickers(new_ticker):
-                    
-                    new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
-                    #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
-                    #print(new_ticker)
-                    await self.on_candle_receive(new_ticker)
-                    
-                    if new_ticker["tf"]=="1m":
-                        t= self.tickers[new_ticker["s"]]
-                        t.update({"last": new_ticker["c"],"day_v": new_ticker["day_v"],"ask": new_ticker["ask"],"bid": new_ticker["bid"],
-                                    "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100})
+                    if self.sym_mode and "sym" in new_ticker:
+                        self.sym_time = new_ticker["sym"]
+                    else:
+                        new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
+                        #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
+                        #print(new_ticker)
+                        await self.on_candle_receive(new_ticker)
                         
-                        await self.on_ticker_receive(t)
-                        #print(self.tickers)
-                    #self.render_page.send({"type":"candle","data":new_ticker}) 
+
+                        if new_ticker["tf"]=="10s":
+                            t= self.tickers[new_ticker["s"]]
+                            t.update({"last": new_ticker["c"],"day_v": new_ticker["day_v"],"ask": new_ticker["ask"],"bid": new_ticker["bid"],
+                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, "ts":new_ticker["ts"] })
+                            # send event 
+                            await self.on_ticker_receive(t)
+                            #print(self.tickers)
+                        #self.render_page.send({"type":"candle","data":new_ticker}) 
                    
                 # live on last scanner
 
                 # first
-                new_tickers = await websocket.recv()
-                await updateTickers(json.loads(new_tickers))
+                new_ticker = await websocket.recv()
+                await updateTickers(json.loads(new_ticker))
 
                 self.ready=True
                 onStartHandler()
 
                 while True:
-                    # Riceve la risposta dal server
-                    new_tickers = await websocket.recv()
-                    await updateTickers(json.loads(new_tickers))
+                    new_ticker = await websocket.recv()
+                    await updateTickers(json.loads(new_ticker))
 
                     #logger.info(f"< Ricevuto: {response}")
-
 
         except ConnectionRefusedError:
             logger.error("Errore: Assicurati che il server sia attivo!")
@@ -173,12 +176,24 @@ class MuloClient:
 
     async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000):
        
-        query = f"""
-            SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
-            FROM {self.table_name}
-            WHERE symbol=? AND timeframe=?
-            ORDER BY timestamp DESC
-            LIMIT ?"""
+        if self.sym_mode:
+            ticker = self.tickers[symbol]
+            last_time = ticker["ts"]
+            logger.info(f"last_time {last_time}")
+            query = f"""
+                SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
+                FROM {self.table_name}
+                WHERE symbol=? AND timeframe=? and timestamp<= {last_time}
+                ORDER BY timestamp DESC
+                LIMIT ?"""
+
+        else:
+            query = f"""
+                SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
+                FROM {self.table_name}
+                WHERE symbol=? AND timeframe=?
+                ORDER BY timestamp DESC
+                LIMIT ?"""
              
         conn = sqlite3.connect(self.db_file)
         df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))

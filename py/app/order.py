@@ -76,12 +76,13 @@ class OrderManager:
     ib=None
     def __init__(self,ib):
         OrderManager.ib=ib
-    # Assegna gli event handlers
-    #ib.newOrderEvent += onNewOrder
-    #ib.orderModifyEvent += onOrderModify
-        OrderManager.ib.cancelOrderEvent += onCancelOrder
-        OrderManager.ib.openOrderEvent += onOpenOrder
-        OrderManager.ib.orderStatusEvent += onOrderStatus
+        # Assegna gli event handlers
+        #ib.newOrderEvent += onNewOrder
+        #ib.orderModifyEvent += onOrderModify
+        if ib:
+            OrderManager.ib.cancelOrderEvent += onCancelOrder
+            OrderManager.ib.openOrderEvent += onOpenOrder
+            OrderManager.ib.orderStatusEvent += onOrderStatus
 
 ##############
 

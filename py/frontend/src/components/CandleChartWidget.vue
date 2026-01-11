@@ -87,10 +87,6 @@
             ✕
           </button>
 
-          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Trade"
-            @click="testFunction()">
-            SL
-          </button>
       </div>
 
       </div>
@@ -104,9 +100,9 @@
 import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
-import { applySMA,createChart, CrosshairMode,  CandlestickSeries, 
+import { createChart, CrosshairMode,  CandlestickSeries, 
   HistogramSeries, LineSeries,
-createTradingLine,createInteractiveLineManager  } from '@pipsend/charts'; //createTradingLine
+createInteractiveLineManager  } from '@pipsend/charts'; //createTradingLine
 
 import { formatValue,send_delete,send_get } from '@/components/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings, updateTradeMarker ,setTradeMarker
@@ -188,11 +184,11 @@ const handleRefresh = async () => {
      
       if (_trade_data.data!=null)
         _trade_data.data = JSON.parse(_trade_data.data)
-      console.log("trade marker",_trade_data)
+      console.debug("trade marker",_trade_data)
       
     //console.log("ind_response",ind_response) 
 
-    console.log("loading ",currentSymbol.value,currentTimeframe.value)
+    console.debug("loading ",currentSymbol.value,currentTimeframe.value)
     
     if (data && data.length > 0) {
       // Formatta dati per Candlestick
@@ -397,31 +393,12 @@ onUnmounted(() => {
   if (charts.volume) charts.volume.remove();
 });
 
-async function testFunction()
-{
-    console.log("testFunction");
-
-    createTradingLine(series.main, charts.main, {
-        price: 185.35,
-        type: 'stop-loss',
-        onDragStart: (price) => console.log('Drag started',price),
-        onDragMove: (price) => console.log('Moving:', price),
-        onDragEnd: (price) => console.log('Final:', price)
-    });
-
-   // await manager.enableClickToCreate('stop-loss');
-   /*
-    const line = await manager.enableClickToCreate('stop-loss', {
-        onDragEnd: (price) => console.log('SL:', price)
-    });
-    console.log("line",line) ;
-    */
-}
 /* Full resize for gridstack
 */
 const buildChart =  () => {
  //console.log("buildChart")
   // 1. Main Chart
+  try{
   charts.main = createChart(mainChartRef.value, {
     layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
     grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
@@ -454,7 +431,7 @@ const buildChart =  () => {
   });
  
   // Add SMA (Simple Moving Average) - appears on main chart
-  applySMA(series.main, charts.main, { period: 20, color: '#FFFF00' });
+  //applySMA(series.main, charts.main, { period: 20, color: '#FFFF00' });
   /*
   const stopLoss = createTradingLine(series.main, charts.main, {
     price: 185.35,
@@ -469,7 +446,7 @@ const buildChart =  () => {
 
    // Click-to-create: Create lines by clicking on chart
   manager = createInteractiveLineManager( charts.main,series.main);
-  console.log(manager);
+  console.debug(manager);
   // 3. Indicatori Dinamici
   //console.log("plot_config",props.plot_config)
   if (props.plot_config.main_plot!=null)
@@ -588,6 +565,10 @@ const buildChart =  () => {
     volumeSeries: series.volume,
     refresh: buildChart 
   });
+}catch(ex){
+  console.error(ex)
+}
+
 };
 
 

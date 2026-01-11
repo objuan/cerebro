@@ -66,7 +66,7 @@ export function updateTradeMarker(chart_context,tradeData) {
        });
         line.price = tradeData.price
         line.guid = "TRADE_MARKER";
-
+        //console.log(line);
          drawSeries.push({"line":line,
             "contains": (x,y)=> {
                 //console.log("line",line.p1,line.p2);  
@@ -77,8 +77,7 @@ export function updateTradeMarker(chart_context,tradeData) {
                 return dist < 10; // Tolleranza in pixel
             },
             "delete": (line)=> {
-                series.main.removePriceLine(line);
-                //removePriceLine(line);
+                line.remove();
             }}) ;
     }
     if (tradeData.stop_loss) 
@@ -104,7 +103,7 @@ export function updateTradeMarker(chart_context,tradeData) {
                 return dist < 10; // Tolleranza in pixel
             },
             "delete": (line)=> {
-            series.main.removePriceLine(line);
+                line.remove();
             }}) ;
     }
 }

@@ -129,8 +129,8 @@ class MuloJob:
                 self.update_ts[key] = new_ticker["ts"]
             #print("last_update_delta_min" , last_update_delta_min)
  
-    async def on_update_symbols(self,symbols):
-        logger.info(f"UPDATE SYMBOLS ..")#MAX:{self.max_symbols}")
+    async def on_update_symbols(self,symbols,liveMode=True):
+        logger.info(f"UPDATE SYMBOLS .. {symbols}")#MAX:{self.max_symbols}")
 
         self.symbols = symbols
           
@@ -149,10 +149,11 @@ class MuloJob:
             self.symbol_to_exchange_map[row["symbol"]] = row["exchange"]
       
         # startup 
-        for symbol in self.symbols:
-            for k,interval in TF_SEC_TO_DESC.items():
-                if int(k) > 30:
-                    await self._align_data(symbol,interval)
+        if liveMode:
+            for symbol in self.symbols:
+                for k,interval in TF_SEC_TO_DESC.items():
+                    if int(k) > 30:
+                        await self._align_data(symbol,interval)
 
     ##############
     async def _fetch_missing_history(self,cursor, symbol, timeframe, since):

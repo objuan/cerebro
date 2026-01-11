@@ -264,3 +264,16 @@ class MyEvent:
                 await handler(*args, **kwargs)
             else:
                 handler(*args, **kwargs)
+
+def dict_to_paths(data, prefix=""):
+    result = []
+
+    for key, value in data.items():
+        path = f"{prefix}.{key}" if prefix else key
+
+        if isinstance(value, dict):
+            result.extend(dict_to_paths(value, path))
+        else:
+            result.append({"path" : path , "value": value})
+
+    return result

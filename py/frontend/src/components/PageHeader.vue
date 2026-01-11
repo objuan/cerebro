@@ -5,7 +5,7 @@
         <i class="bi bi-cpu-fill me-2"></i> {{ title }}
       </h1>
       <p>Ultimo aggiornamento:
-         {{ liveData['root.heartbeat'] ? formatUnixDate(liveData['root.heartbeat']) : '...' }}
+         {{ liveData['root.clock'] ? formatUnixDate(liveData['root.clock']) : '...' }}
         </p>
       
       <div class="text-end">

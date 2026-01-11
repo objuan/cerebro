@@ -1,7 +1,13 @@
+import json
+import os
+import logging
+
 DB_FILE = "db/crypto.db"
 CONFIG_FILE = "config/cerebro.json"
+PROPS_FILE = "../config/properties.json"
 
 
+logger = logging.getLogger(__name__)
 
 '''
 TIMEFRAME_UPDATE_SECONDS = {

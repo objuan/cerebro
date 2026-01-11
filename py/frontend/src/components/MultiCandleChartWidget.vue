@@ -113,7 +113,7 @@ import { computed } from 'vue';
 const props = defineProps({
   id: { type: String, required: true },
   symbol: { type: String, required: true },
-  timeframe_multi: { type: String, required: false,default:"5m,1m,30s,1d" },
+  timeframe_multi: { type: String, required: false,default:"10s,1m,5m,1d" },
   timeframe: { type: String, required: false ,default:"1m"},
   plot_config: { type: Object, default: () => ({ main_plot: {} }) }
 });
@@ -153,7 +153,7 @@ const handleSymbols = async () => {
 
 function selectMode(mode)
 {
-  console.log("select ", mode)
+  //console.log("select ", mode)
   currentMode.value = mode
   resize();
 }
