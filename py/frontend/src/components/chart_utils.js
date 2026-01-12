@@ -7,16 +7,93 @@ export async function setTradeMarker(chart_context,tradeData) {
     const currentSymbol = chart_context.currentSymbol;
     const currentTimeframe = chart_context.currentTimeframe;
     
-    let ret = await send_post("/api/trade/marker",
+    let ret = await send_post("/api/trade/marker/add",
         {
             symbol: currentSymbol.value,
             timeframe: currentTimeframe.value,
-            data: tradeData
+            data: tradeData,
         });
     console.log("Trade marker set", ret);
     if (ret.status === "ok") {
+        tradeData = ret.data
+        chart_context.liveStore.updatePathData('trade.tradeData.'+chart_context.currentSymbol.value, tradeData);
+
         updateTradeMarker(chart_context,tradeData); 
     }
+}
+
+function calc_percent(price,base)
+{
+    return ((price - base) / base) * 100
+}
+
+function addTradeLine(chart_context,tradeData,price,title, color,guid){
+    const charts = chart_context.charts;
+    const series = chart_context.series;
+    const drawSeries = chart_context.drawSeries;    
+
+    function get_label()
+    {
+        let label = title
+        if (title== "SL")
+            label +=   " " +calc_percent(price,tradeData.price).toFixed(2)     +"%"
+        if (title== "TP")
+            label +=   " " +calc_percent(price,tradeData.price).toFixed(2)     +"%"
+        return label
+    }
+
+    const line =  createTradingLine(series.main, charts.main, {
+          price: price,
+          title: get_label(),
+          color:  color,
+          lineStyle: LineStyle.Dotted,
+          onDragEnd: async  (price) => 
+          {
+            console.log("SET PRICE" ,title,price )
+            if (title== "BUY")
+                tradeData.price = price;
+            if (title== "SL")
+                tradeData.stop_loss = price;
+            if (title== "TP")
+                tradeData.take_profit = price;
+
+            let ret = await send_post("/api/trade/marker/update",
+                {
+                    symbol: chart_context.currentSymbol.value,
+                    timeframe: chart_context.currentTimeframe.value,
+                    data: tradeData,
+                });
+          
+            if (ret.status === "ok") {
+                tradeData = ret.data
+                console.log("Trade marker set price", tradeData);
+
+                if (title!= "BUY")
+                {
+                    clearLineByGUID(chart_context,guid);
+                    addTradeLine(chart_context,tradeData,price,title,color,guid )
+                }
+                chart_context.liveStore.updatePathData('trade.tradeData.'+chart_context.currentSymbol.value, tradeData);
+                
+                //console.log("UPDATE ", chart_context.liveStore,'trade.tradeData.'+chart_context.currentSymbol.value,tradeData);
+
+                //updateTradeMarker(chart_context,tradeData); 
+            }
+          }
+       });
+        line.price = price
+        line.guid = guid;
+        //console.log(line);
+         drawSeries.push({"line":line,
+            "contains": (x,y)=> {
+                const py = series.main.priceToCoordinate(line.price);
+                if (!py) return false;
+                const dist = Math.abs(py - y);
+                return dist < 10; // Tolleranza in pixel
+            },
+            "delete": (line)=> {
+                line.remove();
+            }}) ;
 }
 
 export function updateTradeMarker(chart_context,tradeData) { 
@@ -24,88 +101,17 @@ export function updateTradeMarker(chart_context,tradeData) {
 
     clearLineByGUID(chart_context,"TRADE_MARKER");
     clearLineByGUID(chart_context,"TRADE_STOP_LOSS");
+    clearLineByGUID(chart_context,"TRADE_TAKE_PROFIT");
 
-    const charts = chart_context.charts;
-    const series = chart_context.series;
-    const drawSeries = chart_context.drawSeries;    
-/*
-      createTradingLine(series.main, charts.main, {
-            price: price + price* 0.001,
-            title: 'TP',
-            color: '#00FF00',
-            lineStyle: LineStyle.Dotted,
-            onDragStart: (price) => console.log('Drag started',price),
-            onDragMove: (price) => console.log('Moving:', price),
-            onDragEnd: (price) => console.log('Final:', price)
-        });
-          createTradingLine(series.main, charts.main, {
-            price: price - price* 0.001,
-            title: 'SL',
-             color: '#FF0000',
-             lineStyle: LineStyle.Dotted,
-            onDragStart: (price) => console.log('Drag started',price),
-            onDragMove: (price) => console.log('Moving:', price),
-            onDragEnd: (price) => console.log('Final:', price)
-        });
-        createTradingLine(series.main, charts.main, {
-          price: price,
-          title: 'BUY',
-          color: '#0000FF',
-          lineStyle: LineStyle.Dotted
-         // onDragEnd: (price) => api.updateAlert(price)
-      });
-*/
-    if (tradeData.price) 
-    {
-        const line =  createTradingLine(series.main, charts.main, {
-          price: tradeData.price,
-          title: 'BUY',
-          color: '#0000FF',
-          lineStyle: LineStyle.Dotted
-         // onDragEnd: (price) => api.updateAlert(price)
-       });
-        line.price = tradeData.price
-        line.guid = "TRADE_MARKER";
-        //console.log(line);
-         drawSeries.push({"line":line,
-            "contains": (x,y)=> {
-                //console.log("line",line.p1,line.p2);  
-                const py = series.main.priceToCoordinate(line.price);
-                if (!py) return false;
-                const dist = Math.abs(py - y);
-            // console.log("dist",x,y,dist);
-                return dist < 10; // Tolleranza in pixel
-            },
-            "delete": (line)=> {
-                line.remove();
-            }}) ;
-    }
-    if (tradeData.stop_loss) 
-    {
-        const line = series.main.createPriceLine({
-            price: tradeData.stop_loss,
-            color: '#ff4800ff',
-            lineWidth: 1,
-            lineStyle: 0, // solid
-            axisLabelVisible: true,
-            title: 'ST'
-            });
-        line.price = tradeData.stop_loss
-        line.guid = "TRADE_STOP_LOSS";
+    if (tradeData.take_profit)
+        addTradeLine(chart_context,tradeData,tradeData.take_profit,"TP","#01ff2b","TRADE_TAKE_PROFIT" )
+   
+    if (tradeData.price)
+        addTradeLine(chart_context,tradeData,tradeData.price,"BUY","#2b07ce","TRADE_MARKER" )
 
-         drawSeries.push({"line":line,
-            "contains": (x,y)=> {
-                //console.log("line",line.p1,line.p2);  
-                const py = series.main.priceToCoordinate(line.stop_loss);
-                if (!py) return false;
-                const dist = Math.abs(py - y);
-            // console.log("dist",x,y,dist);
-                return dist < 10; // Tolleranza in pixel
-            },
-            "delete": (line)=> {
-                line.remove();
-            }}) ;
-    }
+    if (tradeData.stop_loss)
+        addTradeLine(chart_context,tradeData,tradeData.stop_loss,"SL","#da0606","TRADE_STOP_LOSS" )
+
 }
 
 // ==========================================================

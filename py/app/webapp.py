@@ -81,7 +81,6 @@ logger.addHandler(console_handler)
 try:
     with open("../"+CONFIG_FILE, "r", encoding="utf-8") as f:
         config = json.load(f)
-
         #print(config)
 except FileNotFoundError:
     logger.error("Config File non trovato")
@@ -110,7 +109,7 @@ client = MuloClient("../"+DB_FILE,config)
 db = DBDataframe(config,client)
 
 propManager = PropertyManager()
-tradeManager = TradeManager(propManager)
+tradeManager = TradeManager(config,client,propManager)
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -258,6 +257,8 @@ def get_fundamentals(symbol:str):
     df =  client.get_fundamentals(symbol).iloc[0]
     return JSONResponse(df.to_dict())
 
+#################################
+
 @app.get("/api/props/find")
 def read_props(path: str):
     data = propManager.get(path)
@@ -276,14 +277,14 @@ async def write_props(payload:dict):
     logger.info(f"write_props {payload}" )
 
     async def on_computed_changed(comp):
-        
         for k, v in comp.items():
             msg =  {"type":"props", "path": k, "value": v()}
-
         logger.info(f"send {msg}")
         await render_page.send(msg)
+        await tradeManager.on_property_changed(k,v(),render_page)
 
     await propManager.set(payload["path"], payload["value"],on_computed_changed)
+    
     #for k,val in payload.items():
     #    propManager.setProp(k,val)
     return JSONResponse("ok")
@@ -363,30 +364,43 @@ def read_chart_lines(symbol: str, timeframe: str):
 
 ##############################
 
-@app.post("/api/trade/marker")
-def save_chart_marker(payload: dict):
-    #logger.info(f"SAVE TRADE  {payload}")   
+@app.post("/api/trade/marker/add")
+async def save_chart_marker(payload: dict):
+    logger.info(f"ADD TRADE  {payload}")   
     try:
         symbol = payload["symbol"]
         timeframe = payload["timeframe"]
         data = payload["data"]
-    except KeyError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Campo mancante: {e.args[0]}"
-        )
-    client.execute("DELETE FROM trade WHERE symbol=? AND timeframe=?",
-            (symbol, timeframe))
-    client.execute("""
-        INSERT INTO trade (symbol, timeframe,  data)
-        VALUES (?, ?, ?)
-    """, (
-        symbol,
-        timeframe,
-        json.dumps(data)
-    ))
 
-    return {"status": "ok"}
+        timeframe = payload["timeframe"]
+        order = await tradeManager.add_order(symbol,timeframe,data)
+
+        if order:
+                return {"status": "ok", "data" : order}
+        else:
+                return  {"status": "ko"}
+    except :
+        logger.error("ERROR", exc_info=True)
+        return  {"status": "ko"}
+    
+@app.post("/api/trade/marker/update")
+async def save_chart_marker(payload: dict):
+    logger.info(f"UPDATE TRADE  {payload}")   
+    try:
+        symbol = payload["symbol"]
+        timeframe = payload["timeframe"]
+        data = payload["data"]
+
+        timeframe = payload["timeframe"]
+        order = await tradeManager.update_order(symbol,timeframe,data)
+
+        if order:
+                return {"status": "ok", "data" : order}
+        else:
+                return  {"status": "ko"}
+    except :
+        logger.error("ERROR", exc_info=True)
+        return  {"status": "ko"}   
 
 @app.get("/api/trade/marker/read")
 def read_chart_lines(symbol: str, timeframe: str):

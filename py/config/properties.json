@@ -1,7 +1,7 @@
 {
   "trade": {
     "rr": 2,
-    "trade_risk": 0.05,
+    "trade_risk": 0.01,
     "day_risk": 0.1
   },
   "balance": {

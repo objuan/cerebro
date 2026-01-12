@@ -174,7 +174,7 @@ class MuloClient:
         logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
 
 
-    async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000):
+    async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000)-> pd.DataFrame:
        
         if self.sym_mode:
             ticker = self.tickers[symbol]

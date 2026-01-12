@@ -34,8 +34,10 @@
         <button @click="selectMode('')">..</button>
       </div>
     </div>
-
-    <div class="position-relative p-0 charts-grid"  style="height: calc(100% - 45px); overflow: hidden;" >
+    <div class="trade_console p-0">
+        <TradeConsole :symbol=symbol  ></TradeConsole> 
+    </div>
+    <div class="position-relative p-0 charts-grid"  style="height: calc(100% - 85px); overflow: hidden;" >
      
         <div v-if="currentMode!=''" style="height:100%" >
           <div class="multi-chart-container"  style="height:100%" >
@@ -101,6 +103,7 @@
         </div>
       </div>
     </div>
+   
   </div>
 </template>
 
@@ -109,12 +112,13 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import CandleChartWidget from './CandleChartWidget.vue';
 import { computed } from 'vue';
+import  TradeConsole  from './TradeConsole.vue'
 
 const props = defineProps({
   id: { type: String, required: true },
   symbol: { type: String, required: true },
   timeframe_multi: { type: String, required: false,default:"10s,1m,5m,1d" },
-  timeframe: { type: String, required: false ,default:"1m"},
+  timeframe: { type: String, required: false ,default:"10s"},
   plot_config: { type: Object, default: () => ({ main_plot: {} }) }
 });
 
@@ -158,19 +162,6 @@ function selectMode(mode)
   resize();
 }
 
-// --- LOGICA REFRESH DATI ---
-/*
-const handleRefresh = async (index) => {
-  try {
-
-
-    
-  } catch (err) {
-    console.error("Errore fetch grafico:", err);
-  }
-};
-*/
-
 // --- INIZIALIZZAZIONE ---
 onMounted( async() => {
  // console.log("onMounted");
@@ -185,7 +176,7 @@ onMounted( async() => {
 
     //fundamentals.value= datas["exchange"] + " " + datas["sector"] + " MktCap: " + (datas["market_cap"]/1e9).toFixed(2) + "B" ;
     fundamentals.value= " MktCap: " + window.formatValue(datas["market_cap"])  ;
-     fundamentals.value+= "  FLOAT: <span style='color:yellow'><b>" + window.formatValue(datas["float"]) + "</b></span> / "+ window.formatValue(datas["shares_outstanding"])   ;
+    fundamentals.value+= "  FLOAT: <span style='color:yellow'><b>" + window.formatValue(datas["float"]) + "</b></span> / "+ window.formatValue(datas["shares_outstanding"])   ;
 });
 
 
@@ -319,5 +310,10 @@ defineExpose({
   text-align: right ;
   margin-left: auto;
   align-self: flex-end;
+}
+.trade_console{
+  min-height: 40px;
+  border: #0077ff solid    ;
+  border-width: 1;
 }
 </style>

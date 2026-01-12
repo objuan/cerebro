@@ -70,25 +70,25 @@
             @click="setDrawMode('delete_all')">
             ✕
           </button>
-      </div>
-      <div class="trade_bar">
-          <button   class="btn btn-sm btn-outline-warning ms-2"   title="Set Trade"
-            @click="setDrawMode('trade_marker')" 
-            @pointerdown.stop
-            @pointerup.stop
-            @mousedown.stop
-            @mouseup.stop
-            @click.stop>
-            +
-          </button>
+        </div>
+        <div class="trade_bar">
+            <button   class="btn btn-sm btn-outline-warning ms-2"   title="Set Trade"
+              @click="setDrawMode('trade_marker')" 
+              @pointerdown.stop
+              @pointerup.stop
+              @mousedown.stop
+              @mouseup.stop
+              @click.stop>
+              +
+            </button>
 
-          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Trade"
-            @click="setDrawMode('trade_delete')">
-            ✕
-          </button>
+            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Trade"
+              @click="setDrawMode('trade_delete')">
+              ✕
+            </button>
 
-      </div>
-
+        </div>
+       
       </div>
     </div>
 
@@ -98,7 +98,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
-
+import { liveStore } from '@/components/liveStore.js';
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
   HistogramSeries, LineSeries,
@@ -156,7 +156,8 @@ function context() {
         currentTimeframe,
         charts,
         series,
-        drawSeries
+        drawSeries,
+        liveStore
     };
 }
 /*
@@ -249,6 +250,9 @@ const handleRefresh = async () => {
       {
           tradeData = _trade_data.data;
           updateTradeMarker(context(),tradeData)
+
+          liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeData);
+              
       }
       //console.log("trade marker",data)
 
@@ -545,6 +549,7 @@ const buildChart =  () => {
      if (drawMode.value === 'trade_marker') {
         //tradeData.price = price;
         tradeData.price = price;  
+        tradeData.type="bracket"
         setTradeMarker(context(),tradeData)
 
         drawMode.value = null;
@@ -578,6 +583,7 @@ const resize =  () => {
     const { width, height } = container.value.getBoundingClientRect()
     console.debug("c resize ",width,height,container);
    // console.log(charts.main)
+   
     charts.main.resize(width-10,height-100);
     charts.volume.resize(width-10,94);
     handleRefresh();
