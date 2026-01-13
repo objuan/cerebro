@@ -6,12 +6,15 @@ import json
 import sqlite3
 from config import DB_FILE,CONFIG_FILE
 from utils import convert_json
+from renderpage import WSManager
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 conn = sqlite3.connect(DB_FILE, isolation_level=None)
 cur = conn.cursor()
+
+logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
 '''
 util.startLoop()   # 🔑 IMPORTANTISSIMO
@@ -25,68 +28,145 @@ ib = IB()
 ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
 '''
 
-def onNewOrder(trade):
-    print(f"NEW ORDER: {trade}")
-    # Salva nel database
-    cur.execute('''INSERT INTO ib_orders (trade_id, symbol, action, quantity, price, status, filled, remaining, event_action)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-               (trade.order.permId, trade.contract.symbol, trade.order.action, trade.order.totalQuantity, 
-                getattr(trade.order, 'lmtPrice', None), trade.orderStatus.status, 
-                trade.orderStatus.filled, trade.orderStatus.remaining, 'newOrder'))
+def trade_log_to_dict(log: TradeLogEntry) -> dict:
+    return {
+        "time": log.time.isoformat() if log.time else None,
+        "status": log.status,
+        "message": log.message,
+        "errorCode": log.errorCode,
+    }
 
-def onOrderModify(trade):
-    print(f"ORDER MODIFY: {trade}")
-    # Aggiorna nel database
-    cur.execute('''INSERT INTO ib_orders (trade_id, symbol, action, quantity, price, status, filled, remaining, event_action)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-               (trade.order.permId, trade.contract.symbol, trade.order.action, trade.order.totalQuantity, 
-                getattr(trade.order, 'lmtPrice', None), trade.orderStatus.status, 
-                trade.orderStatus.filled, trade.orderStatus.remaining, 'orderModify'))
+def trade_to_dict(trade: Trade) -> dict:
+        return {
+            "trade_id": trade.order.permId,
+            "orderId": trade.order.orderId,
+            "symbol": trade.contract.symbol,
+            "exchange": trade.contract.exchange,
+            "action": trade.order.action,
+            "orderType": trade.order.orderType,
+            "totalQuantity": trade.order.totalQuantity,
+            "lmtPrice": getattr(trade.order, "lmtPrice", None),
+            "status": trade.orderStatus.status,
+            "filled": trade.orderStatus.filled,
+            "remaining": trade.orderStatus.remaining,
+            "avgFillPrice": trade.orderStatus.avgFillPrice,
+            "lastFillPrice": trade.orderStatus.lastFillPrice,
+             "log": [trade_log_to_dict(l) for l in trade.log],
+        }
 
-def onCancelOrder(trade):
-    print(f"ORDER CANCEL: {trade}")
-    # Aggiorna status nel database
-    cur.execute('''INSERT INTO ib_orders (trade_id, symbol, action, quantity, price, status, filled, remaining, event_action)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-               (trade.order.permId, trade.contract.symbol, trade.order.action, trade.order.totalQuantity, 
-                getattr(trade.order, 'lmtPrice', None), trade.orderStatus.status, 
-                trade.orderStatus.filled, trade.orderStatus.remaining, 'cancelOrder'))
-
-def onOpenOrder(trade):
-    print(f"OPEN ORDER: {trade}")
-    # Aggiorna nel database
-    cur.execute('''INSERT INTO ib_orders (trade_id, symbol, action, quantity, price, status, filled, remaining, event_action)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-               (trade.order.permId, trade.contract.symbol, trade.order.action, trade.order.totalQuantity, 
-                getattr(trade.order, 'lmtPrice', None), trade.orderStatus.status, 
-                trade.orderStatus.filled, trade.orderStatus.remaining, 'openOrder'))
-
-def onOrderStatus(trade):
-    print(f"ORDER STATUS: {trade}")
-    # Aggiorna status, filled, remaining nel database
-    cur.execute('''INSERT INTO ib_orders (trade_id, symbol, action, quantity, price, status, filled, remaining, event_action)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-               (trade.order.permId, trade.contract.symbol, trade.order.action, trade.order.totalQuantity, 
-                getattr(trade.order, 'lmtPrice', None), trade.orderStatus.status, 
-                trade.orderStatus.filled, trade.orderStatus.remaining, 'orderStatus'))
-
+def trade_to_json(trade: Trade) -> str:
+    return json.dumps({
+        "trade_id": trade.order.permId,
+        "orderId": trade.order.orderId,
+        "symbol": trade.contract.symbol,
+        "exchange": trade.contract.exchange,
+        "action": trade.order.action,
+        "orderType": trade.order.orderType,
+        "totalQuantity": trade.order.totalQuantity,
+        "lmtPrice": getattr(trade.order, "lmtPrice", None),
+        "status": trade.orderStatus.status,
+        "filled": trade.orderStatus.filled,
+        "remaining": trade.orderStatus.remaining,
+        "avgFillPrice": trade.orderStatus.avgFillPrice,
+        "lastFillPrice": trade.orderStatus.lastFillPrice,
+        "log": [
+            {
+                "time": l.time.isoformat() if l.time else None,
+                "status": l.status,
+                "message": l.message,
+                "errorCode": l.errorCode,
+            }
+            for l in trade.log
+        ],
+    })
 
 class OrderManager:
 
     ib=None
+    ws :WSManager = None
     def __init__(self,ib):
         OrderManager.ib=ib
         # Assegna gli event handlers
-        #ib.newOrderEvent += onNewOrder
-        #ib.orderModifyEvent += onOrderModify
+
         if ib:
-            OrderManager.ib.cancelOrderEvent += onCancelOrder
-            OrderManager.ib.openOrderEvent += onOpenOrder
-            OrderManager.ib.orderStatusEvent += onOrderStatus
+            OrderManager.ib.cancelOrderEvent += OrderManager.onCancelOrder
+            OrderManager.ib.openOrderEvent += OrderManager.onOpenOrder
+            OrderManager.ib.orderStatusEvent += OrderManager.onOrderStatus
+            OrderManager.ib.newOrderEvent += OrderManager.onNewOrder
+
+            OrderManager.ib.updatePortfolioEvent  += OrderManager.onUpdatePortfolio
+            OrderManager.ib.positionEvent   += OrderManager.onPositionEvent 
+            #OrderManager.ib.accountValueEvent    += OrderManager.onAccountValueEvent  
+            OrderManager.ib.accountSummaryEvent     += OrderManager.onAccountSummaryEvent   
+
+    async def onUpdatePortfolio(portfoglio : PortfolioItem):
+        logger.info(f"onUpdatePortfolio: {portfoglio}")
+
+        msg = {"type": "UPDATE_PORTFOLIO", "symbol" : portfoglio.contract.symbol , "position" : portfoglio.position, "marketPrice": portfoglio.marketPrice, "marketValue" : portfoglio.marketValue}
+        if OrderManager.ws:
+            ser = json.dumps(msg)
+            await OrderManager.ws.broadcast(msg)
+
+    async def onPositionEvent(position : Position):
+        logger.info(f"onPositionEvent: {position}")
+
+        msg = {"type": "POSITION", "symbol" : position.contract.symbol , "position" : position.position, "avgCost": position.avgCost}
+        if OrderManager.ws:
+            ser = json.dumps(msg)
+            await OrderManager.ws.broadcast(msg)
+
+
+    async def onAccountValueEvent(value : AccountValue):
+        logger.info(f"onAccountValueEvent: {value}")
+
+    async def onAccountSummaryEvent(value : AccountValue):
+        logger.info(f"onAccountSummaryEvent: {value}")
+
+    #####################
+
+
+    async def addOrder(trade:Trade,type):
+        logger.info(f"ORDER: {type} {trade}")
+        if trade.order.permId == 0:
+            return
+        
+        data =  trade_to_dict(trade)
+
+        ser = json.dumps(data)
+
+        cur.execute('''INSERT INTO ib_orders (trade_id, symbol, status, event_type, data)
+                    VALUES (?, ?, ?, ?, ?)''',
+                (trade.order.permId, trade.contract.symbol, trade.orderStatus.status,type,ser))
+        
+        if OrderManager.ws:
+            #data["type"] = "ORDER"
+            ser = json.dumps(data)
+            await OrderManager.ws.broadcast(
+                {"type": "ORDER", "trade_id": trade.order.permId, "symbol":trade.contract.symbol,
+                 "status" :trade.orderStatus.status,"event_type":type,   "data" : data ,"timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
+            )
+
+    async def onNewOrder(trade:Trade):
+       await OrderManager.addOrder(trade, "NEW")
+
+    async def onOrderModify(trade:Trade):
+      await OrderManager.addOrder(trade, "MODIFY")
+
+    async def onCancelOrder(trade:Trade):
+       await OrderManager.addOrder(trade, "CANCEL")
+
+    async def onOpenOrder(trade:Trade):
+       await OrderManager.addOrder(trade, "OPEN")
+
+    async def onOrderStatus(trade:Trade):
+       await OrderManager.addOrder(trade, "STATUS")
+
 
 ##############
 
-
+    def task_order_limit(symbol,totalQuantity,lmtPrice):
+        
+        pass
 
     ''' tif
     GTC (Swing,Take Profit / Stop Loss,  Bracket Order )
@@ -118,7 +198,7 @@ class OrderManager:
             action='BUY',
             totalQuantity=totalQuantity,
             lmtPrice=lmtPrice,
-            tif='GTC' ,
+            tif='DAY' ,
             outsideRth=True
         )
         #entry.orderId = ib.client.getReqId()
@@ -337,7 +417,7 @@ async def checkNewTrades():
         #ib.sleep(0.2)   # 🔑 NON blocca il loop
         await asyncio.sleep(0.2)
 
-async def main():
+def main():
 
     util.startLoop()   # 🔑 IMPORTANTISSIMO
 
@@ -348,15 +428,18 @@ async def main():
 
     ib = IB()
     ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
-
+    
     OrderManager(ib)
 
     # 🔴 avvio task asincrona
     #task = asyncio.create_task(checkNewTrades())
 
     OrderManager.order_limit("AAPL", 10,180)
+    logger.info("1")
 
     ib.run()
+
+    logger.info("DONE")
     '''
     await asyncio.wait(
                     [task],
@@ -376,4 +459,5 @@ if __name__ =="__main__":
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     
-    asyncio.run(main())
+    main()
+    #asyncio.run(main())

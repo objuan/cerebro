@@ -29,7 +29,7 @@
 		{
 			"scanner":
 			{
-				"mode" : "sym",
+				"mode" : "offline",
 				"mode1" : "live|offline|sym",
 				"update_time" : "10m" ,
 				"debug_symbols" : ["NVDA"],

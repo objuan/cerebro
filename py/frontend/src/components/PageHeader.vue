@@ -19,8 +19,8 @@
 
 <script setup>
 import { computed } from 'vue';
-import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import { formatUnixDate } from '@/components/utils.js'; // Usa il percorso corretto
+import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
+import { formatUnixDate } from '@/components/js/utils.js'; // Usa il percorso corretto
 
 // Esponiamo i dati dello store al template
 const liveData = computed(() => liveStore.state.dataByPath);

@@ -31,21 +31,28 @@
 
 <script setup>
 
-import {  ref,onMounted, onUnmounted  } from 'vue';
+import {  ref,onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import { send_get } from '@/components/utils.js'; // Usa il percorso corretto
+import { send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { eventBus } from "@/components/js/eventBus";
 
 const symbolList = ref([]);
 
 // Esponiamo i dati dello store al template
 //const liveData = computed(() => liveStore.state.dataByPath);
 
+function onTickerReceived(ticker) {
+  //console.log("Summary → ticker:", ticker);
+  updateSymbol(ticker);
+}
+
 defineProps({
 })
 
 onMounted( async () => {
-  
+  eventBus.on("ticker-received", onTickerReceived);
+
   let data = await send_get("/api/symbols")
   //console.log("Symbols ",data.symbols)
   symbolList.value =[]
@@ -54,6 +61,11 @@ onMounted( async () => {
   });
  
 });
+
+onBeforeUnmount(() => {
+  eventBus.off("ticker-received", onTickerReceived);
+});
+
 onUnmounted(() => {
 
 
@@ -71,7 +83,7 @@ function updateSymbol(ticket){
 }
 
 defineExpose({
-  updateSymbol,
+ // updateSymbol,
 });
 
 

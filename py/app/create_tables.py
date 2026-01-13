@@ -132,13 +132,18 @@ cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     trade_id TEXT,
     symbol TEXT,
-    action TEXT,
-    quantity INTEGER,
-    price REAL,
-    status TEXT,
-    filled REAL DEFAULT 0.0,
-    remaining REAL DEFAULT 0.0,
-    event_action TEXT,
+    status TEXT, 
+    event_type TEXT,
+    data TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)''')
+
+cur.execute('''CREATE TABLE IF NOT EXISTS mule_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trade_id TEXT,
+    symbol TEXT,
+    status TEXT, 
+    data TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 )''')
 

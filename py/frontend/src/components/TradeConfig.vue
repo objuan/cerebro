@@ -54,8 +54,8 @@
 
 
 import { ref,computed,watch  } from 'vue';
-import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import {send_post} from '@/components/utils.js'
+import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
+import {send_post} from '@/components/js/utils.js'
 
 const rr = ref(1);
 const tradeRisk = ref(null);
@@ -99,21 +99,31 @@ watch(
    INPUTS → STORE + SAVE
    ========================= */
 
-watch(rr, v => {
-  liveStore.updatePathData('trade.rr', v);
-  send_post('/api/props/save', { path: 'trade.rr', value: v });
+watch(rr, async (newValue, oldValue)  => {
+  if (newValue == null) return;
+  if (oldValue && oldValue!= newValue)
+  {
+    liveStore.updatePathData('trade.rr', newValue);
+    send_post('/api/props/save', { path: 'trade.rr', value: newValue });
+  }
 });
 
-watch(tradeRisk, v => {
-  if (v == null) return;
-  liveStore.updatePathData('trade.trade_risk', v);
-  send_post('/api/props/save', { path: 'trade.trade_risk', value: v });
+watch(tradeRisk, async (newValue, oldValue)  => {
+  if (newValue == null) return;
+   if (oldValue && oldValue!= newValue)
+  {
+    liveStore.updatePathData('trade.trade_risk',newValue);
+    send_post('/api/props/save', { path: 'trade.trade_risk', value: newValue});
+  }
 });
 
-watch(dayRisk, v => {
-  if (v == null) return;
-  liveStore.updatePathData('trade.day_risk', v);
-  send_post('/api/props/save', { path: 'trade.day_risk', value: v });
+watch(dayRisk, async (newValue, oldValue)  => {
+  if (newValue == null) return;
+   if (oldValue && oldValue!= newValue)
+  {
+    liveStore.updatePathData('trade.day_risk', newValue);
+    send_post('/api/props/save', { path: 'trade.day_risk', value: newValue });
+  }
 });
 
 

@@ -98,15 +98,15 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
-import { liveStore } from '@/components/liveStore.js';
+import { liveStore } from '@/components/js/liveStore.js';
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
   HistogramSeries, LineSeries,
 createInteractiveLineManager  } from '@pipsend/charts'; //createTradingLine
 
-import { formatValue,send_delete,send_get } from '@/components/utils.js'; // Usa il percorso corretto
+import { formatValue,send_delete,send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings, updateTradeMarker ,setTradeMarker
- } from '@/components/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
+ } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 
 const props = defineProps({
   multi_mode: { type: Boolean, default: false },

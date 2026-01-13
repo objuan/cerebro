@@ -1,10 +1,41 @@
 <template>
   <div class="home">
     <PageHeader title="Cerebro V0.1"/>
+
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+          <button
+            class="sidebar-btn"
+            @click="portfolioRef?.toggle()"
+            title="Portfolio"
+          >
+            📊
+            <span>Portfolio</span>
+          </button>
+
+          <button class="sidebar-btn"
+              @click="ordersRef.toggle()"
+               title="Orders">📑 Orders</button>
+        </aside>
+
+        <!-- Main content -->
+        <main class="content">
+          <router-view />
+        </main>
+
+        <!-- Side panel -->
+        <PortfolioWidget ref="portfolioRef" />
+
+        <OrdersWidget ref="ordersRef" />
+
+      </div>
+
     <main class="container">
 
       <trade-config></trade-config>
       <TickersSummary ref="tickets_summary"></TickersSummary>
+
     
       <div class="grid-stack">
         <div 
@@ -43,7 +74,10 @@
 </template>
 
 <script setup>
-import { liveStore } from '@/components/liveStore.js';
+import { liveStore } from '@/components/js/liveStore.js';
+import OrdersWidget from "@/components/OrdersWidget.vue";
+import PortfolioWidget from "@/components/PortfolioWidget.vue";
+
 import { onMounted, onUnmounted, ref ,nextTick } from 'vue';
 
 import TickersSummary from '@/components/TickersSummary.vue'
@@ -51,17 +85,20 @@ import PageHeader from '@/components/PageHeader.vue'
 import TradeConfig from '@/components/TradeConfig.vue'
 import CandleChartWidget from '@/components/CandleChartWidget.vue';
 import MultiCandleChartWidget from '@/components/MultiCandleChartWidget.vue';
-import { send_get } from '@/components/utils';
+import { send_get } from '@/components/js/utils';
+import { eventBus } from "@/components/js/eventBus";
 
 // --- STATO REATTIVO ---
 
+const portfolioRef = ref(null);
+const ordersRef = ref(null);
 
 const showPopup = ref(false);
 const symbolsList = ref([]);
 const selectedSymbolChoice = ref('');
 const widgetList = ref([]); // Array di oggetti { id, rect, data }
 const widgetRefs = ref({})
-const tickets_summary = ref()
+const tickets_summary = ref(null)
 
 // Riferimenti non reattivi (istanze tecniche)
 let grid = null;
@@ -81,13 +118,33 @@ const getWidgetComponent = (type) => {
   }
 }
 
+const initWebSocket_mulo = () => {
+  ws = new WebSocket("ws://127.0.0.1:2000/ws/orders");
+  ws.onmessage = (event) => {
+   
+    const msg = JSON.parse(event.data);
+    //console.log(msg)
+    switch (msg.type) {
+         case "UPDATE_PORTFOLIO":
+          portfolioRef.value?.handleMessage(msg);
+          break
+        case "POSITION":
+          portfolioRef.value?.handleMessage(msg);
+          break
+        case "ORDER":
+          ordersRef.value?.handleMessage(msg);
+          break
+    }
+  }
+};
+
 const initWebSocket = () => {
   ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 
   ws.onmessage = (event) => {
     //console.log(event.data)
     const msg = JSON.parse(event.data);
-   
+
     if (msg.path) {
       // Aggiornando liveData[path], Vue notifica tutti i componenti in ascolto
         liveStore.updatePathData(msg.path, msg.data);
@@ -110,12 +167,14 @@ const initWebSocket = () => {
           //console.log("WS TICKER",msg.data);
           //for x in widgetRefs.value 
           
-           for(var i=0;i<widgetList.value.length;i++)
+          for(var i=0;i<widgetList.value.length;i++)
           {
               const componentInstance = widgetRefs.value[widgetList.value[i].id];
-              componentInstance.on_ticker(msg.data);  
+              if (componentInstance!=null)
+                  componentInstance.on_ticker(msg.data);  
           }
-          tickets_summary.value.updateSymbol(msg.data)
+          eventBus.emit("ticker-received", msg.data);
+
 
         } 
         break
@@ -278,10 +337,12 @@ onMounted(() => {
 
   initWebSocket();
 
+  initWebSocket_mulo();
+
   const loadLayout = async () => {
   try {
       //console.log("LOAD LAYOUT")
-      const response = await fetch('http://127.0.0.1:8000/api/layout/select')
+      let response = await fetch('http://127.0.0.1:8000/api/layout/select')
       if (!response.ok) throw new Error('Errore nel caricamento')
         const data = await response.json();
         const msgs = JSON.parse(data["data"]);
@@ -308,7 +369,30 @@ onMounted(() => {
             liveStore.updatePathData(val.path, val.value);
         });
         
-        
+        // positions
+
+        response = await fetch('http://127.0.0.1:2000/account/positions')
+        if (!response.ok) throw new Error('Errore nel caricamento')
+        const pos_list = await response.json();
+        //console.log(pos_list)
+        pos_list.forEach(  (val) =>{
+            //console.log(val)
+            val["type"] = "POSITION"
+            portfolioRef.value?.handleMessage(val);
+        });
+
+        // orders
+
+        response = await fetch('http://127.0.0.1:2000/order/list')
+        if (!response.ok) throw new Error('Errore nel caricamento')
+        const order_list = await response.json();
+        order_list.data.forEach(  (val) =>{
+            //console.log(val)
+            val["type"] = "ORDER"
+            ordersRef.value?.handleMessage(val);
+            //portfolioRef.value?.handleMessage(val);
+        });
+
     } catch (err) {
         //errore.value = err.message
         console.error(err)
@@ -384,4 +468,51 @@ onUnmounted(() => {
 }
 .grid-stack { background: #f4f4f4; min-height: 500px; }
 :deep(.grid-stack-item-content) { background: white; border: 1px solid #ddd; }
+
+
+.layout {
+  display: flex;
+  height: 100vh;
+  position: absolute;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 64px;
+  background: #0f172a; /* blu scuro */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 1rem;
+}
+
+/* Button */
+.sidebar-btn {
+  background: none;
+  border: none;
+  color: #e5e7eb;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sidebar-btn span {
+  font-size: 0.7rem;
+}
+
+.sidebar-btn:hover {
+  background: #1e293b;
+  border-radius: 8px;
+}
+
+/* Main */
+.content {
+  flex: 1;
+  overflow: auto;
+}
+
 </style>

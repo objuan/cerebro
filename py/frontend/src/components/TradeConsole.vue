@@ -5,6 +5,7 @@
       
       <div class="d-flex align-items-center gap-1">
         TRADE <strong>{{ tradeData.timeframe }}</strong>
+        L:{{ticker?.last}}({{ticker?.gain.toFixed(2)}}%)
       </div>
 
       <div class="d-flex align-items-center gap-1">
@@ -29,6 +30,10 @@
       <div class="d-flex align-items-center gap-1">
         Gain <strong>{{ Number(tradeData.profit_usd).toFixed(1) }}</strong>
       </div>
+
+      <button
+            @click="test_order()"
+          >TEST</button>
     </div>
   </div>
 </template>
@@ -36,9 +41,11 @@
 <script setup>
 
 
-import { ref,watch,computed  } from 'vue';
-import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import {send_post} from '@/components/utils.js'
+import { ref,watch,computed,onMounted,onBeforeUnmount  } from 'vue';
+import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
+import {send_post} from '@/components/js/utils.js'
+import { eventBus } from "@/components/js/eventBus";
+import {order_limit} from "@/components/js/orderManager";
 
 const props = defineProps({
   symbol: { type: String, required: true },
@@ -50,7 +57,32 @@ const isCurrent = computed(() => {
 });
 const tradeData = ref(null);
 const quantity = ref(null);
+const ticker = ref(null);
 
+function test_order(){
+  order_limit(props.symbol,quantity.value,ticker.value.last )
+}
+
+function onOrderReceived(order) {
+  console.debug("TradeConsole → ordine:", order);
+}
+function onTickerReceived(_ticker) {
+  if (_ticker.symbol == props.symbol)
+  {
+    //console.log("TradeConsole → ticker:", _ticker);
+    ticker.value =_ticker
+  }
+}
+
+onMounted(() => {
+  eventBus.on("order-received", onOrderReceived);
+  eventBus.on("ticker-received", onTickerReceived);
+});
+
+onBeforeUnmount(() => {
+  eventBus.off("order-received", onOrderReceived);
+  eventBus.off("ticker-received", onTickerReceived);
+});
 
 // sync STORE → SELECT
 
@@ -79,6 +111,7 @@ watch(
 
 watch(quantity,  async (newValue, oldValue) => {
   if (oldValue && oldValue!= newValue)
+  {
     console.log("quantity",newValue, oldValue)
      tradeData.value.quantity = newValue
      let ret = await send_post("/api/trade/marker/update",
@@ -93,6 +126,7 @@ watch(quantity,  async (newValue, oldValue) => {
 
           liveStore.updatePathData('trade.tradeData.'+props.symbol, tradeData.value);
       }
+    }
 });
 
 

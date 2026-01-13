@@ -48,6 +48,10 @@ with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     config = json.load(f)
 config = convert_json(config)
 
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("websockets").setLevel(logging.WARNING)
+logging.getLogger("ib_insync").setLevel(logging.WARNING)
+
 run_mode = config["database"]["scanner"].get("mode","sym") 
 
 fetcher = MuloJob(DB_FILE,config)
@@ -103,6 +107,7 @@ console = Console()
 live_display = Live(console=console, refresh_per_second=2)
 
 #Configura le origini permesse
+'''
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # "*" permette tutto, utile per test. In produzione metti l'URL specifico.
@@ -110,7 +115,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+'''
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js / React
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+        "http://localhost:8080"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+@app.middleware("http")
+async def add_referrer_policy(request, call_next):
+    response = await call_next(request)
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 ws_manager = WSManager()
+ws_manager_orders = WSManager()
+OrderManager.ws = ws_manager_orders
 
 if use_yahoo:
     ws_yahoo = yf.AsyncWebSocket()
@@ -668,10 +694,69 @@ async def cancel_order(permId: int):
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
     
+#######################
+
+@app.get("/account/summary")
+async def accountSummary():
+    try:
+        summary = ib.accountSummary()
+
+        def get_value(tag):
+            return next((float(x.value) for x in summary if x.tag == tag), None)
+
+        balance = {
+            "cash": get_value("AvailableFunds"),
+            "equity": get_value("EquityWithLoanValue"),
+            "netLiquidation": get_value("NetLiquidation"),
+            "buyingPower": get_value("BuyingPower"),
+            "initialMargin": get_value("InitMarginReq"),
+            "maintenanceMargin": get_value("MaintMarginReq"),
+            "dayTradesRemaining": get_value("DayTradesRemaining"),
+        }
+        return balance
+    
+
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.get("/account/values")
+async def accountSummary():
+    try:
+        values  = ib.accountValues()
+
+        cash_usd = next(
+            float(v.value)
+            for v in values
+            if v.tag == "CashBalance" and v.currency == "USD"
+        )
+        return cash_usd
+    
+
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+      
+@app.get("/account/positions")
+async def accountSummary():
+    try:
+        positions  = ib.positions()
+
+        list = []
+        for p in positions:
+            list.append({"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
+        return list
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+    
 ####################
 
 @app.websocket("/ws/tickers")
 async def ws_tickers(ws: WebSocket):
+    print("HEADERS:", ws.headers)
+    print("QUERY:", ws.query_params)
+
     await ws_manager.connect(ws)
 
     try:
@@ -705,6 +790,20 @@ async def ws_tickers(ws: WebSocket):
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
     
+#################
+
+@app.websocket("/ws/orders")
+async def ws_tickers(ws: WebSocket):
+    await ws_manager_orders.connect(ws)
+
+    try:
+        while True:
+            message = await ws.receive_text()
+            logger.info(f"Messaggio ricevuto: {message}")
+           
+           
+    except WebSocketDisconnect:
+        ws_manager_orders.disconnect(ws)
 
 ##################################################
 
