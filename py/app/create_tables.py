@@ -138,13 +138,14 @@ cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 )''')
 
-cur.execute('''CREATE TABLE IF NOT EXISTS mule_orders (
+cur.execute('''CREATE TABLE IF NOT EXISTS task_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    trade_id TEXT,
+    task_id INT,
     symbol TEXT,
     status TEXT, 
     data TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    timestamp INT,
+    trade_id TEXT
 )''')
 
 cur.execute("""

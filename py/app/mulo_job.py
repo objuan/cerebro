@@ -67,6 +67,9 @@ class MuloJob:
         self.symbol_to_exchange_map={}
 
         
+    def getCurrentZone(self):
+        return self.market.getCurrentZone()
+    
     async def db_updateTicker(self,new_ticker):
         #print(new_ticker)
         symbol = new_ticker["s"]

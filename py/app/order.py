@@ -1,12 +1,16 @@
 from ib_insync import *
 import asyncio
+import time
+import pandas as pd
 from datetime import datetime, timedelta
 import logging
 import json
+import math
 import sqlite3
 from config import DB_FILE,CONFIG_FILE
 from utils import convert_json
 from renderpage import WSManager
+import traceback
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -15,6 +19,7 @@ conn = sqlite3.connect(DB_FILE, isolation_level=None)
 cur = conn.cursor()
 
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
+
 
 '''
 util.startLoop()   # 🔑 IMPORTANTISSIMO
@@ -27,6 +32,24 @@ config = convert_json(config)
 ib = IB()
 ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
 '''
+
+''' tif
+    GTC (Swing,Take Profit / Stop Loss,  Bracket Order )
+    resta attivo finché non lo cancelli
+    sopravvive a fine giornata
+    sopravvive a riavvii TWS / script
+
+    IOC 
+    prova a eseguire SUBITO (FAST)
+    la parte non eseguita viene cancellata
+    accetta fill parziali
+
+    FOK — Fill Or Kill (Grandi) 
+    deve essere eseguito TUTTO e SUBITO
+    se anche 1 share non è disponibile, viene annullato
+    NO fill parziali
+'''
+
 
 def trade_log_to_dict(log: TradeLogEntry) -> dict:
     return {
@@ -80,11 +103,14 @@ def trade_to_json(trade: Trade) -> str:
         ],
     })
 
+
 class OrderManager:
 
     ib=None
     ws :WSManager = None
-    def __init__(self,ib):
+    task_orders = []
+
+    def __init__(self,config,ib):
         OrderManager.ib=ib
         # Assegna gli event handlers
 
@@ -99,8 +125,38 @@ class OrderManager:
             #OrderManager.ib.accountValueEvent    += OrderManager.onAccountValueEvent  
             OrderManager.ib.accountSummaryEvent     += OrderManager.onAccountSummaryEvent   
 
+
+    async def bootstrap():
+        logger.info("ORDER BOOT")
+
+        cur.execute("""UPDATE task_orders set status='CANC' 
+WHERE id IN (
+    SELECT MAX(o.id)
+    FROM task_orders o
+    GROUP BY task_id
+)
+AND status =='READY' """)
+
+        df = pd.read_sql_query("""SELECT *
+FROM task_orders
+WHERE id IN (
+    SELECT MAX(id)
+    FROM task_orders
+    GROUP BY task_id
+)
+AND status =='READY' 
+""", conn)
+        OrderManager.task_orders=[]
+        for row in df.to_dict("records"):
+            data = OrderManager.get_task_order(row)
+            logger.info(f"ORDER ADD {data}")
+
+            OrderManager.task_orders.append(data)
+
+        logger.info(f"ORDER BOOT DONE {OrderManager.task_orders}")   
+
     async def onUpdatePortfolio(portfoglio : PortfolioItem):
-        logger.info(f"onUpdatePortfolio: {portfoglio}")
+        #logger.info(f"onUpdatePortfolio: {portfoglio}")
 
         msg = {"type": "UPDATE_PORTFOLIO", "symbol" : portfoglio.contract.symbol , "position" : portfoglio.position, "marketPrice": portfoglio.marketPrice, "marketValue" : portfoglio.marketValue}
         if OrderManager.ws:
@@ -108,7 +164,7 @@ class OrderManager:
             await OrderManager.ws.broadcast(msg)
 
     async def onPositionEvent(position : Position):
-        logger.info(f"onPositionEvent: {position}")
+        #logger.info(f"onPositionEvent: {position}")
 
         msg = {"type": "POSITION", "symbol" : position.contract.symbol , "position" : position.position, "avgCost": position.avgCost}
         if OrderManager.ws:
@@ -133,7 +189,6 @@ class OrderManager:
         data =  trade_to_dict(trade)
 
         ser = json.dumps(data)
-
         cur.execute('''INSERT INTO ib_orders (trade_id, symbol, status, event_type, data)
                     VALUES (?, ?, ?, ?, ?)''',
                 (trade.order.permId, trade.contract.symbol, trade.orderStatus.status,type,ser))
@@ -161,50 +216,133 @@ class OrderManager:
     async def onOrderStatus(trade:Trade):
        await OrderManager.addOrder(trade, "STATUS")
 
+    ###########
 
+    def format_price(contract,price)-> float:
+        def round_to_tick(price, tick):
+            return round(round(price / tick) * tick, 10)
+
+        def decimals_from_tick(tick):
+            return max(0, -int(math.floor(math.log10(tick))))
+        
+        def format_price(price, min_tick):
+            decimals = decimals_from_tick(min_tick)
+            return f"{price:.{decimals}f}"
+
+        cd = OrderManager.ib.reqContractDetails(contract)[0]
+        tick = cd.minTick
+        if not tick or tick <= 0:
+            raise ValueError("minTick non valido")
+        # arrotonda al tick
+        price = round_to_tick(price, tick)
+         # calcola decimali
+        price_str = format_price(price, tick)
+
+        return  float(price_str)
+    
+    ##############
+    # TASK
+    ##############
+
+    def on_task_order_trigger(order,lastPrice):
+        try:
+            logger.info(f'TRIGGER {order["symbol"]},{lastPrice}>{order["data"]["lmtPrice"]}')
+
+            real_price = lastPrice+ + lastPrice* 0.001
+ 
+            trade = OrderManager.order_limit(order["symbol"], order["data"]["totalQuantity"],real_price)
+            OrderManager.ib.sleep(0.5)
+
+            order["trade"] = trade
+            order["data"]["trigger_price"] = lastPrice
+
+            cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
+                        VALUES (?,?, ?, ?, ?, ?)''',
+                    (order["task_id"],order["symbol"],"DONE", json.dumps(order["data"]),time.time(),trade.orderStatus.permId))
+            
+            conn.commit()
+            logger.info(f'TRIGGER CLOSED {order}')
+            
+        except Exception:
+            logger.error("ERROR",exc_info=True)
+            err = traceback.format_exc()
+            order["data"]["error"] = err
+            cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
+                        VALUES (?,?, ?, ?, ?, ?)''',
+                    ( order["task_id"],order["symbol"],"ERROR", json.dumps(order["data"]),time.time(),-1))
+            
+            conn.commit()
+
+        OrderManager.task_orders.remove(order)
+
+    def get_task_order(row):
+            data = {
+                "id": row["id"],
+                "task_id": row["task_id"],
+                "trade_id": row["trade_id"],
+                "status": row["status"],
+                "symbol": row["symbol"],
+                "timestamp": row["timestamp"],
+                "data": json.loads(row["data"])
+            }
+            return data
+    
+    def task_buy_at_level(symbol,totalQuantity,lmtPrice):
+
+        unix_time = time.time()
+        data={
+            "type": "buy_at_level",
+            "totalQuantity": totalQuantity,
+            "lmtPrice" : lmtPrice
+        }
+        task_id =1
+        df = pd.read_sql_query("SELECT MAX(task_id) as task_id FROM task_orders", conn)
+        if not pd.isna( df["task_id"].max()):
+            task_id = int(df.iloc[0][0])+1
+
+        cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
+                    VALUES (?,?, ?, ?, ?, ?)''',
+                (task_id,symbol,"READY", json.dumps(data),unix_time,-1))
+        
+        conn.commit()
+
+        df = pd.read_sql_query("SELECT * FROM task_orders WHERE id = "+str(cur.lastrowid), conn)
+        order=None
+        for row in df.to_dict("records"):
+            order = OrderManager.get_task_order(row)
+
+        OrderManager.task_orders.append(order)
+        logger.info(f"TASK << {data}")
+        return data
+    
 ##############
 
-    def task_order_limit(symbol,totalQuantity,lmtPrice):
+    def order_limit(symbol,totalQuantity,lmtPrice)-> Trade:
+        '''
+        '''
+
         
-        pass
-
-    ''' tif
-    GTC (Swing,Take Profit / Stop Loss,  Bracket Order )
-    resta attivo finché non lo cancelli
-    sopravvive a fine giornata
-    sopravvive a riavvii TWS / script
-
-    IOC 
-    prova a eseguire SUBITO (FAST)
-    la parte non eseguita viene cancellata
-    accetta fill parziali
-
-    FOK — Fill Or Kill (Grandi) 
-    deve essere eseguito TUTTO e SUBITO
-    se anche 1 share non è disponibile, viene annullato
-    NO fill parziali
-    '''
-
-    def order_limit(symbol,totalQuantity,lmtPrice):
-        '''
-        '''
-
-        logger.debug(f"LIMIT ORDER {symbol} q:{totalQuantity} p:{lmtPrice}")
         contract = Stock(symbol, 'SMART', 'USD')
         OrderManager.ib.qualifyContracts(contract)
+
+        formatted_price = OrderManager.format_price(contract,lmtPrice)
+
+        logger.info(f"LIMIT ORDER {symbol} q:{totalQuantity} p:{lmtPrice}->{formatted_price}")
 
         # 🔹 ORDINE PADRE (ENTRY)
         entry = LimitOrder(
             action='BUY',
             totalQuantity=totalQuantity,
-            lmtPrice=lmtPrice,
+            lmtPrice=formatted_price,
             tif='DAY' ,
             outsideRth=True
         )
         #entry.orderId = ib.client.getReqId()
         #entry.transmit = True
         #entry.whatIf = True
-        OrderManager.ib.placeOrder(contract, entry)
+        trade = OrderManager.ib.placeOrder(contract, entry)
+
+        return trade
 
     def order_limit_stop(symbol,totalQuantity,lmtPrice,stopPrice):
         '''
@@ -347,75 +485,31 @@ class OrderManager:
                 return True
         logger.warning(f"No order found with permId {permId}")
         return False
+    
+    #####
+
+    def onTicker(symbol,lastPrice):
+        try:
+            #logger.info(f"onTicker {symbol},{lastPrice}")
+            for order in OrderManager.task_orders:
+                #logger.info(f"order {order}")
+                if order["symbol"] == symbol:
+                    order_type = order["data"]["type"]
+                    if order_type =="buy_at_level":
+                        lmtPrice = float(order["data"]["lmtPrice"])
+                        if (lastPrice>lmtPrice ):
+                            OrderManager.on_task_order_trigger(order,lastPrice)
+        except:
+            logger.error("ERROR",exc_info=True)
+
+    #########
+
+    async def batch():
+        while True:
+            await asyncio.sleep(1)
 
 #####################################
 
-def onStatus(trade):
-        print("STATUS",
-            trade.orderStatus.status,
-            trade.orderStatus.filled,
-            trade.orderStatus.remaining
-        )
-
-def onFilled(trade, fill):
-    print(
-        f"FILL | {trade.contract.symbol} | "
-        f"{fill.execution.price} x {fill.execution.shares}"
-    )
-
-def onNewTrade(trade):
-    print(
-        f"NEW TRADE | {trade.contract.symbol} | "
-        f"{trade.order.action} {trade.order.totalQuantity}"
-    )
-
-    def onStatus(trade):
-        s = trade.orderStatus
-        print(
-            f"{trade.contract.symbol} | "
-            f"{s.status} | filled={s.filled} remaining={s.remaining}"
-        )
-
-    trade.statusEvent += onStatus
-    trade.filledEvent += onFilled
-
-#ib.tradesEvent += onNewTrade
-
-    for trade in ib.trades():
-        trade.statusEvent += onStatus
-        trade.filledEvent += onFilled
-
-# 🔴 Hook su nuovi trade (workaround)
-async def checkNewTrades():
-
-
-    order_limit("NVDA", 100,180)
-
-    known = set()
-    while True:
-        # Filtra i trades per quelli di oggi
-        today = datetime.now().date()
-        todays_trades = [t for t in ib.trades() if t.log and t.log[0].time.date() == today]
-        
-        for t in todays_trades:
-            
-        
-            if False and id(t) not in known:
-                known.add(id(t))
-                logger.info(f"TRADE {t}")
-
-                #filledQuantity
-                # Salva l'ordine nel database (inserisci se non esiste, aggiorna se esiste)
-                cur.execute('''INSERT INTO ib_orders (trade_id, symbol, action, quantity, price, status, filled, remaining, event_action)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                           (t.order.permId, t.contract.symbol, t.order.action, t.order.totalQuantity, 
-                            getattr(t.order, 'lmtPrice', None), t.orderStatus.status, 
-                            t.orderStatus.filled, t.orderStatus.remaining, 'newTrade'))
-
-                t.statusEvent += onStatus
-                t.filledEvent += onFilled
-        #ib.sleep(0.2)   # 🔑 NON blocca il loop
-        await asyncio.sleep(0.2)
 
 def main():
 

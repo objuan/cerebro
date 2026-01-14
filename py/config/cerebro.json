@@ -25,6 +25,10 @@
 		}
 
 	}
+	,"order":
+	{
+		"mode" : "task_all"
+	}
 	,"database":
 		{
 			"scanner":

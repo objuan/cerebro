@@ -60,11 +60,11 @@ if run_mode!= "sym":
     ib = IB()
     ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
 
-    OrderManager(ib)
+    OrderManager(config,ib)
     # Subscribe to news bulletins
     ib.reqNewsBulletins(allMessages=True)
 else:
-     OrderManager(None)
+     OrderManager(config,None)
 
 #print(ib.newsBulletins())
 
@@ -635,7 +635,13 @@ async def do_limit_order(symbol, qty,price):
 @app.get("/order/buy_at_level")
 async def do_limit_order(symbol, qty,price):
     try:
-        OrderManager.buy_at_level(symbol, qty,price)
+        order_mode = config["order"]["mode"]
+        zone = fetcher.getCurrentZone()
+        if zone != MarketZone.LIVE or order_mode=="task_all":
+            OrderManager.task_buy_at_level(symbol, qty,price)
+        else:
+            OrderManager.buy_at_level(symbol, qty,price)
+            
         return {"status": "ok" }
     except:
         logger.error("ERROR", exc_info=True)
@@ -835,6 +841,8 @@ async def bootstrap():
             
             await updateLive(config,df_symbols )
 
+    await OrderManager.bootstrap()
+
 #############   
 
 if __name__ =="__main__":
@@ -900,6 +908,8 @@ if __name__ =="__main__":
                 while ticker_history[symbol] and ticker_history[symbol][0][0] < ts - 300:
                     ticker_history[symbol].popleft()
 
+                OrderManager.onTicker(symbol,ticker.last)
+
                 # Compute OHLC for each interval
                 hls = []
                 toSend=True
@@ -943,8 +953,11 @@ if __name__ =="__main__":
                             else:
                                 data["day_v"]=ticker.volume
                             #logger.info(f"SEND {data}")
+                            # TO DB
                             await fetcher.db_updateTicker(data)
+                            # TO WS
                             await ws_manager.broadcast(data)
+                          
 
                     hls.append(pack)
 
@@ -1072,8 +1085,10 @@ if __name__ =="__main__":
 
             await bootstrap()
 
+            _tick_orders = asyncio.create_task(OrderManager.batch())
+
             await asyncio.wait(
-                [server_task, _tick_tickers],
+                [server_task, _tick_tickers,_tick_orders],
                 return_when=asyncio.FIRST_COMPLETED
             )
 
