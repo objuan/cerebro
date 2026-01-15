@@ -91,7 +91,15 @@
        
       </div>
     </div>
-
+    <div ref="price_marker" class="price-marker">
+      <span class="icon">🎯</span>
+   </div>
+   <div  ref="price_marker_tp" class="price-marker">
+      <span class="icon">🏁</span>
+   </div>
+   <div  ref="price_marker_sl" class="price-marker">
+      <span class="icon">⛔</span>
+   </div>
   </div>
 </template>
 
@@ -103,9 +111,10 @@ import { liveStore } from '@/components/js/liveStore.js';
 import { createChart, CrosshairMode,  CandlestickSeries, 
   HistogramSeries, LineSeries,
 createInteractiveLineManager  } from '@pipsend/charts'; //createTradingLine
+import { eventBus } from "@/components/js/eventBus";
 
-import { formatValue,send_delete,send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
-import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings, updateTradeMarker ,setTradeMarker
+import { formatValue,send_delete,send_get,send_mulo_get } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker, updateTradeMarker ,setTradeMarker
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 
 const props = defineProps({
@@ -127,7 +136,12 @@ const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
 const symbolList = ref([]);
-const container = ref(null)
+const container = ref(null);
+const price_marker= ref(null);
+const price_marker_tp= ref(null);
+const price_marker_sl= ref(null);
+
+const gfx_canvas = ref(null);
 
 const drawMode = ref(null); // null | 'hline' | 'line'
 let drawPoints = [];
@@ -140,8 +154,11 @@ let charts = { main: null, volume: null };
 let series = { main: null, volume: null, indicators: {} };
 let lastMainCandle=null
 let tradeData = {}; 
+let tradeMarkers = {}
+
 //let DEFAULT_INTERACTION=null;
 let manager = null;
+
 
 let timeframe_start = {}
 timeframe_start["10s"] = 100
@@ -157,7 +174,8 @@ function context() {
         charts,
         series,
         drawSeries,
-        liveStore
+        liveStore,
+        gfx_canvas
     };
 }
 /*
@@ -165,6 +183,9 @@ function context() {
 */
 const handleRefresh = async () => {
   try {
+    console.log("handleRefresh ", props.timeframe);
+
+    // SYMBOLS CANDLES
     const responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
     const datas = await responses.json();
     //console.log("symbols",datas)
@@ -179,9 +200,13 @@ const handleRefresh = async () => {
         line.data = JSON.parse(line.data)
     })  
 
+    const task_response = await send_mulo_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
+    console.log("task_response",task_response.data)
+    let _task_datas = task_response.data;
+
      // TRADE MARKER
 
-      const _trade_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
+    const _trade_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
      
       if (_trade_data.data!=null)
         _trade_data.data = JSON.parse(_trade_data.data)
@@ -254,6 +279,29 @@ const handleRefresh = async () => {
           liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeData);
               
       }
+
+      // TASK MARKER
+
+      if (_trade_data.data!=null)
+      {
+          tradeData = _trade_data.data;
+          updateTradeMarker(context(),tradeData)
+
+          liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeData);
+              
+      }
+      if (_task_datas!=null){
+
+         tradeMarkers={}
+          _task_datas.forEach( (task)=>
+          {
+              tradeMarkers["price_marker"] ={"ref" : price_marker, "task": task}
+          });
+        
+        //updateTaskMarker(context(),price_marker,_task_datas)
+
+      }
+      
       //console.log("trade marker",data)
 
       //DEFAULT_INTERACTION = charts.main.options();
@@ -295,100 +343,37 @@ const setSymbol = async (symbol) => {
 };
 
 // =========================
-/*
-const ENABLE_INTERACTION = {
-    handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-    },
-    handleScale: {
-        mouseWheel: true,
-        pinch: true,
-        axisPressedMouseMove: true,
-        axisDoubleClickReset: true,
-    },
-};
 
-
-const DISABLE_INTERACTION = {
-    handleScroll: {
-        mouseWheel: false,
-        pressedMouseMove: false,
-        horzTouchDrag: false,
-        vertTouchDrag: false,
-    },
-    handleScale: {
-        mouseWheel: false,
-        pinch: false,
-        axisPressedMouseMove: false,
-        axisDoubleClickReset: false,
-    },
-};
-
-function disableChartInteraction(chart) {
-  console.log("disableChartInteraction",DEFAULT_INTERACTION)  
-    chart.applyOptions(DISABLE_INTERACTION);
-   // chartInteractionDisabled = true;
-}
-
-function enableChartInteraction(chart) {
-  console.log("disableChartInteraction",ENABLE_INTERACTION)  
-    chart.applyOptions(ENABLE_INTERACTION);
-  //  chartInteractionDisabled = false;
-}
-
-function _onMouseDown(e) {
-    if (!drawMode.value) return;
-    if (drawMode.value === 'trade_marker') 
-    
-    container.value.setPointerCapture(e.pointerId);
-    dragging=true;
-    disableChartInteraction(charts.main);
-    onMouseDown( context(),e); 
-    
-}
-
-function _onMouseMove(e) {
-  //console.log("mousemove",dragging) 
-    if (!dragging) return;
-     //e.preventDefault();
-    onMouseMove( context(),e); 
+function onOrderReceived(order) {
+  if (order.symbol == props.symbol)
+  {
+    console.debug("Chart → ordine:", order);
   }
-function _onMouseUp(e) {
-    dragging=false;
-    console.log("mouseup")
-    container.value.releasePointerCapture(e.pointerId);
-    enableChartInteraction(charts.main);
-    onMouseUp( context(),e); 
-    
+}
+
+function onTaskOrderReceived(order){
+  if (order.symbol == props.symbol)
+  {
+     console.log("Chart → task ordine:", order);
+     handleRefresh();
+   // console.log("Chart → task ordine:", order);
   }
-*/
+}
+
 // --- INIZIALIZZAZIONE ---
 onMounted(() => {
 
-  // MOUSE CLICK - DRAWING TOOLS 
-  /*
-  container.value.addEventListener("pointerdown", _onMouseDown);
-  container.value.addEventListener("pointermove", _onMouseMove);
-  container.value.addEventListener("pointerup", _onMouseUp);
-  container.value.addEventListener("pointercancel", _onMouseUp);
-  container.value.addEventListener("pointerleave", _onMouseUp);
-  container.value.addEventListener("pointercancel", _onMouseUp);
-*/
+  eventBus.on("order-received", onOrderReceived);
+  eventBus.on("task-order-received", onTaskOrderReceived);
+
   buildChart();
   handleRefresh();
   resize()
 });
 
 onBeforeUnmount(() => {
-  /*
-   container.value.removeEventListener("pointerdown", _onMouseDown);
-    container.value.removeEventListener("pointermove", _onMouseMove);
-    container.value.removeEventListener("pointerup", _onMouseUp);
-     container.value.removeEventListener("pointercancel", _onMouseUp);
-     */
+  eventBus.off("order-received", onOrderReceived);
+  eventBus.off("task-order-received", onTaskOrderReceived);
 });
 
 onUnmounted(() => {
@@ -396,6 +381,23 @@ onUnmounted(() => {
   if (charts.main) charts.main.remove();
   if (charts.volume) charts.volume.remove();
 });
+
+
+function watchPriceScale() {
+    if (gfx_canvas.value)
+    {
+        if (price_marker.value!=null){
+            price_marker.value.style.display ="none"
+            price_marker_tp.value.style.display ="none"
+            price_marker_sl.value.style.display ="none"
+          updateTaskMarker(context(),tradeMarkers)
+      }
+    }
+    requestAnimationFrame(watchPriceScale);
+  }
+
+watchPriceScale();
+
 
 /* Full resize for gridstack
 */
@@ -474,6 +476,8 @@ const buildChart =  () => {
   mainTimeScale.subscribeVisibleLogicalRangeChange(range => volumeTimeScale.setVisibleLogicalRange(range));
   volumeTimeScale.subscribeVisibleLogicalRangeChange(range => mainTimeScale.setVisibleLogicalRange(range));
 
+  //charts.main.timeScale().subscribeVisibleTimeRangeChange(updateMarker);
+ 
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
   charts.main.subscribeCrosshairMove(param => 
   {
@@ -487,6 +491,22 @@ const buildChart =  () => {
     const data = param.seriesData.get(series.main);
     if (!data) return;
 
+    // update markers
+    /*
+    const timeScale = charts.main.timeScale();
+    const range = timeScale.getVisibleLogicalRange();
+    // ultimo indice logico visibile
+    const logicalIndex = Math.floor(range.to);
+    const x = timeScale.logicalToCoordinate(logicalIndex);
+    const y = series.main.priceToCoordinate(184.48);
+
+    console.log("X,Y", price_marker.value,x,y);
+
+    price_marker.value.style.top = `${y - price_marker.value.offsetHeight / 2}px`;
+    price_marker.value.style.left = `${x}px`; // asse sinistro
+    */
+    //updateMarker();
+    
     //lastMouse = data;
 
     // VOLUUME LINK
@@ -570,6 +590,12 @@ const buildChart =  () => {
     volumeSeries: series.volume,
     refresh: buildChart 
   });
+
+  gfx_canvas.value = container.value.querySelector('canvas');
+  //console.log(container.value,canvas);
+  const canvasParent = gfx_canvas.value.parentElement;
+  canvasParent.appendChild(price_marker.value);
+  
 }catch(ex){
   console.error(ex)
 }
@@ -631,6 +657,16 @@ defineExpose({
 
 <style scoped>
 
+.price-marker {
+  position: absolute;
+  align-items: center;
+  background: transparent;
+  pointer-events: none;
+  color: white;
+  z-index: 100 !important;
+    font-size: 14px;   /* prova 16 / 20 / 24 */
+     line-height: 1;
+}
 
 .timeframe{
   font-weight: 700;

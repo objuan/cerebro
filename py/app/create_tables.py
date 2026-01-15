@@ -145,6 +145,7 @@ cur.execute('''CREATE TABLE IF NOT EXISTS task_orders (
     status TEXT, 
     data TEXT,
     timestamp INT,
+    ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     trade_id TEXT
 )''')
 

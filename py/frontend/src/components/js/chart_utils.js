@@ -2,6 +2,60 @@ import {send_post,generateGUID, send_delete} from '@/components/js/utils.js';
 import {pointToSegmentDistance} from '@/components/js/utils.js'; // Usa il percorso corretto
 import { createTradingLine, LineSeries,LineStyle } from '@pipsend/charts';
 
+
+function update_marker_pos(chart_context,price_marker,price ){
+    if (chart_context.gfx_canvas.value.width==0) return;
+    
+    //console.log(chart_context.gfx_canvas.value.width)
+
+    //const timeScale = chart_context.charts.main.timeScale();
+   // const range = timeScale.getVisibleLogicalRange();
+    // ultimo indice logico visibile
+  //  const logicalIndex = Math.floor(range.to);
+    const x =chart_context.gfx_canvas.value.width-22;// timeScale.logicalToCoordinate(logicalIndex);
+    let y = chart_context.series.main.priceToCoordinate(price); // nel centro
+
+   // console.log("X,Y", x,y);
+
+    if (price_marker&&  price_marker.value!=null){
+       // console.log("X,Y", x,y);
+
+        price_marker.value.style.top = `${y - price_marker.value.offsetHeight / 2}px`;
+        price_marker.value.style.left = `${x}px`; // asse sinistro
+        price_marker.value.style.display ="block"
+    }
+}
+    
+
+export function updateTaskMarker(chart_context,tradeMarkers) { 
+    //console.log("updateTradeMarker",tradeMarkers);
+
+
+    Object.entries(tradeMarkers).forEach(([, value]) => {
+        
+        let data = JSON.parse(value.task.data)
+
+        
+        let ref = value.ref
+
+        update_marker_pos(chart_context,ref,data.lmtPrice);
+    });
+    /*
+
+     taskData.forEach( (task)=>
+      {
+        console.log("ADD TASK", task);
+        task.data = JSON.parse(task.data)
+
+        update_marker_pos(chart_context,price_marker,task)
+    });
+    */
+
+   
+}
+
+// ============================================================
+
 export async function setTradeMarker(chart_context,tradeData) { 
     console.log("setTradeMarker", chart_context,tradeData);
     const currentSymbol = chart_context.currentSymbol;
@@ -39,7 +93,7 @@ function addTradeLine(chart_context,tradeData,price,title, color,guid){
             label +=   " " +calc_percent(price,tradeData.price).toFixed(2)     +"%"
         if (title== "TP")
             label +=   " " +calc_percent(price,tradeData.price).toFixed(2)     +"%"
-        return label
+        return label+"    "
     }
 
     const line =  createTradingLine(series.main, charts.main, {

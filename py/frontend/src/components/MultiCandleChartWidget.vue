@@ -109,10 +109,11 @@
 
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted,onBeforeUnmount } from 'vue';
 import CandleChartWidget from './CandleChartWidget.vue';
 import { computed } from 'vue';
 import  TradeConsole  from './TradeConsole.vue'
+import { eventBus } from "@/components/js/eventBus";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -165,6 +166,7 @@ function selectMode(mode)
 // --- INIZIALIZZAZIONE ---
 onMounted( async() => {
  // console.log("onMounted");
+    eventBus.on("ticker-received", onTickerReceived);
 
     let responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
     let datas = await responses.json();
@@ -179,6 +181,9 @@ onMounted( async() => {
     fundamentals.value+= "  FLOAT: <span style='color:yellow'><b>" + window.formatValue(datas["float"]) + "</b></span> / "+ window.formatValue(datas["shares_outstanding"])   ;
 });
 
+onBeforeUnmount(() => {
+  eventBus.off("ticker-received", onTickerReceived);
+});
 
 const resize =  () => {
    
@@ -218,9 +223,9 @@ function on_candle(msg)
       widgetRefs.value['chart_4']?.on_candle(msg);  
   }
 }
-function on_ticker(msg)
+function onTickerReceived(msg)
 {
-    if (msg["symbol"] == currentSymbol.value)
+  if (msg["symbol"] == currentSymbol.value)
   {
       let color = msg["gain"]>=0 ? '#4bffb5' : '#ff4976';  
       //console.log("MultiCandleChartWidget on_ticker",msg) 
@@ -236,7 +241,7 @@ defineExpose({
   resize,
   save,
   on_candle,
-  on_ticker
+  //on_ticker
 });
 
 </script>

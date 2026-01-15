@@ -5,7 +5,7 @@
       
       <div class="d-flex align-items-center gap-1">
         TRADE <strong>{{ tradeData.timeframe }}</strong>
-        L:{{ticker?.last}}({{ticker?.gain.toFixed(2)}}%)
+     
       </div>
 
       <div class="d-flex align-items-center gap-1">
@@ -31,10 +31,17 @@
         Gain <strong>{{ Number(tradeData.profit_usd).toFixed(1) }}</strong>
       </div>
 
-      <button
+      <button class="btn btn-sm btn-danger"
             @click="test_order()"
           >TEST</button>
+
+      <button class="btn btn-sm btn-danger"
+            @click="clear_all()"
+          >CLEAR ALL</button>
     </div>
+     <div class="d-flex align-items-center gap-1">
+      dsdsdsds
+     </div>
   </div>
 </template>
 
@@ -45,7 +52,7 @@ import { ref,watch,computed,onMounted,onBeforeUnmount  } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
 import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
-import {order_limit} from "@/components/js/orderManager";
+import {order_limit,clear_all_orders} from "@/components/js/orderManager";
 
 const props = defineProps({
   symbol: { type: String, required: true },
@@ -63,23 +70,39 @@ function test_order(){
   order_limit(props.symbol,quantity.value,ticker.value.last )
 }
 
+function clear_all(){
+  clear_all_orders(props.symbol);
+}
+
+function onTaskOrderReceived(order){
+  if (order.symbol == props.symbol)
+  {
+    //console.log("TradeConsole → task ordine:", order);
+  }
+}
+
 function onOrderReceived(order) {
-  console.debug("TradeConsole → ordine:", order);
+  if (order.symbol == props.symbol)
+  {
+    //console.debug("TradeConsole → ordine:", order);
+  }
 }
 function onTickerReceived(_ticker) {
   if (_ticker.symbol == props.symbol)
   {
-    //console.log("TradeConsole → ticker:", _ticker);
+   // console.log("TradeConsole → ticker:", _ticker);
     ticker.value =_ticker
   }
 }
 
 onMounted(() => {
+  eventBus.on("task-order-received", onTaskOrderReceived);
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("ticker-received", onTickerReceived);
 });
 
 onBeforeUnmount(() => {
+  eventBus.off("task-order-received", onTaskOrderReceived);
   eventBus.off("order-received", onOrderReceived);
   eventBus.off("ticker-received", onTickerReceived);
 });

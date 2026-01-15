@@ -633,12 +633,12 @@ async def do_limit_order(symbol, qty,price):
         return {"status": "error" }
     
 @app.get("/order/buy_at_level")
-async def do_limit_order(symbol, qty,price):
+async def do_buy_at_level(symbol:str, qty:float,price:float,desc:str):
     try:
         order_mode = config["order"]["mode"]
         zone = fetcher.getCurrentZone()
         if zone != MarketZone.LIVE or order_mode=="task_all":
-            OrderManager.task_buy_at_level(symbol, qty,price)
+            await OrderManager.task_buy_at_level(symbol,"buy_at_level", qty,price,desc)
         else:
             OrderManager.buy_at_level(symbol, qty,price)
             
@@ -647,6 +647,21 @@ async def do_limit_order(symbol, qty,price):
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
 
+@app.get("/order/sell_at_level")
+async def do_sell_at_level(symbol:str, qty:float,price:float,desc:str):
+    try:
+        order_mode = config["order"]["mode"]
+        zone = fetcher.getCurrentZone()
+        if zone != MarketZone.LIVE or order_mode=="task_all":
+            await OrderManager.task_buy_at_level(symbol,"sell_at_level", qty,price,desc)
+        else:
+            OrderManager.buy_at_level(symbol, qty,price)
+            
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
 @app.get("/order/sell/all")
 async def do_sell_order(symbol):
     try:
@@ -699,7 +714,108 @@ async def cancel_order(permId: int):
     except Exception as e:
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
+
+#############
+
+@app.get("/order/clear_all")
+async def clar_all_orders(symbol: str):
+    try:
+        result = await OrderManager.clar_all_orders(symbol)
+        if result:
+            return {"status": "ok", "message": f"Orders cancelled {symbol}"}
+        else:
+            return {"status": "warn", "message": f"No order founds fo {symbol}"}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
     
+####################################
+
+@app.get("/order/task/list")
+async def get_task_orders(start: Optional[str] = None,
+                          onlyReady: bool = False):
+    if not start:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        start = today_start.isoformat().replace("T"," ")
+    try:
+
+        if onlyReady:
+            query="""SELECT * FROM task_orders 
+            WHERE id IN (
+                SELECT MAX(o.id)
+                FROM task_orders o
+                GROUP BY task_id
+            )
+            AND status =='READY'
+            AND ds_timestamp >= ? 
+            """
+        else:
+            query =f"""
+            SELECT * FROM task_orders 
+            WHERE ds_timestamp >= ? 
+            ORDER BY timestamp DESC
+            """
+
+        cur.execute(query, (start,))
+        rows = cur.fetchall()
+
+        logger.info(f"get task orders {start}")
+        
+        # Ottieni i nomi delle colonne
+        columns = [desc[0] for desc in cur.description]
+        
+        # Converti in lista di dizionari
+        data = [dict(zip(columns, row)) for row in rows]
+        
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.get("/order/task/symbol")
+async def get_task_symbol_orders(symbol:str, 
+                                start: Optional[str] = None,
+                          onlyReady: bool = False):
+    if not start:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        start = today_start.isoformat().replace("T"," ")
+    try:
+
+        if onlyReady:
+            query="""SELECT * FROM task_orders 
+            WHERE id IN (
+                SELECT MAX(o.id)
+                FROM task_orders o
+                GROUP BY task_id
+            )
+            AND status =='READY'
+            AND ds_timestamp >= ? 
+            AND SYMBOL = ?
+            """
+        else:
+            query =f"""
+            SELECT * FROM task_orders 
+            WHERE ds_timestamp >= ? 
+            AND SYMBOL = ?
+            ORDER BY timestamp DESC
+            """
+
+        cur.execute(query, (start,symbol,))
+        rows = cur.fetchall()
+
+        logger.info(f"get task orders {start}")
+        
+        # Ottieni i nomi delle colonne
+        columns = [desc[0] for desc in cur.description]
+        
+        # Converti in lista di dizionari
+        data = [dict(zip(columns, row)) for row in rows]
+        
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+     
 #######################
 
 @app.get("/account/summary")
@@ -908,7 +1024,7 @@ if __name__ =="__main__":
                 while ticker_history[symbol] and ticker_history[symbol][0][0] < ts - 300:
                     ticker_history[symbol].popleft()
 
-                OrderManager.onTicker(symbol,ticker.last)
+                await OrderManager.onTicker(symbol,ticker.last)
 
                 # Compute OHLC for each interval
                 hls = []

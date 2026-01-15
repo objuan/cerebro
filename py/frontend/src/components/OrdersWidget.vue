@@ -14,8 +14,26 @@
         <button @click="toggle()">✖</button>
       </header>
 
+      <div class="filters">
+          <button
+            :class="{ active: viewMode === 'orders' }"
+            @click="viewMode = 'orders'"
+          >
+            Orders
+          </button>
+
+          <button
+            :class="{ active: viewMode === 'tasks' }"
+            @click="viewMode = 'tasks'"
+          >
+            Tasks
+          </button>
+
+          <button @click="toggle()">✖</button>
+        </div>
+
       <div class="content">
-        <table v-if="orders.length">
+        <table v-if="visibleOrders.length">
           <thead>
             <tr>
                <th>Time</th>
@@ -28,29 +46,29 @@
           </thead>
 
           <tbody>
-            <template v-for="o in orders" :key="o.trade_id">
+            <template v-for="o in visibleOrders" :key="o.trade_id">
               <tr @click="toggleDetails(o.id)">
                 <td>{{ o.timestamp }}</td>
                 <td>{{ o.symbol }}</td>
-                <td>{{ o.dataParsed.action }}</td>
-                <td>{{ o.dataParsed.totalQuantity }}</td>
-                <td>{{ format(o.dataParsed.lmtPrice) }}</td>
+                <td>{{ o.action }}</td>
+                <td>{{ o.totalQuantity }}</td>
+                <td>{{ format(o.lmtPrice) }}</td>
                 <td :class="statusClass(o.status)">
                   {{ o.status }}
                 </td>
               </tr>
 
-              <tr v-if="expanded === o.id" class="details">
+              <tr v-if="canExpand && expanded === o.id" class="details">
                 <td colspan="5">
                   <div class="grid">
-                    <div><b>OrderId:</b> {{ o.dataParsed.orderId }}</div>
-                    <div><b>Filled:</b> {{ o.dataParsed.filled }}</div>
-                    <div><b>Remaining:</b> {{ o.dataParsed.remaining }}</div>
-                    <div><b>Avg:</b> {{ format(o.dataParsed.avgFillPrice) }}</div>
+                    <div><b>OrderId:</b> {{ o.orderId }}</div>
+                    <div><b>Filled:</b> {{ o.filled }}</div>
+                    <div><b>Remaining:</b> {{ o.remaining }}</div>
+                    <div><b>Avg:</b> {{ format(o.avgFillPrice) }}</div>
                   </div>
 
                   <ul class="log">
-                    <li v-for="(l, i) in o.dataParsed.log" :key="i">
+                    <li v-for="(l, i) in o.log" :key="i">
                       <span>{{ formatTime(l.time) }}</span>
                       <b>{{ l.status }}</b>
                       {{ l.message }}
@@ -69,15 +87,32 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed } from "vue";
+import { reactive, ref, computed,onMounted,onBeforeUnmount } from "vue";
 import { eventBus } from "@/components/js/eventBus";
 
-
+const viewMode = ref("orders"); 
 const open = ref(false);
 const expanded = ref(null);
 const ordersMap = reactive({});
-
+const task_ordersList = reactive([]);
 //const emit = defineEmits(["order-received"]);
+const canExpand = computed(() => viewMode.value === "orders");
+
+const visibleOrders = computed(() => {
+  if (viewMode.value === "orders") {
+    return Object.values(ordersMap).sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+    );
+  }
+
+  if (viewMode.value === "tasks") {
+    return [...task_ordersList].sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+    );
+  }
+
+  return [];
+});
 
 /* ===== PUBLIC API ===== */
 
@@ -85,39 +120,41 @@ function toggle() {
   open.value = !open.value;
 }
 
-function handleMessage(msg) {
+function onOrderReceived(msg) {
   try {
-
-    const dataParsed =
-      typeof msg.data === "string"
-        ? JSON.parse(msg.data)
-        : msg.data;
-
-    //console.log("handleMessage",msg)
+    //console.log("onOrderReceived",msg)
+    let dataParsed = msg["data"]
 
     ordersMap[msg.trade_id] = {
-      ...msg,
-      dataParsed,
+      ...msg,dataParsed
+     // dataParsed,
     };
+  } catch (e) {
+    console.error("Orders parse error", e);
+  }
+}
+function onTaskOrderReceived(msg) {
+  try {
+   // console.log("onTaskOrderReceived",msg);
 
-    // 🔔 EMIT EVENTO ESTERNO
-    //emit("order-received", msg.data);
-    eventBus.emit("order-received", msg.data);
-
+    msg.totalQuantity = msg.data.totalQuantity
+    msg.lmtPrice = msg.data.lmtPrice 
+    task_ordersList.push(msg);
   } catch (e) {
     console.error("Orders parse error", e);
   }
 }
 
-defineExpose({ toggle, handleMessage });
+defineExpose({ toggle });
 
 /* ===== HELPERS ===== */
-
+/*
 const orders = computed(() =>
   Object.values(ordersMap).sort(
     (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
   )
 );
+*/
 
 function toggleDetails(id) {
   expanded.value = expanded.value === id ? null : id;
@@ -139,6 +176,19 @@ function statusClass(s) {
     Submitted: "warn",
   }[s] || "";
 }
+
+onMounted(() => {
+
+  eventBus.on("order-received", onOrderReceived);
+  eventBus.on("task-order-received", onTaskOrderReceived);
+});
+
+onBeforeUnmount(() => {
+  eventBus.off("order-received", onOrderReceived);
+  eventBus.off("task-order-received", onTaskOrderReceived);
+});
+
+
 </script>
 
 <style scoped>
@@ -259,4 +309,25 @@ th, td {
   min-width: 100px;          /* colonna status */
   text-align: left;
 }
+
+.filters {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.filters button {
+  background: #020617;
+  border: 1px solid #1e293b;
+  color: #94a3b8;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.filters button.active {
+  background: #1e293b;
+  color: #e5e7eb;
+}
+
 </style>

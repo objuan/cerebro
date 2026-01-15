@@ -53,7 +53,7 @@ export function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
 
     return Math.hypot(px - cx, py - cy);
 }
-export async function send_mulo__get(url, params = {}) {
+export async function send_mulo_get(url, params = {}) {
     const query = new URLSearchParams(params).toString();
 
     const res = await fetch(

@@ -123,6 +123,7 @@ const initWebSocket_mulo = () => {
   ws.onmessage = (event) => {
    
     const msg = JSON.parse(event.data);
+    let dataParsed=null;
     //console.log(msg)
     switch (msg.type) {
          case "UPDATE_PORTFOLIO":
@@ -132,7 +133,20 @@ const initWebSocket_mulo = () => {
           portfolioRef.value?.handleMessage(msg);
           break
         case "ORDER":
-          ordersRef.value?.handleMessage(msg);
+          //#ordersRef.value?.handleMessage(msg);
+          dataParsed =
+              typeof msg.data === "string"
+                ? JSON.parse(msg.data)
+                : msg.data;
+              dataParsed["timestamp"] = msg["timestamp"]
+          eventBus.emit("order-received", dataParsed);
+          break
+        case "TASK_ORDER":
+         
+          console.log("TASK_ORDER",msg)
+          //.value?.handleMessage(msg);
+          //msg.data= JSON.parse(msg.data)
+          eventBus.emit("task-order-received", msg.data);
           break
     }
   }
@@ -165,17 +179,7 @@ const initWebSocket = () => {
       case "ticker":
         {
           //console.log("WS TICKER",msg.data);
-          //for x in widgetRefs.value 
-          
-          for(var i=0;i<widgetList.value.length;i++)
-          {
-              const componentInstance = widgetRefs.value[widgetList.value[i].id];
-              if (componentInstance!=null)
-                  componentInstance.on_ticker(msg.data);  
-          }
           eventBus.emit("ticker-received", msg.data);
-
-
         } 
         break
        case "props":
@@ -184,7 +188,6 @@ const initWebSocket = () => {
           //for x in widgetRefs.value 
           
            liveStore.updatePathData(msg.path, msg.value);
-
         } 
         break
       case "del":
@@ -385,12 +388,24 @@ onMounted(() => {
 
         response = await fetch('http://127.0.0.1:2000/order/list')
         if (!response.ok) throw new Error('Errore nel caricamento')
-        const order_list = await response.json();
-        order_list.data.forEach(  (val) =>{
+        let order_list = await response.json();
+        order_list.data.forEach(  (msg) =>{
             //console.log(val)
-            val["type"] = "ORDER"
-            ordersRef.value?.handleMessage(val);
+            let dataParsed =
+              typeof msg.data === "string"
+                ? JSON.parse(msg.data)
+                : msg.data;
+              dataParsed["timestamp"] = msg["timestamp"]
+            eventBus.emit("order-received", dataParsed);
             //portfolioRef.value?.handleMessage(val);
+        });
+
+        response = await fetch('http://127.0.0.1:2000/order/task/list?onlyReady=true')
+        if (!response.ok) throw new Error('Errore nel caricamento')
+        order_list = await response.json();
+        order_list.data.forEach(  (msg) =>{
+            msg.data= JSON.parse(msg.data)
+            //eventBus.emit("task-order-received", msg);
         });
 
     } catch (err) {
