@@ -38,8 +38,11 @@ from order import OrderManager
 from balance import Balance
 from order_task import OrderTaskManager
 from mulo_job import MuloJob
+from mulo_scanner import Scanner
+from mulo_live import LiveManager
 
 use_yahoo=False
+use_display = True
 
 DB_TABLE = "ib_ohlc_live"
 
@@ -57,6 +60,20 @@ logging.getLogger("ib_insync").setLevel(logging.WARNING)
 run_mode = config["database"]["scanner"].get("mode","sym") 
 
 fetcher = MuloJob(DB_FILE,config)
+ms = MarketService(config)          # o datetime.now()
+market = ms.getMarket("AUTO")
+
+ws_manager = WSManager()
+ws_manager_orders = WSManager()
+OrderManager.ws = ws_manager_orders
+OrderTaskManager.ws = ws_manager_orders
+Balance.ws = ws_manager_orders
+
+if use_display:
+    cmd_console = Console()
+    live_display = Live(console=cmd_console, refresh_per_second=2)
+else:
+    live_display=None
 
 if run_mode!= "sym":
     ib = IB()
@@ -66,9 +83,21 @@ if run_mode!= "sym":
     # Subscribe to news bulletins
     ib.reqNewsBulletins(allMessages=True)
     Balance(config,ib)
+
+    scanner = Scanner(ib,config,ms)
+
+    def on_display(table):
+        live_display.update(table)
+    if use_display:
+        live = LiveManager(ib,config,fetcher,scanner,ws_manager,on_display)
+    else:
+        live = LiveManager(ib,config,fetcher,scanner,ws_manager,None)
+
 else:
     OrderManager(config,None)
     Balance(config,None)
+    scanner = Scanner(None,config,ms)
+    live = LiveManager(None,config,fetcher,scanner,ws_manager,None)
 
 OrderTaskManager(config)
 
@@ -103,15 +132,13 @@ if run_mode!= "sym":
     ib.newsBulletinEvent += on_news_bulletin
     ib.tickNewsEvent += on_news_events
 
-ms = MarketService(config)          # o datetime.now()
-market = ms.getMarket("AUTO")
-symbols = []
-live_send_key={}
+
+#symbols = []
+#live_send_key={}
+
 sym_time = None
 app = FastAPI(  )
 
-console = Console()
-live_display = Live(console=console, refresh_per_second=2)
 
 #Configura le origini permesse
 '''
@@ -141,11 +168,7 @@ async def add_referrer_policy(request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-ws_manager = WSManager()
-ws_manager_orders = WSManager()
-OrderManager.ws = ws_manager_orders
-OrderTaskManager.ws = ws_manager_orders
-Balance.ws = ws_manager_orders
+
 
 if use_yahoo:
     ws_yahoo = yf.AsyncWebSocket()
@@ -159,304 +182,27 @@ cur.execute("PRAGMA journal_mode=WAL;")
 cur.execute("PRAGMA synchronous=NORMAL;")
 
 ###
-trade_mode=None
-pre_ts_date={}
+#trade_mode=None
+#pre_ts_date={}
 
-last_stats = {}
-agg_cache = {}
-RETENTION_HOURS = config["database"]["live"]["RETENTION_HOURS"]      # quante ore tenere
-CLEANUP_INTERVAL = config["database"]["live"]["CLEANUP_INTERVAL_HOURS"] * 3600   # ogni quanto pulire (1h)
-
+#last_stats = {}
+#agg_cache = {}
+#RETENTION_HOURS = config["database"]["live"]["RETENTION_HOURS"]      # quante ore tenere
+#CLEANUP_INTERVAL = config["database"]["live"]["CLEANUP_INTERVAL_HOURS"] * 3600   # ogni quanto pulire (1h)
+'''
 TIMEFRAMES = {
     "10s": 10,
     "1m": 60,
     "5m": 300,
     #"1h": 3600,
 }
-
-### Global data structures for ticker history
-ticker_history = {}  # symbol -> deque of (ts, price)
-intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
-ticker_map = {}
-
-############################
-        
-def display_with_stock_symbol(scanData):
-    df = util.df(scanData)
-    df["contract"] = df.apply( lambda l:l['contractDetails'].contract,axis=1)
-    df["symbol"] = df.apply( lambda l:l['contract'].symbol,axis=1)
-    return df[["rank","contractDetails","contract","symbol"]]
-
-async def do_scanner(config,name, max_symbols):
-
-    
-        cfg = config["database"]["scanner"]
-        #offline_mode = "offline_mode" in cfg and cfg["offline_mode"] =="true"
-
-        logger.info(f'SCANNING DATAS ... {cfg}')
-
-        zone = market.getCurrentZone()
-        
-        logger.info(f'MARKET ZONE {zone}')
-
-        if "debug_symbols" in cfg:
-            logger.info("Use OFFLINE")
-            symbols = cfg["debug_symbols"]
-            items=[]
-            conn = sqlite3.connect(DB_FILE)
-            for symbol in symbols:
-                df_stocks = pd.read_sql_query(f"select * from STOCKS where symbol='{symbol}'", conn)
-                if len(df_stocks)!=0:
-                    items.append({"symbol": symbol, "conid":df_stocks.iloc[0]["ib_conid"],"listing_exchange":df_stocks.iloc[0]["exchange"] })
-            conn.close()   
-            df = pd.DataFrame(
-                [(o["symbol"], o["conid"], o["listing_exchange"]) for o in items],
-                columns=["symbol", "conidex","listing_exchange"]
-            )
-            return df
-
-        filter=None
-        for prof in cfg["profiles"]:
-            print(prof)
-            if prof["name"] == name:# and zone == MarketZone.LIVE:
-                filter = prof
-            if prof["name"] == name:# and zone == MarketZone.PRE:
-                filter = prof
-        
-        logger.info(f'filter ...{filter}')
-
-        sub = ScannerSubscription(
-            numberOfRows=50,
-            instrument=filter["instrument"],
-            locationCode=filter["location"],
-            scanCode=filter["type"]
-            # marketCapAbove= 1_000_000 , abovePrice= 100, aboveVolume= 100000
-        )
-
-        #if zone == MarketZone.LIVE:
-        if True:
-            sub.stockTypeFilter = "COMMON" # solo azione vere, no nETF
-            if "abovePrice" in filter:
-                sub.abovePrice = filter["abovePrice" ]
-            if "belowPrice" in filter:
-                sub.belowPrice = filter["belowPrice" ]
-            if "aboveVolume" in filter:
-                sub.aboveVolume = filter["aboveVolume" ]
-            if "marketCapAbove" in filter:
-                sub.marketCapAbove = filter["marketCapAbove" ]
-        '''
-        else:
-            sub.instrument="STK"
-            sub.locationCode="STK.US.MAJOR"
-            sub.scanCode="TOP_PERC_GAIN"
-            sub.stockTypeFilter = "COMMON" # solo azione vere, no nETF
-            sub.abovePrice = 1
-            sub.belowPrice = 100
-            sub.aboveVolume = 1
-            #sub.marketCapAbove = 0
-        '''
-        
-        logger.info(f'FILTER ...{sub}')
-
-        scanData = ib.reqScannerData(sub)
-
-        logger.info(f'FIND #{len(scanData)}')
-
-        if len(scanData)>0:
-            conn = sqlite3.connect(DB_FILE)
-            cursor = conn.cursor()
-
-            run_time = int(_time.time() * 1000)
-            #run_time = int(_time.time() )
-            ds_run_time  = datetime.utcnow().isoformat()
-            
-            #logger.info(display_with_stock_symbol(scanData)["symbol"])
-
-            symbols = [] 
-            for contract, details in display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
-                if contract.conId!=0:
-                    symbols.append(contract.symbol)
-
-            logger.info(f"find df_fundamentals \n{symbols}")
-            df_fundamentals = await Yahoo(DB_FILE, config).get_float_list(symbols)
-
-            #scarto stocks senza float 
-            for _, row in df_fundamentals.iterrows():
-                if not  row["float"] :
-                    logger.warning(f"DISCARD STOCK : {row['symbol']}")
-                    for i,m in  enumerate(symbols):
-                        #e = self.monitor[row['symbol']]
-                        if m == row['symbol']:
-                            del symbols[i]                
-                            break
-            # filtro df_fundamentals                  
-            mask = df_fundamentals.apply(
-                lambda row: not not row["float"],
-                axis=1
-                )
-            df_fundamentals = df_fundamentals[mask]
-            
-            pos=0
-            # inserimento dati
-            #for row in display_with_stock_symbol(scanData).iterrows():
-            for contract, details in display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
-                    pos=pos+1
-                    sql = """
-                        INSERT INTO ib_scanner (
-                            mode,
-                            ts_exec,
-                            pos,
-                            symbol,
-                            conidex,
-                            available_chart_periods,
-                            company_name,
-                            contract_description_1,
-                            listing_exchange,
-                            sec_type
-                        ) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?,?)
-                    
-                        """
-                    
-                    conn.execute(sql, (
-                        name,
-                        run_time,
-                        pos,
-                        contract.symbol,
-                        contract.conId, #conidex
-                        "",
-                        contract.description,
-                        "",
-                        contract.exchange,
-                        contract.secType
-                    ))
-                    
-            
-                    conn.commit()
-                
-                    ##### stocks
-                    df_stocks = pd.read_sql_query(f"select * from STOCKS where symbol='{contract.symbol}'", conn)
-                    if len(df_stocks)==0:
-                            
-                        logger.info(f"CREATE STOCK ..  {contract}")
-                        conn.execute("""
-                            INSERT  INTO stocks (symbol, exchange,ib_conid) VALUES (?,?,?) """, (contract.symbol,contract.exchange,contract.conId))
-                            
-                        conn.commit()
-                        
-                    sql = f"UPDATE STOCKS SET ib_conid={contract.conId} , currency='{contract.currency}' WHERE symbol ='{contract.symbol}'"
-                    conn.execute(sql)
-                    conn.commit()
-
-                    
-            conn.close()
-
-            #max_symbols=config["database"]["live"]["max_symbols"]
-            if max_symbols != None:
-                symbols = symbols [:max_symbols]
-
-            logger.info(f"df_fundamentals \n{df_fundamentals}")
-            items=[]
-            for symbol in symbols:
-                new_row = {"symbol": symbol}
-                
-                for contract, details in display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
-                    if contract.symbol == symbol:
-                        #print(contract)
-                        new_row["conid"]=  contract.conId
-                for _, row in df_fundamentals.iterrows():
-                    if  row["symbol"]  == symbol:
-                        new_row["listing_exchange"]= row["exchange"] 
-    
-                items.append(new_row)
-
-            
-            #print(items)
-            df = pd.DataFrame(
-                [(o["symbol"], o["conid"], o["listing_exchange"]) for o in items],
-                columns=["symbol", "conidex","listing_exchange"]
-            )
-            return df
-
+'''
 
 #######################################################
-
-actual_df=None
-#conidex_to_symbol=None
-symbol_map=None
-symbol_to_conid_map=None
-
-actual_requests = []
-tickers = {}
 
 sym_time = None
 
 #######################################################
-
-async def manage_live( symbol_list_add, symbol_list_remove):
-    global actual_requests
-    global tickers
-
-    logger.info(f"===== Manage_live add:{symbol_list_add} del: {symbol_list_remove} =======")
-
-    if run_mode== "sym":
-        symbols=[]
-        for symbol in symbol_list_add:
-            symbols.append(symbol)
-            tickers[symbol] = Ticker()
-            tickers[symbol].time = datetime.now()   
-            await fetcher.on_update_symbols(symbols,False)
-        return
-
-    for symbol in symbol_list_add:
-        exchange = "SMART"#symbol_map[symbol]
-        contract = Stock(symbol, exchange, 'USD')
-
-        logger.info(f"Open  feeds {contract}")
-        # Request market data for the contract
-        if use_yahoo:
-            await ws_yahoo.subscribe(symbol)
-            market_data={"symbol":symbol }
-        else:
-            ib.qualifyContracts(contract)
-            market_data = ib.reqMktData(contract)
-            amd = Stock(symbol, 'SMART', 'USD')
-
-            #news
-            yesterday = datetime.now() - timedelta(days=1)
-            startDateTime = yesterday.strftime('%Y%m%d %H:%M:%S'),
-
-            headlines = ib.reqHistoricalNews(amd.conId, "BRFG+BRFUPDN+FLY",startDateTime, '', 10)
-            logger.info(f"-----> {headlines}")
-            if headlines and len(headlines)>0:
-                latest = headlines[0]
-                print("-------",latest)
-                article = ib.reqNewsArticle(latest.providerCode, latest.articleId)
-                print("-------",article)
-            
-
-        tickers[symbol]  = market_data
-
-    for symbol in symbol_list_remove:
-        contract = Stock(symbol, exchange, 'USD')
-        logger.info(f"Remove  feeds {contract}")
-        try:
-            ib.cancelMktData(contract)
-        except:
-            logger.error("CANCEL ERROR", exc_info=True)
-        ib.sleep(1)
-
-        del  tickers[symbol]
-        
-    logger.info(f"tickers {tickers}")
-
-    ###
-    offline_mode = "debug_symbols" in run_mode=="offline" #:#config["database"]["scanner"]["offline_mode"]
-    symbols=[]
-    for symbol, ticker  in tickers.items():
-        if (ticker.time  and  not math.isnan(ticker.last)) or offline_mode:
-            symbols.append(symbol)
-
-    await fetcher.on_update_symbols(symbols,True)
 
 
 def on_news(symbol, news_list):
@@ -470,48 +216,14 @@ def on_news(symbol, news_list):
             "more": news.more
         }))
 
-##########################################################
 
-async def updateLive(config,df_symbols, range_min=None,range_max=None):
-    global actual_df
-    global symbol_map
-    global symbol_to_conid_map
-
-    # get last lives
-    if df_symbols.empty:
-         if actual_df:
-            await manage_live([],actual_df["symbol"].to_list())
-         actual_df=None
-    else:
-        if range_min!=None:
-            df_symbols = df_symbols.iloc[range_min:range_max]
-
-        logger.info(f"START LISTENING")
-        if not symbol_map :
-            actual_df = df_symbols
-            #manage_live(last_df,[])
-            symbol_map = actual_df.set_index("symbol")["listing_exchange"].to_dict()
-            symbol_to_conid_map = actual_df.set_index("symbol")["conidex"].to_dict()
-
-            await manage_live(actual_df["symbol"].to_list(),[])
-        else:
-
-            delta_removed = actual_df[~actual_df["symbol"].isin(df_symbols["symbol"])]
-            delta_new = df_symbols[~df_symbols["symbol"].isin(actual_df["symbol"])]
-
-            actual_df = df_symbols
-            symbol_map = actual_df.set_index("symbol")["listing_exchange"].to_dict()
-            symbol_to_conid_map = actual_df.set_index("symbol")["conidex"].to_dict()
-
-            manage_live(delta_new["symbol"].to_list(),delta_removed["symbol"].to_list())
-        
 
 ##################################################
 @app.get("/market")
 def health(symbol):
     logger.info(f"Market {symbol}")
 
-    exchange = symbol_map[symbol]
+    exchange = fetcher.get_exchange(symbol)
     contract = Stock(symbol, exchange, 'USD')
     ib.qualifyContracts(contract)
 
@@ -541,7 +253,7 @@ async def favicon():
 async def scanner(name:str, start: Optional[int] = None, end: Optional[int] = None):
     logger.info(f"scanner {name} s:{start} e:{end}")
     try:
-        df_symbols = await do_scanner(config, name,end)
+        df_symbols = await scanner.do_scanner(config, name,end)
         
         #df_symbols = await scan(config,config["database"]["live"]["max_symbols"])
 
@@ -552,6 +264,7 @@ async def scanner(name:str, start: Optional[int] = None, end: Optional[int] = No
         logger.error("ERROR", exc_info=True)
         return {"status": "error"}
 
+'''
 @app.get("/live")
 async def do_live( symbols: str ):
     try:
@@ -562,13 +275,13 @@ async def do_live( symbols: str ):
         
         df_symbols = pd.read_sql_query(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})",conn)
         
-        await updateLive(config,df_symbols )
+        await live.updateLive(config,df_symbols )
      
         return {"status": "ok"}
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "ko"}
-
+'''
 @app.get("/conId")
 async def conId(symbol,exchange,currency):
 
@@ -580,28 +293,15 @@ async def conId(symbol,exchange,currency):
 
 @app.get("/symbols")
 async def get_symbols():
-    #offline_mode = config["database"]["scanner"]["offline_mode"]
-    offline_mode = run_mode!="live" #:#config["database"]["scanner"]["offline_mode"] 
-
-    '''
-    logger.info(f"get symbols {actual_df}")
-
-    rows = actual_df[["symbol", "conidex", "listing_exchange"]].to_dict(orient="records")
-    '''
-    data=[]
-    for symbol, ticker  in tickers.items():
-        if (ticker.time  and  not math.isnan(ticker.last)) or offline_mode:
-            data.append(symbol)
-    
-    return {"status": "ok" , "data": data}
+    return {"status": "ok" , "data": [ x.symbol for x in live.ordered_tickers()]}
 
 @app.get("/tickers")
 async def get_tickers():
     offline_mode = run_mode!="live" #:#config["database"]["scanner"]["offline_mode"] 
     data=[]
-    for symbol, ticker  in tickers.items():
+    for  ticker  in live.ordered_tickers():
         if (ticker.time  and  not math.isnan(ticker.last)) or offline_mode:
-            data.append({"symbol": symbol, "last": ticker.last, "bid" : ticker.bid , "ask": ticker.ask,"low": ticker.low , "high" : ticker.high,"volume": ticker.volume*100, "ts":   ticker.time .timestamp()  })
+            data.append({"symbol": ticker.symbol, "last": ticker.last, "bid" : ticker.bid , "ask": ticker.ask,"low": ticker.low , "high" : ticker.high,"volume": ticker.volume*100, "ts":   ticker.time .timestamp()  })
     data = sanitize(data)
     #logger.info(data)
     return {"status": "ok" , "data": data}
@@ -753,7 +453,7 @@ async def clar_all_orders(symbol: str):
         pos = Balance.get_position(symbol)
         if (pos and pos.position>0):
             logger.info(f"SELL ALL {symbol} {pos.position} ")
-            OrderManager.smart_sell_limit(symbol,pos.position, ticker_map[symbol])
+            OrderManager.smart_sell_limit(symbol,pos.position, live.getTicker(symbol))
 
         OrderManager.cancel_orderBySymbol(symbol)
         result = await OrderTaskManager.cancel_orderBySymbol(symbol, )
@@ -890,7 +590,6 @@ async def account_values():
             if v.tag == "CashBalance" and v.currency == "USD"
         )
         return cash_usd
-    
 
     except Exception as e:
         logger.error("ERROR", exc_info=True)
@@ -899,17 +598,8 @@ async def account_values():
 @app.get("/account/positions")
 async def account_positions():
     try:
-        '''
-        positions  = ib.positions()
-
-        list = []
-        for p in positions:
-            list.append({"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
-        return list
-        '''
         balance =  Balance.to_dict()
         return balance
-    
     except Exception as e:
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
@@ -929,26 +619,7 @@ async def ws_tickers(ws: WebSocket):
             logger.info(f"Messaggio ricevuto: {message}")
             try:
                 data = json.loads(message)
-                action = data.get("action")
-                if action == "subscribe":
-                    symbols = data.get("params", {}).get("symbols", "")
-                    if symbols:
-                        symbol_list = symbols.split(",")
-                        # Create df_symbols from symbol_list
-                        df_symbols = pd.DataFrame({
-                            "symbol": symbol_list,
-                            "conidex": [symbol_to_conid_map.get(s, 0) for s in symbol_list],
-                            "listing_exchange": [symbol_map.get(s, "SMART") for s in symbol_list]
-                        })
-                        await updateLive(config, df_symbols)
-                elif action == "unsubscribe":
-                    symbols = data.get("params", {}).get("symbols", "")
-                    if symbols == "*":
-                        # Unsubscribe all
-                        await updateLive(config, pd.DataFrame())
-                    else:
-                        # For partial, but for now, ignore
-                        pass
+
             except json.JSONDecodeError:
                 logger.error("Invalid JSON message")
     except WebSocketDisconnect:
@@ -974,30 +645,7 @@ async def ws_tickers(ws: WebSocket):
 async def bootstrap():
     # start live ?? 
    
-    if run_mode!="live":
-        symbols =  config["database"]["scanner"]["debug_symbols"]   
-        filter = str(symbols)[1:-1]
-        df_symbols = pd.read_sql_query(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})",conn)
-            
-        await updateLive(config,df_symbols )
-    else:
-        df = pd.read_sql_query("""SELECT * FROM ib_scanner
-            WHERE ts_exec = (
-                SELECT MAX(ts_exec) FROM ib_scanner 
-            )
-            ORDER BY pos ASC""",conn)
-        if len(df)>0:
-            max_symbols=config["database"]["live"]["max_symbols"]
-
-            df = df [:max_symbols]
-            symbols =  df["symbol"].tolist()
-
-            logger.info(f"START OLD LIVE {symbols}")
-            filter = str(symbols)[1:-1]
-
-            df_symbols = pd.read_sql_query(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})",conn)
-            
-            await updateLive(config,df_symbols )
+    await live.bootstrap(run_mode)
 
     await OrderManager.bootstrap()
     await OrderTaskManager.bootstrap()
@@ -1039,8 +687,8 @@ if __name__ =="__main__":
             #print("dd")
             #await do_scanner(config,"PRE",999)
             #exit(0)
-
-            live_display.start()
+            if use_display:
+                live_display.start()
 
             u_config = uvicorn.Config(
                 app=app, 
@@ -1051,219 +699,25 @@ if __name__ =="__main__":
             )
             server = uvicorn.Server(u_config)
 
-            async def add_ticker(symbol,ticker):
-                #logger.info(f"!!!!!!! {symbol} ticker {ticker}")
-                data=[]
-                table = Table("Symbol", "Last", "Ask", "Bid", "10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
-                if use_yahoo:
-                    ts = ticker.time#_time.time()
-                else:
-                    ts = ticker.time.timestamp()
-
-                # Update history
-                if symbol not in ticker_history:
-                    ticker_history[symbol] = deque()
-                ticker_history[symbol].append((ts, ticker.last, ticker.volume))
-                # Remove old entries older than 5 minutes
-                while ticker_history[symbol] and ticker_history[symbol][0][0] < ts - 300:
-                    ticker_history[symbol].popleft()
-
-                await OrderTaskManager.onTicker(symbol,ticker.last)
-
-                if not symbol in ticker_map:
-                     ticker_map[symbol] ={}
-                tick = ticker_map[symbol]
-                tick["last"] = ticker.last
-                tick["ask"] = ticker.ask
-                tick["bid"] = ticker.bid
-                tick["volume"] = ticker.volume
-                tick["ts"] = ts
-
-                # Compute OHLC for each interval
-                hls = []
-                toSend=True
-                for interval in intervals:
-                    start = ts - (ts % interval)
-                    start_time = datetime.fromtimestamp(start).strftime("%H:%M:%S")
-
-                    prices = [p for t, p, v in ticker_history[symbol] if t >= start]
-                    volumes = [v for t, p, v in ticker_history[symbol] if t >= start]
-                    
-                    remaining = interval - (ts % interval)
-                    time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
-                    
-                    vol_diff = volumes[-1] - volumes[0] if len(volumes) >= 2 else 0#(volumes[0] if volumes else 0)
-                    if not use_yahoo: 
-                        vol_diff=vol_diff*100
-                    if prices:
-                        open_p = prices[0]
-                        close_p = prices[-1]
-                        high = max(prices)
-                        low = min(prices)
-                        data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":int(start)*1000, "dts":start_time  }
-
-                        pack = f"o:{open_p:.2f} h:{high:.2f} l:{low:.2f} c:{close_p:.2f} v:{vol_diff:.0f} ({start_time}, {time_str})"
-                    else:
-                        pack = f"- ({start_time}, {time_str})"
-
-                    key = symbol+str(interval)
-
-                    if prices:
-                        if key in live_send_key:
-                            toSend = live_send_key[key] != pack
-
-                        if toSend:
-                            live_send_key[key]=pack
-
-                            data["bid"]=ticker.bid
-                            data["ask"]=ticker.ask  
-                            if not use_yahoo: 
-                                data["day_v"]=ticker.volume*100
-                            else:
-                                data["day_v"]=ticker.volume
-                            #logger.info(f"SEND {data}")
-                            # TO DB
-                            await fetcher.db_updateTicker(data)
-                            # TO WS
-                            await ws_manager.broadcast(data)
-
-                    hls.append(pack)
-
-                #data.append({"symbol": symbol, "last": ticker.last, "bid": ticker.bid, "ask": ticker.ask, "low": ticker.low, "high": ticker.high, "volume": ticker.volume*100, "ts": ticker.time.timestamp()})
-                table.add_row(symbol, f"{ticker.last:.6f}", f"{ticker.ask:.6f}", f"{ticker.bid:.6f}", hls[0], hls[1], hls[2], hls[3])
-                data = sanitize(data)
-
-                #live_display.update(table)
-
-            server_task = asyncio.create_task(server.serve())
+         
+            _server_task = asyncio.create_task(server.serve())
           
-            async def ib_tick_tickers():
-                while True:
-                    try:
-                        #ts = _time.time()
-                        #data=[]
-                        for symbol, ticker in tickers.items():
-                            if ticker.time and not math.isnan(ticker.last):
-                                await add_ticker(symbol,ticker)
-                    except:
-                        logger.error("ERR", exc_info=True)
-                    await asyncio.sleep(0.1)
-
-
-            async def yahoo_tick_tickers():
-                async def message_handler(message):
-                    #print("Received message from YAHOO:", message)
-                    t = Ticker(last= message["price"], volume= int(message["day_volume"]), time=int(message["time"]), ask=0, bid=0 )
-                    await add_ticker(message["id"],t)
-                
-                await  ws_yahoo.listen(message_handler)
-               
-            #########################
-
-            async def sym_tick_tickers():
-                #boot
-                sym_start_time= 9999999999999
-                #last_time={}
-                for symbol in tickers.keys():
-                    df = pd.read_sql_query(f"SELECT MIN(timestamp) FROM ib_ohlc_history WHERE timeframe='10s' and symbol='{symbol}'",conn)
-                    #print(df)
-                    if len(df)>0 and df.iloc[0][0]!=None:
-                        ts_start =  int(df.iloc[0][0] )
-                        logger.info(f"SYMBOL TICKER BOOT {symbol} from {ts_start}") 
-                        #last_time[symbol] =ts_start
-                        sym_start_time = min(sym_start_time,ts_start)
-
-                current_time = int(_time.time())    
-              
-                logger.info(f"SYM TIME  BEGIN AT  {datetime.fromtimestamp(sym_start_time/1000).strftime('%Y-%m-%d %H:%M:%S')}") 
-
-                while True:
-                    try:
-                        delta = int(_time.time())  -current_time
-                        table = Table("Symbol", "Last","Sym", "10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
-                        #logger.info(f"SYMBOL TICKER CHECK DELTA {delta} sec")   
-                        sym_time = int((sym_start_time + delta*1000) / 1000)
-                        for symbol in tickers.keys():
-                            ts_check = sym_time
-                            hls = ["","","","",""]
-                            i=-1
-                            toSend=True
-                            for interval in intervals:
-                                i=i+1
-                                ts = ts_check
-                                start = ts - (ts % interval)
-                                start_time = datetime.fromtimestamp(start).strftime("%H:%M:%S")
-
-                                remaining = interval - (ts % interval)
-                                time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
-
-                                #logger.info(f".. {symbol} {start} interval {interval}   ts {ts}")   
-                                
-                                df = pd.read_sql_query(f"SELECT * FROM ib_ohlc_history WHERE timeframe='{TF_SEC_TO_DESC[interval]}' and symbol='{symbol}' and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1",conn)
-                                if len(df)>0:
-                                    row = df.iloc[0]
-                                    ts = datetime.fromtimestamp(row["timestamp"]/1000)
-
-                                    ticker = Ticker(last= row["close"], volume= int(row["base_volume"]), time=ts , ask=0, bid=0 )
-                                    
-                                    #logger.info(f"{ts}")   
-                                    data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), "v":int(row['base_volume']), "ts":int(start)*1000, "dts":start_time  }
-
-                                    pack = f"o:{row['open']:.2f} h:{row['high']:.2f} l:{row['low']:.2f} c:{row['close']:.2f} v:{row['base_volume']:.0f} ({start_time}, {time_str})"
-                                    hls[i] = pack
-                                    ##await add_ticker(symbol,t)
-                                    
-                                    key = symbol+str(interval)
-
-                                    if key in live_send_key:
-                                        toSend = live_send_key[key] != pack
-
-                                    if toSend:
-                                        live_send_key[key]=pack
-
-                                        data["bid"]=0
-                                        data["ask"]=0
-                                        data["day_v"]=ticker.volume
-
-                                        #logger.info(f"SEND {data}")
-                                        await ws_manager.broadcast({"sym":sym_time})
-
-                                        await ws_manager.broadcast(data)
-
-                                    #data = sanitize(data)
-                                
-                            table.add_row(symbol, f"{ticker.last:.6f}", 
-                                        datetime.fromtimestamp(sym_time).strftime('%Y-%m-%d %H:%M:%S'),
-                                        hls[0], hls[1], hls[2], hls[3])
-
-                            live_display.update(table)
-              
-                    except:
-                        logger.error("ERR", exc_info=True)
-                    await asyncio.sleep(1)
-
-               
-            if run_mode != "sym":
-                if use_yahoo:
-                    _tick_tickers = asyncio.create_task(yahoo_tick_tickers())
-                else:
-                    _tick_tickers = asyncio.create_task(ib_tick_tickers())
-            else:
-                _tick_tickers = asyncio.create_task(sym_tick_tickers())
+            _tick_tickers = await live.start_batch()
 
             await bootstrap()
 
             _tick_orders = asyncio.create_task(OrderManager.batch())
 
             await asyncio.wait(
-                [server_task, _tick_tickers,_tick_orders],
+                [_server_task, _tick_tickers,_tick_orders],
                 return_when=asyncio.FIRST_COMPLETED
             )
 
 
         except:
             logger.error("ERROR", exc_info=True)
-            live_display.stop()
+            if use_display:
+                live_display.stop()
         
           
             if run_mode!= "sym":

@@ -311,7 +311,7 @@ class OrderManager:
                 OrderManager.ib.sleep(interval)
         return False
 
-    def smart_sell_limit(symbol,totalQuantity,ticker):
+    def smart_sell_limit(symbol,totalQuantity,ticker:Ticker):
 
         logger.debug(f"SMART SELL LIMIT ORDER {symbol} q:{totalQuantity}")
         contract = Stock(symbol, 'SMART', 'USD')
@@ -325,31 +325,26 @@ class OrderManager:
         if pos.position==0:
             raise HTTPException(400,"pos empty")
 
-        start_pos = pos.position
-        target_pos = max(0,start_pos - totalQuantity)
         trade=None
         while time.time() - start_time < timeout:
    
-            if not trade or trade.orderStatus:
-                if trade:
-                    if trade.orderStatus != "Filled":
-                        permId = trade.orderStatus.permId
-                        logger.info(f"Force remove {permId}")
-                        if not OrderManager.cancel_order(permId):
-                            logger.error(f" ORDER NOT FOUND !!! ")
-                        OrderManager.ib.sleep(1)
-                    else:
-                        logger.info("SEND END")
-                        return
-                    
+            if trade:
+                if trade.orderStatus == "PreSubmitted":
+                    permId = trade.orderStatus.permId
+                    logger.info(f"Force remove {permId}")
+                    if not OrderManager.cancel_order(permId):
+                        logger.error(f" ORDER NOT FOUND !!! ")
+                    OrderManager.ib.sleep(1)
                     trade=None
-                if pos.position>target_pos:
-                    formatted_price = OrderManager.format_price(contract,ticker["last"])
+                elif trade.orderStatus == "Filled":
+                      logger.error("SELL DONE")
 
+            if not trade:
+                    formatted_price = OrderManager.format_price(contract,ticker.last)
                     # 🔹 ORDINE DI VENDITA
                     entry = LimitOrder(
                         action='SELL',
-                        totalQuantity=pos.position-target_pos,
+                        totalQuantity=totalQuantity,
                         lmtPrice=formatted_price,
                         tif='GTC' ,
                         outsideRth=True
@@ -486,8 +481,9 @@ def main():
     # 🔴 avvio task asincrona
     #task = asyncio.create_task(checkNewTrades())
 
-    OrderManager.order_limit("AAPL", 10,180)
-    logger.info("1")
+    OrderManager.smart_sell_limit()
+    #OrderManager.order_limit("AAPL", 10,180)
+    #logger.info("1")
 
     ib.run()
 

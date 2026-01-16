@@ -36,7 +36,7 @@
       </div>
       
     </div>
-     <div class="d-flex align-items-center gap-1">
+    <div class="d-flex align-items-center gap-1">
       <button class="btn btn-sm btn-success"
             @click="send_limit_order()"
           >FAST BUY</button>
@@ -175,7 +175,7 @@ watch(
 watch(quantity,  async (newValue, oldValue) => {
   if (oldValue && oldValue!= newValue)
   {
-    console.log("quantity",newValue, oldValue)
+     console.log("quantity",newValue, oldValue)
      tradeData.value.quantity = newValue
      let ret = await send_post("/api/trade/marker/update",
      {

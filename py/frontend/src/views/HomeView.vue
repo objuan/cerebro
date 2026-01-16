@@ -186,7 +186,7 @@ const initWebSocket = () => {
         break
        case "props":
         {
-          console.log("WS props",msg);
+           console.log("WS props",msg);
           //for x in widgetRefs.value 
           
            liveStore.updatePathData(msg.path, msg.value);

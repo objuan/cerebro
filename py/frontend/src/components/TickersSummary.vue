@@ -12,7 +12,7 @@
           
          
             <div class="fw-bold">{{ item.symbol }}</div>
-            <small class="text-muted">{{ item.last }}</small>
+            <small class="text-muted"> {{ Number(item.last).toFixed(1) }}</small>
           
 
           <div

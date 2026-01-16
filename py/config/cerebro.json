@@ -33,10 +33,17 @@
 		{
 			"scanner":
 			{
-				"mode" : "offline",
+				"mode" : "live",
 				"mode1" : "live|offline|sym",
-				"update_time" : "10m" ,
 				"debug_symbols" : ["NVDA"],
+				"keep_last_session" : false,
+				"scheduler":[
+					{
+						"name" : "TOP_PERC_GAIN",
+						"update_time" : 600,
+						"live_mode" : "ADD"
+					}
+				],
 				"profiles": 
 				[
 					{
@@ -89,7 +96,7 @@
 			{
 				"ib_port" : 7497,
 				"enabled" : true,
-				"max_symbols" :2,
+				"max_symbols" :10,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8
 			}

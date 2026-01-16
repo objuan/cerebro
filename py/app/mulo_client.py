@@ -72,6 +72,11 @@ class MuloClient:
                 async def updateTickers(new_ticker):
                     if self.sym_mode and "sym" in new_ticker:
                         self.sym_time = new_ticker["sym"]
+                    if "evt" in new_ticker:
+                        name = new_ticker["evt"]
+                        if name =="on_update_symbols":
+                             await self.update_symbols()
+
                     else:
                         new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
                         #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
@@ -79,7 +84,7 @@ class MuloClient:
                         await self.on_candle_receive(new_ticker)
                         
 
-                        if new_ticker["tf"]=="10s":
+                        if new_ticker["tf"]=="10s" and new_ticker["s"] in self.tickers:
                             t= self.tickers[new_ticker["s"]]
                             t.update({"last": new_ticker["c"],"day_v": new_ticker["day_v"],"ask": new_ticker["ask"],"bid": new_ticker["bid"],
                                         "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, "ts":new_ticker["ts"] })
@@ -137,10 +142,12 @@ class MuloClient:
     async def scanner(self,profileName):
         logger.info(f".. Scanner call {time.ctime()}")
 
-        await self.send_batch("scanner",{"name":profileName})
+        ret = await self.send_batch("scanner",{"name":profileName})
+        # non cambia il mulo
+
         #await self.batch_client.send_request("tws_batch", {"cmd":"scanner"})
-        await self.update_symbols()
-        logger.info(f".. Scanner call DONE {time.ctime()}")
+        #await self.update_symbols()
+        logger.info(f".. Scanner >>  {ret}")
 
     #########
     

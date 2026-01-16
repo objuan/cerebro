@@ -73,13 +73,12 @@ class MuloJob:
     async def db_updateTicker(self,new_ticker):
         #print(new_ticker)
         symbol = new_ticker["s"]
-        if not symbol  in self.symbol_to_exchange_map:
-            return
-        
-
+        #if not symbol  in self.symbol_to_exchange_map:
+        #    return
+    
         run_time = int(_time.time() * 1000)
         ds_run_time  = datetime.utcnow().isoformat()
-        ex = self.symbol_to_exchange_map[symbol]
+        ex = self.get_exchange(symbol)
         tf = TF_SEC_TO_DESC[new_ticker["tf"]]
 
         sql=f"""
@@ -133,7 +132,7 @@ class MuloJob:
             #print("last_update_delta_min" , last_update_delta_min)
  
     async def on_update_symbols(self,symbols,liveMode=True):
-        logger.info(f"UPDATE SYMBOLS .. {symbols}")#MAX:{self.max_symbols}")
+        logger.error(f"UPDATE SYMBOLS .. {symbols}")#MAX:{self.max_symbols}")
 
         self.symbols = symbols
           
@@ -141,15 +140,19 @@ class MuloJob:
 
         if len(self.symbols) > 0:
             self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
-
+        else:
+            logger.error(f"Empty symbol list !!! {symbols}")
+            return
         #for s in self.symbols:
         #    self.tickers[s] = Ticker(symbol=s)
 
         logger.info(f"LISTEN SYMBOLS {self.symbols}")
 
+        '''
         self.symbol_to_exchange_map = {}
         for _, row in self.df_fundamentals.iterrows():
             self.symbol_to_exchange_map[row["symbol"]] = row["exchange"]
+        '''
       
         # startup 
         if liveMode:
@@ -159,6 +162,14 @@ class MuloJob:
                         await self._align_data(symbol,interval)
 
     ##############
+
+    def get_exchange(self,symbol):
+        if not symbol in self.symbol_to_exchange_map:
+                df = c_get_df(self.db_file,"SELECT exchange FROM STOCKS WHERE SYMBOL = ?",(symbol,))
+                if not df.empty:
+                    self.symbol_to_exchange_map[symbol] = df.iloc[0]["exchange"]
+        return self.symbol_to_exchange_map[symbol]
+    
     async def _fetch_missing_history(self,cursor, symbol, timeframe, since):
         #since = week_ago_ms()
 
@@ -169,7 +180,8 @@ class MuloJob:
             logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
             
             dt_start =  datetime.fromtimestamp(float(since)/1000)
-            exchange = self.symbol_to_exchange_map[symbol]
+
+            exchange = self.get_exchange(symbol)
         
             batch_count = 500
             i = 0
@@ -444,6 +456,30 @@ class MuloJob:
         df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
         return df
         
+    async def last_close(self,symbol: str)-> float:
+        await self._align_data(symbol,"1m")
+
+        ieri_mezzanotte = (
+                (datetime.now()
+                - timedelta(days=1))
+                .replace(hour=23, minute=59, second=59, microsecond=0)
+                
+            )
+        unix_time = int(ieri_mezzanotte.timestamp()) * 1000
+        print("Last close time ", unix_time)
+        df = self.get_df(f"""
+                SELECT close 
+                FROM ib_ohlc_history
+                WHERE symbol='{symbol}' AND timeframe='1m'
+                AND timestamp < {unix_time}
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """)
+
+        if len(df)>0:
+            return  float(df.iloc[0][0])
+        else:
+            return 0
     #######################
     
     def get_df(self,query, params=()):

@@ -175,7 +175,7 @@ class DBDataframe:
 
             
             self.scheduler = AsyncScheduler()
-            self.scheduler.schedule_every( self.config["scanner"]["update_time"], self.task_update_scanner)
+            #self.scheduler.schedule_every( self.config["scanner"]["update_time"], self.task_update_scanner)
 
             '''
             if self.config["scanner"]["enabled"]:
