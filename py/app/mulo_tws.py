@@ -35,6 +35,8 @@ from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
 from renderpage import WSManager
 from order import OrderManager
+from balance import Balance
+from order_task import OrderTaskManager
 from mulo_job import MuloJob
 
 use_yahoo=False
@@ -63,8 +65,13 @@ if run_mode!= "sym":
     OrderManager(config,ib)
     # Subscribe to news bulletins
     ib.reqNewsBulletins(allMessages=True)
+    Balance(config,ib)
 else:
-     OrderManager(config,None)
+    OrderManager(config,None)
+    Balance(config,None)
+
+OrderTaskManager(config)
+
 
 #print(ib.newsBulletins())
 
@@ -137,6 +144,8 @@ async def add_referrer_policy(request, call_next):
 ws_manager = WSManager()
 ws_manager_orders = WSManager()
 OrderManager.ws = ws_manager_orders
+OrderTaskManager.ws = ws_manager_orders
+Balance.ws = ws_manager_orders
 
 if use_yahoo:
     ws_yahoo = yf.AsyncWebSocket()
@@ -168,6 +177,7 @@ TIMEFRAMES = {
 ### Global data structures for ticker history
 ticker_history = {}  # symbol -> deque of (ts, price)
 intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
+ticker_map = {}
 
 ############################
         
@@ -633,12 +643,13 @@ async def do_limit_order(symbol, qty,price):
         return {"status": "error" }
     
 @app.get("/order/buy_at_level")
-async def do_buy_at_level(symbol:str, qty:float,price:float,desc:str):
+async def do_buy_at_level(symbol:str, qty:float,price:float):
     try:
+        logger.info(f"do_buy_at_level {symbol}")
         order_mode = config["order"]["mode"]
         zone = fetcher.getCurrentZone()
         if zone != MarketZone.LIVE or order_mode=="task_all":
-            await OrderManager.task_buy_at_level(symbol,"buy_at_level", qty,price,desc)
+            await OrderTaskManager.add_at_level(symbol,"buy_at_level", qty,price,desc)
         else:
             OrderManager.buy_at_level(symbol, qty,price)
             
@@ -647,13 +658,31 @@ async def do_buy_at_level(symbol:str, qty:float,price:float,desc:str):
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
 
+@app.get("/order/bracket")
+async def do_bracket(symbol:str,timeframe:str):
+    try:
+        logger.info(f"do_bracket {symbol} {timeframe}")
+        order_mode = config["order"]["mode"]
+
+        zone = fetcher.getCurrentZone()
+        if zone != MarketZone.LIVE or order_mode=="task_all":
+            await OrderTaskManager.bracket(symbol,timeframe)
+        else:
+            pass
+            #OrderManager.buy_at_level(symbol, qty,price)
+            
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
 @app.get("/order/sell_at_level")
 async def do_sell_at_level(symbol:str, qty:float,price:float,desc:str):
     try:
         order_mode = config["order"]["mode"]
         zone = fetcher.getCurrentZone()
         if zone != MarketZone.LIVE or order_mode=="task_all":
-            await OrderManager.task_buy_at_level(symbol,"sell_at_level", qty,price,desc)
+            await OrderTaskManager.add_at_level(symbol,"sell_at_level", qty,price,desc)
         else:
             OrderManager.buy_at_level(symbol, qty,price)
             
@@ -720,7 +749,15 @@ async def cancel_order(permId: int):
 @app.get("/order/clear_all")
 async def clar_all_orders(symbol: str):
     try:
-        result = await OrderManager.clar_all_orders(symbol)
+
+        pos = Balance.get_position(symbol)
+        if (pos and pos.position>0):
+            logger.info(f"SELL ALL {symbol} {pos.position} ")
+            OrderManager.smart_sell_limit(symbol,pos.position, ticker_map[symbol])
+
+        OrderManager.cancel_orderBySymbol(symbol)
+        result = await OrderTaskManager.cancel_orderBySymbol(symbol, )
+      
         if result:
             return {"status": "ok", "message": f"Orders cancelled {symbol}"}
         else:
@@ -819,7 +856,7 @@ async def get_task_symbol_orders(symbol:str,
 #######################
 
 @app.get("/account/summary")
-async def accountSummary():
+async def account_summary():
     try:
         summary = ib.accountSummary()
 
@@ -843,7 +880,7 @@ async def accountSummary():
         return {"status": "error", "message": str(e)}
 
 @app.get("/account/values")
-async def accountSummary():
+async def account_values():
     try:
         values  = ib.accountValues()
 
@@ -860,14 +897,19 @@ async def accountSummary():
         return {"status": "error", "message": str(e)}
       
 @app.get("/account/positions")
-async def accountSummary():
+async def account_positions():
     try:
+        '''
         positions  = ib.positions()
 
         list = []
         for p in positions:
             list.append({"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
         return list
+        '''
+        balance =  Balance.to_dict()
+        return balance
+    
     except Exception as e:
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
@@ -958,6 +1000,8 @@ async def bootstrap():
             await updateLive(config,df_symbols )
 
     await OrderManager.bootstrap()
+    await OrderTaskManager.bootstrap()
+    await Balance.bootstrap()
 
 #############   
 
@@ -1024,7 +1068,16 @@ if __name__ =="__main__":
                 while ticker_history[symbol] and ticker_history[symbol][0][0] < ts - 300:
                     ticker_history[symbol].popleft()
 
-                await OrderManager.onTicker(symbol,ticker.last)
+                await OrderTaskManager.onTicker(symbol,ticker.last)
+
+                if not symbol in ticker_map:
+                     ticker_map[symbol] ={}
+                tick = ticker_map[symbol]
+                tick["last"] = ticker.last
+                tick["ask"] = ticker.ask
+                tick["bid"] = ticker.bid
+                tick["volume"] = ticker.volume
+                tick["ts"] = ts
 
                 # Compute OHLC for each interval
                 hls = []
@@ -1073,7 +1126,6 @@ if __name__ =="__main__":
                             await fetcher.db_updateTicker(data)
                             # TO WS
                             await ws_manager.broadcast(data)
-                          
 
                     hls.append(pack)
 

@@ -33,12 +33,9 @@ export function updateTaskMarker(chart_context,tradeMarkers) {
 
     Object.entries(tradeMarkers).forEach(([, value]) => {
         
-        let data = JSON.parse(value.task.data)
-
-        
+        //console.log(value.task)
         let ref = value.ref
-
-        update_marker_pos(chart_context,ref,data.lmtPrice);
+        update_marker_pos(chart_context,ref,value.task.price);
     });
     /*
 

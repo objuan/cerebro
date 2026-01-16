@@ -143,6 +143,7 @@ cur.execute('''CREATE TABLE IF NOT EXISTS task_orders (
     task_id INT,
     symbol TEXT,
     status TEXT, 
+    step INT,
     data TEXT,
     timestamp INT,
     ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -167,7 +168,7 @@ CREATE TABLE IF NOT EXISTS chart_lines (
 """)
 
 cur.execute("""
-CREATE TABLE IF NOT EXISTS trade (
+CREATE TABLE IF NOT EXISTS trade_marker (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL,
     timeframe TEXT NOT NULL,

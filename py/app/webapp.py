@@ -406,7 +406,7 @@ async def save_chart_marker(payload: dict):
 def read_chart_lines(symbol: str, timeframe: str):
     df = client.get_df("""
         SELECT  symbol, timeframe,  data
-        FROM trade
+        FROM trade_marker
         WHERE symbol = ? AND timeframe = ?
     """, (symbol, timeframe))
 
@@ -428,7 +428,7 @@ def delete_trade_marker(payload: dict  ):
             detail=f"Campo mancante: {e.args[0]}"
         )
 
-    client.execute("DELETE FROM trade WHERE symbol=? AND timeframe=?",
+    client.execute("DELETE FROM trade_marker WHERE symbol=? AND timeframe=?",
             (symbol, timeframe))
     return {"status": "ok" }
 

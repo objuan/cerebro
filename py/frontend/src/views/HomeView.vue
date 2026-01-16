@@ -127,10 +127,12 @@ const initWebSocket_mulo = () => {
     //console.log(msg)
     switch (msg.type) {
          case "UPDATE_PORTFOLIO":
-          portfolioRef.value?.handleMessage(msg);
+          //portfolioRef.value?.handleMessage(msg);
+          eventBus.emit("update-portfolio", msg);
           break
         case "POSITION":
-          portfolioRef.value?.handleMessage(msg);
+          //portfolioRef.value?.handleMessage(msg);
+          eventBus.emit("update-position", msg);
           break
         case "ORDER":
           //#ordersRef.value?.handleMessage(msg);
@@ -373,7 +375,7 @@ onMounted(() => {
         });
         
         // positions
-
+        /*
         response = await fetch('http://127.0.0.1:2000/account/positions')
         if (!response.ok) throw new Error('Errore nel caricamento')
         const pos_list = await response.json();
@@ -383,6 +385,7 @@ onMounted(() => {
             val["type"] = "POSITION"
             portfolioRef.value?.handleMessage(val);
         });
+        */
 
         // orders
 

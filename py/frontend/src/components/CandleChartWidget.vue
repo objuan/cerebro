@@ -153,8 +153,8 @@ let drawSeries = [];
 let charts = { main: null, volume: null };
 let series = { main: null, volume: null, indicators: {} };
 let lastMainCandle=null
-let tradeData = {}; 
-let tradeMarkers = {}
+let tradeMarkerData = {}; 
+let taskData = {}
 
 //let DEFAULT_INTERACTION=null;
 let manager = null;
@@ -200,17 +200,19 @@ const handleRefresh = async () => {
         line.data = JSON.parse(line.data)
     })  
 
+     // TASK LIST
+
     const task_response = await send_mulo_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
-    console.log("task_response",task_response.data)
+    console.log("task list",task_response.data)
     let _task_datas = task_response.data;
 
      // TRADE MARKER
 
-    const _trade_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
+    const _trade_marker_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
      
-      if (_trade_data.data!=null)
-        _trade_data.data = JSON.parse(_trade_data.data)
-      console.debug("trade marker",_trade_data)
+    if (_trade_marker_data.data!=null)
+        _trade_marker_data.data = JSON.parse(_trade_marker_data.data)
+    console.debug("trade marker",_trade_marker_data)
       
     //console.log("ind_response",ind_response) 
 
@@ -271,35 +273,41 @@ const handleRefresh = async () => {
       }
 
       // TRADE MARKER
-      if (_trade_data.data!=null)
+      if (_trade_marker_data.data!=null)
       {
-          tradeData = _trade_data.data;
-          updateTradeMarker(context(),tradeData)
+          tradeMarkerData = _trade_marker_data.data;
+          updateTradeMarker(context(),tradeMarkerData)
 
-          liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeData);
+          liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
               
       }
 
-      // TASK MARKER
-
-      if (_trade_data.data!=null)
-      {
-          tradeData = _trade_data.data;
-          updateTradeMarker(context(),tradeData)
-
-          liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeData);
-              
-      }
+      // TRADE MARKER
       if (_task_datas!=null){
 
-         tradeMarkers={}
+          taskData={}
           _task_datas.forEach( (task)=>
           {
-              tradeMarkers["price_marker"] ={"ref" : price_marker, "task": task}
-          });
-        
-        //updateTaskMarker(context(),price_marker,_task_datas)
+            const next_step_idx = task.step;
+            const data = JSON.parse(task.data)
 
+            //console.log("..",next_step_idx,data)
+
+            // prendo i passi prima
+            data.forEach( (step)=>
+            {
+                if (step["step"]== next_step_idx)
+                {
+                  console.log("ACTIVE",step)
+                  if (step["desc"] == "MARKER")
+                      taskData["price_marker"] ={"ref" : price_marker, "task": step}
+                  if (step["desc"] == "SL")
+                      taskData["price_marker_sl"] ={"ref" : price_marker_sl, "task": step}
+                  if (step["desc"] == "TP")
+                      taskData["price_marker_tp"] ={"ref" : price_marker_tp, "task": step}
+                }
+            });
+          });
       }
       
       //console.log("trade marker",data)
@@ -324,8 +332,8 @@ async function setDrawMode(mode) {
      let ret = await send_delete("/api/trade/marker/delete", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value}); 
      console.log("trade delete",ret)  
 
-     tradeData = {};
-     updateTradeMarker(context(),tradeData)
+     tradeMarkerData = {};
+     updateTradeMarker(context(),tradeMarkerData)
      return;
   }
 
@@ -390,7 +398,7 @@ function watchPriceScale() {
             price_marker.value.style.display ="none"
             price_marker_tp.value.style.display ="none"
             price_marker_sl.value.style.display ="none"
-          updateTaskMarker(context(),tradeMarkers)
+          updateTaskMarker(context(),taskData)
       }
     }
     requestAnimationFrame(watchPriceScale);
@@ -568,9 +576,9 @@ const buildChart =  () => {
     }
      if (drawMode.value === 'trade_marker') {
         //tradeData.price = price;
-        tradeData.price = price;  
-        tradeData.type="bracket"
-        setTradeMarker(context(),tradeData)
+        tradeMarkerData.price = price;  
+        tradeMarkerData.type="bracket"
+        setTradeMarker(context(),tradeMarkerData)
 
         drawMode.value = null;
 
@@ -595,6 +603,8 @@ const buildChart =  () => {
   //console.log(container.value,canvas);
   const canvasParent = gfx_canvas.value.parentElement;
   canvasParent.appendChild(price_marker.value);
+  canvasParent.appendChild(price_marker_sl.value);
+  canvasParent.appendChild(price_marker_tp.value);
   
 }catch(ex){
   console.error(ex)

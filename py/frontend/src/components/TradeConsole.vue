@@ -30,17 +30,30 @@
       <div class="d-flex align-items-center gap-1">
         Gain <strong>{{ Number(tradeData.profit_usd).toFixed(1) }}</strong>
       </div>
+        
+      <div class="d-flex align-items-center gap-1">
+        Position <strong>{{ symbol }} {{position}}</strong>
+      </div>
+      
+    </div>
+     <div class="d-flex align-items-center gap-1">
+      <button class="btn btn-sm btn-success"
+            @click="send_limit_order()"
+          >FAST BUY</button>
 
-      <button class="btn btn-sm btn-danger"
-            @click="test_order()"
-          >TEST</button>
+      <button class="btn btn-sm btn-success"
+            @click="send_buy_at_level()"
+          >BUY LIMIT</button>
+
+          
+      <button class="btn btn-sm btn-success"
+            @click="send_order_bracket()"
+          >SEND MARKER</button>
+
 
       <button class="btn btn-sm btn-danger"
             @click="clear_all()"
-          >CLEAR ALL</button>
-    </div>
-     <div class="d-flex align-items-center gap-1">
-      dsdsdsds
+          >SELL ALL</button>
      </div>
   </div>
 </template>
@@ -50,9 +63,9 @@
 
 import { ref,watch,computed,onMounted,onBeforeUnmount  } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
-import {send_post} from '@/components/js/utils.js'
+import {send_post,send_mulo_get} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
-import {order_limit,clear_all_orders} from "@/components/js/orderManager";
+import {order_limit,clear_all_orders,order_buy_at_level,order_bracket} from "@/components/js/orderManager";
 
 const props = defineProps({
   symbol: { type: String, required: true },
@@ -65,9 +78,17 @@ const isCurrent = computed(() => {
 const tradeData = ref(null);
 const quantity = ref(null);
 const ticker = ref(null);
+const position = ref(null);
 
-function test_order(){
+function send_limit_order(){
   order_limit(props.symbol,quantity.value,ticker.value.last )
+}
+
+function send_buy_at_level(){
+  order_buy_at_level(props.symbol,quantity.value,ticker.value.last )
+}
+function send_order_bracket(){
+  order_bracket(props.symbol,tradeData.value.timeframe,quantity.value,ticker.value.last )
 }
 
 function clear_all(){
@@ -95,17 +116,36 @@ function onTickerReceived(_ticker) {
   }
 }
 
-onMounted(() => {
+function onPositionUpdated(msg){
+   if (msg.symbol == props.symbol)
+   {
+      position.value = msg.position
+  }
+}
+
+onMounted( async () => {
   eventBus.on("task-order-received", onTaskOrderReceived);
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("ticker-received", onTickerReceived);
+  eventBus.on("update-portfolio", onPositionUpdated);
+  eventBus.on("update-position", onPositionUpdated);
+
+   
+  let pos_list = await send_mulo_get('/account/positions')
+  pos_list.forEach(  (val) =>{
+        val["type"] = "POSITION"
+        onPositionUpdated(val);
+  });
 });
 
 onBeforeUnmount(() => {
   eventBus.off("task-order-received", onTaskOrderReceived);
   eventBus.off("order-received", onOrderReceived);
   eventBus.off("ticker-received", onTickerReceived);
+  eventBus.off("update-portfolio", onPositionUpdated);
+  eventBus.off("update-position", onPositionUpdated);
 });
+
 
 // sync STORE → SELECT
 

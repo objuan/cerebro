@@ -93,7 +93,7 @@ class TradeManager:
          logger.info(f"trade prop change {prop_name}")
 
          if prop_name == "trade.risk_per_trade":
-            df  = self.client.get_df("SELECT * FROM trade")
+            df  = self.client.get_df("SELECT * FROM trade_marker")
             logger.info(f"df {df}")
             for row in df.to_dict(orient="records"):
                  dict = json.loads(row['data'])
@@ -110,13 +110,13 @@ class TradeManager:
          order.profit_usd  =order.quantity * order.take_profit- order.total_price_usd
 
     async  def update_order(self,symbol, timeframe,data)-> TradeOrder:
-        self.client.execute("DELETE FROM trade WHERE symbol=?",
+        self.client.execute("DELETE FROM trade_marker WHERE symbol=?",
             (symbol,))
         
         order =TradeOrder(data)
         self.fill_computed(order)
         self.client.execute("""
-                INSERT INTO trade (symbol, timeframe,  data)
+                INSERT INTO trade_marker (symbol, timeframe,  data)
                 VALUES (?, ?, ?)
             """, (
                 symbol,
@@ -124,9 +124,9 @@ class TradeManager:
                 json.dumps(order.to_dict())
             ))
         return order
-         
+
     async  def add_order(self,symbol, timeframe,data)-> TradeOrder:
-        self.client.execute("DELETE FROM trade WHERE symbol=? ",
+        self.client.execute("DELETE FROM trade_marker WHERE symbol=? ",
             (symbol,))
         
         order =None
@@ -134,7 +134,7 @@ class TradeManager:
              order = await self.add_order_bracket(symbol, timeframe,data["price"])
         if order:     
             self.client.execute("""
-                INSERT INTO trade (symbol, timeframe,  data)
+                INSERT INTO trade_marker (symbol, timeframe,  data)
                 VALUES (?, ?, ?)
             """, (
                 symbol,

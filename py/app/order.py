@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from ib_insync import *
 import asyncio
 import time
@@ -10,7 +11,9 @@ import sqlite3
 from config import DB_FILE,CONFIG_FILE
 from utils import convert_json
 from renderpage import WSManager
+from balance import Balance
 import traceback
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -137,71 +140,14 @@ class OrderManager:
             OrderManager.ib.orderStatusEvent += OrderManager.onOrderStatus
             OrderManager.ib.newOrderEvent += OrderManager.onNewOrder
 
-            OrderManager.ib.updatePortfolioEvent  += OrderManager.onUpdatePortfolio
-            OrderManager.ib.positionEvent   += OrderManager.onPositionEvent 
-            #OrderManager.ib.accountValueEvent    += OrderManager.onAccountValueEvent  
-            OrderManager.ib.accountSummaryEvent     += OrderManager.onAccountSummaryEvent   
-
-
     async def bootstrap():
-        logger.info("ORDER BOOT")
-
-        cur.execute("""UPDATE task_orders set status='CANC' 
-WHERE id IN (
-    SELECT MAX(o.id)
-    FROM task_orders o
-    GROUP BY task_id
-)
-AND status =='READY' """)
-
-        df = pd.read_sql_query("""SELECT *
-FROM task_orders
-WHERE id IN (
-    SELECT MAX(id)
-    FROM task_orders
-    GROUP BY task_id
-)
-AND status =='READY' 
-""", conn)
-        OrderManager.task_orders=[]
-        for row in df.to_dict("records"):
-            data = OrderManager.get_task_order(row)
-            logger.info(f"ORDER ADD {data}")
-
-            OrderManager.task_orders.append(data)
-
-        logger.info(f"ORDER BOOT DONE {OrderManager.task_orders}")   
-
-    ###############################
-
-    async def onUpdatePortfolio(portfoglio : PortfolioItem):
-        #logger.info(f"onUpdatePortfolio: {portfoglio}")
-
-        msg = {"type": "UPDATE_PORTFOLIO", "symbol" : portfoglio.contract.symbol , "position" : portfoglio.position, "marketPrice": portfoglio.marketPrice, "marketValue" : portfoglio.marketValue}
-        if OrderManager.ws:
-            ser = json.dumps(msg)
-            await OrderManager.ws.broadcast(msg)
-
-    async def onPositionEvent(position : Position):
-        #logger.info(f"onPositionEvent: {position}")
-
-        msg = {"type": "POSITION", "symbol" : position.contract.symbol , "position" : position.position, "avgCost": position.avgCost}
-        if OrderManager.ws:
-            ser = json.dumps(msg)
-            await OrderManager.ws.broadcast(msg)
-
-
-    async def onAccountValueEvent(value : AccountValue):
-        logger.info(f"onAccountValueEvent: {value}")
-
-    async def onAccountSummaryEvent(value : AccountValue):
-        logger.info(f"onAccountSummaryEvent: {value}")
+        pass 
 
     #####################
 
 
     async def addOrder(trade:Trade,type):
-        logger.info(f"ORDER: {type} {trade}")
+        logger.debug(f"ORDER: {type} {trade}")
         if trade.order.permId == 0:
             return
         
@@ -258,124 +204,7 @@ AND status =='READY'
         price_str = format_price(price, tick)
 
         return  float(price_str)
-    
-    ##############
-    # TASK
-    ##############
 
-    async def send_task_order(order):
-         if OrderManager.ws:
-            #data["type"] = "ORDER"
-            await OrderManager.ws.broadcast(
-                {"type": "TASK_ORDER", "data" : order}
-            )
-
-    async def on_task_order_trigger(order,lastPrice):
-        try:
-            try:
-                logger.info(f'TRIGGER {order["symbol"]},{lastPrice}>{order["data"]["lmtPrice"]}')
-
-                real_price = lastPrice+  lastPrice* 0.001
-    
-                trade = OrderManager.order_limit(order["symbol"], order["data"]["totalQuantity"],real_price)
-                OrderManager.ib.sleep(0.5)
-
-                order["trade"] = trade
-                order["data"]["trigger_price"] = lastPrice
-
-                cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                            VALUES (?,?, ?, ?, ?, ?)''',
-                        (order["task_id"],order["symbol"],"DONE", json.dumps(order["data"]),time.time(),trade.orderStatus.permId))
-                
-                conn.commit()
-                logger.info(f'TRIGGER CLOSED {order}')
-                
-            except Exception:
-                logger.error("ERROR",exc_info=True)
-                err = traceback.format_exc()
-                order["data"]["error"] = err
-                cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                            VALUES (?,?, ?, ?, ?, ?)''',
-                        ( order["task_id"],order["symbol"],"ERROR", json.dumps(order["data"]),time.time(),-1))
-                
-                conn.commit()
-            if "trade" in order:
-                del order["trade"]
-                
-            await OrderManager.send_task_order(order)
-            OrderManager.task_orders.remove(order)
-        except Exception:
-            logger.error("ERROR",exc_info=True)
-            err = traceback.format_exc()
-            order["data"]["error"] = err
-            cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                            VALUES (?,?, ?, ?, ?, ?)''',
-                        ( order["task_id"],order["symbol"],"ERROR", json.dumps(order["data"]),time.time(),-1))
-                
-            conn.commit()
-
-    def get_task_order(row):
-            data = {
-                "id": row["id"],
-                "task_id": row["task_id"],
-                "trade_id": row["trade_id"],
-                "status": row["status"],
-                "symbol": row["symbol"],
-                "timestamp": row["timestamp"],
-                "data": json.loads(row["data"])
-            }
-            return data
-    
-    async def task_buy_at_level(symbol,op_type,totalQuantity,lmtPrice,desc):
-
-        unix_time = time.time()
-        data={
-            "type": op_type,
-            "desc" : desc,
-            "totalQuantity": totalQuantity,
-            "lmtPrice" : lmtPrice
-        }
-        task_id =1
-        df = pd.read_sql_query("SELECT MAX(task_id) as task_id FROM task_orders", conn)
-        if not pd.isna( df["task_id"].max()):
-            task_id = int(df.iloc[0][0])+1
-
-        cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                    VALUES (?,?, ?, ?, ?, ?)''',
-                (task_id,symbol,"READY", json.dumps(data),unix_time,-1))
-        
-        conn.commit()
-
-        df = pd.read_sql_query("SELECT * FROM task_orders WHERE id = "+str(cur.lastrowid), conn)
-        order=None
-        for row in df.to_dict("records"):
-            order = OrderManager.get_task_order(row)
-
-        OrderManager.task_orders.append(order)
-        await OrderManager.send_task_order(order)
-        logger.info(f"TASK << {data}")
-        return data
-    
-    async def task_cancel_orderBySymbol(symbol):
-        for order in OrderManager.task_orders.copy():
-            if order["symbol"] == symbol:
-
-                order["status"] = "USER_CANC"
-                logger.info(f"CANCEL TASK ORDER {order}")
-                cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                            VALUES (?,?, ?, ?, ?, ?)''',
-                        ( order["task_id"],order["symbol"],order["status"], json.dumps(order["data"]),time.time(),-1))
-                conn.commit()
-                OrderManager.task_orders.remove(order)
-                await OrderManager.send_task_order(order)
-        
-    
-    ####################
-
-    async def clar_all_orders(symbol):
-        OrderManager.cancel_orderBySymbol(symbol)
-        await OrderManager.task_cancel_orderBySymbol(symbol)
-      
 ##############
 
     def order_limit(symbol,totalQuantity,lmtPrice)-> Trade:
@@ -470,7 +299,71 @@ AND status =='READY'
         trade.statusEvent += onStatus
         '''
 
-    def sell(symbol,totalQuantity,lmtPrice):
+    def wait_order(trade):
+        timeout = 2          # secondi
+        interval = 0.1          # ciclo ogni secondo
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            if  trade and  trade.orderStatus != None:
+                return True
+            else:
+                OrderManager.ib.sleep(interval)
+        return False
+
+    def smart_sell_limit(symbol,totalQuantity,ticker):
+
+        logger.debug(f"SMART SELL LIMIT ORDER {symbol} q:{totalQuantity}")
+        contract = Stock(symbol, 'SMART', 'USD')
+        OrderManager.ib.qualifyContracts(contract)
+    
+        timeout = 10          # secondi
+        interval = 2          # ciclo ogni secondo
+        start_time = time.time()
+
+        pos:Position = Balance.get_position(symbol)
+        if pos.position==0:
+            raise HTTPException(400,"pos empty")
+
+        start_pos = pos.position
+        target_pos = max(0,start_pos - totalQuantity)
+        trade=None
+        while time.time() - start_time < timeout:
+   
+            if not trade or trade.orderStatus:
+                if trade:
+                    if trade.orderStatus != "Filled":
+                        permId = trade.orderStatus.permId
+                        logger.info(f"Force remove {permId}")
+                        if not OrderManager.cancel_order(permId):
+                            logger.error(f" ORDER NOT FOUND !!! ")
+                        OrderManager.ib.sleep(1)
+                    else:
+                        logger.info("SEND END")
+                        return
+                    
+                    trade=None
+                if pos.position>target_pos:
+                    formatted_price = OrderManager.format_price(contract,ticker["last"])
+
+                    # 🔹 ORDINE DI VENDITA
+                    entry = LimitOrder(
+                        action='SELL',
+                        totalQuantity=pos.position-target_pos,
+                        lmtPrice=formatted_price,
+                        tif='GTC' ,
+                        outsideRth=True
+                    )
+                    trade:Trade =  OrderManager.ib.placeOrder(contract, entry)
+
+                    if not OrderManager.wait_order(trade):
+                        logger.error("!!!!!!!!!!!")
+
+            OrderManager.ib.sleep(interval)
+        
+
+    print("Timeout raggiunto, uscita dal ciclo")
+    def sell_limit(symbol,totalQuantity,lmtPrice):
         '''
         '''
 
@@ -478,11 +371,13 @@ AND status =='READY'
         contract = Stock(symbol, 'SMART', 'USD')
         OrderManager.ib.qualifyContracts(contract)
 
+        formatted_price = OrderManager.format_price(contract,lmtPrice)
+
         # 🔹 ORDINE DI VENDITA
         entry = LimitOrder(
             action='SELL',
             totalQuantity=totalQuantity,
-            lmtPrice=lmtPrice,
+            lmtPrice=formatted_price,
             tif='GTC' ,
             outsideRth=True
         )
@@ -491,7 +386,7 @@ AND status =='READY'
     def sell_all(symbol):
         '''
         Vende tutte le azioni possedute per il simbolo specificato.
-        '''
+        '''                                  
         logger.debug(f"SELL ALL {symbol}")
         contract = Stock(symbol, 'SMART', 'USD')
         OrderManager.ib.qualifyContracts(contract)
@@ -563,18 +458,7 @@ AND status =='READY'
     #####
 
     async def onTicker(symbol,lastPrice):
-        try:
-            #logger.info(f"onTicker {symbol},{lastPrice}")
-            for order in OrderManager.task_orders:
-                #logger.info(f"order {order}")
-                if order["symbol"] == symbol:
-                    order_type = order["data"]["type"]
-                    if order_type =="buy_at_level":
-                        lmtPrice = float(order["data"]["lmtPrice"])
-                        if (lastPrice>lmtPrice ):
-                            await OrderManager.on_task_order_trigger(order,lastPrice)
-        except:
-            logger.error("ERROR",exc_info=True)
+        pass
 
     #########
 
