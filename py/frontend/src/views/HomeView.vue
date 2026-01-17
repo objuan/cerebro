@@ -192,6 +192,11 @@ const initWebSocket = () => {
            liveStore.updatePathData(msg.path, msg.value);
         } 
         break
+      case "report":
+        {
+          console.log("Report\\\\",msg.data);
+       }
+        break;
       case "del":
         {
           /*

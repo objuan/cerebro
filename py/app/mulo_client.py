@@ -37,6 +37,7 @@ class MuloClient:
         self.last_ts = {}
         self.max_symbols=config["database"]["live"]["max_symbols"]
         self.historyActive =config["database"]["logic"]["fetch_enabled"]  
+        self.symbol_to_exchange_map={}
 
         self.TIMEFRAME_UPDATE_SECONDS =config["database"]["logic"]["TIMEFRAME_UPDATE_SECONDS"]  
         self.TIMEFRAME_LEN_CANDLES =config["database"]["logic"]["TIMEFRAME_LEN_CANDLES"]  
@@ -151,6 +152,13 @@ class MuloClient:
 
     #########
     
+    def get_exchange(self,symbol):
+        if not symbol in self.symbol_to_exchange_map:
+                df = c_get_df(self.db_file,"SELECT exchange FROM STOCKS WHERE SYMBOL = ?",(symbol,))
+                if not df.empty:
+                    self.symbol_to_exchange_map[symbol] = df.iloc[0]["exchange"]
+        return self.symbol_to_exchange_map[symbol]
+    
     def live_symbols(self)->List[str]:
         ''' get array '''
         return  self.symbols
@@ -160,19 +168,15 @@ class MuloClient:
 
         self.symbols = await self.send_cmd("symbols")
 
-        logger.debug(f" {self.symbols}")
+        logger.info(f"<< {self.symbols}")
 
         if len(self.symbols) > 0:
             self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
 
-        logger.debug(f"Fundamentals \n{self.df_fundamentals}")
+        #logger.debug(f"Fundamentals \n{self.df_fundamentals}")
                                               
         self.sql_symbols = str(self.symbols)[1:-1]
-
-        self.symbol_to_exchange_map = {}
-        for _, row in self.df_fundamentals.iterrows():
-            self.symbol_to_exchange_map[row["symbol"]] = row["exchange"]
-
+   
         self.tickers = {}
         for s in self.symbols:
             self.tickers[s] = { "symbol": s, "last_close": self.last_close(s)}
@@ -182,7 +186,9 @@ class MuloClient:
 
 
     async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000)-> pd.DataFrame:
-       
+        #if timeframe not in ["10s","30s"]:
+        #    await self._align_data(symbol,timeframe)
+
         if self.sym_mode:
             ticker = self.tickers[symbol]
             last_time = ticker["ts"]
@@ -211,6 +217,7 @@ class MuloClient:
     
     ########## tutti insieme
     async def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
+
         if len(symbols) == 0:
             logger.error("symbol empty !!!")
             return None
@@ -306,6 +313,188 @@ class MuloClient:
     def get_fundamentals(self,symbol)->pd.DataFrame:
         return self.df_fundamentals[self.df_fundamentals["symbol"]==symbol  ]
             
+    #####################
+    
+    async def _align_data(self, symbol, timeframe):
+    
+        try:
+            #logger.info(f"align_data {symbol} {timeframe}")
+
+            query_max = f"""
+                SELECT max(timestamp) as max
+                FROM {self.table_name}
+                WHERE symbol = ? and timeframe=? and source != 'live'
+                """
+
+            conn = sqlite3.connect(self.db_file)
+            
+            #for symbol in self.live_symbols():
+            if True:
+                    max_dt=None
+                    update = False
+                    #df_min = pd.read_sql_query(query_min, conn, params= (symbol, timeframe))
+                    df_max = pd.read_sql_query(query_max, conn, params= (symbol, timeframe))
+                    #print(df)
+                    if df_max.iloc[0]["max"]:
+                        max_dt = int(df_max.iloc[0]["max"]/1000) # ultima data in unix time    
+                       
+                    #logger.info(f"max_dt {max_dt}")
+                    if max_dt:
+                        #if  self.marketZone == MarketZone.LIVE:
+        
+                            last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_dt))
+
+                            logger.info(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
+                            # devo aggiornare ??? 
+                            
+                            if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 1):
+                                update=True
+                            if (timeframe =="5m" and last_update_delta_min.total_seconds()/60 > 5):
+                                update=True
+                            if (timeframe =="1h" and last_update_delta_min.total_seconds()/60 > 1):
+                                update=True
+                            if (timeframe =="1d" and last_update_delta_min.total_seconds()/60 > 24*60):
+                                update=True
+
+                    else:
+                        update=True
+                        max_dt = int(
+                            (datetime.now() - timedelta(seconds=self.TIMEFRAME_LEN_CANDLES[timeframe]))
+                            .timestamp()
+                            )
+                        logger.info(f"BEGIN HISTORY {max_dt} ")
+
+                    #update=True
+                    if update:
+                        if True:
+                            logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
+                            await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000)
+                        else:
+                            pass
+                        
+            conn.close()     
+        except: 
+            logger.error("ERROR",exc_info=True)
+
+    async def _fetch_missing_history(self,cursor, symbol, timeframe, since):
+        #since = week_ago_ms()
+
+        try:
+            update_delta_min = datetime.now() - datetime.fromtimestamp(float(since)/1000)
+            candles= candles_from_seconds(update_delta_min.total_seconds(),timeframe)
+
+            logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
+            
+            dt_start =  datetime.fromtimestamp(float(since)/1000)
+
+            exchange = self.get_exchange(symbol)
+        
+            batch_count = 500
+            i = 0
+            while ( True):
+                i=i+1
+
+                #logger.info(f"{i} ASK  {dt_start}")
+
+                ###########
+                df = yf.download(
+                    tickers=symbol,
+                    start=dt_start.strftime("%Y-%m-%d"),
+                    #period="1d",
+                    interval=timeframe,
+                    auto_adjust=False,
+                    progress=False,
+                )
+                df = df.reset_index()
+                df.columns = [
+                    c[0] if isinstance(c, tuple) else c
+                    for c in df.columns
+                ]
+                #logger.debug(df.head())      
+                dateName = "Date"
+                if not dateName in df.columns:
+                    dateName ="Datetime"
+                
+                df[dateName] = df[dateName].astype("int64") // 10**9
+
+                #logger.debug(df.head())      
+                # 3. Converti i dati in un formato leggibile (List of Dicts)
+                # util.df(bars) creerebbe un DataFrame, ma per JSON usiamo una lista
+                ohlcv =  [
+                    (b[0]*1000, b.Open, b.High, b.Low, b.Close, b.Volume)
+                        for b in df.itertuples(index=False)
+                ]
+
+                # lì'ultima è parsiale
+                ohlcv = ohlcv[:-1]
+                #print(data)
+
+                ################
+
+                logger.debug(f"{i} Find rows # {len(ohlcv)}")
+                if len(ohlcv) <1:
+                    break
+
+                last = ohlcv[-1]
+                since = last[0] + 1
+                #logger.info(f"last # {last}")
+
+                for o in ohlcv:
+                    ts, open_, high, low, close, vol = o
+                    
+                    #logger.debug(f"add {exchange} {symbol} {timeframe} {ts}")
+                    cursor.execute("""
+                INSERT INTO ib_ohlc_history (
+                        exchange,
+                        symbol,
+                        timeframe,
+                        timestamp,
+                        open,
+                        high,
+                        low,
+                        close,
+                        base_volume,
+                        quote_volume,
+                        source,
+                        updated_at,
+                        ds_updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(exchange, symbol, timeframe, timestamp)
+                    DO UPDATE SET
+                        open = excluded.open,
+                        high = excluded.high,
+                        low = excluded.low,
+                        close = excluded.close,
+                        base_volume = excluded.base_volume,
+                        quote_volume = excluded.quote_volume,
+                        source = excluded.source,
+                        updated_at = excluded.updated_at,
+                        ds_updated_at = excluded.ds_updated_at
+                    
+                                
+                    """, (
+                        exchange,
+                        symbol,
+                        timeframe,
+                        ts,
+                        open_,
+                        high,
+                        low,
+                        close,
+                        vol,
+                        vol * close,
+                        "yahoo",
+                        int(time.time() * 1000),
+                        datetime.utcnow().isoformat()
+                    ))
+        
+                    
+                    cursor.commit()
+                break
+        except:
+            logger.error("ERROR", exc_info=True)
+
     #######################
     
     def get_df(self,query, params=()):
@@ -321,4 +510,5 @@ class MuloClient:
         line_id = cur.lastrowid
         conn.commit()
         return line_id
+    
     

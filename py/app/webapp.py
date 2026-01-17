@@ -16,6 +16,7 @@ import sys
 import json
 import shutil
 
+from reports.report_manager import ReportManager
 from utils import *
 #from job_binance import *
 #from job_ibroker import *
@@ -107,6 +108,7 @@ client = MuloClient("../"+DB_FILE,config)
 #fetcher = IBrokerJob(None,"../"+DB_FILE,config)
 
 db = DBDataframe(config,client)
+report = ReportManager(client,db)
 
 propManager = PropertyManager()
 tradeManager = TradeManager(config,client,propManager)
@@ -145,13 +147,15 @@ async def lifespan(app: FastAPI):
         #await db.bootstrap()
         job_db=None
         live_task=None
+        report_task=None
 
         def on_job_started():
             global job_db
             global live_task
-
+            global report_task
             job_db=  asyncio.create_task(db.bootstrap())
             live_task = asyncio.create_task(live_loop())
+            report_task = asyncio.create_task(report.bootstrap())
           
         job_task = asyncio.create_task(client.bootstrap(on_job_started))
         
@@ -170,6 +174,7 @@ async def lifespan(app: FastAPI):
         job_task.cancel()
         job_db.cancel()
         live_task.cancel()
+        report_task.cancel()
         #thread_h.cancel()
 
 app = FastAPI(lifespan=lifespan)
@@ -515,6 +520,8 @@ async def live_loop():
             await ws_manager.broadcast(msg)
             
             await db.tick()
+
+            await report.tick(render_page)
                 
             await layout.tick(render_page)
             

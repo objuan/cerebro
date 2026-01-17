@@ -42,7 +42,7 @@ from mulo_scanner import Scanner
 from mulo_live import LiveManager
 
 use_yahoo=False
-use_display = True
+use_display = False
 
 DB_TABLE = "ib_ohlc_live"
 
@@ -604,6 +604,24 @@ async def account_positions():
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
     
+###############################
+
+@app.get("/monitor/open")
+async def open_monitor(symbol:str):
+    try:
+        await fetcher._align_data(symbol,"10s")
+        await fetcher._align_data(symbol,"30s")
+        await fetcher._align_data(symbol,"1m")
+        await fetcher._align_data(symbol,"5m")
+        await fetcher._align_data(symbol,"1h")
+        await fetcher._align_data(symbol,"1d")
+        return {"status": "ok"}
+    
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+    
+
 ####################
 
 @app.websocket("/ws/tickers")
