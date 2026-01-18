@@ -13,8 +13,9 @@ from utils import *
 
 class ReportManager:
 
-    def __init__(self, job,db : DBDataframe):
+    def __init__(self, config,job,db : DBDataframe):
         self.job=job
+        self.config=config
         self.db=db
         self.gain_time_min = 60
         self.history_days  = 50
@@ -35,7 +36,10 @@ class ReportManager:
         self.first_open=[]
         self.scheduler = AsyncScheduler()
 
-        self.scheduler.schedule_every(10,self.take_snapshot, key= "10m")
+        shapshot_time = config["reports"]["shapshot_time"]
+        logger.info(f"shapshot_time {shapshot_time}")
+        
+        self.scheduler.schedule_every(shapshot_time,self.take_snapshot, key= "10m")
         self.df_report =None
         self.shapshot_history =  deque(maxlen=100)
 
@@ -75,7 +79,7 @@ class ReportManager:
             full_dict = {
                 symbol: {
                     col: self.py_value(self.df_report.loc[symbol, col])
-                    for col in ["rank","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+                    for col in ["rank","rank_delta","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
                 }
                 for symbol in self.df_report.index
             }
@@ -87,7 +91,10 @@ class ReportManager:
             })
             
     def make_diff(self, current, old):
-        cols = ["rank","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+        cols = ["rank","rank_delta","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+
+        #logger.info(f"current \n{current}")
+        #logger.info(f"old \n{old}")
 
         change_mask = old[cols].ne(current[cols])
 
@@ -222,9 +229,12 @@ class ReportManager:
             #logger.info(f"df_1m \n{df_1m.to_string(index=False)}")
             #logger.info(f"result \n{df.to_string(index=False)}")
 
+            ######### FINAL ###########
+
             df = df.dropna()
             df_new_report = df.sort_values(by="gain", ascending=False)
             df_new_report["rank"] = range(1, len(df_new_report) + 1)
+            
             df_new_report = df_new_report.set_index("symbol")
 
             #logger.info(f"result \n{df_new_report}")
@@ -232,28 +242,20 @@ class ReportManager:
             ##################
             
             if len(self.shapshot_history) >0:
-                
+                last_snapshot = self.shapshot_history[-1]
+
+                df_new_report = df_new_report.join(
+                    last_snapshot[["rank"]].rename(columns={"rank": "rank_old"}),
+                    how="left"
+                )
+            
+                # Se un symbol è nuovo, usa il rank corrente come rank_old
+                df_new_report["rank_old"].fillna(df_new_report["rank"], inplace=True)
+                df_new_report["rank_delta"] = df_new_report["rank"] - df_new_report["rank_old"] 
+                #######
+
                 changed_dict = self.make_diff(df_new_report,self.df_report)
 
-                '''
-                # colonne da confrontare (escludi chiave e timestamp se vuoi)
-                cols = ["rank","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
-
-                # mask di cambiamento
-                change_mask = self.df_report[cols].ne(df_new_report[cols])
-
-                #logger.info(f"change_mask \n{change_mask}")
-                
-                changed_dict = {
-                    symbol: {
-                        col: self.py_value(df_new_report.loc[symbol, col].item())
-                        for col in cols
-                        if change_mask.loc[symbol, col]
-                    }
-                    for symbol in change_mask.index
-                    if change_mask.loc[symbol].any()
-                }
-                '''
                 if len(changed_dict)>0:
                     logger.info(f"changed_dict {changed_dict}")
 
@@ -261,16 +263,11 @@ class ReportManager:
                         "type" : "report",
                         "data": changed_dict
                     })
+            else:
+                df_new_report["rank_old"] =  df_new_report["rank"] 
+                df_new_report["rank_delta"] = df_new_report["rank"] - df_new_report["rank_old"] 
 
-                    # send changes
-                    '''
-                    self.df_report = self.df_report.reset_index()    
-                    await render_page.send({
-                        "type" : "report",
-                        "data": self.df_report[["gain","symbol","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
-                    })
-                    self.df_report  = self.df_report .set_index("symbol")
-                    '''
+            #logger.info(f"result \n{df_new_report}")
 
             self.df_report  = df_new_report
         

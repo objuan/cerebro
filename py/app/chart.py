@@ -1,5 +1,6 @@
 import pandas as pd
 import logging
+import math
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -20,12 +21,11 @@ class ChartWidget(Widget):
         self.symbol=symbol
         self.timeframe=timeframe
         
-
     async def notify_candles(self, candle,page:RenderPage):
        
        #for candle in candles:
-           #logger.info(f"{candle['tf']} { self.timeframe} { self.symbol}" )
-           if candle["s"] == self.symbol and (self.timeframe==0 or candle["tf"] == self.timeframe):
+           #logger.info(f"{candle['tf']} { self.timeframe} { self.symbol} v {type(candle['day_v']) }" )
+           if candle["s"] == self.symbol and (self.timeframe==0 or candle["tf"] == self.timeframe) and not  math.isnan(candle["day_v"]):
                #logger.info(f"notify_candles {candle}")
 
                await page.send({

@@ -211,7 +211,10 @@ class MuloClient:
 
         if self.sym_mode:
             ticker = self.tickers[symbol]
-            last_time = ticker["ts"]
+            if not ticker or not "ts" in ticker:
+                last_time = 0
+            else:
+                last_time = ticker["ts"]
             #logger.info(f"last_time {last_time}")
             query = f"""
                 SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
@@ -285,7 +288,7 @@ class MuloClient:
     def getTickersDF(self):
         if not self.tickers:
             return pd.DataFrame(
-                columns=["symbol", "timestamp", "price", "bid", "ask", "volume_day"]
+                columns=["symbol", "timestamp", "price", "bid", "ask", "volume_day","ts"]
             )
         '''
         df = pd.DataFrame(

@@ -28,6 +28,10 @@
 	,"order":
 	{
 		"mode" : "task_all"
+	},
+	"reports":
+	{
+		"shapshot_time" : 10
 	}
 	,"database":
 		{

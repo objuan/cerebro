@@ -192,124 +192,128 @@ const handleRefresh = async () => {
     symbolList.value= datas["symbols"];
  
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
-    const data = await response.json();
-
-    const ind_response = await send_get(`/api/chart/read`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value  });
-    //ind_response.data = JSON.parse(ind_response.data)
-    ind_response.map( line => {
-        line.data = JSON.parse(line.data)
-    })  
-
-     // TASK LIST
-
-    const task_response = await send_mulo_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
-    console.log("task list",task_response.data)
-    let _task_datas = task_response.data;
-
-     // TRADE MARKER
-
-    const _trade_marker_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
-     
-    if (_trade_marker_data.data!=null)
-        _trade_marker_data.data = JSON.parse(_trade_marker_data.data)
-    console.debug("trade marker",_trade_marker_data)
-      
-    //console.log("ind_response",ind_response) 
-
-    console.debug("loading ",currentSymbol.value,currentTimeframe.value)
     
-    if (data && data.length > 0) {
-      // Formatta dati per Candlestick
-      const formattedData = data.map(d => ({
-        time: window.db_localTime ? window.db_localTime(d.t) : d.t,
-        open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
-      }));
+    const data = await response.json();
+    console.log("response",data)
 
-      series.main.setData(formattedData);
+    if (data.length>0)
+    {
+      const ind_response = await send_get(`/api/chart/read`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value  });
+      //ind_response.data = JSON.parse(ind_response.data)
+      ind_response.map( line => {
+          line.data = JSON.parse(line.data)
+      })  
 
-      // Formatta dati per Volume
-      series.volume.setData(data.map(d => ({
-        time: window.db_localTime ? window.db_localTime(d.t) : d.t,
-        value: d.bv,
-        color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
-      })));
+      // TASK LIST
 
-      lastMainCandle = formattedData[formattedData.length - 1];
-
-      // Gestione Indicatori (EMA, etc)
-      if (props.plot_config.main_plot!=null)
-      {
-        Object.entries(props.plot_config.main_plot).forEach(([key, config]) => {
-          if (config.fun === 'ema' && window.calculateEMA) {
-            const indData = window.calculateEMA(data, config.eta);
-            series.indicators[key].setData(indData);
-          }
-        });
-      }
-
-      // gestione lieen user
-      clearDrawings( context() );
-      ind_response.forEach( line =>
-      {
-          if (line.type ==='price_line')
-          {
-              drawHorizontalLine(context(),line.data.price, line.guid);
-          }
-          if (line.type ==='trend')
-          {
-             // console.log("draw trend",line.data)
-              drawTrendLine(context(),line.data.p1,line.data.p2, line.guid);
-          }
-      });
-
-
-      // Zoom finale
-      if ( data.length >timeframe_start[currentTimeframe.value])
-      {
-        charts.main.timeScale().setVisibleLogicalRange({
-          from: data.length - timeframe_start[currentTimeframe.value],
-          to: data.length
-        });
-      }
+      const task_response = await send_mulo_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
+      console.log("task list",task_response.data)
+      let _task_datas = task_response.data;
 
       // TRADE MARKER
-      if (_trade_marker_data.data!=null)
-      {
-          tradeMarkerData = _trade_marker_data.data;
-          updateTradeMarker(context(),tradeMarkerData)
 
-          liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
-              
-      }
-
-      // TRADE MARKER
-      if (_task_datas!=null){
-
-          taskData={}
-          _task_datas.forEach( (task)=>
-          {
-            const next_step_idx = task.step;
-            const data = JSON.parse(task.data)
-
-            //console.log("..",next_step_idx,data)
-
-            // prendo i passi prima
-            data.forEach( (step)=>
-            {
-                if (step["step"]== next_step_idx)
-                {
-                  console.log("ACTIVE",step)
-                  if (step["desc"] == "MARKER")
-                      taskData["price_marker"] ={"ref" : price_marker, "task": step}
-                  if (step["desc"] == "SL")
-                      taskData["price_marker_sl"] ={"ref" : price_marker_sl, "task": step}
-                  if (step["desc"] == "TP")
-                      taskData["price_marker_tp"] ={"ref" : price_marker_tp, "task": step}
-                }
-            });
-          });
-      }
+      const _trade_marker_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
       
+      if (_trade_marker_data.data!=null)
+          _trade_marker_data.data = JSON.parse(_trade_marker_data.data)
+      console.debug("trade marker",_trade_marker_data)
+        
+      //console.log("ind_response",ind_response) 
+
+      console.debug("loading ",currentSymbol.value,currentTimeframe.value)
+      
+      if (data && data.length > 0) {
+        // Formatta dati per Candlestick
+        const formattedData = data.map(d => ({
+          time: window.db_localTime ? window.db_localTime(d.t) : d.t,
+          open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
+        }));
+
+        series.main.setData(formattedData);
+
+        // Formatta dati per Volume
+        series.volume.setData(data.map(d => ({
+          time: window.db_localTime ? window.db_localTime(d.t) : d.t,
+          value: d.bv,
+          color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
+        })));
+
+        lastMainCandle = formattedData[formattedData.length - 1];
+
+        // Gestione Indicatori (EMA, etc)
+        if (props.plot_config.main_plot!=null)
+        {
+          Object.entries(props.plot_config.main_plot).forEach(([key, config]) => {
+            if (config.fun === 'ema' && window.calculateEMA) {
+              const indData = window.calculateEMA(data, config.eta);
+              series.indicators[key].setData(indData);
+            }
+          });
+        }
+
+        // gestione lieen user
+        clearDrawings( context() );
+        ind_response.forEach( line =>
+        {
+            if (line.type ==='price_line')
+            {
+                drawHorizontalLine(context(),line.data.price, line.guid);
+            }
+            if (line.type ==='trend')
+            {
+              // console.log("draw trend",line.data)
+                drawTrendLine(context(),line.data.p1,line.data.p2, line.guid);
+            }
+        });
+
+
+        // Zoom finale
+        if ( data.length >timeframe_start[currentTimeframe.value])
+        {
+          charts.main.timeScale().setVisibleLogicalRange({
+            from: data.length - timeframe_start[currentTimeframe.value],
+            to: data.length
+          });
+        }
+
+        // TRADE MARKER
+        if (_trade_marker_data.data!=null)
+        {
+            tradeMarkerData = _trade_marker_data.data;
+            updateTradeMarker(context(),tradeMarkerData)
+
+            liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+                
+        }
+
+        // TRADE MARKER
+        if (_task_datas!=null){
+
+            taskData={}
+            _task_datas.forEach( (task)=>
+            {
+              const next_step_idx = task.step;
+              const data = JSON.parse(task.data)
+
+              //console.log("..",next_step_idx,data)
+
+              // prendo i passi prima
+              data.forEach( (step)=>
+              {
+                  if (step["step"]== next_step_idx)
+                  {
+                    console.log("ACTIVE",step)
+                    if (step["desc"] == "MARKER")
+                        taskData["price_marker"] ={"ref" : price_marker, "task": step}
+                    if (step["desc"] == "SL")
+                        taskData["price_marker_sl"] ={"ref" : price_marker_sl, "task": step}
+                    if (step["desc"] == "TP")
+                        taskData["price_marker_tp"] ={"ref" : price_marker_tp, "task": step}
+                  }
+              });
+            });
+        }
+      }
       //console.log("trade marker",data)
 
       //DEFAULT_INTERACTION = charts.main.options();
@@ -489,56 +493,61 @@ const buildChart =  () => {
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
   charts.main.subscribeCrosshairMove(param => 
   {
-    if (!param.time || !param.seriesData.get(series.main)) {
-      legendHtml.value = '';
-      legendIndHtml.value = '';
-      charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
-      return;
+    try{
+      if (!param.time || !param.seriesData.get(series.main)) {
+        legendHtml.value = '';
+        legendIndHtml.value = '';
+        charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
+        return;
+      }
+
+      const data = param.seriesData.get(series.main);
+      if (!data) return;
+
+      // update markers
+      /*
+      const timeScale = charts.main.timeScale();
+      const range = timeScale.getVisibleLogicalRange();
+      // ultimo indice logico visibile
+      const logicalIndex = Math.floor(range.to);
+      const x = timeScale.logicalToCoordinate(logicalIndex);
+      const y = series.main.priceToCoordinate(184.48);
+
+      console.log("X,Y", price_marker.value,x,y);
+
+      price_marker.value.style.top = `${y - price_marker.value.offsetHeight / 2}px`;
+      price_marker.value.style.left = `${x}px`; // asse sinistro
+      */
+      //updateMarker();
+      
+      //lastMouse = data;
+
+      // VOLUUME LINK
+      charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
+      const bar = series.volume.data().find(x => x.time === param.time);
+      const vol = bar?.value;
+
+      //console.log("MOVE ",vol)
+
+      // Update Legend
+      let color = data.close >= data.open ? '#4bffb5' : '#ff4976';  
+      let lbl = `<span style="color:${color}"> C: <strong>${data.close.toFixed(3)}</strong> O: <strong>${data.open.toFixed(3)}</strong> `;
+      lbl += `L: <strong>${data.low.toFixed(3)}</strong> H: <strong>${data.high.toFixed(3)}</strong>`;
+      lbl += ` V: <strong>${vol}</strong></span>`;
+      legendHtml.value = lbl;
+
+      lbl=""
+      // Aggiungi valori indicatori alla legenda
+      Object.entries(series.indicators).forEach(([key, s]) => {
+        const val = param.seriesData.get(s);
+        if (val) lbl += ` <span style="color:${props.plot_config.main_plot[key].color}">${key}: ${val.value.toFixed(3)}</span><br>`;
+      });
+      
+      legendIndHtml.value = lbl;
+    }catch(ex){
+      console.debug(ex);
     }
-
-    const data = param.seriesData.get(series.main);
-    if (!data) return;
-
-    // update markers
-    /*
-    const timeScale = charts.main.timeScale();
-    const range = timeScale.getVisibleLogicalRange();
-    // ultimo indice logico visibile
-    const logicalIndex = Math.floor(range.to);
-    const x = timeScale.logicalToCoordinate(logicalIndex);
-    const y = series.main.priceToCoordinate(184.48);
-
-    console.log("X,Y", price_marker.value,x,y);
-
-    price_marker.value.style.top = `${y - price_marker.value.offsetHeight / 2}px`;
-    price_marker.value.style.left = `${x}px`; // asse sinistro
-    */
-    //updateMarker();
     
-    //lastMouse = data;
-
-    // VOLUUME LINK
-    charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
-    const bar = series.volume.data().find(x => x.time === param.time);
-    const vol = bar?.value;
-
-    //console.log("MOVE ",vol)
-
-    // Update Legend
-    let color = data.close >= data.open ? '#4bffb5' : '#ff4976';  
-    let lbl = `<span style="color:${color}"> C: <strong>${data.close.toFixed(3)}</strong> O: <strong>${data.open.toFixed(3)}</strong> `;
-    lbl += `L: <strong>${data.low.toFixed(3)}</strong> H: <strong>${data.high.toFixed(3)}</strong>`;
-    lbl += ` V: <strong>${vol}</strong></span>`;
-    legendHtml.value = lbl;
-
-    lbl=""
-    // Aggiungi valori indicatori alla legenda
-    Object.entries(series.indicators).forEach(([key, s]) => {
-      const val = param.seriesData.get(s);
-      if (val) lbl += ` <span style="color:${props.plot_config.main_plot[key].color}">${key}: ${val.value.toFixed(3)}</span><br>`;
-    });
-    
-    legendIndHtml.value = lbl;
   });
 
 

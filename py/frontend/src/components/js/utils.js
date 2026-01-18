@@ -24,6 +24,27 @@ export  function interpolateColor(start, end, f) {
 
     return `rgb(${r}, ${g}, ${b})`;
 }
+
+export function scaleColor(value, min, max) {
+  if (value === null || value === undefined) return {}
+
+  const clamped = Math.min(Math.max(value, min), max)
+  const t = (clamped - min) / (max - min || 1)
+
+  // verde ↔ rosso
+  const r = Math.round(255 * (1 - t))
+  const g = Math.round(255 * t)
+
+  return {
+    backgroundColor: `rgba(${r}, ${g}, 0, 0.15)`
+  }
+}
+
+
+export function formatNumber(value) {
+  if (value === null || value === undefined) return '-'
+  return new Intl.NumberFormat('en-US').format(value)
+}
 export function formatValue(v) {
     v = parseFloat(v);
     if (isNaN(v)) return v;

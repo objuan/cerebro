@@ -372,6 +372,7 @@ class LiveManager:
     
     def setSymSpeed(self,speed):
         logger.info(f"SET SYM SPEED TO {speed}")
+        self.sym_current_time = int(_time.time())  
         self.sym_speed = min(10,max(0.1,speed))
       
     async def sym_tick_tickers(self):

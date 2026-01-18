@@ -43,7 +43,7 @@
           <div class="multi-chart-container"  style="height:100%" >
             <div ref="chartContainer1" class="chart-container cell">
               <CandleChartWidget style="width:100%;height:100%"
-                id="chart_all"
+                :id="chart_all"
                 :ref="el => widgetRefs['chart_all'] = el"
                 :symbol="currentSymbol"
                 :timeframe=currentMode
@@ -119,13 +119,15 @@ const props = defineProps({
   id: { type: String, required: true },
   symbol: { type: String, required: true },
   timeframe_multi: { type: String, required: false,default:"10s,1m,5m,1d" },
-  timeframe: { type: String, required: false ,default:"10s"},
+  //timeframe: { type: String, required: false ,default:"10s"},
   plot_config: { type: Object, default: () => ({ main_plot: {} }) }
 });
 
 const widgetRefs = ref({})
 
 //const emit = defineEmits(['close', 'initialized']);
+
+//const chartAllId = computed(() => `${props.id}_all`)
 
 // Elementi DOM e Variabili reattive
 
@@ -148,11 +150,15 @@ const timeframes = computed(() =>
 
 const handleSymbols = async () => {
   console.log("handleSymbols",widgetRefs.value["chart_1"])
-
-  widgetRefs.value["chart_1"].setSymbol(currentSymbol.value);
-  widgetRefs.value["chart_2"].setSymbol(currentSymbol.value);
-  widgetRefs.value["chart_3"].setSymbol(currentSymbol.value);
-  widgetRefs.value["chart_4"].setSymbol(currentSymbol.value);
+  if (currentMode.value?.trim() =="")
+  {
+    widgetRefs.value["chart_1"].setSymbol(currentSymbol.value);
+    widgetRefs.value["chart_2"].setSymbol(currentSymbol.value);
+    widgetRefs.value["chart_3"].setSymbol(currentSymbol.value);
+    widgetRefs.value["chart_4"].setSymbol(currentSymbol.value);
+  }
+  else
+    widgetRefs.value["chart_all"].setSymbol(currentSymbol.value);
 };
 
 
@@ -171,7 +177,9 @@ onMounted( async() => {
     let responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
     let datas = await responses.json();
     symbolList.value= datas["symbols"];
- 
+
+    await updateAll();
+    /*
     responses = await fetch(`http://localhost:8000/api/fundamentals?symbol=${currentSymbol.value} `);
     datas = await responses.json();
     //console.log("fundamentals ",datas); 
@@ -179,11 +187,31 @@ onMounted( async() => {
     //fundamentals.value= datas["exchange"] + " " + datas["sector"] + " MktCap: " + (datas["market_cap"]/1e9).toFixed(2) + "B" ;
     fundamentals.value= " MktCap: " + window.formatValue(datas["market_cap"])  ;
     fundamentals.value+= "  FLOAT: <span style='color:yellow'><b>" + window.formatValue(datas["float"]) + "</b></span> / "+ window.formatValue(datas["shares_outstanding"])   ;
+    */
 });
 
 onBeforeUnmount(() => {
   eventBus.off("ticker-received", onTickerReceived);
 });
+
+const updateAll = async ()=>
+{
+    let responses = await fetch(`http://localhost:8000/api/fundamentals?symbol=${currentSymbol.value} `);
+    let datas = await responses.json();
+    //console.log("fundamentals ",datas); 
+
+    //fundamentals.value= datas["exchange"] + " " + datas["sector"] + " MktCap: " + (datas["market_cap"]/1e9).toFixed(2) + "B" ;
+    fundamentals.value= " MktCap: " + window.formatValue(datas["market_cap"])  ;
+    fundamentals.value+= "  FLOAT: <span style='color:yellow'><b>" + window.formatValue(datas["float"]) + "</b></span> / "+ window.formatValue(datas["shares_outstanding"])   ;
+}
+
+const setSymbol = async (symbol) => {
+  currentSymbol.value = symbol
+  await updateAll();
+  handleSymbols()
+//  handleRefresh();
+};
+
 
 const resize =  () => {
    
@@ -241,6 +269,7 @@ defineExpose({
   resize,
   save,
   on_candle,
+  setSymbol
   //on_ticker
 });
 

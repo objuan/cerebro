@@ -110,7 +110,7 @@ client = MuloClient("../"+DB_FILE,config,propManager)
 #fetcher = IBrokerJob(None,"../"+DB_FILE,config)
 
 db = DBDataframe(config,client)
-report = ReportManager(client,db)
+report = ReportManager(config,client,db)
 
 
 tradeManager = TradeManager(config,client,propManager)
@@ -230,8 +230,9 @@ async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
             df = await client.ohlc_data(symbol,timeframe,limit)
          
             #logger.debug(f"!!!!!!!!!!!! chart {df}")
-        
             return JSONResponse(df.to_dict(orient="records"))
+          
+            
         else:
             df1 = db.dataframe(timeframe, symbol)
             #logger.debug(f"{symbol} {timeframe} {df1}")

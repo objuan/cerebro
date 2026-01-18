@@ -1,6 +1,7 @@
 <template>
   <div class="home">
     <PageHeader title="Cerebro V0.1"/>
+    <ReportPanel :report="report"></ReportPanel>
 
     <div class="layout">
         <!-- Sidebar -->
@@ -74,12 +75,12 @@
 </template>
 
 <script setup>
+import { onMounted, onUnmounted, ref ,nextTick ,onBeforeUnmount} from 'vue';
+
 import { liveStore } from '@/components/js/liveStore.js';
 import OrdersWidget from "@/components/OrdersWidget.vue";
 import PortfolioWidget from "@/components/PortfolioWidget.vue";
-
-import { onMounted, onUnmounted, ref ,nextTick } from 'vue';
-
+import ReportPanel from "@/components/ReportPanel.vue";
 import TickersSummary from '@/components/TickersSummary.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import TradeConfig from '@/components/TradeConfig.vue'
@@ -158,7 +159,7 @@ const initWebSocket = () => {
   ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 
   ws.onmessage = (event) => {
-    //console.log(event.data)
+    console.log(">>",event.data)
     const msg = JSON.parse(event.data);
 
     if (msg.path) {
@@ -186,15 +187,14 @@ const initWebSocket = () => {
         break
        case "props":
         {
-           console.log("WS props",msg);
-          //for x in widgetRefs.value 
-          
+           console.log("WS props",msg);          
            liveStore.updatePathData(msg.path, msg.value);
         } 
         break
       case "report":
         {
-          console.log("Report\\\\",msg.data);
+         // console.log("Report\\\\",msg.data);
+           eventBus.emit("report-received", msg.data);
        }
         break;
       case "del":
@@ -319,6 +319,19 @@ const addReportWidget = (id, rect, data) => {
   }, 0);
 };
 
+// ==================
+
+function onChartSelect(data){
+    console.log("onChartSelect", data)
+
+    const componentInstance = widgetRefs.value[data["id"]];
+    console.log("find",componentInstance)
+
+    
+    componentInstance.setSymbol(data["symbol"])
+    
+}
+
 // --- LIFECYCLE ---
 
 onMounted(() => {
@@ -428,7 +441,6 @@ onMounted(() => {
 
   loadLayout();
   
-  
   function saveLayout() {
     const layout = grid.save(false); // false = senza DOM
     //console.log("saveLayout",layout)
@@ -464,6 +476,9 @@ onMounted(() => {
     //localStorage.setItem("grid-layout", JSON.stringify(layout));
   }
   grid.on("change", saveLayout);
+
+  eventBus.on("chart-select", onChartSelect);
+
   /*
   grid.on('added', (event, items) => {
       items.forEach(item => {
@@ -475,6 +490,11 @@ onMounted(() => {
   });    */
     
 });
+
+onBeforeUnmount(() => {
+    eventBus.off("chart-select", onChartSelect);
+});
+
 
 onUnmounted(() => {
   //console.log("main onUnmounted")
