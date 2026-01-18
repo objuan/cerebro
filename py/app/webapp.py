@@ -102,7 +102,9 @@ logging.getLogger("websockets").setLevel(logging.WARNING)
 
 #############
 
-client = MuloClient("../"+DB_FILE,config)
+propManager = PropertyManager()
+
+client = MuloClient("../"+DB_FILE,config,propManager)
 #fetchclienter = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
 
 #fetcher = IBrokerJob(None,"../"+DB_FILE,config)
@@ -110,11 +112,12 @@ client = MuloClient("../"+DB_FILE,config)
 db = DBDataframe(config,client)
 report = ReportManager(client,db)
 
-propManager = PropertyManager()
+
 tradeManager = TradeManager(config,client,propManager)
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -475,6 +478,12 @@ async def layout_cmd(request: Request):
     logger.info(f"cmd {dati_json}")
     if dati_json["scope"] =="layout":
         await layout.process_cmd(dati_json, render_page)
+    return {"status": "ok"}
+
+#############
+@app.get("/api/report/get")
+async def get_report():
+    await report.send_current(render_page)
     return {"status": "ok"}
 
 ###################################

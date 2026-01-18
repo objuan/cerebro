@@ -25,10 +25,11 @@ logger = logging.getLogger(__name__)
 
 class MuloClient:
 
-    def __init__(self,db_file, config):
+    def __init__(self,db_file, config,propManager):
         
         self.ready=False
         self.config=config
+        self.propManager=propManager
         self.symbols=[]
         self.tickers = {}
         self.db_file=db_file
@@ -43,8 +44,7 @@ class MuloClient:
         self.TIMEFRAME_LEN_CANDLES =config["database"]["logic"]["TIMEFRAME_LEN_CANDLES"]  
 
         self.market = MarketService(config).getMarket("AUTO")
-        self.marketZone = None
-
+       
         self.conn_exe=sqlite3.connect(db_file, isolation_level=None)
         self.cur_exe = self.conn_exe.cursor()
         self.cur_exe.execute("PRAGMA journal_mode=WAL;")
@@ -56,13 +56,30 @@ class MuloClient:
         self.sym_time = None
         # live feeds
 
+        ######
+
+        propManager.add_computed("root.sym_mode", lambda: self.sym_mode )
+        propManager.add_computed("root.tz", lambda:  MZ_TABLE[self.getCurrentZone()] )
+
+    def getCurrentZone(self):
+        return self.market.getCurrentZone()
+
     async def bootstrap(self, onStartHandler):
         uri = "ws://localhost:2000/ws/tickers"
         
         try:
+            if self.sym_mode:
+                self.sym_time = await self.send_cmd("/sym/time")
+                self.sym_speed = await self.send_cmd("/sym/speed")
+                logger.info(f"START SYM TIME: {self.sym_time} sp:{self.sym_speed}")
+                
+                self.propManager.add_computed("root.sym_start_time", lambda: self.sym_time )
+                self.propManager.add_computed("root.sym_start_speed", lambda: self.sym_speed )
+
             # Ci si connette al server
             await self.update_symbols()
 
+        
             async with websockets.connect(uri) as websocket:
                 logger.info(f"Connesso a {uri}")
                 
@@ -71,9 +88,13 @@ class MuloClient:
                 await websocket.send(json.dumps(message))
                 
                 async def updateTickers(new_ticker):
+                    #logger.info(f"new_ticker {new_ticker}")
+
                     if self.sym_mode and "sym" in new_ticker:
                         self.sym_time = new_ticker["sym"]
-                    if "evt" in new_ticker:
+                        self.sym_speed = new_ticker["speed"]
+
+                    elif "evt" in new_ticker:
                         name = new_ticker["evt"]
                         if name =="on_update_symbols":
                              await self.update_symbols()
@@ -115,7 +136,6 @@ class MuloClient:
         except Exception as e:
             logger.error(f"Errore: {e}")
             exit(-1)
-
 
     async def send_cmd(self,rest_point, msg=None):
         
@@ -192,7 +212,7 @@ class MuloClient:
         if self.sym_mode:
             ticker = self.tickers[symbol]
             last_time = ticker["ts"]
-            logger.info(f"last_time {last_time}")
+            #logger.info(f"last_time {last_time}")
             query = f"""
                 SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
                 FROM {self.table_name}
@@ -280,7 +300,8 @@ class MuloClient:
         )
         '''
         df = pd.DataFrame( [ t for k,t in self.tickers.items()])
-    
+        
+        #logger.info(f"getTickersDF\n{df}")
         # sicurezza: timestamp come datetime
         #df["datetime"] = pd.to_datetime(df["timestamp"]/1000, utc=True, errors="coerce")
         df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
@@ -288,14 +309,24 @@ class MuloClient:
 
     def last_close(self,symbol: str)-> float:
 
-        ieri_mezzanotte = (
-                (datetime.now()
-                - timedelta(days=1))
-                .replace(hour=23, minute=59, second=59, microsecond=0)
-                
-            )
+        if self.sym_mode :
+            dt = datetime.fromtimestamp(self.sym_time)
+            logger.info(f" last close , sym time : {dt}")
+            ieri_mezzanotte = (
+                    (dt
+                    - timedelta(days=1))
+                    .replace(hour=23, minute=59, second=59, microsecond=0)
+                    
+                )
+        else:
+            ieri_mezzanotte = (
+                    (datetime.now()
+                    - timedelta(days=1))
+                    .replace(hour=23, minute=59, second=59, microsecond=0)
+                    
+                )
         unix_time = int(ieri_mezzanotte.timestamp()) * 1000
-        print("Last close time ", unix_time)
+        #print("Last close time ", unix_time)
         df = self.get_df(f"""
                 SELECT close 
                 FROM ib_ohlc_history

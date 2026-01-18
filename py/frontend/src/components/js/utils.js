@@ -161,3 +161,33 @@ export function generateGUID() {
         return v.toString(16);
     });
 }
+
+
+export function formatForDatetimeLocal(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+
+  return (
+    date.getFullYear() + '-' +
+    pad(date.getMonth() + 1) + '-' +
+    pad(date.getDate()) + 'T' +
+    pad(date.getHours()) + ':' +
+    pad(date.getMinutes())
+  );
+}
+
+export function formatForTimeInput(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function mergeDateWithTime(baseUnix, timeStr) {
+  // baseUnix in secondi
+  const date = new Date(baseUnix * 1000);
+
+  const [hours, minutes] = timeStr.split(':').map(Number);
+
+  date.setHours(hours, minutes, 0, 0);
+
+  return Math.floor(date.getTime() / 1000);
+}

@@ -456,17 +456,26 @@ class MuloJob:
         df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
         return df
         
-    async def last_close(self,symbol: str)-> float:
-        await self._align_data(symbol,"1m")
+    async def last_close(self,symbol: str,sym_start_time:datetime = None)-> float:
+        if not sym_start_time:
+            await self._align_data(symbol,"1m")
 
-        ieri_mezzanotte = (
+            ieri_mezzanotte = (
                 (datetime.now()
                 - timedelta(days=1))
                 .replace(hour=23, minute=59, second=59, microsecond=0)
                 
             )
+        else:
+
+            ieri_mezzanotte = (
+                    (sym_start_time
+                    - timedelta(days=1))
+                    .replace(hour=23, minute=59, second=59, microsecond=0)
+                    
+                )
         unix_time = int(ieri_mezzanotte.timestamp()) * 1000
-        print("Last close time ", unix_time)
+        #print("Last close time ", unix_time)
         df = self.get_df(f"""
                 SELECT close 
                 FROM ib_ohlc_history

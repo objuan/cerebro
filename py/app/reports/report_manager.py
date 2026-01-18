@@ -2,6 +2,7 @@ import pandas as pd
 import logging
 from datetime import datetime, timedelta
 from company_loaders import *
+from collections import deque
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class ReportManager:
         self.gain_time_min = 60
         self.history_days  = 50
 
-          self.columnsData = [
+        self.columnsData = [
             {"title": f"Change From Close" ,"decimals": 2, "colors":{ "range_min": -2 , "range_max":10 ,  "color_min": "#FFFFFF" , "color_max":"#14A014"   } },
             {"title": "Symbol/News" , "type" :"str" },
             {"title": "Price","decimals": 5 },
@@ -32,6 +33,11 @@ class ReportManager:
         ]
         job.on_symbols_update += self.on_update_symbols
         self.first_open=[]
+        self.scheduler = AsyncScheduler()
+
+        self.scheduler.schedule_every(10,self.take_snapshot, key= "10m")
+        self.df_report =None
+        self.shapshot_history =  deque(maxlen=100)
 
         #self.fill()
     async def bootstrap(self):
@@ -48,9 +54,62 @@ class ReportManager:
     def format_time(self,time):
         return f"{self.gain_time_min} m"
 
+    async def take_snapshot(self,key:str):
+        logger.info(f"take_snapshot {key}")
+
+        diff = self.make_diff(self.df_report,self.shapshot_history[-1] )
+        
+        logger.info(f"take_snapshot diff \n{diff}")
+
+        self.shapshot_history.append(self.df_report)
+
+    def py_value(self,v):
+        if hasattr(v, "item"):
+            v = v.item()
+        return round(v, 6) if isinstance(v, float) else v
+
+    async def send_current(self,render_page):
+            # prima volta mando tutto 
+            #self.df_report = self.df_report.reset_index()  
+            
+            full_dict = {
+                symbol: {
+                    col: self.py_value(self.df_report.loc[symbol, col])
+                    for col in ["rank","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+                }
+                for symbol in self.df_report.index
+            }
+
+            logger.info(f"full_dict \n{full_dict}")
+            await render_page.send({
+                    "type" : "report",
+                    "data": full_dict
+            })
+            
+    def make_diff(self, current, old):
+        cols = ["rank","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+
+        change_mask = old[cols].ne(current[cols])
+
+            #logger.info(f"change_mask \n{change_mask}")
+                
+        changed_dict = {
+                    symbol: {
+                        col: self.py_value(current.loc[symbol, col].item())
+                        for col in cols
+                        if change_mask.loc[symbol, col]
+                    }
+                    for symbol in change_mask.index
+                    if change_mask.loc[symbol].any()
+                }
+        return changed_dict
+
+
     async def tick(self,render_page):
         
         try:
+            
+            await self.scheduler.tick()
 
             isLiveZone = self.job.market.isLiveZone()
 
@@ -60,6 +119,7 @@ class ReportManager:
             df_tickers = self.job.getTickersDF()
             #logger.info(f"Tickers \n{df_tickers}")
         
+
             df_5m = self.db.dataframe("5m")
             df_5m = df_5m.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
 
@@ -158,15 +218,65 @@ class ReportManager:
 
             df = df.merge(  self.job.df_fundamentals[["symbol","float"]], on="symbol",    how="left")
             
-            logger.info(f"df \n{df.to_string(index=False)}")
+            #logger.info(f"df \n{df.to_string(index=False)}")
             #logger.info(f"df_1m \n{df_1m.to_string(index=False)}")
             #logger.info(f"result \n{df.to_string(index=False)}")
+
+            df = df.dropna()
+            df_new_report = df.sort_values(by="gain", ascending=False)
+            df_new_report["rank"] = range(1, len(df_new_report) + 1)
+            df_new_report = df_new_report.set_index("symbol")
+
+            #logger.info(f"result \n{df_new_report}")
+
+            ##################
             
-            await render_page.send({
-                   "type" : "report",
-                   "data": df[["gain","symbol","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
-               })
-            
+            if len(self.shapshot_history) >0:
+                
+                changed_dict = self.make_diff(df_new_report,self.df_report)
+
+                '''
+                # colonne da confrontare (escludi chiave e timestamp se vuoi)
+                cols = ["rank","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+
+                # mask di cambiamento
+                change_mask = self.df_report[cols].ne(df_new_report[cols])
+
+                #logger.info(f"change_mask \n{change_mask}")
+                
+                changed_dict = {
+                    symbol: {
+                        col: self.py_value(df_new_report.loc[symbol, col].item())
+                        for col in cols
+                        if change_mask.loc[symbol, col]
+                    }
+                    for symbol in change_mask.index
+                    if change_mask.loc[symbol].any()
+                }
+                '''
+                if len(changed_dict)>0:
+                    logger.info(f"changed_dict {changed_dict}")
+
+                    await render_page.send({
+                        "type" : "report",
+                        "data": changed_dict
+                    })
+
+                    # send changes
+                    '''
+                    self.df_report = self.df_report.reset_index()    
+                    await render_page.send({
+                        "type" : "report",
+                        "data": self.df_report[["gain","symbol","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]].to_numpy().tolist()
+                    })
+                    self.df_report  = self.df_report .set_index("symbol")
+                    '''
+
+            self.df_report  = df_new_report
+        
+            if len(self.shapshot_history) ==0:
+                self.shapshot_history.append(self.df_report )
+              
 
         except:
             logger.error("REPORT ERROR" , exc_info=True)

@@ -75,6 +75,9 @@ class LiveManager:
         self.live_send_key={}
         self.reqId2contract = {}
         self.scheduler = AsyncScheduler()
+        self.sym_time=0
+        self.sym_start_time=0
+        self.sym_speed = float(1)
     
         def onError( reqId, errorCode, errorString, contract):
             if errorCode == 162:
@@ -87,7 +90,8 @@ class LiveManager:
 
                 return  # ignorato
             logger.error(f"{errorCode} reqId={reqId}: {errorString}")
-        ib.errorEvent += onError
+        if ib:
+            ib.errorEvent += onError
 
     def getTicker(self,symbol)-> Ticker:
          return self.tickers[symbol]
@@ -156,7 +160,7 @@ class LiveManager:
                 symbols.append(symbol)
                 self.tickers[symbol] = Ticker()
                 self.tickers[symbol].time = datetime.now()   
-                await self.fetcher.on_update_symbols(symbols,False)
+            await self.fetcher.on_update_symbols(symbols,False)
             return
 
         #########
@@ -360,37 +364,60 @@ class LiveManager:
                 await  ws_yahoo.listen(message_handler)
                 '''
                
-            #########################
-
+    #########################
+    def setSymTime(self,time):
+        logger.info(f"SET SYM TIME TO {time}")
+        self.sym_start_time = time
+        self.sym_current_time = int(_time.time())  
+    
+    def setSymSpeed(self,speed):
+        logger.info(f"SET SYM SPEED TO {speed}")
+        self.sym_speed = min(10,max(0.1,speed))
+      
     async def sym_tick_tickers(self):
                 #boot
-                sym_start_time= 9999999999999
+                self.sym_start_time= 9999999999999
                 #last_time={}
-                for symbol in self.tickers.keys():
+                for symbol,ticker in self.tickers.items():
                     df = self.fetcher.get_df(f"SELECT MIN(timestamp) FROM ib_ohlc_history WHERE timeframe='10s' and symbol='{symbol}'")
                     #print(df)
                     if len(df)>0 and df.iloc[0][0]!=None:
                         ts_start =  int(df.iloc[0][0] )
                         logger.info(f"SYMBOL TICKER BOOT {symbol} from {ts_start}") 
                         #last_time[symbol] =ts_start
-                        sym_start_time = min(sym_start_time,ts_start)
+                        self.sym_start_time = min(self.sym_start_time,ts_start)
 
-                current_time = int(_time.time())    
+                for symbol,ticker in self.tickers.items():
+                    ticker.last_close = await self.fetcher.last_close(symbol,datetime.fromtimestamp(self.sym_start_time/1000))
+                    ticker.gain = 0    
+                    ticker.symbol = symbol
+                    logger.info(f"Start ticker {ticker} last_close{ticker.last_close}")
+
+                self.sym_current_time = int(_time.time())    
               
-                logger.info(f"SYM TIME  BEGIN AT  {datetime.fromtimestamp(sym_start_time/1000).strftime('%Y-%m-%d %H:%M:%S')}") 
+                logger.info(f"SYM TIME  BEGIN AT  {datetime.fromtimestamp(self.sym_start_time/1000).strftime('%Y-%m-%d %H:%M:%S')}") 
+                if self.on_display:
+                    table = Table("Symbol", "Last", "Ask", "Bid","Last Close", "Gain","10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
+                else:
+                    table=None
 
                 while True:
                     try:
-                        delta = int(_time.time())  -current_time
-                        table = Table("Symbol", "Last","Sym", "10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
-                        #logger.info(f"SYMBOL TICKER CHECK DELTA {delta} sec")   
-                        sym_time = int((sym_start_time + delta*1000) / 1000)
-                        for symbol in self.tickers.keys():
-                            ts_check = sym_time
+                        delta = int(_time.time())  -self.sym_current_time
+                        delta = self.sym_speed * delta 
+                        
+                        self.sym_time = int((self.sym_start_time + delta*1000) / 1000)
+
+                        #logger.info(f"SYMBOL TICKER CHECK DELTA {delta} {self.sym_time}")   
+                        
+                        for symbol,ticker in self.tickers.items():
+                            
+                            ts_check = self.sym_time
                             hls = ["","","","",""]
                             i=-1
                             toSend=True
                             for interval in intervals:
+
                                 i=i+1
                                 ts = ts_check
                                 start = ts - (ts % interval)
@@ -406,11 +433,17 @@ class LiveManager:
                                     row = df.iloc[0]
                                     ts = datetime.fromtimestamp(row["timestamp"]/1000)
 
-                                    ticker = Ticker(last= row["close"], volume= int(row["base_volume"]), time=ts , ask=0, bid=0 )
+                                    if interval == 10:
+                                        ticker.last =float(row["close"])
+                                        ticker.volume= int(row["base_volume"])
+                                        ticker.time=ts
+                                        ticker.ask=0
+                                        ticker.bid=0 
+                                        ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
                                     
                                     #logger.info(f"{ts}")   
                                     data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), "v":int(row['base_volume']), "ts":int(start)*1000, "dts":start_time  }
-
+                                     
                                     pack = f"o:{row['open']:.2f} h:{row['high']:.2f} l:{row['low']:.2f} c:{row['close']:.2f} v:{row['base_volume']:.0f} ({start_time}, {time_str})"
                                     hls[i] = pack
                                     ##await add_ticker(symbol,t)
@@ -429,14 +462,15 @@ class LiveManager:
 
                                         #logger.info(f"SEND {data}")
                                         if self.ws_manager:
-                                            await self.ws_manager.broadcast({"sym":sym_time})
+                                            await self.ws_manager.broadcast({"sym":self.sym_time,"speed" : self.sym_speed})
 
                                             await self.ws_manager.broadcast(data)
 
                                     #data = sanitize(data)
-                                
-                            table.add_row(symbol, f"{ticker.last:.6f}", 
-                                        datetime.fromtimestamp(sym_time).strftime('%Y-%m-%d %H:%M:%S'),
+                                    
+                            if table:
+                                table.add_row(symbol, f"{ticker.last:.6f}", 
+                                        datetime.fromtimestamp(self.sym_time).strftime('%Y-%m-%d %H:%M:%S'),
                                         hls[0], hls[1], hls[2], hls[3])
 
                             #live_display.update(table)
@@ -447,6 +481,7 @@ class LiveManager:
 
 
     async def start_batch(self): 
+        logger.info(f"LIVE mode {self.run_mode}")
         if self.run_mode != "sym":
             if use_yahoo:
                 _tick_tickers = asyncio.create_task(self.yahoo_tick_tickers())
@@ -459,16 +494,17 @@ class LiveManager:
     
     ###########
 
-    async def bootstrap(self,run_mode):
-        if run_mode!="live":
+    async def bootstrap(self,start_scan):
+        if start_scan=="debug":
+
             symbols =  self.config["scanner"]["debug_symbols"]   
             filter = str(symbols)[1:-1]
             df_symbols = self.fetcher.get_df(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})")
                 
             await self.updateLive(df_symbols )
         else:
-            keep_last_session =  self.config["scanner"]["keep_last_session"]   
-            if keep_last_session:
+            if  start_scan== "keep_last_session":
+
                 logger.info(f"Keep last session")
                 df = self.fetcher.get_df("""SELECT * FROM ib_scanner
                     WHERE ts_exec = (
@@ -481,7 +517,7 @@ class LiveManager:
                     df = df [:max_symbols]
                     symbols =  df["symbol"].tolist()
 
-                    logger.info(f"START OLD LIVE {symbols}")
+                    logger.info(f"START LAST SESSION {symbols}")
                     filter = str(symbols)[1:-1]
 
                     df_symbols =self.fetcher.get_df(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})")

@@ -375,10 +375,12 @@ onMounted(() => {
         let pdata = await send_get("/api/props/find", {path : ""})
         //console.log(pdata)
         pdata.forEach(  (val) =>{
-            //console.log(val.path, val.value)
+            console.log("prop",val.path, val.value)
             liveStore.updatePathData(val.path, val.value);
         });
         
+        await send_get("/api/report/get")
+      
         // positions
         /*
         response = await fetch('http://127.0.0.1:2000/account/positions')

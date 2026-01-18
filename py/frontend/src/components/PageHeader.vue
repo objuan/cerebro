@@ -13,14 +13,58 @@
           <i class="bi bi-circle-fill me-1 small"></i> {{ marketStatus.label }}
         </span>
       </div>
+
+      <div class="text-end">
+             <span :class="['badge rounded-pill', symStatus.color]">
+                <i class="bi bi-circle-fill me-1 small"></i> {{ symStatus.label }}
+              </span>
+      </div>
+
+      <div class="ms-3 d-flex align-items-center gap-2">
+        <span class="fw-semibold small">Start</span>
+
+        <input
+          type="time"
+          class="form-control form-control-sm"
+          v-model="selectedSymTime"
+          :disabled="loading"
+          style="width: 110px"
+        />
+
+        <button
+          class="btn btn-sm btn-primary"
+          @click="onSetSymTime"
+          :disabled="loading || !selectedSymTime"
+        >
+          Set
+        </button>
+        <input
+            type="range"
+            class="form-range"
+            min="0"
+            max="20"
+            step="1"
+            v-model.number="symSpeed"
+            @change="onSetSymSpeed"
+            style="width: 140px"
+          />
+
+          <span class="badge bg-secondary" style="min-width: 32px">
+            {{ symSpeed }}
+          </span>
+        <span class="fw-semibold small">Speed</span>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed,ref,onMounted,watch } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
-import { formatUnixDate } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { formatUnixDate ,formatForTimeInput,mergeDateWithTime, send_mulo_get } from '@/components/js/utils.js'; // Usa il percorso corretto
+
+const selectedSymTime = ref(null);
+const symSpeed = ref(null)
 
 // Esponiamo i dati dello store al template
 const liveData = computed(() => liveStore.state.dataByPath);
@@ -43,13 +87,77 @@ const marketStatus = computed(() => {
   }
 });
 
+const symStatus = computed(() => {
+   const sym_mode = liveStore.state.dataByPath['root.sym_mode'];
+   console.log("sym_mode",sym_mode)
+   if (sym_mode)
+      return { label: 'Sym', color: 'bg-danger' };
+  else
+      return { label: 'Live', color: 'bg-success' };
+})
+
+function onSetSymTime() {
+  if (!selectedSymTime.value) return;
+  
+  const baseUnix = liveData.value['root.sym_start_time'];
+  if (!baseUnix) {
+    console.warn('root.sym_start_time mancante');
+   
+    return;
+  }
+
+  const unixTime = mergeDateWithTime(baseUnix, selectedSymTime.value);
+  if (unixTime !== baseUnix) {
+      liveStore.set('root.sym_start_time', unixTime);
+    
+      console.log('Set SYM start time:', unixTime);
+
+      send_mulo_get("/sym/time/set",{"time" : unixTime*1000})
+  }
+  
+}
+
+function onSetSymSpeed() {
+  //console.log('SYM speed:', symSpeed.value);
+  //liveStore.set('root.sym_speed', symSpeed.value);
+
+   send_mulo_get("/sym/speed/set",{"value" : symSpeed.value})
+}
+
 defineProps({
   title: {
     type: String,
     default: 'Dashboard Cerebro'
   }
 })
+
+onMounted(() => {
+
+});
+
+watch(
+  () => 
+  {
+    return liveData.value['root.sym_start_time']
+  },
+  v => {
+     
+     const date = new Date(v * 1000);
+     // console.log("sym_start_time",date)
+    if (v != null) selectedSymTime.value = formatForTimeInput(date);
+  },  { immediate: true }
+);
+
+watch(
+  () => liveData.value['root.sym_start_speed'],
+  v => {
+      //console.log("sym_speed",v)
+      symSpeed.value= v;
+  }, { immediate: true }
+);
+
 </script>
+
 
 <style scoped>
 /* Aggiungi qui eventuali personalizzazioni extra */

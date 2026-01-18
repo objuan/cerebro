@@ -51,6 +51,7 @@ class Balance:
     def __init__(self,config,ib):
         Balance.ib=ib
         Balance.positionMap={}
+        Balance.run_mode = config["database"]["scanner"].get("mode","sym") 
 
         if ib:
             Balance.ib.updatePortfolioEvent  += Balance.onUpdatePortfolio
@@ -60,12 +61,13 @@ class Balance:
 
     async def bootstrap():
         
-        positions  = Balance.ib.positions()
+        if  Balance.run_mode  != "sym":
+            positions  = Balance.ib.positions()
 
-        #list = []
-        for p in positions:
-            Balance.update(p.contract.symbol,{"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
-            #list.append({"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
+            #list = []
+            for p in positions:
+                Balance.update(p.contract.symbol,{"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
+                #list.append({"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
 
         pass 
     

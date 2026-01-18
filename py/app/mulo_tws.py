@@ -58,6 +58,7 @@ logging.getLogger("websockets").setLevel(logging.WARNING)
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
 run_mode = config["database"]["scanner"].get("mode","sym") 
+start_scan =  config["database"]["scanner"].get("start_scan","live") 
 
 fetcher = MuloJob(DB_FILE,config)
 ms = MarketService(config)          # o datetime.now()
@@ -624,6 +625,26 @@ async def open_monitor(symbol:str):
 
 ####################
 
+@app.get("/sym/time")
+async def get_sym_time():
+    return {"status": "ok", "data": live.sym_time}
+
+@app.get("/sym/speed")
+async def get_sym_speed():
+    return {"status": "ok", "data": live.sym_speed}
+
+@app.get("/sym/time/set")
+async def set_sym_time(time:int):
+    live.setSymTime(time)
+    return {"status": "ok"}
+
+@app.get("/sym/speed/set")
+async def set_sym_speed(value:float):
+    live.setSymSpeed(value)
+    return {"status": "ok"}
+
+########
+
 @app.websocket("/ws/tickers")
 async def ws_tickers(ws: WebSocket):
     print("HEADERS:", ws.headers)
@@ -663,7 +684,7 @@ async def ws_tickers(ws: WebSocket):
 async def bootstrap():
     # start live ?? 
    
-    await live.bootstrap(run_mode)
+    await live.bootstrap(start_scan)
 
     await OrderManager.bootstrap()
     await OrderTaskManager.bootstrap()

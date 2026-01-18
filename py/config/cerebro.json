@@ -33,10 +33,11 @@
 		{
 			"scanner":
 			{
-				"mode" : "live",
+				"mode" : "sym",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["NVDA"],
-				"keep_last_session" : false,
+				"start_scan" : "keep_last_session",
+				"start_scan1" : "keep_last_session|debug|live",
 				"scheduler":[
 					{
 						"name" : "TOP_PERC_GAIN",

@@ -12,9 +12,14 @@ const updatePathData = (path, data) => {
   state.dataByPath[path] = data;
   //console.log(state,path,data)
 };
-
+const set = (path, data) => {
+  
+  state.dataByPath[path] = data;
+  //console.log(state,path,data)
+};
 // Esponiamo i dati come readonly per evitare modifiche accidentali dai componenti
 export const liveStore = {
   state,//state: readonly(state),
-  updatePathData
+  updatePathData,
+  set
 };
