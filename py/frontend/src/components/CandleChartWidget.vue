@@ -1,5 +1,5 @@
 <template>
-  <div ref="container" class="grid-stack-item-content border rounded bg-dark text-white shadow-sm" >
+  <div ref="container" class="grid-stack-item-content border rounded bg-dark text-white shadow-sm chart-parent" >
     <div v-if="!props.multi_mode" class="header grid-stack-handle d-flex justify-content-between align-items-center p-2 bg-secondary bg-opacity-25 border-bottom">
       <div class="d-flex align-items-center"  >
         <span class="me-2">📈</span>
@@ -38,18 +38,18 @@
         <span>{{ currentTimeframe }}</span>
         <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
     </div>
-    <div class="position-relative flex-grow-1 p-0" style="height: calc(100%-45px ); overflow: hidden;">
+    <!---   -->
+    <div class="position-relative flex-grow-1 p-0 chart-panel">
       <div class="chart-legend-up  small" v-html="legendHtml"></div>
 
       <div ref="chartContainer" class="chart-container h-100 w-100 d-flex flex-column">
-        <div ref="mainChartRef" class="flex-grow-1 w-100">
+        <div ref="mainChartRef" class="flex-grow-1 w-100" style="height:calc(100%-100px)">
           <div class="chart-legend-left-ind  small" v-html="legendIndHtml"></div>
           <div class="chart-legend-left small"  >
                 <span class="text-white me-3">Vol: {{  formatValue(lastMainCandle?.volume) }}</span>
               </div>
         </div>
-        <div ref="volumeChartRef" style="height: 100px;" class="w-100 border-top border-secondary"></div>
-
+      
         <div class="button_bar">
           <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
             @click="setDrawMode('hline')">
@@ -109,8 +109,8 @@ import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js';
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
-  HistogramSeries, LineSeries,
-createInteractiveLineManager  } from '@pipsend/charts'; //createTradingLine
+   LineSeries, // HistogramSeries
+createInteractiveLineManager ,applyVolume } from '@pipsend/charts'; //createTradingLine
 import { eventBus } from "@/components/js/eventBus";
 
 import { formatValue,send_delete,send_get,send_mulo_get } from '@/components/js/utils.js'; // Usa il percorso corretto
@@ -130,7 +130,6 @@ const emit = defineEmits(['close', 'initialized']);
 
 // Elementi DOM e Variabili reattive
 const mainChartRef = ref(null);
-const volumeChartRef = ref(null);
 const legendHtml = ref('');
 const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
@@ -194,7 +193,7 @@ const handleRefresh = async () => {
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
     const data = await response.json();
-    console.log("response",data)
+    //console.log("response",data)
 
     if (data.length>0)
     {
@@ -435,6 +434,7 @@ const buildChart =  () => {
   });
 
   // 2. Volume Chart
+  /*
   charts.volume = createChart(volumeChartRef.value, {
     height: 100,
     layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
@@ -442,12 +442,31 @@ const buildChart =  () => {
     rightPriceScale: { borderVisible: false }
   });
 
+    
   series.volume = charts.volume.addSeries(HistogramSeries, {
     priceFormat: { type: 'volume' },
     priceScaleId: '',
     scaleMargins: { top: 0.7, bottom: 0 }
   });
- 
+  */
+  series.volume = applyVolume(series.main, charts.main, {
+      colorUp: '#26a69a',
+      colorDown: '#ef5350',
+  })
+  requestAnimationFrame(() => {
+    console.log("lllllllllllllllllllll")
+  series.volume.priceScale().applyOptions({
+    scaleMargins: {
+      top: 0.99,     // 👈 più grande = meno spazio volume
+      bottom: 0,
+    },
+      visible: false,
+  })
+ series.volume.applyOptions({
+    visible: true,
+  })
+});
+
   // Add SMA (Simple Moving Average) - appears on main chart
   //applySMA(series.main, charts.main, { period: 20, color: '#FFFF00' });
   /*
@@ -482,11 +501,11 @@ const buildChart =  () => {
   }
 
   // 4. Sincronizzazione TimeScale
-  const mainTimeScale = charts.main.timeScale();
-  const volumeTimeScale = charts.volume.timeScale();
+ // const mainTimeScale = charts.main.timeScale();
+ // const volumeTimeScale = charts.volume.timeScale();
 
-  mainTimeScale.subscribeVisibleLogicalRangeChange(range => volumeTimeScale.setVisibleLogicalRange(range));
-  volumeTimeScale.subscribeVisibleLogicalRangeChange(range => mainTimeScale.setVisibleLogicalRange(range));
+ // mainTimeScale.subscribeVisibleLogicalRangeChange(range => volumeTimeScale.setVisibleLogicalRange(range));
+ // volumeTimeScale.subscribeVisibleLogicalRangeChange(range => mainTimeScale.setVisibleLogicalRange(range));
 
   //charts.main.timeScale().subscribeVisibleTimeRangeChange(updateMarker);
  
@@ -497,7 +516,7 @@ const buildChart =  () => {
       if (!param.time || !param.seriesData.get(series.main)) {
         legendHtml.value = '';
         legendIndHtml.value = '';
-        charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
+      //  charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
         return;
       }
 
@@ -523,9 +542,11 @@ const buildChart =  () => {
       //lastMouse = data;
 
       // VOLUUME LINK
-      charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
+      
+      //charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
       const bar = series.volume.data().find(x => x.time === param.time);
       const vol = bar?.value;
+      
 
       //console.log("MOVE ",vol)
 
@@ -628,9 +649,11 @@ const resize =  () => {
     const { width, height } = container.value.getBoundingClientRect()
     console.debug("c resize ",width,height,container);
    // console.log(charts.main)
-   
-    charts.main.resize(width-10,height-100);
-    charts.volume.resize(width-10,94);
+    if (props.multi_mode)
+      charts.main.resize(width-10,height-10);
+    else
+      charts.main.resize(width-10,height-50);
+   // charts.volume.resize(width-10,94);
     handleRefresh();
 };
 
@@ -689,6 +712,18 @@ defineExpose({
 
 .timeframe{
   font-weight: 700;
+}
+.chart-parent {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.chart-panel{
+  
+  /*height: calc(100% - 45px);*/
+  flex: 1;
+  overflow: hidden;
 }
 .chart-legend-up{
   left:  50px;

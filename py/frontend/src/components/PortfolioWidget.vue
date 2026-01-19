@@ -1,67 +1,39 @@
 <template>
-  <!-- Overlay -->
-  <div
-    v-if="isOpen"
-    class="overlay"
-    @click="close"
-  ></div>
+    <div>
 
-  <!-- Side panel -->
-  <aside
-    class="panel"
-    :class="{ open: isOpen }"
-  >
-    <header class="panel-header">
-      <h2>📊 Portfolio</h2>
-      <button class="close-btn" @click="close">✕</button>
-    </header>
+      <table v-if="rows.length">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Position</th>
+            <th>Avg Cost</th>
+            <th>Market Price</th>
+            <th>Market Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in rows" :key="row.symbol">
+            <td>{{ row.symbol }}</td>
+            <td>{{ row.position }}</td>
+            <td>{{ format(row.avgCost) }}</td>
+            <td>{{ format(row.marketPrice) }}</td>
+            <td>{{ format(row.marketValue) }}</td>
+          </tr>
+        </tbody>
+      </table>
 
-    <table v-if="rows.length">
-      <thead>
-        <tr>
-          <th>Symbol</th>
-          <th>Position</th>
-          <th>Avg Cost</th>
-          <th>Market Price</th>
-          <th>Market Value</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.symbol">
-          <td>{{ row.symbol }}</td>
-          <td>{{ row.position }}</td>
-          <td>{{ format(row.avgCost) }}</td>
-          <td>{{ format(row.marketPrice) }}</td>
-          <td>{{ format(row.marketValue) }}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p v-else class="empty">Nessuna posizione</p>
-  </aside>
+      <p v-else class="empty">Nessuna posizione</p>
+  </div>
 </template>
 
 <script setup>
-import { reactive, computed, ref,onMounted,onBeforeUnmount } from "vue";
+import { reactive, computed, onMounted,onBeforeUnmount } from "vue";
 import { eventBus } from "@/components/js/eventBus";
 import { send_mulo_get } from "@/components/js/utils";
-
-const isOpen = ref(false);
 
 const portfolio = reactive({});
 
 /* ====== API pubblica ====== */
-function open() {
-  isOpen.value = true;
-}
-
-function close() {
-  isOpen.value = false;
-}
-
-function toggle() {
-  isOpen.value = !isOpen.value;
-}
 
 function handleMessage(msg) {
   try {
@@ -96,9 +68,6 @@ function handleMessage(msg) {
 }
 
 defineExpose({
-  open,
-  close,
-  toggle,
   handleMessage,
 });
 

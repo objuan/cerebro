@@ -8,6 +8,8 @@
         <div class="fw-bold">Max DayLoss {{ liveData['trade.max_day_loss'] }}</div>
         <div class="fw-bold">Trade DayLoss {{ liveData['trade.risk_per_trade'] }}</div>
 
+    </div>
+    <div class="card-body p-2 d-flex justify-content-between align-items-center">
         <div class="fw-bold d-flex align-items-center gap-1">
           Trade Risk
           <input

@@ -37,14 +37,14 @@
     <div class="trade_console p-0">
         <TradeConsole :symbol=symbol  ></TradeConsole> 
     </div>
-    <div class="position-relative p-0 charts-grid"  style="height: calc(100% - 85px); overflow: hidden;" >
+    <div class="position-relative p-0 charts-grid"  style="height: calc(100% - 120px); overflow: hidden;" >
      
         <div v-if="currentMode!=''" style="height:100%" >
           <div class="multi-chart-container"  style="height:100%" >
             <div ref="chartContainer1" class="chart-container cell">
               <CandleChartWidget style="width:100%;height:100%"
-                :id="chart_all"
-                :ref="el => widgetRefs['chart_all'] = el"
+                id="_chart_all"
+                :ref="el => widgetRefs['_chart_all'] = el"
                 :symbol="currentSymbol"
                 :timeframe=currentMode
                 :multi_mode=false
@@ -59,8 +59,8 @@
         <div class="multi-chart-container grid-2x2">
             <div ref="chartContainer1" class="chart-container cell">
               <CandleChartWidget style="width:100%;height:100%"
-                id="chart_1"
-                :ref="el => widgetRefs['chart_1'] = el"
+                id="_chart_1"
+                :ref="el => widgetRefs['_chart_1'] = el"
                 :symbol="currentSymbol"
                 timeframe="5m"
                 :multi_mode=true
@@ -70,8 +70,8 @@
 
             <div ref="chartContainer2" class="chart-container cell">
               <CandleChartWidget style="width:100%;height:100%"
-                id="chart_2"
-                :ref="el => widgetRefs['chart_2'] = el"
+                id="_chart_2"
+                :ref="el => widgetRefs['_chart_2'] = el"
                 :symbol="currentSymbol"
                 timeframe="1m"
                 :multi_mode=true
@@ -81,8 +81,8 @@
         
             <div ref="chartContainer3" class="chart-container cell">
               <CandleChartWidget style="width:100%;height:100%"
-                id="chart_3"
-                :ref="el => widgetRefs['chart_3'] = el"
+                id="_chart_3"
+                :ref="el => widgetRefs['_chart_3'] = el"
                 :symbol="currentSymbol"
                 timeframe="1d"
                 :multi_mode=true
@@ -92,8 +92,8 @@
 
             <div ref="chartContainer4" class="chart-container cell">
             <CandleChartWidget style="width:100%;height:100%"
-                id="chart_4"
-                :ref="el => widgetRefs['chart_4'] = el"
+                id="_chart_4"
+                :ref="el => widgetRefs['_chart_4'] = el"
                 :symbol="currentSymbol"
                 timeframe="10s"
                 :multi_mode=true
@@ -119,7 +119,7 @@ const props = defineProps({
   id: { type: String, required: true },
   symbol: { type: String, required: true },
   timeframe_multi: { type: String, required: false,default:"10s,1m,5m,1d" },
-  //timeframe: { type: String, required: false ,default:"10s"},
+  timeframe: { type: String, required: false ,default:"10s"},
   plot_config: { type: Object, default: () => ({ main_plot: {} }) }
 });
 
@@ -149,16 +149,16 @@ const timeframes = computed(() =>
 );
 
 const handleSymbols = async () => {
-  console.log("handleSymbols",widgetRefs.value["chart_1"])
+  console.log("handleSymbols",widgetRefs.value["_chart_1"])
   if (currentMode.value?.trim() =="")
   {
-    widgetRefs.value["chart_1"].setSymbol(currentSymbol.value);
-    widgetRefs.value["chart_2"].setSymbol(currentSymbol.value);
-    widgetRefs.value["chart_3"].setSymbol(currentSymbol.value);
-    widgetRefs.value["chart_4"].setSymbol(currentSymbol.value);
+    widgetRefs.value["_chart_1"].setSymbol(currentSymbol.value);
+    widgetRefs.value["_chart_2"].setSymbol(currentSymbol.value);
+    widgetRefs.value["_chart_3"].setSymbol(currentSymbol.value);
+    widgetRefs.value["_chart_4"].setSymbol(currentSymbol.value);
   }
   else
-    widgetRefs.value["chart_all"].setSymbol(currentSymbol.value);
+    widgetRefs.value["_chart_all"].setSymbol(currentSymbol.value);
 };
 
 
@@ -220,13 +220,13 @@ const resize =  () => {
     if (currentMode.value?.trim() =="")
     {
       //console.log("lll",widgetRefs.value["chart_1"])
-      if (widgetRefs.value["chart_1"])   widgetRefs.value["chart_1"].resize();
-      if (widgetRefs.value["chart_2"])  widgetRefs.value["chart_2"].resize();
-      if (widgetRefs.value["chart_3"])  widgetRefs.value["chart_3"].resize();
-      if (widgetRefs.value["chart_4"])  widgetRefs.value["chart_4"].resize();
+      if (widgetRefs.value["_chart_1"])   widgetRefs.value["_chart_1"].resize();
+      if (widgetRefs.value["_chart_2"])  widgetRefs.value["_chart_2"].resize();
+      if (widgetRefs.value["_chart_3"])  widgetRefs.value["_chart_3"].resize();
+      if (widgetRefs.value["_chart_4"])  widgetRefs.value["_chart_4"].resize();
     }
     else
-        if (widgetRefs.value["chart_all"])   widgetRefs.value["chart_all"].resize();
+        if (widgetRefs.value["_chart_all"])   widgetRefs.value["_chart_all"].resize();
 
 };
 
@@ -242,13 +242,13 @@ function on_candle(msg)
   if (currentMode.value  != "" && currentMode.value  == msg ["tf"])
   {
         //console.log("MultiCandleChartWidget on_candle",msg) 
-        widgetRefs.value['chart_all']?.on_candle(msg);  
+        widgetRefs.value['_chart_all']?.on_candle(msg);  
   }
   else{
-      widgetRefs.value['chart_1']?.on_candle(msg);  
-      widgetRefs.value['chart_2']?.on_candle(msg);  
-      widgetRefs.value['chart_3']?.on_candle(msg);  
-      widgetRefs.value['chart_4']?.on_candle(msg);  
+      widgetRefs.value['_chart_1']?.on_candle(msg);  
+      widgetRefs.value['_chart_2']?.on_candle(msg);  
+      widgetRefs.value['_chart_3']?.on_candle(msg);  
+      widgetRefs.value['_chart_4']?.on_candle(msg);  
   }
 }
 function onTickerReceived(msg)
@@ -346,7 +346,7 @@ defineExpose({
   align-self: flex-end;
 }
 .trade_console{
-  min-height: 40px;
+  height: 80px;
   border: #0077ff solid    ;
   border-width: 1;
 }

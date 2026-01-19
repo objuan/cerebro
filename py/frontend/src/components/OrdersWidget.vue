@@ -1,18 +1,6 @@
 <template>
-  <div>
-    <!-- Overlay -->
-    <div
-      v-if="open"
-      class="overlay"
-      @click="toggle()"
-    />
 
-    <!-- Panel -->
-    <aside :class="['panel', { open }]">
-      <header>
-        <h2>📑 Orders</h2>
-        <button @click="toggle()">✖</button>
-      </header>
+   <div>
 
       <div class="filters">
           <button
@@ -82,8 +70,8 @@
 
         <p v-else class="empty">Nessun ordine</p>
       </div>
-    </aside>
-  </div>
+   </div>
+  
 </template>
 
 <script setup>
@@ -91,7 +79,6 @@ import { reactive, ref, computed,onMounted,onBeforeUnmount } from "vue";
 import { eventBus } from "@/components/js/eventBus";
 
 const viewMode = ref("orders"); 
-const open = ref(false);
 const expanded = ref(null);
 const ordersMap = reactive({});
 const task_ordersList = reactive([]);
@@ -115,10 +102,6 @@ const visibleOrders = computed(() => {
 });
 
 /* ===== PUBLIC API ===== */
-
-function toggle() {
-  open.value = !open.value;
-}
 
 function onOrderReceived(msg) {
   try {
@@ -145,7 +128,6 @@ function onTaskOrderReceived(msg) {
   }
 }
 
-defineExpose({ toggle });
 
 /* ===== HELPERS ===== */
 /*

@@ -1,8 +1,7 @@
 <template>
   <div class="home">
     <PageHeader title="Cerebro V0.1"/>
-    <ReportPanel :report="report"></ReportPanel>
-
+ 
     <div class="layout">
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -18,6 +17,14 @@
           <button class="sidebar-btn"
               @click="ordersRef.toggle()"
                title="Orders">📑 Orders</button>
+
+          <button class="sidebar-btn"
+              @click="reportsRef.toggle()"
+               title="GAP">📑 GAP</button>
+
+          <button class="sidebar-btn"
+              @click="tradeRef.toggle()"
+               title="Trade">📑 Trade</button>
         </aside>
 
         <!-- Main content -->
@@ -26,18 +33,31 @@
         </main>
 
         <!-- Side panel -->
-        <PortfolioWidget ref="portfolioRef" />
+        <SidePanel title="Portfolio" ref ="portfolioRef">
+            <PortfolioWidget  />
+        </SidePanel>
 
-        <OrdersWidget ref="ordersRef" />
+        <SidePanel title="Orders" ref ="ordersRef">
+            <OrdersWidget/>
+        </SidePanel>
+
+        <SidePanel title="GAP" ref ="reportsRef" width="600px">
+            <ReportPanel ></ReportPanel>
+        </SidePanel>
+
+         <SidePanel title="Trade" ref ="tradeRef" width="600px">
+             <trade-config></trade-config>
+        </SidePanel>
+
 
       </div>
 
-    <main class="container">
+    <main class="two-columns">
+      
+      <div>
+        <TickersSummary ref="tickets_summary"></TickersSummary>
+      </div>
 
-      <trade-config></trade-config>
-      <TickersSummary ref="tickets_summary"></TickersSummary>
-
-    
       <div class="grid-stack">
         <div 
           v-for="w in widgetList" 
@@ -88,11 +108,14 @@ import CandleChartWidget from '@/components/CandleChartWidget.vue';
 import MultiCandleChartWidget from '@/components/MultiCandleChartWidget.vue';
 import { send_get } from '@/components/js/utils';
 import { eventBus } from "@/components/js/eventBus";
+import SidePanel from '@/components/SidePanel.vue';
 
 // --- STATO REATTIVO ---
 
 const portfolioRef = ref(null);
 const ordersRef = ref(null);
+const reportsRef= ref(null);
+const tradeRef= ref(null);
 
 const showPopup = ref(false);
 const symbolsList = ref([]);
@@ -159,7 +182,7 @@ const initWebSocket = () => {
   ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 
   ws.onmessage = (event) => {
-    console.log(">>",event.data)
+    //console.log(">>",event.data)
     const msg = JSON.parse(event.data);
 
     if (msg.path) {
@@ -388,7 +411,7 @@ onMounted(() => {
         let pdata = await send_get("/api/props/find", {path : ""})
         //console.log(pdata)
         pdata.forEach(  (val) =>{
-            console.log("prop",val.path, val.value)
+            //console.log("prop",val.path, val.value)
             liveStore.updatePathData(val.path, val.value);
         });
         
@@ -504,13 +527,7 @@ onUnmounted(() => {
 
 <style scoped>
 .dashboard-container { position: relative; width: 100%; height: 100vh; }
-.custom-popup {
-  position: fixed; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  border: 1px solid #ccc; padding: 20px;
-  z-index: 1000; background: white;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
+
 .grid-stack { background: #f4f4f4; min-height: 500px; }
 :deep(.grid-stack-item-content) { background: white; border: 1px solid #ddd; }
 
@@ -560,4 +577,18 @@ onUnmounted(() => {
   overflow: auto;
 }
 
+.two-columns {
+  display: grid;
+  grid-template-columns: 160px 1fr; /* sinistra fissa, destra fluida */
+  gap: 1rem;
+
+  height: 100vh;
+  margin-left:  68px;
+
+}
+
+/* opzionale: scrolling indipendente */
+.two-columns > * {
+  min-height: 0;
+}
 </style>
