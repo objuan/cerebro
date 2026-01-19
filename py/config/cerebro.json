@@ -101,7 +101,7 @@
 			{
 				"ib_port" : 7497,
 				"enabled" : true,
-				"max_symbols" :10,
+				"max_symbols" :2,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8
 			}

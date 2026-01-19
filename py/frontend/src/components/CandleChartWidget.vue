@@ -49,7 +49,9 @@
                 <span class="text-white me-3">Vol: {{  formatValue(lastMainCandle?.volume) }}</span>
               </div>
         </div>
-      
+
+        <div ref="volumeChartRef" style="height: 100px;" class="w-100 border-top border-secondary"></div>
+
         <div class="button_bar">
           <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
             @click="setDrawMode('hline')">
@@ -109,8 +111,8 @@ import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js';
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
-   LineSeries, // HistogramSeries
-createInteractiveLineManager ,applyVolume } from '@pipsend/charts'; //createTradingLine
+   LineSeries, HistogramSeries,
+createInteractiveLineManager } from '@pipsend/charts'; //createTradingLine
 import { eventBus } from "@/components/js/eventBus";
 
 import { formatValue,send_delete,send_get,send_mulo_get } from '@/components/js/utils.js'; // Usa il percorso corretto
@@ -130,6 +132,7 @@ const emit = defineEmits(['close', 'initialized']);
 
 // Elementi DOM e Variabili reattive
 const mainChartRef = ref(null);
+const volumeChartRef = ref(null);
 const legendHtml = ref('');
 const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
@@ -434,7 +437,7 @@ const buildChart =  () => {
   });
 
   // 2. Volume Chart
-  /*
+  
   charts.volume = createChart(volumeChartRef.value, {
     height: 100,
     layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
@@ -442,30 +445,13 @@ const buildChart =  () => {
     rightPriceScale: { borderVisible: false }
   });
 
-    
+
   series.volume = charts.volume.addSeries(HistogramSeries, {
     priceFormat: { type: 'volume' },
     priceScaleId: '',
     scaleMargins: { top: 0.7, bottom: 0 }
   });
-  */
-  series.volume = applyVolume(series.main, charts.main, {
-      colorUp: '#26a69a',
-      colorDown: '#ef5350',
-  })
-  requestAnimationFrame(() => {
-    console.log("lllllllllllllllllllll")
-  series.volume.priceScale().applyOptions({
-    scaleMargins: {
-      top: 0.99,     // 👈 più grande = meno spazio volume
-      bottom: 0,
-    },
-      visible: false,
-  })
- series.volume.applyOptions({
-    visible: true,
-  })
-});
+  
 
   // Add SMA (Simple Moving Average) - appears on main chart
   //applySMA(series.main, charts.main, { period: 20, color: '#FFFF00' });
@@ -501,11 +487,11 @@ const buildChart =  () => {
   }
 
   // 4. Sincronizzazione TimeScale
- // const mainTimeScale = charts.main.timeScale();
- // const volumeTimeScale = charts.volume.timeScale();
+  const mainTimeScale = charts.main.timeScale();
+  const volumeTimeScale = charts.volume.timeScale();
 
- // mainTimeScale.subscribeVisibleLogicalRangeChange(range => volumeTimeScale.setVisibleLogicalRange(range));
- // volumeTimeScale.subscribeVisibleLogicalRangeChange(range => mainTimeScale.setVisibleLogicalRange(range));
+  mainTimeScale.subscribeVisibleLogicalRangeChange(range => volumeTimeScale.setVisibleLogicalRange(range));
+  volumeTimeScale.subscribeVisibleLogicalRangeChange(range => mainTimeScale.setVisibleLogicalRange(range));
 
   //charts.main.timeScale().subscribeVisibleTimeRangeChange(updateMarker);
  
@@ -516,7 +502,7 @@ const buildChart =  () => {
       if (!param.time || !param.seriesData.get(series.main)) {
         legendHtml.value = '';
         legendIndHtml.value = '';
-      //  charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
+        charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
         return;
       }
 
@@ -543,7 +529,7 @@ const buildChart =  () => {
 
       // VOLUUME LINK
       
-      //charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
+      charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
       const bar = series.volume.data().find(x => x.time === param.time);
       const vol = bar?.value;
       
@@ -642,7 +628,6 @@ const buildChart =  () => {
 
 };
 
-
 // =========================
 
 const resize =  () => {
@@ -650,10 +635,15 @@ const resize =  () => {
     console.debug("c resize ",width,height,container);
    // console.log(charts.main)
     if (props.multi_mode)
-      charts.main.resize(width-10,height-10);
+    {
+      charts.main.resize(width-10,height-110);
+      charts.volume.resize(width-10,94);
+    }
     else
-      charts.main.resize(width-10,height-50);
-   // charts.volume.resize(width-10,94);
+    {
+      charts.main.resize(width-10,height-150);
+      charts.volume.resize(width-10,94);
+    }
     handleRefresh();
 };
 

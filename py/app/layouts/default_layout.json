@@ -4,10 +4,10 @@
             "id": "chart_1",
             "type": "comp",
             "rect": {
-                "h": 7,
+                "h": 6,
                 "x": 0,
                 "y": 0,
-                "w": 10
+                "w": 9
             },
             "update_time_secs": 60,
             "widget": {

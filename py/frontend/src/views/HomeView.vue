@@ -41,7 +41,7 @@
             <OrdersWidget/>
         </SidePanel>
 
-        <SidePanel title="GAP" ref ="reportsRef" width="600px">
+        <SidePanel title="GAP" ref ="reportsRef" width="700px">
             <ReportPanel ></ReportPanel>
         </SidePanel>
 
@@ -218,6 +218,12 @@ const initWebSocket = () => {
         {
          // console.log("Report\\\\",msg.data);
            eventBus.emit("report-received", msg.data);
+       }
+        break;
+      case "event":
+        {
+          console.log("event",msg.name,msg.data);
+           eventBus.emit("event-received",msg.name, msg.data);
        }
         break;
       case "del":

@@ -149,7 +149,7 @@ function patchReport(incoming) {
 }
 
 function onReportReceived(data){
-  console.log("onReportReceived",data)
+  //console.log("onReportReceived",data)
   patchReport(data)
 }
 

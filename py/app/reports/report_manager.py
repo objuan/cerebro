@@ -42,8 +42,13 @@ class ReportManager:
         self.scheduler.schedule_every(shapshot_time,self.take_snapshot, key= "10m")
         self.df_report =None
         self.shapshot_history =  deque(maxlen=100)
-
+        # events
+        self.on_snapshot_10m = MyEvent()
+     
         #self.fill()
+    def getLastDF(self):
+        return self.shapshot_history[-1]
+    
     async def bootstrap(self):
          symbols = await self.job.send_cmd("symbols")
          await self.on_update_symbols(symbols )
@@ -59,13 +64,16 @@ class ReportManager:
         return f"{self.gain_time_min} m"
 
     async def take_snapshot(self,key:str):
-        logger.info(f"take_snapshot {key}")
+        #logger.info(f"take_snapshot {key} {len(self.shapshot_history)} ")
 
-        diff = self.make_diff(self.df_report,self.shapshot_history[-1] )
+        #diff = self.make_diff(self.df_report,self.shapshot_history[-1] )
         
-        logger.info(f"take_snapshot diff \n{diff}")
+        #logger.info(f"take_snapshot diff \n{diff}")
 
         self.shapshot_history.append(self.df_report)
+        if len(self.shapshot_history)>=2:
+            #logger.info(f"send  {self.on_snapshot_10m._handlers }")
+            await self.on_snapshot_10m(self.shapshot_history[-2],self.shapshot_history[-1])
 
     def py_value(self,v):
         if hasattr(v, "item"):

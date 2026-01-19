@@ -24,6 +24,7 @@ from utils import *
 from layout import *
 from mulo_client import MuloClient
 from trade_manager import TradeManager
+from reports.event_manager import EventManager
 
 #if sys.platform == 'win32':
     #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -111,6 +112,7 @@ client = MuloClient("../"+DB_FILE,config,propManager)
 
 db = DBDataframe(config,client)
 report = ReportManager(config,client,db)
+event_manager = EventManager(report)
 
 
 tradeManager = TradeManager(config,client,propManager)
@@ -151,7 +153,7 @@ async def lifespan(app: FastAPI):
         job_db=None
         live_task=None
         report_task=None
-
+        evt_task=None
         def on_job_started():
             global job_db
             global live_task
@@ -159,6 +161,7 @@ async def lifespan(app: FastAPI):
             job_db=  asyncio.create_task(db.bootstrap())
             live_task = asyncio.create_task(live_loop())
             report_task = asyncio.create_task(report.bootstrap())
+            evt_task = asyncio.create_task(event_manager.bootstrap())
           
         job_task = asyncio.create_task(client.bootstrap(on_job_started))
         
@@ -178,6 +181,7 @@ async def lifespan(app: FastAPI):
         job_db.cancel()
         live_task.cancel()
         report_task.cancel()
+        evt_task.cancel()
         #thread_h.cancel()
 
 app = FastAPI(lifespan=lifespan)
@@ -446,6 +450,8 @@ def delete_trade_marker(payload: dict  ):
 ws_manager = WSManager()
 
 render_page = RenderPage(ws_manager)
+
+event_manager.render_page=render_page
 layout = Layout(client,db,config)
 layout.read(DEF_LAYOUT)
 layout.set_render_page(render_page)   
@@ -533,6 +539,8 @@ async def live_loop():
 
             await report.tick(render_page)
                 
+            await event_manager.tick(render_page)
+            
             await layout.tick(render_page)
             
         except:

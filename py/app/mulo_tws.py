@@ -42,7 +42,7 @@ from mulo_scanner import Scanner
 from mulo_live import LiveManager
 
 use_yahoo=False
-use_display = False
+use_display = True
 
 DB_TABLE = "ib_ohlc_live"
 

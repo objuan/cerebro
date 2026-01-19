@@ -220,19 +220,21 @@ class LiveManager:
 
             del  self.tickers[symbol]
             
-        #logger.info(f"tickers {self.tickers}")
+        logger.info(f"tickers {self.tickers}")
 
         ###
         
         #offline_mode =  self.run_mode=="offline" #:#config["database"]["scanner"]["offline_mode"]
         symbols=[]
         for symbol, ticker  in self.tickers.items():
-            if (ticker.time  and  not math.isnan(ticker.last)) or self.run_mode=="offline":
+            #if (ticker.time  and  not math.isnan(ticker.last)) or self.run_mode=="offline":
+            if (ticker.time  ) or self.run_mode=="offline":
                 symbols.append(symbol)
 
         await self.fetcher.on_update_symbols(symbols,True)
 
-        await self.ws_manager.broadcast({"evt":"on_update_symbols"})
+        if self.ws_manager:
+            await self.ws_manager.broadcast({"evt":"on_update_symbols"})
         
 
     ##########################################################
@@ -254,76 +256,80 @@ class LiveManager:
                 while self.ticker_history[symbol] and self.ticker_history[symbol][0][0] < ts - 300:
                     self.ticker_history[symbol].popleft()
 
+                #logger.info(f" onTicker{ticker}")
+
                 ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
+                hls=None
+                if not math.isnan(ticker.gain):
 
-                await OrderTaskManager.onTicker(symbol,ticker.last)
-                
-                '''
-                if not symbol in self.ticker_map:
-                     self.ticker_map[symbol] ={}
-                tick = self.ticker_map[symbol]
-                tick["last"] = ticker.last
-                tick["ask"] = ticker.ask
-                tick["bid"] = ticker.bid
-                tick["volume"] = ticker.volume
-                tick["ts"] = ts
-                '''
-
-                # Compute OHLC for each interval
-                hls = []
-                toSend=True
-                for interval in intervals:
-                    start = ts - (ts % interval)
-                    start_time = datetime.fromtimestamp(start).strftime("%H:%M:%S")
-
-                    prices = [p for t, p, v in self.ticker_history[symbol] if t >= start]
-                    volumes = [v for t, p, v in self.ticker_history[symbol] if t >= start]
+                    await OrderTaskManager.onTicker(symbol,ticker.last)
                     
-                    remaining = interval - (ts % interval)
-                    time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
-                    
-                    vol_diff = volumes[-1] - volumes[0] if len(volumes) >= 2 else 0#(volumes[0] if volumes else 0)
-                    if not use_yahoo: 
-                        vol_diff=vol_diff*100
-                    if prices:
-                        open_p = prices[0]
-                        close_p = prices[-1]
-                        high = max(prices)
-                        low = min(prices)
-                        data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":int(start)*1000, "dts":start_time  }
+                    '''
+                    if not symbol in self.ticker_map:
+                        self.ticker_map[symbol] ={}
+                    tick = self.ticker_map[symbol]
+                    tick["last"] = ticker.last
+                    tick["ask"] = ticker.ask
+                    tick["bid"] = ticker.bid
+                    tick["volume"] = ticker.volume
+                    tick["ts"] = ts
+                    '''
 
-                        pack = f"o:{open_p:.2f} h:{high:.2f} l:{low:.2f} c:{close_p:.2f} v:{vol_diff:.0f} ({start_time}, {time_str})"
-                    else:
-                        pack = f"- ({start_time}, {time_str})"
+                    # Compute OHLC for each interval
+                    hls = []
+                    toSend=True
+                    for interval in intervals:
+                        start = ts - (ts % interval)
+                        start_time = datetime.fromtimestamp(start).strftime("%H:%M:%S")
 
-                    key = symbol+str(interval)
+                        prices = [p for t, p, v in self.ticker_history[symbol] if t >= start]
+                        volumes = [v for t, p, v in self.ticker_history[symbol] if t >= start]
+                        
+                        remaining = interval - (ts % interval)
+                        time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
+                        
+                        vol_diff = volumes[-1] - volumes[0] if len(volumes) >= 2 else 0#(volumes[0] if volumes else 0)
+                        if not use_yahoo: 
+                            vol_diff=vol_diff*100
+                        if prices:
+                            open_p = prices[0]
+                            close_p = prices[-1]
+                            high = max(prices)
+                            low = min(prices)
+                            data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":int(start)*1000, "dts":start_time  }
 
-                    if prices:
-                        if key in self.live_send_key:
-                            toSend = self.live_send_key[key] != pack
+                            pack = f"o:{open_p:.2f} h:{high:.2f} l:{low:.2f} c:{close_p:.2f} v:{vol_diff:.0f} ({start_time}, {time_str})"
+                        else:
+                            pack = f"- ({start_time}, {time_str})"
 
-                        if toSend:
-                            self.live_send_key[key]=pack
+                        key = symbol+str(interval)
 
-                            data["bid"]=ticker.bid
-                            data["ask"]=ticker.ask  
-                            if not use_yahoo: 
-                                data["day_v"]=ticker.volume*100
-                            else:
-                                data["day_v"]=ticker.volume
-                            #logger.info(f"SEND {data}")
-                            # TO DB
-                            await self.fetcher.db_updateTicker(data)
-                            # TO WS
-                            if self.ws_manager:
-                                await self.ws_manager.broadcast(data)
+                        if prices:
+                            if key in self.live_send_key:
+                                toSend = self.live_send_key[key] != pack
 
-                    hls.append(pack)
+                            if toSend:
+                                self.live_send_key[key]=pack
+
+                                data["bid"]=ticker.bid
+                                data["ask"]=ticker.ask  
+                                if not use_yahoo: 
+                                    data["day_v"]=ticker.volume*100
+                                else:
+                                    data["day_v"]=ticker.volume
+                                #logger.info(f"SEND {data}")
+                                # TO DB
+                                await self.fetcher.db_updateTicker(data)
+                                # TO WS
+                                if self.ws_manager:
+                                    await self.ws_manager.broadcast(data)
+
+                        hls.append(pack)
 
                 data = sanitize(data)
                 #data.append({"symbol": symbol, "last": ticker.last, "bid": ticker.bid, "ask": ticker.ask, "low": ticker.low, "high": ticker.high, "volume": ticker.volume*100, "ts": ticker.time.timestamp()})
                 
-                if self.on_display:
+                if self.on_display and hls:
                     table.add_row(symbol, f"{ticker.last:.6f}", f"{ticker.ask:.6f}", f"{ticker.bid:.6f}",
                                    f"{ticker.last_close:.6f}", f"{ticker.gain:.1f}%",hls[0], hls[1], hls[2], hls[3])           
                     #live_display.update(table)
@@ -338,10 +344,11 @@ class LiveManager:
                             table = Table("Symbol", "Last", "Ask", "Bid","Last Close", "Gain","10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
                         else:
                              table=None
-               
+
+                        #logger.info(f" ordered_tickers{self.ordered_tickers()}")
                         #for symbol, ticker in self.tickers.items():
                         for ticker in self.ordered_tickers():
-                            if ticker.time and not math.isnan(ticker.last):
+                            if ticker.time :#and not math.isnan(ticker.last):
                                 await self.add_ticker(ticker.symbol,ticker,table)
 
                         if self.on_display:

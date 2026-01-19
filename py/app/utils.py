@@ -258,8 +258,16 @@ class MyEvent:
             handler(*args, **kwargs)
     '''
 
-    async def __call__(self, *args, **kwargs):
+    def callSync(self, *args, **kwargs):
+        
         for handler in self._handlers:
+            
+            handler(*args, **kwargs)
+
+    async def __call__(self, *args, **kwargs):
+        
+        for handler in self._handlers:
+            
             if inspect.iscoroutinefunction(handler):
                 await handler(*args, **kwargs)
             else:
