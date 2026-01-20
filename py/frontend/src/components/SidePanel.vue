@@ -96,6 +96,22 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
+.panel-content {
+  flex-grow: 1;       /* Occupa lo spazio rimanente sotto l'header */
+  overflow-y: auto;    /* Attiva lo scroll verticale se il contenuto eccede */
+  overflow-x: hidden;  /* Evita scroll orizzontali fastidiosi */
+  padding-right: 5px;  /* Spazio opzionale per non appiccicare il testo alla barra */
+}
+
+/* Opzionale: Rendi la scrollbar più sottile e moderna */
+.panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+.panel-content::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 10px;
+}
+
 .panel.open {
   right: 0;
 }

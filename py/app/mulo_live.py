@@ -531,6 +531,8 @@ class LiveManager:
                     df_symbols =self.fetcher.get_df(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})")
                     
                     await self.updateLive(df_symbols )
+                else:
+                    logger.error("COULD NOT FOUND SCANNER LAST")
             else:
                 sched_data = self.config["scanner"]["scheduler"]
                 scheduler_add = next(

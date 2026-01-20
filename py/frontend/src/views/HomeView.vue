@@ -23,6 +23,11 @@
                title="GAP">📑 GAP</button>
 
           <button class="sidebar-btn"
+              @click="eventsRef.toggle()"
+               title="Events">📑 Events</button>
+
+
+          <button class="sidebar-btn"
               @click="tradeRef.toggle()"
                title="Trade">📑 Trade</button>
         </aside>
@@ -41,11 +46,15 @@
             <OrdersWidget/>
         </SidePanel>
 
-        <SidePanel title="GAP" ref ="reportsRef" width="700px">
+        <SidePanel title="GAP" ref ="reportsRef" width="800px">
             <ReportPanel ></ReportPanel>
         </SidePanel>
 
-         <SidePanel title="Trade" ref ="tradeRef" width="600px">
+         <SidePanel title="Events" ref ="eventsRef" width="800px">
+            <ReportPanel mode="event" ></ReportPanel>
+         </SidePanel>
+
+         <SidePanel title="Trade" ref ="tradeRef" width="800px">
              <trade-config></trade-config>
         </SidePanel>
 
@@ -115,6 +124,7 @@ import SidePanel from '@/components/SidePanel.vue';
 const portfolioRef = ref(null);
 const ordersRef = ref(null);
 const reportsRef= ref(null);
+const eventsRef= ref(null);
 const tradeRef= ref(null);
 
 const showPopup = ref(false);
@@ -222,8 +232,20 @@ const initWebSocket = () => {
         break;
       case "event":
         {
-          console.log("event",msg.name,msg.data);
-           eventBus.emit("event-received",msg.name, msg.data);
+           console.log("event",msg.data);
+           eventBus.emit("event-received",msg.data);
+       }
+        break;
+       case "events":
+        {
+           //let d = JSON.parse(msg.data)
+           console.log("events",msg.data);
+           msg.data.forEach( (v)=>
+           {
+               eventBus.emit("event-received",v);
+           });
+           
+           //eventBus.emit("event-received",msg.data);
        }
         break;
       case "del":
@@ -422,6 +444,7 @@ onMounted(() => {
         });
         
         await send_get("/api/report/get")
+        await send_get("/api/event/get")
       
         // positions
         /*

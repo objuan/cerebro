@@ -9,11 +9,26 @@ export const formatUnixDate = (unixTime) => {
   return date.toLocaleString(); // Formato locale: dd/mm/yyyy, hh:mm:ss
 };
 
+export const formatUnixTimeOnly = (unixTime) => {
+  if (!unixTime) return '...';
+  
+  // Gestione secondi vs millisecondi
+  const date = new Date(unixTime < 10000000000 ? unixTime * 1000 : unixTime);
+  
+  // Restituisce solo l'ora nel formato locale (es. 14:30:15)
+  return date.toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit',
+    hour12: false // Forza il formato 24 ore
+  });
+};
+
 export function lerp(a, b, f) {
     return a + (b - a) * f;
 }
 
-export  function interpolateColor(start, end, f) {
+export  function interpolateColor(start, end, f,a) {
   
     const s = start.match(/\w\w/g).map(x => parseInt(x, 16));
     const e = end.match(/\w\w/g).map(x => parseInt(x, 16));
@@ -22,7 +37,7 @@ export  function interpolateColor(start, end, f) {
     const g = Math.round(lerp(s[1], e[1], f));
     const b = Math.round(lerp(s[2], e[2], f));
 
-    return `rgb(${r}, ${g}, ${b})`;
+    return `rgba(${r}, ${g}, ${b},${a})`;
 }
 
 export function scaleColor(value, min, max) {

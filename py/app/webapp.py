@@ -493,6 +493,15 @@ async def get_report():
     await report.send_current(render_page)
     return {"status": "ok"}
 
+@app.get("/api/event/get")
+async def get_report():
+    try:
+        await event_manager.send_current(render_page)
+        return {"status": "ok"}
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error"}
+
 ###################################
 
 @app.websocket("/ws/live")

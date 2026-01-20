@@ -98,10 +98,6 @@ cur.execute("""
 
 
 cur.execute("""
-    DROP TABLE IF EXISTS ib_scanner
-    """)
-
-cur.execute("""
        CREATE TABLE IF NOT EXISTS ib_scanner (
         mode TEXT,
         ts_exec  INTEGER,
@@ -175,3 +171,13 @@ CREATE TABLE IF NOT EXISTS trade_marker (
     data TEXT NOT NULL
 )
 """)
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS  events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    name VARCHAR(255),
+    symbol VARCHAR(20),
+    data TEXT
+);
+            """)

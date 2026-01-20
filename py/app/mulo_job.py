@@ -497,3 +497,9 @@ class MuloJob:
         conn.close()
         return df
     
+    def get_disct(self,query, params=()):
+        conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, conn, params=params)
+        conn.close()
+        return df
+    

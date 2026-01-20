@@ -66,9 +66,9 @@ class ReportManager:
     async def take_snapshot(self,key:str):
         #logger.info(f"take_snapshot {key} {len(self.shapshot_history)} ")
 
-        #diff = self.make_diff(self.df_report,self.shapshot_history[-1] )
+        diff = self.make_diff(self.df_report,self.shapshot_history[-1] )
         
-        #logger.info(f"take_snapshot diff \n{diff}")
+        logger.info(f"take_snapshot diff \n{diff}")
 
         self.shapshot_history.append(self.df_report)
         if len(self.shapshot_history)>=2:
@@ -92,7 +92,7 @@ class ReportManager:
                 for symbol in self.df_report.index
             }
 
-            logger.info(f"full_dict \n{full_dict}")
+            #logger.info(f"full_dict \n{full_dict}")
             await render_page.send({
                     "type" : "report",
                     "data": full_dict
@@ -239,7 +239,7 @@ class ReportManager:
 
             ######### FINAL ###########
 
-            df = df.dropna()
+            df = df.fillna(0)
             df_new_report = df.sort_values(by="gain", ascending=False)
             df_new_report["rank"] = range(1, len(df_new_report) + 1)
             
@@ -265,7 +265,7 @@ class ReportManager:
                 changed_dict = self.make_diff(df_new_report,self.df_report)
 
                 if len(changed_dict)>0:
-                    logger.info(f"changed_dict {changed_dict}")
+                    #logger.info(f"changed_dict {changed_dict}")
 
                     await render_page.send({
                         "type" : "report",
