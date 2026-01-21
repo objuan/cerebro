@@ -262,7 +262,7 @@ class LiveManager:
                 hls=None
                 if not math.isnan(ticker.gain):
 
-                    await OrderTaskManager.onTicker(symbol,ticker.last)
+                    await OrderTaskManager.onTicker(symbol,ticker)
                     
                     '''
                     if not symbol in self.ticker_map:

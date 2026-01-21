@@ -561,7 +561,8 @@ const buildChart =  () => {
   charts.main.subscribeClick(param => {
     
     if (!drawMode.value ) return;
-    if (!param || !param.point || !param.time) {
+    console.log(param)
+    if (!param || !param.point ) {
       console.log("Click cancelled");
       return;
     }
@@ -576,19 +577,21 @@ const buildChart =  () => {
       drawHorizontalLine(context(),price);
       drawMode.value = null;
     }
+    if (param.time)
+    {
+      if (drawMode.value === 'line') {
+        drawPoints.push({ time: param.time, value: price });
 
-    if (drawMode.value === 'line') {
-      drawPoints.push({ time: param.time, value: price });
-
-      if (drawPoints.length === 2) {
-        drawTrendLine(context(),drawPoints[0], drawPoints[1]);
-        drawPoints = [];
-        drawMode.value = null;
+        if (drawPoints.length === 2) {
+          drawTrendLine(context(),drawPoints[0], drawPoints[1]);
+          drawPoints = [];
+          drawMode.value = null;
+        }
       }
-    }
-    if (drawMode.value === 'delete') {
-        clearLine(context(),param.time,price)
-        drawMode.value = null;
+      if (drawMode.value === 'delete') {
+          clearLine(context(),param.time,price)
+          drawMode.value = null;
+      }
     }
      if (drawMode.value === 'trade_marker') {
         //tradeData.price = price;

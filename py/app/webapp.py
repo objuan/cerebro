@@ -112,7 +112,7 @@ client = MuloClient("../"+DB_FILE,config,propManager)
 
 db = DBDataframe(config,client)
 report = ReportManager(config,client,db)
-event_manager = EventManager(report)
+event_manager = EventManager(config,report)
 
 
 tradeManager = TradeManager(config,client,propManager)
@@ -231,8 +231,9 @@ async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
 
         if True:
 
-            df = await client.ohlc_data(symbol,timeframe,limit)
-         
+            df:pd.DataFrame = await client.ohlc_data(symbol,timeframe,limit)
+            df = df.dropna()
+            #logger.info(df)
             #logger.debug(f"!!!!!!!!!!!! chart {df}")
             return JSONResponse(df.to_dict(orient="records"))
           

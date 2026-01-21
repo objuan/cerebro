@@ -45,12 +45,31 @@ class TickerHistory:
 
 class EventManager:
 
-    def __init__(self, report:ReportManager):
+    def __init__(self, config,report:ReportManager):
         self.report=report
         self.job = report.job
         self.db = report.db
 
-        self.gain_thresold = 0.1
+        self.FLOAT_TIME_SECS = config["events"]["FLOAT_TIME_SECS"]
+        self.GAIN_5_MIN = config["events"]["GAIN_5_MIN"]
+
+        self.LF_MAX_FLOAT =  config["events"]["LF_MAX_FLOAT"]  # Esempio: Max 5 milioni di azioni (molto basso)
+        self.LF_MIN_GAIN =  config["events"]["LF_MIN_GAIN"]        # Gain minimo del 10% per trigger
+        self.LF_IN_REL_VOL =  config["events"]["LF_IN_REL_VOL"]      # Almeno il doppio della media
+                    
+        self.MF_MIN_FLOAT =  config["events"]["MF_MIN_FLOAT"]
+        self.MF_MAX_FLOAT =  config["events"]["MF_MAX_FLOAT"]
+        self.MF_MAX_PRICE =  config["events"]["MF_MAX_PRICE"]        # Prezzo ancora "sotto il 20%"
+        self.MF_MIN_REL_VOL =  config["events"]["MF_MIN_REL_VOL"]      # Volume molto alto (High Rel Vol)
+
+        # 3. Former Momo Stock
+        # Titoli che hanno volumi altissimi rispetto alla loro media storica
+        # e mostrano un cambio di rank positivo (rank_delta)
+        self.MOMO_MIN_REL_VOL_24 = config["events"]["MOMO_MIN_REL_VOL_24"] # Molto volume nelle ultime 24h
+        self.MOMO_MIN_GAIN = config["events"]["MOMO_MIN_GAIN"]
+
+        #logger.info(f"gain_5_min_thresold {self.gain_5_min_thresold}")
+        
       
     async def bootstrap(self):
         symbols = await self.job.send_cmd("symbols")
@@ -161,7 +180,7 @@ class EventManager:
                 except:
                     continue
 
-                prev_5m = ticker_history.take_prev(20)
+                prev_5m = ticker_history.take_prev(self.FLOAT_TIME_SECS)
 
                 if prev_5m:
                     previous_last = prev_5m["last"]
@@ -171,7 +190,7 @@ class EventManager:
 
                     logger.info(f"CHECK 5m {gain} ")
 
-                    if gain > self.gain_thresold:
+                    if gain > self.GAIN_5_MIN:
                         await self.send_event(symbol,"Up 5% in 5Min", df)
                 
                 #
@@ -182,20 +201,7 @@ class EventManager:
                     #Low Float Volatility
                 
                      # Parametri Filtro Hunter
-                    LF_MAX_FLOAT = 5_000_000  # Esempio: Max 5 milioni di azioni (molto basso)
-                    LF_MIN_GAIN = 10.0        # Gain minimo del 10% per trigger
-                    LF_IN_REL_VOL = 2.0      # Almeno il doppio della media
-                    
-                    MF_MIN_FLOAT = 5_000_001
-                    MF_MAX_FLOAT = 50_000_000
-                    MF_MAX_PRICE = 20.0        # Prezzo ancora "sotto il 20%"
-                    MF_MIN_REL_VOL = 5.0      # Volume molto alto (High Rel Vol)
-
-                    # 3. Former Momo Stock
-                    # Titoli che hanno volumi altissimi rispetto alla loro media storica
-                    # e mostrano un cambio di rank positivo (rank_delta)
-                    MOMO_MIN_REL_VOL_24 = 3.0 # Molto volume nelle ultime 24h
-                    MOMO_MIN_GAIN = 5.0
+                 
 
                     current_float = df['float'].iloc[0]
                     rel_vol_5m = df['rel_vol_5m'].iloc[0]
@@ -211,20 +217,21 @@ class EventManager:
                     # --- STRATEGIA A: LOW FLOAT HUNTER ---
                         
                     # 3. Hunter Trigger: Prezzo + Volume + Float
-                    if gain >= LF_MIN_GAIN and rel_vol_5m >= LF_IN_REL_VOL:
+                    #LF_MAX_FLOAT ??
+                    if gain >= self.LF_MIN_GAIN and rel_vol_5m >= self.LF_IN_REL_VOL:
                             await self.send_event(symbol,"Low Float Volatility", df)
                             #alert_volatility_hunter(symbol, row, gain)
 
                     # --- STRATEGIA B: MEDIUM FLOAT - HIGH REL VOL ---
-                    if MF_MIN_FLOAT <= current_float <= MF_MAX_FLOAT:
+                    if self.MF_MIN_FLOAT <= current_float <= self.MF_MAX_FLOAT:
                             # Condizione: High Rel Vol E Price under 20
-                            if rel_vol_5m >= MF_MIN_REL_VOL and current_last < MF_MAX_PRICE:
+                            if rel_vol_5m >= self.MF_MIN_REL_VOL and current_last < self.MF_MAX_PRICE:
                                  await self.send_event(symbol,"Medium Float-High Rel Vol E Price under 20$", df)
             
                     #--- STRATEGIA 3: FORMER MOMO STOCK ---
                     # Cerchiamo titoli con forte volume relativo giornaliero e segnale di risveglio (rank_delta > 0)
-                    if rel_vol_24 > MOMO_MIN_REL_VOL_24 and rank_delta >= 0:
-                            if gain >= MOMO_MIN_GAIN:
+                    if rel_vol_24 > self.MOMO_MIN_REL_VOL_24 and rank_delta >= 0:
+                            if gain >= self.MOMO_MIN_GAIN:
                                 await self.send_event(symbol,"FORMER MOMO REBORN", df)
 
             '''

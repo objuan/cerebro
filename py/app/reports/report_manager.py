@@ -68,7 +68,7 @@ class ReportManager:
 
         diff = self.make_diff(self.df_report,self.shapshot_history[-1] )
         
-        logger.info(f"take_snapshot diff \n{diff}")
+        #logger.info(f"take_snapshot diff \n{diff}")
 
         self.shapshot_history.append(self.df_report)
         if len(self.shapshot_history)>=2:
@@ -282,6 +282,7 @@ class ReportManager:
             if len(self.shapshot_history) ==0:
                 self.shapshot_history.append(self.df_report )
               
+            # TODO  REPORT CONTINUAZIONE ,GAIN 2 week
 
         except:
             logger.error("REPORT ERROR" , exc_info=True)

@@ -89,44 +89,67 @@ class OrderTaskManager:
                 OrderManager.ib.sleep(interval)
         return False
  
-    async def on_task_order_trigger(order,order_step,lastPrice):
+    async def on_task_order_trigger(order,order_step,ticker : Ticker):
         try:
     
-            logger.info(f'TRIGGER {order_step} last:{lastPrice} ')
+            logger.info(f'TRIGGER {order_step} last:{ticker.last} ')
 
             if order_step["side"] =="BUY":
-                    real_price = lastPrice+  lastPrice* 0.001
-               
-                    trade = OrderManager.order_limit(order["symbol"], order_step["quantity"],real_price)
+                    #real_price = lastPrice+  lastPrice* 0.001
+
+                    #trade = OrderManager.order_limit(order["symbol"], order_step["quantity"],real_price)
+                    ret = OrderManager.smart_buy_limit(order["symbol"], order_step["quantity"],ticker)#real_price)
+                    if ret:
+                        #error
+                        order["error"] = ret
+                        logger.error(f">> {ret}")
+                    else:
+                        order_step["state"] = "filled"
+                        order_step["trigger_price"] = ticker.last
+                    '''
                     if OrderTaskManager.wait_order(trade):
                         order_step["real_trade_id"] = trade.orderStatus.permId
-                        order_step["trigger_price"] = lastPrice
+                        order_step["trigger_price"] = ticker.last
                     else:
-                            logger.error("ERROR",exc_info=True)
+                        logger.error("ERROR",exc_info=True)
+                    '''
 
             if order_step["side"] =="SELL":
-                    real_price = lastPrice-  lastPrice* 0.001
+                    #real_price = lastPrice-  lastPrice* 0.001
                
                     pos = Balance.get_position(order["symbol"])
                     if pos.position == None or pos.position ==0:
                          logger.warning("Position empty !!! ")
+                         order["error"] = "Position empty "
                     elif pos.position<=0:
                         logger.warning("Position zero ")
+                        order["error"] = "Position zero "
                     else:
-                        logger.info(f"TP SELL ALL {order['symbol']} {pos.position } at {lastPrice} ")
+                        logger.info(f"SELL ALL {order['symbol']} {pos.position } at {ticker.last} ")
 
-                        trade = OrderManager.sell_limit(order["symbol"], order_step["quantity"],real_price)
+                        ret = OrderManager.smart_sell_limit(order["symbol"], order_step["quantity"],ticker)
+                        if ret:
+                            #error
+                            order["error"] = ret
+                            logger.error(f">> {ret}")
+                        else:
+                            order_step["trigger_price"] = ticker.last
+                            order_step["state"] = "filled"
+
+                        '''
                         if OrderTaskManager.wait_order(trade):
                             order_step["real_trade_id"] = trade.orderStatus.permId
-                            order_step["trigger_price"] = lastPrice
+                            order_step["trigger_price"] = ticker.last
                         else:
                             logger.error("ERROR",exc_info=True)
+                        '''
             
         except:
             try:
                 logger.error("ERROR",exc_info=True)
                 err = traceback.format_exc()
                 order_step["error"] = err
+                order["error"] = err
                 cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
                                 VALUES (?,?, ?, ?, ?, ?)''',
                             ( order["task_id"],order["symbol"],"ERROR", json.dumps(order["data"]),time.time(),-1))
@@ -134,6 +157,7 @@ class OrderTaskManager:
                 OrderTaskManager.task_orders.remove(order)
                 await OrderTaskManager.send_task_order(order)
             except:
+                order["error"] = "generic error"
                 logger.fatal("ERROR",exc_info=True)
                 cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
                                 VALUES (?,?, ?, ?, ?, ?)''',
@@ -250,12 +274,20 @@ class OrderTaskManager:
 
 ##############
 
-    async def onTicker(symbol,lastPrice):
+    async def push_state(order,status):
+        cur.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
+                                        VALUES (?,?, ?, ?, ?, ?,?)''',
+                                    ( order["task_id"],order["symbol"],status,order["step"], json.dumps(order["data"]),time.time(),-1))
+        conn.commit()
+        await OrderTaskManager.send_task_order(order)
+
+         
+    async def onTicker(symbol,ticker:Ticker):
         try:
             #logger.info(f"onTicker {symbol},{lastPrice}")
             for order in OrderTaskManager.task_orders:
                 #logger.info(f"order {order}")
-                if order["symbol"] == symbol:
+                if order["symbol"] == symbol and not  "error" in order:
                     actions = order["data"]
                     step = order["step"]
                     
@@ -281,12 +313,9 @@ class OrderTaskManager:
                             '''
                             # close it 
                             order["status"] = "USER_CANC"
-                            cur.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
-                                        VALUES (?,?, ?, ?, ?, ?,?)''',
-                                    ( order["task_id"],order["symbol"],order["status"],0, json.dumps(order["data"]),time.time(),-1))
-                            conn.commit()
+                            await OrderTaskManager.push_state(order,"USER_CANC")
                             OrderTaskManager.task_orders.remove(order)
-                            await OrderTaskManager.send_task_order(order)
+                           
                     else:       
                             #logger.info(f"TEST {step} {actions}" )
 
@@ -300,21 +329,27 @@ class OrderTaskManager:
                                 if op == "last >" :
                                     lmtPrice = float(rule["price"])
                                     #logger.info(f"CHECK {lastPrice} > {lmtPrice}" )
-                                    triggered =  (lastPrice>lmtPrice )
+                                    triggered =  (ticker.last>lmtPrice )
                                 if op == "last <" :
                                     lmtPrice = float(rule["price"])
                                     #logger.info(f"CHECK {lastPrice} > {lmtPrice}" )
-                                    triggered =  (lastPrice<lmtPrice )
+                                    triggered =  (ticker.last<lmtPrice )
 
                                 if triggered:
                                         
                                         logger.info(f"VALID {rules}" )
 
-                                        await OrderTaskManager.on_task_order_trigger(order,rule,lastPrice)
-                                        order["step"] = order["step"]+1
+                                        await OrderTaskManager.on_task_order_trigger(order,rule,ticker)
+                                        if "error" in order:
+                                            await OrderTaskManager.push_state(order,"ERROR")
+                                            OrderTaskManager.task_orders.remove(order)
+                                            continue
+                                        else:
+                                            order["step"] = order["step"]+1
+                                            await OrderTaskManager.push_state(order,"STEP")
 
-                                        cur.execute(f'UPDATE task_orders set step={order["step"]} WHERE ID={order["id"]}')
-                                        conn.commit()
+                                        #cur.execute(f'UPDATE task_orders set step={order["step"]} WHERE ID={order["id"]}')
+                                        #conn.commit()
                                             
                                         await OrderTaskManager.send_task_order(order)
                                         
@@ -322,17 +357,16 @@ class OrderTaskManager:
                                         for a in actions:
                                             max_step= max(max_step, a["step"])
                                             
-                                        logger.info(f'CHECK END {order["step"]}/max_step{max_step}')
+                                        logger.info(f'CHECK END {order["step"]}/{max_step}')
 
-                                        if step > max_step:
+                                        if  order["step"]  > max_step:
 
                                             logger.info(f'END {order}')
-
 
                                             # check end
                                             cur.execute("""INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
                                             VALUES (?,?, ?, ?, ?, ?)""",
-                                                (order["task_id"],order["symbol"],"DONE", json.dumps(order["data"]),time.time(),trade.orderStatus.permId))
+                                                (order["task_id"],order["symbol"],"DONE", json.dumps(order["data"]),time.time(),-1))
                                 
                                             conn.commit()
                                             logger.info(f'ORDER CLOSED {order}')
@@ -356,7 +390,8 @@ class OrderTaskManager:
 #####################################
 
 
-def main():
+
+async def main():
 
     util.startLoop()   # 🔑 IMPORTANTISSIMO
 
@@ -368,15 +403,27 @@ def main():
     ib = IB()
     ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
     
-    OrderManager(ib)
+    OrderManager(config,ib)
+
+    balance = Balance(config,ib)
+    await Balance.bootstrap()
 
     # 🔴 avvio task asincrona
     #task = asyncio.create_task(checkNewTrades())
+    ticker = Ticker
+    ticker.last = 2.802334
+    
+    #et = OrderManager.smart_buy_limit("IVF",100,ticker)
 
-    OrderManager.order_limit("AAPL", 10,180)
-    logger.info("1")
+    #ret = OrderManager.smart_sell_limit("IVF",100,ticker)
+    #if ret:
+    #   logger.error(f">> {ret}")
+    #OrderManager.smart_sell_limit()
+    #OrderManager.order_limit("AAPL", 10,180)
+    #logger.info("1")
 
-    ib.run()
+    #ib.run()
+    await ib.sleep(float("inf"))
 
     logger.info("DONE")
     '''
@@ -398,5 +445,5 @@ if __name__ =="__main__":
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     
-    main()
-    #asyncio.run(main())
+    #main()
+    asyncio.run(main())

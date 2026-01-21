@@ -216,7 +216,7 @@ function formatField(value, colData){
 }
 function formatStyle(value, colData)
 {
-  console.log("formatStyle", value, colData)
+  //console.log("formatStyle", value, colData)
 
   let colors = colData["colors"]
   if (colors)

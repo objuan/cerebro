@@ -32,15 +32,37 @@
 	"reports":
 	{
 		"shapshot_time" : 10
+	},
+	"events":{
+		
+		"GAIN_5_MIN" : 5,
+
+		"FLOAT_TIME_SECS" : 3000,
+		"LF_MAX_FLOAT" : 5000000,  
+		"_LF_MIN_GAIN" :"# Gain minimo del 10% per trigger",
+        "LF_MIN_GAIN" : 10,
+		"_LF_IN_REL_VOL" :"Almeno il doppio della media",
+        "LF_IN_REL_VOL" : 2.0 ,
+                    
+        "MF_MIN_FLOAT" :  5000001,
+        "MF_MAX_FLOAT" : 50000000,
+		"_MF_MAX_PRICE" :  "Prezzo ancora sotto il 20%",
+        "MF_MAX_PRICE" : 20,
+		"_MF_MIN_REL_VOL" : "Volume molto alto (High Rel Vol)",
+        "MF_MIN_REL_VOL" : 5.0 ,
+
+		"-MOMO_MIN_REL_VOL_24": "# Molto volume nelle ultime 24h",
+		"MOMO_MIN_REL_VOL_24" : 3.0 ,
+        "MOMO_MIN_GAIN": 5.0
 	}
 	,"database":
 		{
 			"scanner":
 			{
-				"mode" : "sym",
+				"mode" : "live",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["NVDA"],
-				"start_scan" : "keep_last_session",
+				"start_scan" : "live",
 				"start_scan1" : "keep_last_session|debug|live",
 				"scheduler":[
 					{
@@ -101,7 +123,7 @@
 			{
 				"ib_port" : 7497,
 				"enabled" : true,
-				"max_symbols" :2,
+				"max_symbols" :10,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8
 			}

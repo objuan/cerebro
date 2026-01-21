@@ -13,7 +13,7 @@ from utils import convert_json
 from renderpage import WSManager
 from balance import Balance
 import traceback
-
+from decimal import Decimal, ROUND_DOWN
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -115,7 +115,7 @@ Inactive'''
 def get_trades(symbol = None,onlyActive = False):
       
         filtered_trades = []
-
+       # logger.info(f"{OrderManager.ib.trades()}")
         for t in OrderManager.ib.trades():
             if symbol and t.contract.symbol != symbol:
                 continue
@@ -130,15 +130,31 @@ class OrderManager:
     ws :WSManager = None
     task_orders = []
 
+    tick_cache = {}
+    
+
     def __init__(self,config,ib):
         OrderManager.ib=ib
+        OrderManager.lastError=""    
         # Assegna gli event handlers
+
+        def onError( reqId, errorCode, errorString, contract):
+            logger.error(f"errorCode {errorCode} {errorString} {contract}")
+
+            OrderManager.lastError = {"reqId" : reqId, "errorCode": errorCode, "errorString": errorString} 
+            if errorCode == 110:
+                pass
+            if errorCode == 162:
+                return  # ignorato
+           
 
         if ib:
             OrderManager.ib.cancelOrderEvent += OrderManager.onCancelOrder
             OrderManager.ib.openOrderEvent += OrderManager.onOpenOrder
             OrderManager.ib.orderStatusEvent += OrderManager.onOrderStatus
             OrderManager.ib.newOrderEvent += OrderManager.onNewOrder
+            OrderManager.ib.newOrderEvent += OrderManager.onNewOrder
+            OrderManager.ib.errorEvent += onError
 
     async def bootstrap():
         pass 
@@ -194,10 +210,16 @@ class OrderManager:
             decimals = decimals_from_tick(min_tick)
             return f"{price:.{decimals}f}"
 
-        cd = OrderManager.ib.reqContractDetails(contract)[0]
-        tick = cd.minTick
-        if not tick or tick <= 0:
-            raise ValueError("minTick non valido")
+        #cd = OrderManager.ib.reqContractDetails(contract)[0]
+
+        #if contract.symbol in OrderManager.tick_cache:
+        tick = OrderManager.tick_cache[contract.symbol ]
+       # else:
+       #     tick =cd.minTick
+        #    if not tick or tick <= 0:
+        #        raise ValueError("minTick non valido")
+        
+        logger.info(f"format_price {price} {tick}")
         # arrotonda al tick
         price = round_to_tick(price, tick)
          # calcola decimali
@@ -299,65 +321,134 @@ class OrderManager:
         trade.statusEvent += onStatus
         '''
 
-    def wait_order(trade):
+    def send_order(symbol,order_handler):
         timeout = 2          # secondi
         interval = 0.1          # ciclo ogni secondo
         start_time = time.time()
 
+        trade:Trade = order_handler()
+        ### risolve i decimali 
         while time.time() - start_time < timeout:
-            if  trade and  trade.orderStatus != None:
-                return True
-            else:
+            if trade.orderStatus.status =="PendingSubmit":
+                if OrderManager.lastError!= None:
+                        if OrderManager.lastError["errorCode"] == 110:
+                            tick_size= OrderManager.tick_cache[symbol ] 
+                            tick_size = min(0.1, tick_size *10)
+                            OrderManager.tick_cache[symbol ] = tick_size
+                            #logger.info(f"Redo  tick_size:{tick_size}")
+                            trade:Trade = order_handler()
                 OrderManager.ib.sleep(interval)
-        return False
+            else:
+                return trade
+        return None
 
+    def smart_buy_limit(symbol,totalQuantity,ticker:Ticker):
+        return OrderManager._smart_limit(symbol, "BUY",totalQuantity, ticker)
+       
     def smart_sell_limit(symbol,totalQuantity,ticker:Ticker):
+        return  OrderManager._smart_limit(symbol, "SELL",totalQuantity, ticker)
+     
 
-        logger.debug(f"SMART SELL LIMIT ORDER {symbol} q:{totalQuantity}")
+    def _smart_limit(symbol,op, totalQuantity,ticker:Ticker):
+        '''
+        return error if != None
+        '''
+        logger.debug(f"SMART {op} LIMIT ORDER {symbol} q:{totalQuantity}")
         contract = Stock(symbol, 'SMART', 'USD')
-        OrderManager.ib.qualifyContracts(contract)
-    
+        OrderManager.ib.qualifyContracts(contract)  
+        
         timeout = 10          # secondi
         interval = 2          # ciclo ogni secondo
         start_time = time.time()
-
-        pos:Position = Balance.get_position(symbol)
-        if pos.position==0:
-            raise HTTPException(400,"pos empty")
-
+        
         trade=None
+        submittedCount=0
+        if contract.symbol in OrderManager.tick_cache:
+            tick_size = OrderManager.tick_cache[contract.symbol ]
+        else:
+            cd = OrderManager.ib.reqContractDetails(contract)[0]
+            tick_size =cd.minTick
+            OrderManager.tick_cache[contract.symbol ] = tick_size
+            if not tick_size or tick_size <= 0:
+                raise ValueError("minTick non valido")
+            
         while time.time() - start_time < timeout:
-   
+                        
             if trade:
-                if trade.orderStatus == "PreSubmitted":
+                logger.info(f"Redo  status {trade.orderStatus.status} ")
+
+                if OrderManager.lastError!= None:
+                    if OrderManager.lastError["errorCode"] ==  202:# Order Canceled 
+                        pass
+                    else:
+                        logger.error(f"{OrderManager.lastError}")
+                        return OrderManager.lastError
+
+                if trade.orderStatus.status == "PendingSubmit":
+                    if not OrderManager.wait_order(trade):
+                        logger.warning("Order not added !!! ")
+                elif trade.orderStatus.status == "PreSubmitted":
                     permId = trade.orderStatus.permId
                     logger.info(f"Force remove {permId}")
-                    if not OrderManager.cancel_order(permId):
-                        logger.error(f" ORDER NOT FOUND !!! ")
-                    OrderManager.ib.sleep(1)
+                    OrderManager.lastError = None
+                    OrderManager.ib.cancelOrder(trade.order)
+                        
                     trade=None
-                elif trade.orderStatus == "Filled":
-                      logger.error("SELL DONE")
+                elif trade.orderStatus.status == "Submitted":
+                    #aspetto
+                    submittedCount=submittedCount+1
+                    if submittedCount == 3:
+                        permId = trade.orderStatus.permId
+                        logger.info(f"Force remove {permId}")
+                        OrderManager.lastError = None
+                        #OrderManager.cancel_order(permId)
+                        OrderManager.ib.cancelOrder(trade.order)
+                        trade=None
+
+                if trade and trade.orderStatus.status == "Filled":
+                    logger.info("BUY DONE")
+                    return None
 
             if not trade:
-                    formatted_price = OrderManager.format_price(contract,ticker.last)
-                    # 🔹 ORDINE DI VENDITA
-                    entry = LimitOrder(
-                        action='SELL',
-                        totalQuantity=totalQuantity,
-                        lmtPrice=formatted_price,
-                        tif='GTC' ,
-                        outsideRth=True
-                    )
-                    trade:Trade =  OrderManager.ib.placeOrder(contract, entry)
+                    
+                    def do_order():
+                        tick_size = OrderManager.tick_cache[contract.symbol ] 
 
-                    if not OrderManager.wait_order(trade):
-                        logger.error("!!!!!!!!!!!")
+                        if (op =="BUY"):
+                            formatted_price = OrderManager.format_price(contract,ticker.last+ tick_size)
+                        else:
+                            formatted_price = OrderManager.format_price(contract,ticker.last-tick_size)
+                        #formatted_price = round(ticker.last / tick_size) * tick_size
+
+                        logger.info(f">> LimitOrder : {symbol} {op} {totalQuantity} at {ticker.last} -> {formatted_price} (tick_size:{tick_size}) ")
+
+                        # 🔹 ORDINE
+                        entry = LimitOrder(
+                            action=op,
+                            totalQuantity=totalQuantity,
+                            lmtPrice=formatted_price,
+                            tif='DAY' ,
+                            outsideRth=True
+                        )
+                        OrderManager.lastError = None
+                        return OrderManager.ib.placeOrder(contract, entry)
+
+                    trade:Trade = OrderManager.send_order(contract.symbol,do_order)
+                    submittedCount=0
+
+                    ###trade:Trade = 
+                    #if not OrderManager.wait_order(trade):
+                    #    logger.error("Order not added !!! ")
 
             OrderManager.ib.sleep(interval)
-        
 
-    print("Timeout raggiunto, uscita dal ciclo")
+        if trade:
+            logger.info("Final cancel")
+            OrderManager.ib.cancelOrder(trade.order)
+
+        return  {"reqId" : 0, "errorCode": -1, "errorString": "TIMEOUT"} 
+
+
     def sell_limit(symbol,totalQuantity,lmtPrice):
         '''
         '''
@@ -428,7 +519,7 @@ class OrderManager:
         '''
         Cancella un ordine pendente dato il suo permId.
         '''
-        logger.debug(f"CANCEL ORDER permId: {permId}")
+        logger.info(f"CANCEL ORDER permId: {permId} {get_trades( )}")
         for trade in get_trades( onlyActive=True):
             if trade.order.permId == permId:
                 OrderManager.ib.cancelOrder(trade.order)
@@ -464,7 +555,7 @@ class OrderManager:
 #####################################
 
 
-def main():
+async def main():
 
     util.startLoop()   # 🔑 IMPORTANTISSIMO
 
@@ -476,16 +567,27 @@ def main():
     ib = IB()
     ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
     
-    OrderManager(ib)
+    OrderManager(config,ib)
+
+    balance = Balance(config,ib)
+    await Balance.bootstrap()
 
     # 🔴 avvio task asincrona
     #task = asyncio.create_task(checkNewTrades())
+    ticker = Ticker
+    ticker.last = 2.802334
+    
+    #et = OrderManager.smart_buy_limit("IVF",100,ticker)
 
-    OrderManager.smart_sell_limit()
+    ret = OrderManager.smart_sell_limit("IVF",100,ticker)
+    if ret:
+        logger.error(f">> {ret}")
+    #OrderManager.smart_sell_limit()
     #OrderManager.order_limit("AAPL", 10,180)
     #logger.info("1")
 
-    ib.run()
+    #ib.run()
+    await ib.sleep(float("inf"))
 
     logger.info("DONE")
     '''
@@ -507,5 +609,7 @@ if __name__ =="__main__":
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     
-    main()
-    #asyncio.run(main())
+    #main()
+    asyncio.run(main())
+
+  

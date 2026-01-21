@@ -11,7 +11,11 @@
         <div class="card-body p-2 d-flex justify-content-between align-items-center">
           
          
-            <div class="fw-bold">{{ item.symbol }}</div>
+            <div class="fw-bold">
+                <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item.symbol)">
+                      {{ item.symbol }}
+                    </a>
+            </div>
             <small class="text-muted"> {{ Number(item.last).toFixed(1) }}</small>
           
 
@@ -41,6 +45,10 @@ const symbolList = ref([]);
 
 // Esponiamo i dati dello store al template
 //const liveData = computed(() => liveStore.state.dataByPath);
+function onSymbolClick(symbol) {
+  console.log('Symbol clicked:', symbol)
+  eventBus.emit("chart-select",{"symbol" : symbol , "id": "chart_1"});
+}
 
 function onTickerReceived(ticker) {
   //console.log("Summary → ticker:", ticker);
