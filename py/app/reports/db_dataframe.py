@@ -8,7 +8,7 @@ from report import *
 from renderpage import RenderPage
 #from config import TIMEFRAME_UPDATE_SECONDS,TIMEFRAME_LEN_CANDLES
 from utils import AsyncScheduler
-from mulo_client import MuloClient
+#from mulo_client import MuloClient
 
 # si autoaggiorna ogni tot
 
@@ -43,7 +43,7 @@ class DBDataframe_Symbol:
 ######################################
 
 class DBDataframe_TimeFrame:
-    def __init__(self,config,client : MuloClient,timeframe):
+    def __init__(self,config,client ,timeframe):
         #self.symbols=fetcher.live_symbols()
         self.timeframe = timeframe
         self.client=client
@@ -51,8 +51,8 @@ class DBDataframe_TimeFrame:
         self.last_timestamp=None
         self.df=None
         
-        self.TIMEFRAME_UPDATE_SECONDS =config["logic"]["TIMEFRAME_UPDATE_SECONDS"]  
-        self.TIMEFRAME_LEN_CANDLES =config["logic"]["TIMEFRAME_LEN_CANDLES"]  
+        self.TIMEFRAME_UPDATE_SECONDS =config["live_service"]["TIMEFRAME_UPDATE_SECONDS"]  
+        self.TIMEFRAME_LEN_CANDLES =config["live_service"]["TIMEFRAME_LEN_CANDLES"]  
 
         self.client.on_symbols_update += self.on_update_symbols
        #self.update_symbols()
@@ -150,7 +150,7 @@ class DBDataframe:
     def __init__(self,config,client):
         #self.symbols=fetcher.live_symbols()
         self.client=client
-        self.config=config["database"]
+        self.config=config
         self.map = {}
         #self.scheduler = Scheduler()
 
@@ -158,7 +158,7 @@ class DBDataframe:
     
     
     async def task_update_scanner(self):
-        if self.config["scanner"]["enabled"]:
+        if self.config["live_service"]["enabled"]:
             logger.info(f"update_scanner {self}! {time.ctime()}")
 
             #await self.fetcher.scanner()

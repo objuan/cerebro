@@ -29,7 +29,7 @@
 <script setup>
 import { reactive, computed, onMounted,onBeforeUnmount } from "vue";
 import { eventBus } from "@/components/js/eventBus";
-import { send_mulo_get } from "@/components/js/utils";
+import { send_get } from "@/components/js/utils";
 
 const portfolio = reactive({});
 
@@ -86,7 +86,7 @@ onMounted(async () => {
   eventBus.on("update-portfolio", handleMessage);
   eventBus.on("update-position", handleMessage);
  
-  let pos_list = await send_mulo_get('/account/positions')
+  let pos_list = await send_get('/account/positions')
   pos_list.forEach(  (val) =>{
             //console.log(val)
             val["type"] = "POSITION"

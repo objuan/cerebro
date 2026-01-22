@@ -1,40 +1,55 @@
-from logging.handlers import RotatingFileHandler
-from fastapi import FastAPI, Request,HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi import WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import pandas as pd
-import sqlite3
-from datetime import datetime
-import time
 import asyncio
-import os
-import logging
-import sys
+from contextlib import asynccontextmanager
 import json
-import shutil
-
-from reports.report_manager import ReportManager
-from utils import *
-#from job_binance import *
-#from job_ibroker import *
-#from ib_insync import IB,util
-from layout import *
-from mulo_client import MuloClient
+import sqlite3
+from datetime import datetime,time
+import sys
+import time as _time
+import math
+import os
+import signal
+import json
+from typing import Optional
+from collections import deque
+import requests
+import urllib3
+import yfinance as yf
+import pandas as pd
+import logging
+from logging.handlers import RotatingFileHandler
+from ib_insync import *
+from utils import convert_json
+from rich.console import Console
+from rich.table import Table
+from rich.live import Live
+#from message_bridge import *
+from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi.responses import JSONResponse, HTMLResponse
+import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from fastapi import WebSocket, WebSocketDisconnect
+util.startLoop()  # uncomment this line when in a notebook
+from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC
+from market import *
+from utils import datetime_to_unix_ms,sanitize,floor_ts
+from company_loaders import *
+from renderpage import WSManager
+from order import OrderManager
+from balance import Balance
+from order_task import OrderTaskManager
 from trade_manager import TradeManager
 from reports.event_manager import EventManager
-
-#if sys.platform == 'win32':
-    #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-from config import DB_FILE,CONFIG_FILE
+from reports.report_manager import ReportManager
+from layout import *
 from props_manager import PropertyManager
+from mulo_live_client import MuloLiveClient
 
-DEF_LAYOUT = "./layouts/default_layout.json"
+print(" STAT FROM ",os.getcwd())
+
+DEF_LAYOUT = "layouts/default_layout.json"
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
-
 
 ############# LOGS #############
 #print(" STAT FROM ",os.getcwd())
@@ -44,8 +59,6 @@ LOG_FILE = os.path.join(LOG_DIR, "app.log")
 #print(" STAT FROM ",os.getcwd())
 
 os.makedirs(LOG_DIR, exist_ok=True)
-
-# 🔁 Archivia log precedente all'avvio
 if False:
     if os.path.exists(LOG_FILE):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -53,6 +66,7 @@ if False:
         shutil.move(LOG_FILE, archived)
 else:
     os.remove(LOG_FILE)
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -80,115 +94,119 @@ logger.addHandler(console_handler)
 
 ########################################
 
-try:
-    with open("../"+CONFIG_FILE, "r", encoding="utf-8") as f:
-        config = json.load(f)
-        #print(config)
-except FileNotFoundError:
-    logger.error("Config File non trovato")
-except json.JSONDecodeError as e:
-    logger.error("JSON non valido:", e)
-
-
+with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+    config = json.load(f)
 config = convert_json(config)
+
+#############
 
 logger.info("=====================================")
 logger.info("========   CEREBRO V0.1   ===========")
 logger.info("=====================================")
-logger.info(f"CONFIG {config}")
+#logger.info(f"CONFIG {config}")
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 logging.getLogger("websockets").setLevel(logging.WARNING)
-
+logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
 #############
 
+run_mode = config["live_service"].get("mode","sym") 
+
+#fetcher = MuloJob(DB_FILE,config)
+ms = MarketService(config)          # o datetime.now()
+market = ms.getMarket("AUTO")
+
+ws_manager = WSManager()
+ws_manager_orders = WSManager()
+OrderManager.ws = ws_manager_orders
+OrderTaskManager.ws = ws_manager_orders
+Balance.ws = ws_manager_orders
 propManager = PropertyManager()
 
-client = MuloClient("../"+DB_FILE,config,propManager)
-#fetchclienter = CryptoJob(DB_FILE,2,historyActive=False,liveActive=True)
+client = MuloLiveClient(DB_FILE,config,propManager)
 
-#fetcher = IBrokerJob(None,"../"+DB_FILE,config)
-
-db = DBDataframe(config,client)
-report = ReportManager(config,client,db)
-event_manager = EventManager(config,report)
-
-
-tradeManager = TradeManager(config,client,propManager)
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-  
-    '''
-    loop = asyncio.get_running_loop()
-    print(f"--- Lifespan loop: {type(loop).__name__} ---")
-    ib = IB()
+
+OrderTaskManager(config)
+
+db = DBDataframe(config,client)
+report = ReportManager(config,client,db)
+event_manager = EventManager(config,report)
+tradeManager = TradeManager(config,client,propManager)
+render_page = RenderPage(ws_manager)
+event_manager.render_page=render_page
+
+layout = Layout(client,db,config)
+layout.read(DEF_LAYOUT)
+layout.set_render_page(render_page)   
+client.on_candle_receive += layout.notify_candles    
+
+async def _on_ticker_receive(ticker):
+    await OrderTaskManager.onTicker(ticker)
     
-    # Forza IB a usare il loop corrente (opzionale ma consigliato se l'errore persiste)
-    util.patchAsyncio() # Solo se usi versioni vecchie, di solito non serve più
+    await render_page.send({
+                   "type" : "ticker",
+                   "data": ticker
+               })
+    
+      
+client.on_ticker_receive += _on_ticker_receive 
+
+# FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+#print(ib.newsBulletins())
+
+def on_news_bulletin(newsBulletin):
+    logger.info(f"NEWS BULLETIN {newsBulletin}")
     '''
-    try:
-        # 3️⃣ Connetti usando il contesto async
-        '''
-        print("Connessione a IBKR in corso...")
-        if ib.isConnected():
-             ib.disconnect()
+    asyncio.create_task(ws_manager.broadcast({
+        "type": "news_bulletin",
+        "msgId": newsBulletin.msgId,
+        "msgType": newsBulletin.msgType,
+        "newsMessage": newsBulletin.newsMessage,
+        "originExch": newsBulletin.originExch
+    }))
+    '''
 
-        await ib.connectAsync(
-            host="127.0.0.1",
-            port=7497,
-            clientId=2,
-            timeout=10
-        )
-        app.state.ib = ib
-        print("IBKR Connesso con successo!")
-        '''
+def on_news_events(newsBulletin):
+    logger.info(f"NEWS EVT {newsBulletin}")
+    '''
+    asyncio.create_task(ws_manager.broadcast({
+        "type": "news",
+        "msgId": newsBulletin.msgId,
+        "msgType": newsBulletin.msgType,
+        "newsMessage": newsBulletin.newsMessage,
+        "originExch": newsBulletin.originExch
+    }))
+    '''
 
-        #await db.bootstrap()
-        job_db=None
-        live_task=None
-        report_task=None
-        evt_task=None
-        def on_job_started():
-            global job_db
-            global live_task
-            global report_task
-            job_db=  asyncio.create_task(db.bootstrap())
-            live_task = asyncio.create_task(live_loop())
-            report_task = asyncio.create_task(report.bootstrap())
-            evt_task = asyncio.create_task(event_manager.bootstrap())
-          
-        job_task = asyncio.create_task(client.bootstrap(on_job_started))
-        
-       
-        #thread_h = asyncio.create_task(hourly_task())
+'''
+if run_mode!= "sym":
+    ib.newsBulletinEvent += on_news_bulletin
+    ib.tickNewsEvent += on_news_events
+'''
 
-        yield
+sym_time = None
 
-        logger.info("DONE")
-    except:
-        logger.error("ERROR", exc_info=True)
-    finally:
-        # 4️⃣ Chiudi la connessione allo spegnimento
-        #print("Chiusura connessione IBKR...")
-        #ib.disconnect()
-        job_task.cancel()
-        job_db.cancel()
-        live_task.cancel()
-        report_task.cancel()
-        evt_task.cancel()
-        #thread_h.cancel()
+app = FastAPI(  )
 
-app = FastAPI(lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-###################### CORS ######################
-
+#Configura le origini permesse
+'''
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # "*" permette tutto, utile per test. In produzione metti l'URL specifico.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+'''
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -208,15 +226,41 @@ async def add_referrer_policy(request, call_next):
     return response
 
 
-###################################################################
-# API
-###################################################################
+################################
+
+conn = sqlite3.connect(DB_FILE, isolation_level=None)
+cur = conn.cursor()
+
+cur.execute("PRAGMA journal_mode=WAL;")
+cur.execute("PRAGMA synchronous=NORMAL;")
+
+#######################################################
+
+sym_time = None
+
+#######################################################
+
+
+def on_news(symbol, news_list):
+    for news in news_list:
+        logger.info(f"NEWS {symbol} {news_list}")
+        asyncio.create_task(ws_manager.broadcast({
+            "type": "news",
+            "symbol": symbol,
+            "headline": news.headline,
+            "time": news.time,
+            "more": news.more
+        }))
+
+
+
+##################################################
 
 @app.get("/")
 def index():
     with open("static/index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(f.read())
-
+    
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -226,18 +270,13 @@ def health():
 async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
     
     try:
-        
-
-
         if True:
 
             df:pd.DataFrame = await client.ohlc_data(symbol,timeframe,limit)
             df = df.dropna()
             #logger.info(df)
             #logger.debug(f"!!!!!!!!!!!! chart {df}")
-            return JSONResponse(df.to_dict(orient="records"))
-          
-            
+            return JSONResponse(df.to_dict(orient="records"))  
         else:
             df1 = db.dataframe(timeframe, symbol)
             #logger.debug(f"{symbol} {timeframe} {df1}")
@@ -253,6 +292,7 @@ async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
     except:
         logger.error("Error", exc_info=True)
         return HTMLResponse("error", 500)
+
 
 @app.get("/api/report")
 def ohlc_chart(name: str):
@@ -446,27 +486,307 @@ def delete_trade_marker(payload: dict  ):
             (symbol, timeframe))
     return {"status": "ok" }
 
-####################
+#################
 
-ws_manager = WSManager()
+@app.get("/market")
+def health(symbol):
+    logger.info(f"Market {symbol}")
 
-render_page = RenderPage(ws_manager)
+    exchange = client.get_exchange(symbol)
+    contract = Stock(symbol, exchange, 'USD')
+    ib.qualifyContracts(contract)
 
-event_manager.render_page=render_page
-layout = Layout(client,db,config)
-layout.read(DEF_LAYOUT)
-layout.set_render_page(render_page)   
-client.on_candle_receive += layout.notify_candles    
+    ticker = ib.reqMktData(contract, '', False, False)
+    ib.sleep(2)
 
-async def _on_ticker_receive(ticker):
-    await render_page.send({
-                   "type" : "ticker",
-                   "data": ticker
-               })
+    print("Last:", ticker.last)
+    print("Bid:", ticker.bid)
+    print("Ask:", ticker.ask)
+    print("Volume:", ticker.volume)
+    print("High:", ticker.high)
+    print("Low:", ticker.low)
+
+    logger.info(f"Market1 {symbol}")
+
+    return {"status": "ok"}
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
+
+@app.get("/conId")
+async def conId(symbol,exchange,currency):
+
+    contract = Stock(symbol,exchange,currency)
+    ib.qualifyContracts(contract)
+    
+    logger.info(f"....... {contract.conId}")
+    return {"status": "ok" , "data": { "conId" : str(contract.conId)}}
+
+@app.get("/symbols")
+async def get_symbols():
+    return {"status": "ok" , "data": [ x["symbol"] for x in client.ordered_tickers()]}
+
+@app.get("/tickers")
+async def get_tickers():
+    offline_mode = run_mode!="live" #:#config["database"]["scanner"]["offline_mode"] 
+    data=[]
+    for  ticker  in client.ordered_tickers():
       
-client.on_ticker_receive += _on_ticker_receive    
+        if (ticker["ts"]  and  not math.isnan(ticker["last"])) or offline_mode:
+            data.append({"symbol": ticker["symbol"], "last": ticker["last"], "bid" : ticker["bid"] , "ask": ticker["ask"],"low": ticker["low"] , "high" : ticker["high"],"volume": ticker["volume"]*100, "ts":   ticker["ts"]/1000 })
+    data = sanitize(data)
+    #logger.info(data)
+    return {"status": "ok" , "data": data}
 
-#layout.setDefault()
+@app.get("/news")
+async def get_news(symbol, start: Optional[str] = None):
+
+    amd = Stock(symbol, 'SMART', 'USD')
+    ib.qualifyContracts(amd)
+
+    if not start:
+        yesterday = datetime.now() - timedelta(minutes=1)
+        startDateTime = yesterday.strftime('%Y%m%d %H:%M:%S'),
+    else:
+        startDateTime=start
+
+    headlines = ib.reqHistoricalNews(amd.conId, "BRFG+BRFUPDN+FLY", startDateTime, '', 10)
+    list=[]
+    for new in headlines:
+        #print("Headline:", new.headline)
+        article = ib.reqNewsArticle(new.providerCode, new.articleId)
+        list.append(article)
+        #print("Article length:", len(article))
+        #print("Article start:", article[:200])  # Print first 200 chars
+        #print("Full article:", repr(article))  # To see if it's truncated
+
+    #logger.info(data)
+    return {"status": "ok" , "data": list}
+
+####################
+# no nsi ferma ?????
+@app.get("/order/limit")
+async def do_limit_order(symbol, qty,price):
+    try:
+        await OrderManager.smart_buy_limit(symbol, qty,client.getTicker(symbol))
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
+@app.get("/order/buy_at_level")
+async def do_buy_at_level(symbol:str, qty:float,price:float):
+    try:
+        logger.info(f"do_buy_at_level {symbol}")
+        order_mode = config["order"]["mode"]
+        zone = client.getCurrentZone()
+        if zone != MarketZone.LIVE or order_mode=="task_all":
+            await OrderTaskManager.add_at_level(symbol,"buy_at_level", qty,price,"")
+        else:
+            OrderManager.buy_at_level(symbol, qty,price)
+            
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+
+@app.get("/order/bracket")
+async def do_bracket(symbol:str,timeframe:str):
+    try:
+        logger.info(f"do_bracket {symbol} {timeframe}")
+        order_mode = config["order"]["mode"]
+
+        zone = client.getCurrentZone()
+        if zone != MarketZone.LIVE or order_mode=="task_all":
+            await OrderTaskManager.bracket(symbol,timeframe)
+        else:
+            pass
+            #OrderManager.buy_at_level(symbol, qty,price)
+            
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
+@app.get("/order/sell_at_level")
+async def do_sell_at_level(symbol:str, qty:float,price:float,desc:str):
+    try:
+        order_mode = config["order"]["mode"]
+        zone = client.getCurrentZone()
+        if zone != MarketZone.LIVE or order_mode=="task_all":
+            await OrderTaskManager.add_at_level(symbol,"sell_at_level", qty,price,desc)
+        else:
+            OrderManager.buy_at_level(symbol, qty,price)
+            
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
+@app.get("/order/sell/all")
+async def do_sell_order(symbol):
+    try:
+        OrderManager.sell_all(symbol)
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
+@app.get("/order/list")
+async def get_orders(start: Optional[str] = None):
+    if not start:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        start = today_start.isoformat().replace("T"," ")
+    try:
+        # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
+        query = """
+        SELECT * FROM ib_orders 
+        WHERE id IN (
+            SELECT MAX(id) FROM ib_orders 
+            WHERE timestamp >= ? 
+            GROUP BY trade_id
+        )
+        ORDER BY timestamp DESC
+        """
+        cur.execute(query, (start,))
+        rows = cur.fetchall()
+
+        logger.info(f"get orders {start}")
+        
+        # Ottieni i nomi delle colonne
+        columns = [desc[0] for desc in cur.description]
+        
+        # Converti in lista di dizionari
+        data = [dict(zip(columns, row)) for row in rows]
+        
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.get("/order/cancel")
+async def cancel_order(permId: int):
+    try:
+        result = OrderManager.cancel_order(permId)
+        if result:
+            return {"status": "ok", "message": f"Order with permId {permId} cancelled"}
+        else:
+            return {"status": "error", "message": f"No order found with permId {permId}"}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+#############
+
+@app.get("/order/clear_all")
+async def clar_all_orders(symbol: str):
+    try:
+
+        pos = Balance.get_position(symbol)
+        if (pos and pos.position>0):
+            logger.info(f"SELL ALL {symbol} {pos.position} ")
+            OrderManager.smart_sell_limit(symbol,pos.position, muloClient.getTicker(symbol))
+
+        OrderManager.cancel_orderBySymbol(symbol)
+        result = await OrderTaskManager.cancel_orderBySymbol(symbol, )
+      
+        if result:
+            return {"status": "ok", "message": f"Orders cancelled {symbol}"}
+        else:
+            return {"status": "warn", "message": f"No order founds fo {symbol}"}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+    
+####################################
+
+@app.get("/order/task/list")
+async def get_task_orders(start: Optional[str] = None,
+                          onlyReady: bool = False):
+    if not start:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        start = today_start.isoformat().replace("T"," ")
+    try:
+
+        if onlyReady:
+            query="""SELECT * FROM task_orders 
+            WHERE id IN (
+                SELECT MAX(o.id)
+                FROM task_orders o
+                GROUP BY task_id
+            )
+            AND status =='READY'
+            AND ds_timestamp >= ? 
+            """
+        else:
+            query =f"""
+            SELECT * FROM task_orders 
+            WHERE ds_timestamp >= ? 
+            ORDER BY timestamp DESC
+            """
+
+        cur.execute(query, (start,))
+        rows = cur.fetchall()
+
+        logger.info(f"get task orders {start}")
+        
+        # Ottieni i nomi delle colonne
+        columns = [desc[0] for desc in cur.description]
+        
+        # Converti in lista di dizionari
+        data = [dict(zip(columns, row)) for row in rows]
+        
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.get("/order/task/symbol")
+async def get_task_symbol_orders(symbol:str, 
+                                start: Optional[str] = None,
+                          onlyReady: bool = False):
+    if not start:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        start = today_start.isoformat().replace("T"," ")
+    try:
+
+        if onlyReady:
+            query="""SELECT * FROM task_orders 
+            WHERE id IN (
+                SELECT MAX(o.id)
+                FROM task_orders o
+                GROUP BY task_id
+            )
+            AND status =='READY'
+            AND ds_timestamp >= ? 
+            AND SYMBOL = ?
+            """
+        else:
+            query =f"""
+            SELECT * FROM task_orders 
+            WHERE ds_timestamp >= ? 
+            AND SYMBOL = ?
+            ORDER BY timestamp DESC
+            """
+
+        cur.execute(query, (start,symbol,))
+        rows = cur.fetchall()
+
+        logger.info(f"get task orders {start}")
+        
+        # Ottieni i nomi delle colonne
+        columns = [desc[0] for desc in cur.description]
+        
+        # Converti in lista di dizionari
+        data = [dict(zip(columns, row)) for row in rows]
+        
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+###################
+# 
 
 @app.get("/api/layout/select")
 async def load_layout():
@@ -505,83 +825,270 @@ async def get_report():
 
 ###################################
 
-@app.websocket("/ws/live")
-async def ws_live(ws: WebSocket):
-    await ws_manager.connect(ws)
+#######################
 
-    #logger.info(f"Start WS socket")
-    #render_page.connected=False
+@app.get("/account/summary")
+async def account_summary():
+    try:
+        summary = ib.accountSummary()
+
+        def get_value(tag):
+            return next((float(x.value) for x in summary if x.tag == tag), None)
+
+        balance = {
+            "cash": get_value("AvailableFunds"),
+            "equity": get_value("EquityWithLoanValue"),
+            "netLiquidation": get_value("NetLiquidation"),
+            "buyingPower": get_value("BuyingPower"),
+            "initialMargin": get_value("InitMarginReq"),
+            "maintenanceMargin": get_value("MaintMarginReq"),
+            "dayTradesRemaining": get_value("DayTradesRemaining"),
+        }
+        return balance
+    
+
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.get("/account/values")
+async def account_values():
+    try:
+        values  = ib.accountValues()
+
+        cash_usd = next(
+            float(v.value)
+            for v in values
+            if v.tag == "CashBalance" and v.currency == "USD"
+        )
+        return cash_usd
+
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+      
+@app.get("/account/positions")
+async def account_positions():
+    try:
+        balance =  Balance.to_dict()
+        return balance
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+    
+###############################
+
+@app.get("/monitor/open")
+async def open_monitor(symbol:str):
+    try:
+        await client._align_data(symbol,"10s")
+        await client._align_data(symbol,"30s")
+        await client._align_data(symbol,"1m")
+        await client._align_data(symbol,"5m")
+        await client._align_data(symbol,"1h")
+        await client._align_data(symbol,"1d")
+        return {"status": "ok"}
+    
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
+    
+
+####################
+
+@app.get("/sym/time")
+async def get_sym_time():
+    return {"status": "ok", "data": client.sym_time}
+
+@app.get("/sym/speed")
+async def get_sym_speed():
+    return {"status": "ok", "data": client.sym_speed}
+
+@app.get("/sym/time/set")
+async def set_sym_time(time:int):
+    await client.setSymTime(time)
+    return {"status": "ok"}
+
+@app.get("/sym/speed/set")
+async def set_sym_speed(value:float):
+    await  client.setSymSpeed(value)
+    return {"status": "ok"}
+
+########
+
+@app.websocket("/ws/live")
+async def ws_tickers(ws: WebSocket):
+    print("HEADERS:", ws.headers)
+    print("QUERY:", ws.query_params)
+
+    await ws_manager.connect(ws)
 
     try:
         while True:
             message = await ws.receive_text()
             logger.info(f"Messaggio ricevuto: {message}")
-            # {"action":"subscribe","params":{"symbols":"NVDA,AAPL"}}
-            # {"action":"unsubscribe","params":{"symbols":"*"}}
-
-            #await ws.send_text(f"Echo: {message}")
+           
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
     
+#################
 
-async def live_loop():
-    ticker_time = 0
-    scheduler = AsyncScheduler()
-    
-    async def one_second_timer():
+@app.websocket("/ws/orders")
+async def ws_tickers(ws: WebSocket):
+    await ws_manager_orders.connect(ws)
+
+    try:
+        while True:
+            message = await ws.receive_text()
+            logger.info(f"Messaggio ricevuto: {message}")
+           
+           
+    except WebSocketDisconnect:
+        ws_manager_orders.disconnect(ws)
+
+##################################################
+
+
+#############   
+
+if __name__ =="__main__":
+
+    #############
+
+    logger.info(f"RUN MODE {run_mode}")   
+
+    util.startLoop()   # 🔑 IMPORTANTISSIMO
+
+    async def main():
+        ancora=True
+
+       
+
+        
+        if run_mode!= "sym":
+        
+            ib = IB()
+            util.patchAsyncio()
+            #ib.connect('127.0.0.1', config["general"]["ib_port"], clientId=config["general"]["ib_client"])
+            await ib.connectAsync(
+                    host="127.0.0.1",
+                    port=config["general"]["ib_port"],
+                    clientId=config["general"]["ib_client"],
+                    timeout=10
+                )
+            
+            contract = Stock(
+                "NVDA",
+                "SMART",
+                "USD",
+                primaryExchange="NASDAQ"
+            )
+
+            # ✅ QUALIFY ASYNC
+            contracts = await ib.qualifyContractsAsync(contract)
+            contract = contracts[0]
+
+            logger.info(f"TEST CONTACT : {contract}")
+
+            OrderManager(config,ib)
+            # Subscribe to news bulletins
+            ib.reqNewsBulletins(allMessages=True)
+            Balance(config,ib)
+
+        else:
+            OrderManager(config,None)
+            Balance(config,None)
+
         try:
-            #logger.info("1 sec")
-            
-            if (client.sym_mode):
-                msg = {
-                    "path": "root.clock",
-                    "data": client.sym_time 
-                }
-            else:
-                msg = {
-                    "path": "root.clock",
-                    "data": int(time.time() * 1000)
-                }
+        
+            u_config = uvicorn.Config(
+                app=app, 
+                host="0.0.0.0", 
+                port=8000,
+                log_level="info",
+                #access_log=False
+            )
+            server = uvicorn.Server(u_config)
+         
+            _server_task = asyncio.create_task(server.serve())
+          
+            #_tick_tickers = await live.start_batch()
+            async def bootstrap():
+                # start live ?? 
                 
-            await ws_manager.broadcast(msg)
-            
-            await db.tick()
+                await client.bootstrap()
+                
+                await db.bootstrap()
+          
+                await report.bootstrap()
+                
+                await event_manager.bootstrap()
+                
+                await OrderManager.bootstrap()
+                
+                await OrderTaskManager.bootstrap()
+                
+                await Balance.bootstrap()
+                logger.info("BOOT DONE")
 
-            await report.tick(render_page)
-                
-            await event_manager.tick(render_page)
+            await bootstrap()
             
-            await layout.tick(render_page)
+            _tick_orders = asyncio.create_task(OrderManager.batch())
+
+            _tick_tickers = asyncio.create_task(client.batch())
+
+            ########
+
+            async def tick():
+                while(ancora):
+                    try:
+                        #logger.info("1 sec")
+                        
+                        
+                        if (client.sym_mode):
+                            msg = {
+                                "path": "root.clock",
+                                "data": client.sym_time 
+                            }
+                        else:
+                            msg = {
+                                "path": "root.clock",
+                                "data": int(time.time() * 1000)
+                            }
+                            
+                        
+                        await ws_manager.broadcast(msg)
+                        
+                        await db.tick()
+
+                        await report.tick(render_page)
+                            
+                        await event_manager.tick(render_page)
+                        
+                        await layout.tick(render_page)
+                        
+                        
+                    except:
+                        logger.error("ERROR", exc_info=True)
+                    
+                    await asyncio.sleep(1)
+
+            #_tick_tick = asyncio.create_task(tick())
             
+            await asyncio.wait(
+                [_server_task, _tick_orders,_tick_tickers], #_tick_tickers
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
         except:
             logger.error("ERROR", exc_info=True)
+            ancora=False
+            if run_mode!= "sym":
+                print("Disconnecting from TWS...")
+                ib.disconnect()
+            exit(0)
+            logger.error("EXIT")
 
-    scheduler.schedule_every(1,one_second_timer)
 
-
-    ########## main ###############
-
-    while True:
-        try:
-          
-            '''
-            if fetcher.marketZone:
-                msg = {
-                    "path": "root.tz",
-                    "data": MZ_TABLE[fetcher.marketZone]
-                }
-                #await ws_manager.broadcast(msg)
-            '''
-            
-            #await db.tick()
-            
-            #await layout.tick(render_page)
-
-            await scheduler.tick()
-           
-        except Exception as e:
-            logger.error("errore live loop:", exc_info=True)
-
-        await asyncio.sleep(0.5)
-
+    asyncio.run(main())
 

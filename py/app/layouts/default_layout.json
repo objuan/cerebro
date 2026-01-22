@@ -12,7 +12,7 @@
             "update_time_secs": 60,
             "widget": {
                 "type": "multi_chart",
-                "symbol": "IVF",
+                "symbol": "SLGB",
                 "timeframe": 0,
                 "plot_config": {
                     "main_plot": {

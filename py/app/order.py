@@ -233,7 +233,6 @@ class OrderManager:
         '''
         '''
 
-        
         contract = Stock(symbol, 'SMART', 'USD')
         OrderManager.ib.qualifyContracts(contract)
 
@@ -342,18 +341,18 @@ class OrderManager:
                 return trade
         return None
 
-    def smart_buy_limit(symbol,totalQuantity,ticker:Ticker):
+    def smart_buy_limit(symbol,totalQuantity,ticker):
         return OrderManager._smart_limit(symbol, "BUY",totalQuantity, ticker)
        
-    def smart_sell_limit(symbol,totalQuantity,ticker:Ticker):
+    def smart_sell_limit(symbol,totalQuantity,ticker):
         return  OrderManager._smart_limit(symbol, "SELL",totalQuantity, ticker)
      
 
-    def _smart_limit(symbol,op, totalQuantity,ticker:Ticker):
+    def _smart_limit(symbol,op, totalQuantity,ticker):
         '''
         return error if != None
         '''
-        logger.debug(f"SMART {op} LIMIT ORDER {symbol} q:{totalQuantity}")
+        logger.info(f"SMART {op} LIMIT ORDER {symbol} q:{totalQuantity}")
         contract = Stock(symbol, 'SMART', 'USD')
         OrderManager.ib.qualifyContracts(contract)  
         
@@ -415,12 +414,12 @@ class OrderManager:
                         tick_size = OrderManager.tick_cache[contract.symbol ] 
 
                         if (op =="BUY"):
-                            formatted_price = OrderManager.format_price(contract,ticker.last+ tick_size)
+                            formatted_price = OrderManager.format_price(contract,ticker["last"]+ tick_size)
                         else:
-                            formatted_price = OrderManager.format_price(contract,ticker.last-tick_size)
-                        #formatted_price = round(ticker.last / tick_size) * tick_size
+                            formatted_price = OrderManager.format_price(contract,ticker["last"]-tick_size)
+                        #formatted_price = round(ticker["last"] / tick_size) * tick_size
 
-                        logger.info(f">> LimitOrder : {symbol} {op} {totalQuantity} at {ticker.last} -> {formatted_price} (tick_size:{tick_size}) ")
+                        logger.info(f">> LimitOrder : {symbol} {op} {totalQuantity} at {ticker['last']} -> {formatted_price} (tick_size:{tick_size}) ")
 
                         # 🔹 ORDINE
                         entry = LimitOrder(
@@ -575,7 +574,7 @@ async def main():
     # 🔴 avvio task asincrona
     #task = asyncio.create_task(checkNewTrades())
     ticker = Ticker
-    ticker.last = 2.802334
+    ticker["last"] = 2.802334
     
     #et = OrderManager.smart_buy_limit("IVF",100,ticker)
 

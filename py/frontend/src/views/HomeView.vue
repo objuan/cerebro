@@ -153,7 +153,7 @@ const getWidgetComponent = (type) => {
 }
 
 const initWebSocket_mulo = () => {
-  ws = new WebSocket("ws://127.0.0.1:2000/ws/orders");
+  ws = new WebSocket("ws://127.0.0.1:8000/ws/orders");
   ws.onmessage = (event) => {
    
     const msg = JSON.parse(event.data);
@@ -461,9 +461,7 @@ onMounted(() => {
 
         // orders
 
-        response = await fetch('http://127.0.0.1:2000/order/list')
-        if (!response.ok) throw new Error('Errore nel caricamento')
-        let order_list = await response.json();
+        let order_list = await send_get('/order/list')
         order_list.data.forEach(  (msg) =>{
             //console.log(val)
             let dataParsed =
@@ -475,9 +473,7 @@ onMounted(() => {
             //portfolioRef.value?.handleMessage(val);
         });
 
-        response = await fetch('http://127.0.0.1:2000/order/task/list?onlyReady=true')
-        if (!response.ok) throw new Error('Errore nel caricamento')
-        order_list = await response.json();
+        order_list = await send_get('/order/task/list?onlyReady=true')
         order_list.data.forEach(  (msg) =>{
             msg.data= JSON.parse(msg.data)
             //eventBus.emit("task-order-received", msg);

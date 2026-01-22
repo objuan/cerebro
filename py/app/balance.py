@@ -16,8 +16,8 @@ import traceback
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-conn = sqlite3.connect(DB_FILE, isolation_level=None)
-cur = conn.cursor()
+#conn = sqlite3.connect(DB_FILE, isolation_level=None)
+#cur = conn.cursor()
 
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
@@ -51,7 +51,7 @@ class Balance:
     def __init__(self,config,ib):
         Balance.ib=ib
         Balance.positionMap={}
-        Balance.run_mode = config["database"]["scanner"].get("mode","sym") 
+        Balance.run_mode = config["live_service"].get("mode","sym") 
 
         if ib:
             Balance.ib.updatePortfolioEvent  += Balance.onUpdatePortfolio

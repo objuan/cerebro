@@ -13,7 +13,7 @@ from utils import *
 
 class ReportManager:
 
-    def __init__(self, config,job,db : DBDataframe):
+    def __init__(self, config,job  ,db : DBDataframe):
         self.job=job
         self.config=config
         self.db=db
@@ -87,7 +87,7 @@ class ReportManager:
             full_dict = {
                 symbol: {
                     col: self.py_value(self.df_report.loc[symbol, col])
-                    for col in ["rank","rank_delta","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+                    for col in ["rank","rank_delta","gain","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
                 }
                 for symbol in self.df_report.index
             }
@@ -99,7 +99,7 @@ class ReportManager:
             })
             
     def make_diff(self, current, old):
-        cols = ["rank","rank_delta","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+        cols = ["rank","rank_delta","gain","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
 
         #logger.info(f"current \n{current}")
         #logger.info(f"old \n{old}")
@@ -130,7 +130,7 @@ class ReportManager:
 
             # situazione attuale
 
-            #  symbol  last_close  last   day_v  ask  bid  gain  ts   datetime
+            #  symbol  last_close  last   volume  ask  bid  gain  ts   datetime
             df_tickers = self.job.getTickersDF()
             #logger.info(f"Tickers \n{df_tickers}")
         
@@ -226,7 +226,7 @@ class ReportManager:
                 .transform(lambda x: x.tail(5).sum())
             )
 
-            df['rel_vol_24'] = (df['day_v'] / df['avg_base_volume_1d'])  * 100
+            df['rel_vol_24'] = (df['volume'] / df['avg_base_volume_1d'])  * 100
             df['rel_vol_5m'] = ((df['volume_5m'] / df['avg_base_volume_5m']) ) * 100
 
             #float

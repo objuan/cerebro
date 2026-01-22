@@ -115,7 +115,7 @@ import { createChart, CrosshairMode,  CandlestickSeries,
 createInteractiveLineManager } from '@pipsend/charts'; //createTradingLine
 import { eventBus } from "@/components/js/eventBus";
 
-import { formatValue,send_delete,send_get,send_mulo_get } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { formatValue,send_delete,send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker, updateTradeMarker ,setTradeMarker
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 
@@ -208,7 +208,7 @@ const handleRefresh = async () => {
 
       // TASK LIST
 
-      const task_response = await send_mulo_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
+      const task_response = await send_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
       console.log("task list",task_response.data)
       let _task_datas = task_response.data;
 

@@ -114,7 +114,7 @@ class EventManager:
         for _, row_dict in df.iterrows():
             d = json.loads(row_dict['data'])
             arr.append(d)
-            logger.info(f"{row_dict['data']}")
+            logger.debug(f"{row_dict['data']}")
             
         arr.reverse()
 
@@ -132,7 +132,7 @@ class EventManager:
             full_dict = {
                 symbol: {
                     col: self.py_value(df.loc[symbol, col])
-                    for col in ["rank","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap","ts"]
+                    for col in ["rank","gain","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap","ts"]
                 }
                 for symbol in df.index
             }
@@ -145,7 +145,7 @@ class EventManager:
                 # Espandiamo le altre colonne
                 **{
                     col: self.py_value(df.loc[symbol, col])
-                    for col in ["rank","gain","last", "day_v","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap","ts"]
+                    for col in ["rank","gain","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap","ts"]
                 }
             }
             for symbol in df.index

@@ -5,7 +5,7 @@ from chart import *
 from renderpage import *
 from reports.top_gain_report import *
 from reports.db_dataframe import *
-from mulo_client import MuloClient
+#from mulo_client import MuloClient
 import uuid
 import logging
 import asyncio
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Layout:
 
-    def __init__(self, client: MuloClient, db : DBDataframe, config):
+    def __init__(self, client, db : DBDataframe, config):
        self.components=[]
        self.client=client
        self.db = db
@@ -48,6 +48,7 @@ class Layout:
     def read(self,filePath):
         self.filePath=filePath
         try:
+            logger.info(f"Open {filePath}")
             with open(filePath, 'r', encoding='utf-8') as file:
                 dati_python = json.load(file)
                 logger.debug(f"LOAD LAYOUT {dati_python}")

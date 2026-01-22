@@ -1,4 +1,9 @@
 {
+	"general":
+	{
+		"ib_port" : 7497,
+		"ib_client" : 1
+	},
 	"instruments":{
 		"stock_update_days" : 10
 	},
@@ -54,11 +59,16 @@
 		"-MOMO_MIN_REL_VOL_24": "# Molto volume nelle ultime 24h",
 		"MOMO_MIN_REL_VOL_24" : 3.0 ,
         "MOMO_MIN_GAIN": 5.0
-	}
-	,"database":
-		{
-			"scanner":
-			{
+	},
+	"live_service":
+	{
+				"enabled" : true,
+				"ib_port" : 7497,
+				"ib_client" : 2,
+				"max_symbols" :10,
+				"RETENTION_HOURS" : 48,
+				"CLEANUP_INTERVAL_HOURS" : 8,
+				"fetch_enabled" : true,
 				"mode" : "live",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["NVDA"],
@@ -67,7 +77,7 @@
 				"scheduler":[
 					{
 						"name" : "TOP_PERC_GAIN",
-						"update_time" : 600,
+						"update_time" : 300,
 						"live_mode" : "ADD"
 					}
 				],
@@ -118,20 +128,9 @@
 						}
 					}
 				]
-			},
-			"live":
-			{
-				"ib_port" : 7497,
-				"enabled" : true,
-				"max_symbols" :10,
-				"RETENTION_HOURS" : 48,
-				"CLEANUP_INTERVAL_HOURS" : 8
-			}
-			,"logic":
-			{
-				"fetch_enabled" : true,
-				"max_symbols": 2,
-				"TIMEFRAME_UPDATE_SECONDS" : {
+
+			
+				,"TIMEFRAME_UPDATE_SECONDS" : {
 					"10s": 10,
 					"30s": 30,
 					"1m": 5,
@@ -155,7 +154,7 @@
 					"4h": "30d",
 					"1d": "60d"
 				}
-			}
+	}
 
-		}
+		
 }

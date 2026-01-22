@@ -89,10 +89,10 @@ class OrderTaskManager:
                 OrderManager.ib.sleep(interval)
         return False
  
-    async def on_task_order_trigger(order,order_step,ticker : Ticker):
+    async def on_task_order_trigger(order,order_step,ticker ):
         try:
     
-            logger.info(f'TRIGGER {order_step} last:{ticker.last} ')
+            logger.info(f'TRIGGER {order_step} last:{ticker["last"]} ')
 
             if order_step["side"] =="BUY":
                     #real_price = lastPrice+  lastPrice* 0.001
@@ -105,11 +105,11 @@ class OrderTaskManager:
                         logger.error(f">> {ret}")
                     else:
                         order_step["state"] = "filled"
-                        order_step["trigger_price"] = ticker.last
+                        order_step["trigger_price"] = ticker["last"]
                     '''
                     if OrderTaskManager.wait_order(trade):
                         order_step["real_trade_id"] = trade.orderStatus.permId
-                        order_step["trigger_price"] = ticker.last
+                        order_step["trigger_price"] = ticker ["last"]
                     else:
                         logger.error("ERROR",exc_info=True)
                     '''
@@ -125,7 +125,7 @@ class OrderTaskManager:
                         logger.warning("Position zero ")
                         order["error"] = "Position zero "
                     else:
-                        logger.info(f"SELL ALL {order['symbol']} {pos.position } at {ticker.last} ")
+                        logger.info(f"SELL ALL {order['symbol']} {pos.position } at {ticker['last']} ")
 
                         ret = OrderManager.smart_sell_limit(order["symbol"], order_step["quantity"],ticker)
                         if ret:
@@ -133,13 +133,13 @@ class OrderTaskManager:
                             order["error"] = ret
                             logger.error(f">> {ret}")
                         else:
-                            order_step["trigger_price"] = ticker.last
+                            order_step["trigger_price"] = ticker["last"]
                             order_step["state"] = "filled"
 
                         '''
                         if OrderTaskManager.wait_order(trade):
                             order_step["real_trade_id"] = trade.orderStatus.permId
-                            order_step["trigger_price"] = ticker.last
+                            order_step["trigger_price"] = ticker ["last"]
                         else:
                             logger.error("ERROR",exc_info=True)
                         '''
@@ -282,9 +282,10 @@ class OrderTaskManager:
         await OrderTaskManager.send_task_order(order)
 
          
-    async def onTicker(symbol,ticker:Ticker):
+    async def onTicker(ticker):
         try:
-            #logger.info(f"onTicker {symbol},{lastPrice}")
+            symbol = ticker["symbol"]
+            #logger.info(f"onTicker {symbol},{ticker}")
             for order in OrderTaskManager.task_orders:
                 #logger.info(f"order {order}")
                 if order["symbol"] == symbol and not  "error" in order:
@@ -329,11 +330,11 @@ class OrderTaskManager:
                                 if op == "last >" :
                                     lmtPrice = float(rule["price"])
                                     #logger.info(f"CHECK {lastPrice} > {lmtPrice}" )
-                                    triggered =  (ticker.last>lmtPrice )
+                                    triggered =  (ticker["last"]>lmtPrice )
                                 if op == "last <" :
                                     lmtPrice = float(rule["price"])
                                     #logger.info(f"CHECK {lastPrice} > {lmtPrice}" )
-                                    triggered =  (ticker.last<lmtPrice )
+                                    triggered =  (ticker["last"]<lmtPrice )
 
                                 if triggered:
                                         
@@ -411,7 +412,7 @@ async def main():
     # 🔴 avvio task asincrona
     #task = asyncio.create_task(checkNewTrades())
     ticker = Ticker
-    ticker.last = 2.802334
+    ticker ["last"] = 2.802334
     
     #et = OrderManager.smart_buy_limit("IVF",100,ticker)
 

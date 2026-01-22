@@ -11,6 +11,7 @@ call ..\.venv\Scripts\activate.bat
 
 REM Avvia script
 echo Starting ...
+rem uvicorn webapp:app  --reload
 uvicorn webapp:app  --reload
 
 REM Se crasha, logga

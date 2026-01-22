@@ -63,7 +63,7 @@
 
 import { ref,watch,computed,onMounted,onBeforeUnmount  } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
-import {send_post,send_mulo_get} from '@/components/js/utils.js'
+import {send_post,send_get} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
 import {order_limit,clear_all_orders,order_buy_at_level,order_bracket} from "@/components/js/orderManager";
 
@@ -131,7 +131,7 @@ onMounted( async () => {
   eventBus.on("update-position", onPositionUpdated);
 
    
-  let pos_list = await send_mulo_get('/account/positions')
+  let pos_list = await send_get('/account/positions')
   pos_list.forEach(  (val) =>{
         val["type"] = "POSITION"
         onPositionUpdated(val);

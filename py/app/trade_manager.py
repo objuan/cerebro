@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from config import DB_FILE,CONFIG_FILE
 from utils import convert_json
 from props_manager import PropertyManager
-from mulo_client import MuloClient
+#from mulo_client import MuloClient
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -72,7 +72,7 @@ class TradeOrder:
 class TradeManager:
     props: PropertyManager
 
-    def __init__(self, config,client:MuloClient, props : PropertyManager):
+    def __init__(self, config,client, props : PropertyManager):
         self.props=props
         self.client=client
 

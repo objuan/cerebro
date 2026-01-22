@@ -93,7 +93,7 @@ export async function send_mulo_get(url, params = {}) {
     const query = new URLSearchParams(params).toString();
 
     const res = await fetch(
-        "http://localhost:2000" + url + (query ? `?${query}` : ""),
+        "http://localhost:3000" + url + (query ? `?${query}` : ""),
         {
             method: "GET",
             headers: { "Content-Type": "application/json" },
@@ -110,7 +110,7 @@ export async function send_mulo_get(url, params = {}) {
 
 export async function send_mulo_post(url, payload) {
 
-    let res = await fetch("http://localhost:2000"+url, {
+    let res = await fetch("http://localhost:3000"+url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

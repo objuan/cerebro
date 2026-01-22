@@ -62,7 +62,7 @@
 <script setup>
 import { computed,ref,onMounted,watch } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
-import { formatUnixDate ,formatForTimeInput,mergeDateWithTime, send_mulo_get } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { formatUnixDate ,formatForTimeInput,mergeDateWithTime, send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
 
 const selectedSymTime = ref(null);
 const symSpeed = ref(null)
@@ -113,7 +113,7 @@ function onSetSymTime() {
     
       console.log('Set SYM start time:', unixTime);
 
-      send_mulo_get("/sym/time/set",{"time" : unixTime*1000})
+      send_get("/sym/time/set",{"time" : unixTime*1000})
   }
   
 }
@@ -122,7 +122,7 @@ function onSetSymSpeed() {
   //console.log('SYM speed:', symSpeed.value);
   //liveStore.set('root.sym_speed', symSpeed.value);
 
-   send_mulo_get("/sym/speed/set",{"value" : symSpeed.value})
+   send_get("/sym/speed/set",{"value" : symSpeed.value})
 }
 
 defineProps({
