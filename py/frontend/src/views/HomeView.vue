@@ -142,9 +142,6 @@ const eventsRef= ref(null);
 const tradeRef= ref(null);
 const toastRef= ref(null);
 
-//const symbolsList = ref([]);
-//const selectedSymbolChoice = ref('');
-//const widgetList = ref([]); // Array di oggetti { id, rect, data }
 const widgetRefs = ref({})
 const tickets_summary = ref(null)
 const selectedId = ref(null)
@@ -152,9 +149,6 @@ const selectedId = ref(null)
 const rows = ref(2)
 const cols = ref(2)
 const cells = ref([])  // contiene i widget attivi
-
-// Riferimenti non reattivi (istanze tecniche)
-//let grid = null;
 // --- LOGICA WEBSOCKET ---
 let ws = null;
 
@@ -173,10 +167,10 @@ function setGrid(r, c) {
 
   const total = r * c
   const newCells = []
-
+  widgetRefs.value={}
   for (let i = 0; i < total; i++) {
 
-    let symbol = liveStore.get("chart."+(i+1),"")
+    let symbol = liveStore.get("chart."+(i+1)+".symbol","")
     console.log("<< ",i+1, symbol)
 
     newCells.push({
@@ -288,12 +282,14 @@ const initWebSocket = () => {
     
       case "candle":
         {
-          const componentInstance = widgetRefs.value[msg.id];
-          if (componentInstance)
-          {
-            //console.log("WS CANDLE",msg.id,componentInstance) 
-            componentInstance.on_candle(msg.data);  
-          }
+            //console.log("WS CANDLE",msg) 
+
+            for (const id in widgetRefs.value) {
+              const comp = widgetRefs.value[id]
+              if (comp)
+                comp.on_candle(msg.data)
+            }
+            //#componentInstance.on_candle(msg.data);  
         }
         break;
       case "ticker":
@@ -363,6 +359,7 @@ onMounted(() => {
   const loadLayout = async () => {
   try {
       //console.log("LOAD LAYOUT")
+      /*
       let response = await fetch('http://127.0.0.1:8000/api/layout/select')
       if (!response.ok) throw new Error('Errore nel caricamento')
         const data = await response.json();
@@ -379,6 +376,7 @@ onMounted(() => {
               
             } 
         });
+        */
 
         // tutte le  props
         let pdata = await send_get("/api/props/find", {path : ""})

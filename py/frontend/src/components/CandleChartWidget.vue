@@ -1,5 +1,7 @@
 <template>
-  <div ref="container" class="grid-stack-item-content border rounded bg-dark text-white shadow-sm chart-parent" >
+  <div ref="container" class=" border rounded bg-dark text-white shadow-sm chart-parent" style="overflow: hidden;" >
+    
+    
     <div v-if="!props.multi_mode" class="header grid-stack-handle d-flex justify-content-between align-items-center p-2 bg-secondary bg-opacity-25 border-bottom">
       <div class="d-flex align-items-center"  >
         <span class="me-2">📈</span>
@@ -34,16 +36,30 @@
         <button @click="$emit('close', id)" class="btn btn-sm btn-outline-light border-0 close-btn">✕</button>
       </div>
     </div>
+
+
     <div v-if="props.multi_mode" class="bulk_header" >
-        <span>{{ currentTimeframe }}</span>
+      <div style="display: grid;grid-template-columns: 80px 1fr;">
+        <select 
+          v-model="currentTimeframe" 
+          @change="onTimeFrameChange" 
+          class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
+        >
+          <option value="10s">10s</option>
+          <option value="1m">1m</option>
+          <option value="5m">5m</option>
+          <option value="1h">1h</option>
+          <option value="1d">1d</option>
+        </select>
         <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
+      </div>
     </div>
     <!---   -->
-    <div class="position-relative flex-grow-1 p-0 chart-panel">
+    <div class="position-relative p-0 chart-panel">
       <div class="chart-legend-up  small" v-html="legendHtml"></div>
 
-      <div ref="chartContainer" class="chart-container h-100 w-100 d-flex flex-column">
-        <div ref="mainChartRef" class="flex-grow-1 w-100" style="height:calc(100%-100px)">
+      <div ref="chartContainer" class="chart-container  w-100 d-flex flex-column">
+        <div ref="mainChartRef" class=" w-100" >
           <div class="chart-legend-left-ind  small" v-html="legendIndHtml"></div>
           <div class="chart-legend-left small"  >
                 <span class="text-white me-3">Vol: {{  formatValue(lastMainCandle?.volume) }}</span>
@@ -114,14 +130,15 @@ import { createChart, CrosshairMode,  CandlestickSeries,
    LineSeries, HistogramSeries,
 createInteractiveLineManager } from '@pipsend/charts'; //createTradingLine
 import { eventBus } from "@/components/js/eventBus";
-
-import { formatValue,send_delete,send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { formatValue,send_delete,send_get,saveProp } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker, updateTradeMarker ,setTradeMarker
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 
 const props = defineProps({
   multi_mode: { type: Boolean, default: false },
   id: { type: String, required: true },
+  number: { type: Number, required: true },
+  sub_number: { type: Number, required: true },
   symbol: { type: String, required: true },
   timeframe: { type: String, default: '1m' },
   plot_config: { type: Object, default: () => ({ main_plot: {} }) }
@@ -180,12 +197,21 @@ function context() {
         gfx_canvas
     };
 }
+
+const get_layout_key = (subkey)=> { return `chart.${props.number}.${props.sub_number}.${subkey}`}
+
+function onTimeFrameChange(){
+
+  saveProp(get_layout_key("timeframe"), currentTimeframe.value)
+  handleRefresh();
+}
+
 /*
  --- LOGICA REFRESH DATI ---
 */
 const handleRefresh = async () => {
   try {
-    console.log("handleRefresh ", props.timeframe);
+   // console.log("handleRefresh ", props.timeframe);
 
     // SYMBOLS CANDLES
     const responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
@@ -351,6 +377,7 @@ async function setDrawMode(mode) {
 const handleSymbols = async () => {
   handleRefresh();
 };
+
 const setSymbol = async (symbol) => {
   currentSymbol.value= symbol
   handleRefresh();
@@ -635,11 +662,11 @@ const buildChart =  () => {
 
 const resize =  () => {
     const { width, height } = container.value.getBoundingClientRect()
-    console.debug("c resize ",width,height,container);
+   // console.log("c resize ",width,height,container);
    // console.log(charts.main)
     if (props.multi_mode)
     {
-      charts.main.resize(width-10,height-110);
+      charts.main.resize(width-10,height-100);
       charts.volume.resize(width-10,94);
     }
     else
@@ -654,8 +681,11 @@ const resize =  () => {
 
 function on_candle(c)
 {
-  //console.log("on_candle",currentTimeframe.value) 
+  //
   if (c.tf !== currentTimeframe.value) return;  
+
+   // console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
+
   const new_value = {
     time: window.db_localTime(c.ts),
     open: c.o, high: c.h, low: c.l, close: c.c,volume: c.v
@@ -692,6 +722,21 @@ defineExpose({
 
 <style scoped>
 
+.charts-grid {
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+  background-color: azure;
+  padding-right: 10px;
+}
+.charts-grid > * {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+
 .price-marker {
   position: absolute;
   align-items: center;
@@ -709,7 +754,7 @@ defineExpose({
 .chart-parent {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
 }
 
 .chart-panel{

@@ -41,13 +41,14 @@ from order_task import OrderTaskManager
 from trade_manager import TradeManager
 from reports.event_manager import EventManager
 from reports.report_manager import ReportManager
-from layout import *
+
+from reports.db_dataframe import *
 from props_manager import PropertyManager
 from mulo_live_client import MuloLiveClient
 
 print(" STAT FROM ",os.getcwd())
 
-DEF_LAYOUT = "app/layouts/default_layout.json"
+#DEF_LAYOUT = "app/layouts/default_layout.json"
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
@@ -142,10 +143,19 @@ tradeManager = TradeManager(config,client,propManager)
 render_page = RenderPage(ws_manager)
 event_manager.render_page=render_page
 
-layout = Layout(client,db,config)
-layout.read(DEF_LAYOUT)
-layout.set_render_page(render_page)   
-client.on_candle_receive += layout.notify_candles    
+#layout = Layout(client,db,config)
+#layout.read(DEF_LAYOUT)
+#layout.set_render_page(render_page)   
+#client.on_candle_receive += layout.notify_candles    
+
+async def _on_candle_receive(candle):
+    #logger.info(f"candle {candle}")
+    await render_page.send({
+                   "type" : "candle",
+                   "data": candle
+               })
+
+client.on_candle_receive += _on_candle_receive
 
 async def _on_ticker_receive(ticker):
     await OrderTaskManager.onTicker(ticker)
@@ -799,7 +809,7 @@ async def get_task_symbol_orders(symbol:str,
         return {"status": "error", "message": str(e)}
 ###################
 # 
-
+'''
 @app.get("/api/layout/select")
 async def load_layout():
     all = await layout.load()
@@ -819,7 +829,7 @@ async def layout_cmd(request: Request):
     if dati_json["scope"] =="layout":
         await layout.process_cmd(dati_json, render_page)
     return {"status": "ok"}
-
+'''
 #############
 @app.get("/api/report/get")
 async def get_report():
@@ -1075,7 +1085,7 @@ if __name__ =="__main__":
                             
                         await event_manager.tick(render_page)
                         
-                        await layout.tick(render_page)
+                        #await layout.tick(render_page)
                         
                         
                     except:

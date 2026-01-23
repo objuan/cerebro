@@ -1,16 +1,15 @@
 <template>
-  <div ref="multi_container" @mousedown="handleSelect" class="grid-stack-item-content border rounded bg-dark text-white shadow-sm">
-    <div class="header grid-stack-handle d-flex justify-content-between align-items-center p-2 bg-secondary bg-opacity-25 border-bottom">
-      <div class="d-flex align-items-center">
-         <span class="me-2" >📈</span>
-         <strong class="text-uppercase">{{number}} 
-          Chart: <span style="color:yellow">{{ currentSymbol }}</span>
+  <div ref="multi_container" @mousedown="handleSelect" class="border rounded bg-dark text-white shadow-sm">
+    <div class="chart-header ">
+      <div class="top-row">
+         <strong class="text-uppercas symbol">({{number}} )
+          <span class="symbol">{{ currentSymbol }}</span>
         </strong>
           
-         <select 
+        <select 
           v-model="currentSymbol" 
           @change="onChangeSymbols"
-          class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
+          class=" form-select-sm bg-dark text-white border-secondary "
         >
           <option
             v-for="s in symbolList"
@@ -20,32 +19,25 @@
             {{ s }}
           </option>
         </select>
-        <div style="margin-left:20px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; ">
+        </div>
+
+        <div  class="middle-row" style="margin-left:20px; display:flex; flex-direction:column;justify-content:center; ">
              <span v-html="fundamentals"></span>
             <span class="ticker" v-html="ticker"></span>
         </div>
-      </div>
-       <div class="buttons-right">
-
+       
+        <div class="bottom-row">
+     
           <select 
             v-model="currentLayout" 
             @change="onChangeLayouts"
-            class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
+            class="form-select-sm bg-dark text-white border-secondary "
           >
             <option value="1,1">1x1</option>
             <option value="1,2">1x2</option>
             <option value="2,1">2x1</option>
             <option value="2,2">2x2</option>
           </select>
-
-           <button
-            v-for="tf in timeframes"
-            :key="tf"
-            @click="selectMode(tf)"
-          >
-            {{ tf }}
-          </button>
-        <button @click="selectMode('')">..</button>
       </div>
     </div>
 
@@ -53,90 +45,44 @@
         <TradeConsole :symbol=symbol  ></TradeConsole> 
     </div>
 
-    <div class="position-relative p-0 charts-grid"  style="height: calc(100% - 120px); overflow: hidden;" >
-     
-        <div v-if="currentMode!=''" style="height:100%" >
-          <div class="multi-chart-container"  style="height:100%" >
-            <div ref="chartContainer1" class="chart-container cell">
-              <CandleChartWidget style="width:100%;height:100%"
-                id="_chart_all"
-                :ref="el => widgetRefs['_chart_all'] = el"
-                :symbol="currentSymbol"
-                :timeframe=currentMode
-                :multi_mode=false
-                :plot_config="props.plot_config"
-              />
-            </div>
-          </div>
-      </div>
-
-      <div v-if="currentMode==''" style="height:100%" >
-        
-        <div class="multi-chart-container grid-2x2">
-            <div ref="chartContainer1" class="chart-container cell">
-              <CandleChartWidget style="width:100%;height:100%"
-                id="_chart_1"
-                :ref="el => widgetRefs['_chart_1'] = el"
-                :symbol="currentSymbol"
-                timeframe="5m"
-                :multi_mode=true
-                :plot_config="props.plot_config"
-              />
-            </div>
-
-            <div ref="chartContainer2" class="chart-container cell">
-              <CandleChartWidget style="width:100%;height:100%"
-                id="_chart_2"
-                :ref="el => widgetRefs['_chart_2'] = el"
-                :symbol="currentSymbol"
-                timeframe="1m"
-                :multi_mode=true
-                :plot_config="props.plot_config"
-              />
-            </div>
-        
-            <div ref="chartContainer3" class="chart-container cell">
-              <CandleChartWidget style="width:100%;height:100%"
-                id="_chart_3"
-                :ref="el => widgetRefs['_chart_3'] = el"
-                :symbol="currentSymbol"
-                timeframe="1d"
-                :multi_mode=true
-                :plot_config="props.plot_config"
-              />
-            </div>
-
-            <div ref="chartContainer4" class="chart-container cell">
-            <CandleChartWidget style="width:100%;height:100%"
-                id="_chart_4"
-                :ref="el => widgetRefs['_chart_4'] = el"
-                :symbol="currentSymbol"
-                timeframe="10s"
-                :multi_mode=true
-                :plot_config="props.plot_config"
-              />
-            </div>
+  
+         <div class="in-charts-grid" :style="gridStyle">
+          <CandleChartWidget
+              v-for="cell in cells"
+              :key="cell.id"
+              :ref="el => widgetRefs[cell.id] = el"
+              :id="cell.id"
+              :symbol="currentSymbol"
+              :timeframe="cell.timeframe"
+              :plot_config="cell.plot_config"
+              :class="{ selected: selectedId === cell.id }"
+              :multi_mode=true
+              :number="number"
+              :sub_number ="cell.number"
+          >
+          </CandleChartWidget>
         </div>
-      </div>
-    </div>
-   
+
+              
+    
+
   </div>
 </template>
 
 
 <script setup>
-import { ref, onMounted, onUnmounted,onBeforeUnmount } from 'vue';
+import { ref, onMounted, onUnmounted,onBeforeUnmount,nextTick } from 'vue';
 import CandleChartWidget from './CandleChartWidget.vue';
 import { computed } from 'vue';
 import  TradeConsole  from './TradeConsole.vue'
 import { eventBus } from "@/components/js/eventBus";
-import {send_post} from '@/components/js/utils.js'
+import {saveProp} from '@/components/js/utils.js'
+import { liveStore } from '@/components/js/liveStore.js';
 
 const props = defineProps({
   id: { type: String, required: true },
   number: { type: Number, required: true },
   symbol: { type: String, required: true },
-  timeframe_multi: { type: String, required: false,default:"10s,1m,5m,1d" },
   timeframe: { type: String, required: false ,default:"10s"},
   plot_config: { type: Object, default: () => ({ main_plot: {} }) }
 });
@@ -151,48 +97,76 @@ const ticker = ref("")
 const symbolList = ref([]);
 const multi_container = ref(null)
 const currentLayout= ref("")  
+const rows = ref(1)
+const cols = ref(1)
+const cells = ref([])  // contiene i widget attivi
 
-const currentMode = ref(props.timeframe );
 
 const emit = defineEmits(['select'])
 function handleSelect() {
   emit('select', props.id)
 }
 
+const get_layout_key = (subkey)=> { return `chart.${props.number}.${subkey}`}
+
 // -------------
 
-const timeframes = computed(() =>
-  props.timeframe_multi
-    .split(',')
-    .map(tf => tf.trim())
-    .filter(Boolean)
-);
+
+const gridStyle = computed(() => ({
+  display: 'grid',
+  width: '100%',
+  //height: '100%',
+  height: 'calc(100% - 140px)',
+  gridTemplateColumns: `repeat(${cols.value}, 1fr)`,
+  gridTemplateRows: `repeat(${rows.value}, 1fr)`,
+  gap: '6px',
+}))
 
 const onChangeLayouts = async () => {
+    const [r, c] = currentLayout.value.split(",").map(Number);
+    rows.value = r
+    cols.value = c
+    widgetRefs.value={}
+    const total = r * c
+    const newCells = []
+
+    for (let i = 0; i < total; i++) {
+       let tf =  liveStore.get( get_layout_key(""+(i+1)+".timeframe"),"1m")
+        
+       newCells.push({
+        id: crypto.randomUUID(),
+        number: i+1,          // posizione nella griglia (0 → n-1)
+        plot_config: {},
+        timeframe:tf
+       });
+      }
+    
+  cells.value = newCells
+  
+  saveProp(get_layout_key("grid"),`${r},${c}` );
+
+  nextTick(resize)
 };
+
+
 
 const onChangeSymbols = async () => {
-  console.log("onChangeSymbols",widgetRefs.value["_chart_1"])
-  if (currentMode.value?.trim() =="")
-  {
-    widgetRefs.value["_chart_1"].setSymbol(currentSymbol.value);
-    widgetRefs.value["_chart_2"].setSymbol(currentSymbol.value);
-    widgetRefs.value["_chart_3"].setSymbol(currentSymbol.value);
-    widgetRefs.value["_chart_4"].setSymbol(currentSymbol.value);
-  }
-  else
-    widgetRefs.value["_chart_all"].setSymbol(currentSymbol.value);
 
-    send_post('/api/props/save', { path: 'chart.'+props.number, value: currentSymbol.value });
+   currentLayout.value = liveStore.get( get_layout_key("grid"),"1,1")
+  
+   console.log("onChangeSymbols", currentLayout.value);
+
+   for (const id in widgetRefs.value) {
+        const comp = widgetRefs.value[id]
+        const el = comp?.$el
+        if (!el) continue
+ 
+        comp.setSymbol(currentSymbol.value);
+        
+   }
+
+    saveProp( get_layout_key("symbol"), currentSymbol.value );
 };
-
-
-function selectMode(mode)
-{
-  //console.log("select ", mode)
-  currentMode.value = mode
-  resize();
-}
 
 // --- INIZIALIZZAZIONE ---
 onMounted( async() => {
@@ -205,6 +179,10 @@ onMounted( async() => {
 
     await updateAll();
 
+    // --------------
+    currentLayout.value = liveStore.get(get_layout_key("grid"),"1,1")
+    
+    onChangeLayouts()
 });
 
 onBeforeUnmount(() => {
@@ -234,6 +212,15 @@ const resize =  () => {
    
     //console.log("m resize ",w,h);
 
+    for (const id in widgetRefs.value) {
+        const comp = widgetRefs.value[id]
+        const el = comp?.$el
+        if (!el) continue
+        const rect = el.getBoundingClientRect()
+        comp.resize(rect.width, rect.height)
+   }
+
+  /*
     if (currentMode.value?.trim() =="")
     {
       //console.log("lll",widgetRefs.value["chart_1"])
@@ -244,7 +231,7 @@ const resize =  () => {
     }
     else
         if (widgetRefs.value["_chart_all"])   widgetRefs.value["_chart_all"].resize();
-
+*/
 };
 
 
@@ -256,6 +243,17 @@ const save = ()=>
 
 function on_candle(msg)
 {
+  if (msg.s == currentSymbol.value)
+  {
+      //console.log("FIND ", currentSymbol.value,widgetRefs)
+      for (const id in widgetRefs.value) {
+        const comp = widgetRefs.value[id]
+        if (comp)
+          comp.on_candle(msg)
+      }
+  }
+
+  /*
   if (currentMode.value  != "" && currentMode.value  == msg ["tf"])
   {
         //console.log("MultiCandleChartWidget on_candle",msg) 
@@ -267,6 +265,7 @@ function on_candle(msg)
       widgetRefs.value['_chart_3']?.on_candle(msg);  
       widgetRefs.value['_chart_4']?.on_candle(msg);  
   }
+      */
 }
 function onTickerReceived(msg)
 {
@@ -294,41 +293,18 @@ defineExpose({
 <style scoped>
 
 
-.charts-grid {
-  height: 100%;
-}
-
-.grid-2x2 {
-  display: grid;
+.in-charts-grid {
   width: 100%;
-  height: 100%;
-
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-
-  gap: 4px; /* opzionale */
-}
-
-.cell {
-  padding: 0px;
-  margin: 0px;
+  height: calc(100% - 140px);
+  padding: 6px;
   box-sizing: border-box;
-  min-width: 10;
-  min-height: 10;
-  height:  100%;
-  width: 100%;
-  display: flex;
-  border: yellow;
-  border-width: 0px;
-  border-style: dashed;
-  overflow: hidden;
+  background-color: azure;
+  padding-right: 10px;
 }
-
-@media (max-width: 768px) {
-  .grid-2x2 {
-    grid-template-columns: 1fr;
-    grid-template-rows: repeat(4, 1fr);
-  }
+.in-charts-grid > * {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chart-main {
@@ -357,13 +333,48 @@ defineExpose({
 }
 .ticker{
   display: block;      /* necessario per text-align */
-  text-align: right ;
-  margin-left: auto;
-  align-self: flex-end;
+ /* text-align: right ;
+  margin-left: auto;*/
+  /*align-self: flex-end;*/
 }
 .trade_console{
-  height: 80px;
+  height: 90px;
   border: #0077ff solid    ;
   border-width: 1;
 }
+
+
+.chart-header {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  width: 100%;
+  height: 60px;
+  background-color: #2b2b43;
+}
+
+.top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 400px;
+}
+
+.middle-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.bottom-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.symbol {
+  color: yellow;
+   font-size: 1.9rem;
+}
+
 </style>

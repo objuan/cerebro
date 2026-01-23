@@ -227,3 +227,7 @@ export function mergeDateWithTime(baseUnix, timeStr) {
 
   return Math.floor(date.getTime() / 1000);
 }
+
+export function saveProp(path,value){
+    send_post('/api/props/save', { path: path, value: value });
+}

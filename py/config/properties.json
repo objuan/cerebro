@@ -7,11 +7,38 @@
   "balance": {
     "USD": 1000
   },
-  "chart": {
-    "1": "REVB",
-    "2": "BGL"
-  },
   "home": {
     "grid": "1,1"
+  },
+  "chart": {
+    "1": {
+      "grid": "2,2",
+      "symbol": "DRCT",
+      "1": {
+        "timeframe": "5m"
+      },
+      "2": {
+        "timeframe": "1m"
+      },
+      "4": {
+        "timeframe": "10s"
+      },
+      "3": {
+        "timeframe": "1d"
+      }
+    },
+    "2": {
+      "grid": "1,2",
+      "symbol": "DRCT",
+      "2": {
+        "timeframe": "10s"
+      }
+    },
+    "4": {
+      "grid": "1,1"
+    },
+    "3": {
+      "grid": "1,1"
+    }
   }
 }
