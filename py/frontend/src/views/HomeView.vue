@@ -34,9 +34,7 @@
                title="Trade">📑 Trade</button>
 
 
-          <button class="sidebar-btn"
-              @click="toastRef.toggle()"
-               title="Toast">📑 Web Events</button>
+
 
         </aside>
 
@@ -69,45 +67,47 @@
             <ToastHistory />
         </SidePanel>
 
+      
+
+      </div>
+      <div class="sub-bar">
+        <div class="layout-buttons">
+          <button @click="setGrid(1,1)">1×1</button>
+          <button @click="setGrid(1,2)">1×2</button>
+          <button @click="setGrid(2,1)">2×1</button>
+          <button @click="setGrid(2,2)">2×2</button>
+          <button @click="setGrid(3,2)">3×2</button>
+          <button @click="setGrid(1,3)">1×3</button>
+
+        </div>
+        <div style="flex-grow: 1;"></div>
+
+        <button 
+              @click="toastRef.toggle()"
+               title="Toast">📑 Web Events</button>
       </div>
 
     <main class="two-columns">
       
-      <div>
-        <TickersSummary ref="tickets_summary"></TickersSummary>
-      </div>
+ 
+        <div>
+          <TickersSummary ref="tickets_summary"></TickersSummary>
+        </div>
 
-      <div class="grid-stack">
-        <div 
-          v-for="w in widgetList" 
-          :key="w.id" 
-          class="grid-stack-item"
-          :data-gs-id="w.id"
-          :data-gs-x="w.rect.x"
-          :data-gs-y="w.rect.y"
-          :data-gs-w="w.rect.w"
-          :data-gs-h="w.rect.h"
-        >
-          <component 
-            :is="getWidgetComponent(w.type)"
-            :id="w.id"
-            :ref="el => widgetRefs[w.id] = el"
-            :symbol="w.data.symbol"
-            :plot_config="w.data.plot_config"
-            @initialized="registerChart"
-            @close="removeWidget"
+        <div class="charts-grid" :style="gridStyle">
+          <MultiCandleChartWidget
+              v-for="cell in cells"
+              :key="cell.id"
+              :ref="el => widgetRefs[cell.id] = el"
+              :id="cell.id"
+              :number = "cell.number"
+              :symbol="cell.symbol"
+              :plot_config="cell.plot_config"
+              :class="{ selected: selectedId === cell.id }"
+              @select="onSelect"
           />
         </div>
-      </div>
-
-      <div v-if="showPopup" class="custom-popup">
-        <select v-model="selectedSymbolChoice">
-          <option v-for="s in symbolsList" :key="s" :value="s">{{ s }}</option>
-        </select>
-        <br><br>
-        <button @click="confirmPopup" class="btn btn-primary">OK</button>
-        <button @click="showPopup = false" class="btn btn-secondary">Annulla</button>
-      </div>
+     
 
     </main>
      <ErrorToast  />
@@ -115,7 +115,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref ,nextTick ,onBeforeUnmount} from 'vue';
+import { onMounted, onUnmounted, ref ,nextTick ,onBeforeUnmount,computed } from 'vue';
 
 import { liveStore } from '@/components/js/liveStore.js';
 import OrdersWidget from "@/components/OrdersWidget.vue";
@@ -124,9 +124,9 @@ import ReportPanel from "@/components/ReportPanel.vue";
 import TickersSummary from '@/components/TickersSummary.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import TradeConfig from '@/components/TradeConfig.vue'
-import CandleChartWidget from '@/components/CandleChartWidget.vue';
+//import CandleChartWidget from '@/components/CandleChartWidget.vue';
 import MultiCandleChartWidget from '@/components/MultiCandleChartWidget.vue';
-import { send_get } from '@/components/js/utils';
+import { send_get,send_post } from '@/components/js/utils';
 import { eventBus } from "@/components/js/eventBus";
 import SidePanel from '@/components/SidePanel.vue';
 import ErrorToast from '@/components/ErrorToast.vue'
@@ -142,31 +142,88 @@ const eventsRef= ref(null);
 const tradeRef= ref(null);
 const toastRef= ref(null);
 
-
-const showPopup = ref(false);
-const symbolsList = ref([]);
-const selectedSymbolChoice = ref('');
-const widgetList = ref([]); // Array di oggetti { id, rect, data }
+//const symbolsList = ref([]);
+//const selectedSymbolChoice = ref('');
+//const widgetList = ref([]); // Array di oggetti { id, rect, data }
 const widgetRefs = ref({})
 const tickets_summary = ref(null)
+const selectedId = ref(null)
+
+const rows = ref(2)
+const cols = ref(2)
+const cells = ref([])  // contiene i widget attivi
 
 // Riferimenti non reattivi (istanze tecniche)
-let grid = null;
+//let grid = null;
 // --- LOGICA WEBSOCKET ---
 let ws = null;
 
-// crea un nuovo widget
-const getWidgetComponent = (type) => {
-  //console.log("crate" , type)
-  switch (type) {
-    case 'chart':
-      return CandleChartWidget
-    case 'multi_chart':
-      return MultiCandleChartWidget
-    default:
-      return CandleChartWidget // fallback sicuro
+const gridStyle = computed(() => ({
+  display: 'grid',
+  width: '100%',
+  height: '100%',
+  gridTemplateColumns: `repeat(${cols.value}, 1fr)`,
+  gridTemplateRows: `repeat(${rows.value}, 1fr)`,
+  gap: '6px',
+}))
+
+function setGrid(r, c) {
+  rows.value = r
+  cols.value = c
+
+  const total = r * c
+  const newCells = []
+
+  for (let i = 0; i < total; i++) {
+
+    let symbol = liveStore.get("chart."+(i+1),"")
+    console.log("<< ",i+1, symbol)
+
+    newCells.push({
+      id: crypto.randomUUID(),
+      number: i+1,          // posizione nella griglia (0 → n-1)
+      symbol: symbol,
+      plot_config: {}
+    })
+  }
+
+  cells.value = newCells
+  
+  send_post('/api/props/save', { path: 'home.grid', value: `${r},${c}` });
+
+  nextTick(resizeAllCharts)
+}
+
+function resizeAllCharts() {
+  for (const id in widgetRefs.value) {
+    const comp = widgetRefs.value[id]
+    const el = comp?.$el
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    comp.resize(rect.width, rect.height)
   }
 }
+window.addEventListener('resize', resizeAllCharts)
+
+function onSelect(id) {
+  selectedId.value = id
+}
+
+function onChartSelect(data){
+  if (selectedId.value)
+  {
+      console.log("onChartSelect", cells.value,selectedId.value)
+
+      //const componentInstance = cells.value[selectedId.value];
+       const comp = widgetRefs.value[selectedId.value]
+      console.log("find",comp)
+
+      comp.setSymbol(data["symbol"])  
+  }
+}
+
+
+// =============================================
 
 const initWebSocket_mulo = () => {
   ws = new WebSocket("ws://127.0.0.1:8000/ws/orders");
@@ -290,151 +347,14 @@ const initWebSocket = () => {
   };
 };
 
-// --- FUNZIONI WIDGET (INTERFACCIA GRIDSTACK) ---
-
-// Funzione chiamata quando un widget viene aggiunto via WS o caricamento iniziale
-const addWidgetToDashboard = (id, rect, data,type) => {
-
- // console.log("addWidgetToDashboard",id,rect,data,type)
-
-  widgetList.value.push({ id, rect, data ,type});
-  
-  // Aspettiamo che Vue renderizzi il componente nel DOM
-  nextTick(() => {
-    const el = document.querySelector(`[data-gs-id="${id}"]`);
-    const componentInstance = widgetRefs.value[id];
-    //console.log("el",componentInstance)
-    
-    if (el) {
-      //grid.makeWidget(el);
-      if (rect==null)  rect =  { w: 6, h: 5 }
-      grid.addWidget(el, rect  );
-      
-      requestAnimationFrame(() => {
-       // const h = el.clientHeight;
-       // console.log('clientHeight:', h);
-        //const container = el.querySelector(".chart-container");
-       // const container = el.querySelector(".multi-chart-container");
-        //console.log("container",coneltainer.clientWidth,el.clientHeight,container)
-       // componentInstance.resize(container.clientWidth, container.clientHeight);
-    });
-     setTimeout(() => {
-        const container = el.querySelector(".multi-chart-container");
-        componentInstance.resize(container.clientWidth, container.clientHeight);
-        // const h = container.clientHeight;
-        //console.log('clientHeight1:', h);
-        //chartObj.titleElement = document.getElementById(id+"_symbol");
-      }, 1000);
-    
-    }
-  });
-};
-
-const removeWidget = (id) => {
-  const el = document.querySelector(`[data-gs-id="${id}"]`);
-  if (el) {
-    grid.removeWidget(el); // Rimuove da GridStack
-    widgetList.value = widgetList.value.filter(w => w.id !== id); // Rimuove da Vue
-  }
-};
-
-// Funzione chiamata dal componente quando il grafico è pronto
-const registerChart = (chartInstance) => {
-
-  console.debug(chartInstance);
-  // Salviamo l'istanza (mainSeries, refresh, etc.) nella nostra mappa globale
-  // Questo ci permette di fare: chart_map[symbol].mainSeries.update(...)
-  //window.chart_list[chartInstance.id] = chartInstance;
-  //window.chart_map[chartInstance.symbol] = chartInstance;
-};
-
-const addCandleWidget = (id, symbol, timeframe, plot_config, rect) => {
-
- addWidgetToDashboard(id,rect,{"symbol" : symbol,"timeframe":timeframe,"plot_config": plot_config} ,"chart");
-};
-
-const addMultiCandleWidget = (id, symbol,  plot_config, rect) => {
-
- addWidgetToDashboard(id,rect,{"symbol" : symbol,"plot_config": plot_config},"multi_chart");
-};
-
-const addReportWidget = (id, rect, data) => {
-  const el = document.createElement("div");
-  el.classList.add("grid-stack-item");
-  
-  el.innerHTML = `
-    <div class="grid-stack-item-content">
-      <div class="header grid-stack-handle d-flex justify-content-between p-1 bg-light border-bottom">
-        <div class="header-title">
-           📊 <span>${data.title || 'Report'}</span>
-        </div>
-        <button class="btn btn-sm btn-outline-danger border-0 close-btn" title="Chiudi">✕</button>
-      </div>
-      <div class="report-container p-2" style="overflow: auto; height: calc(100% - 40px);">
-        <table id="${id}" class="table table-sm table-hover">
-          </table>
-      </div>
-    </div>
-  `;
-
-  // Aggiungi alla griglia
-  grid.addWidget(el, rect || { w: 4, h: 4 });
-
-  // Inizializzazione logica report (funzione esterna in report.js)
-  setTimeout(() => {
-    /*
-    if (window.createReport) {
-      const reportObj = window.createReport(el, id, data);
-      // Salviamo il riferimento nella nostra mappa per aggiornamenti futuri via WS
-      report_map[id] = reportObj;
-      
-      // Listener per la chiusura
-      el.querySelector('.close-btn').onclick = () => layout_closeWidget(id);
-    } else {
-      console.error("Funzione window.createReport non trovata!");
-    }
-      */
-  }, 0);
-};
-
 // ==================
 
-function onChartSelect(data){
-    console.log("onChartSelect", data)
-
-    const componentInstance = widgetRefs.value[data["id"]];
-    console.log("find",componentInstance)
-
-    
-    componentInstance.setSymbol(data["symbol"])
-    
-}
 
 // --- LIFECYCLE ---
 
 onMounted(() => {
 
   //console.log("main onMounted")
-
-  // Inizializza GridStack
-  grid = window.GridStack.init({
-    draggable: { handle: '.grid-stack-handle' },
-    resizable: { handles: "e, se, s" },
-    float: true
-  });
-
-  grid.on("resizestop", (e, el) => {
-    //const container = el.querySelector(".chart-container");
-    const container = el.querySelector(".multi-chart-container");
-    let id = el.getAttribute("data-gs-id")
-    const componentInstance = widgetRefs.value[id];
-    //console.log("resizestop",container,id,".:",componentInstance,"..");
-    if (container && componentInstance) {
-      componentInstance.resize(container.clientWidth, container.clientHeight);
-      //const obj = chart_list[container.id];
-      //obj.charts[0].resize(container.clientWidth, container.clientHeight);
-    }
-  });
 
   initWebSocket();
 
@@ -451,24 +371,32 @@ onMounted(() => {
         //console.log("LOAD LAYOUT OK",msgs)
         msgs.forEach(msg => {
             if (msg.widget.type === "chart") {
-              addCandleWidget(msg.id, msg.widget.symbol, msg.widget.timeframe, msg.widget.plot_config, msg.rect);
+             // addCandleWidget(msg.id, msg.widget.symbol, msg.widget.timeframe, msg.widget.plot_config, msg.rect);
               
             } 
             else if (msg.widget.type === "multi_chart") {
-              addMultiCandleWidget(msg.id, msg.widget.symbol,  msg.widget.plot_config, msg.rect);
+             // addMultiCandleWidget(msg.id, msg.widget.symbol,  msg.widget.plot_config, msg.rect);
               
-            } else if (msg.widget.type === "report") {
-              addReportWidget(msg.id, msg.rect, msg.widget);
-            }
+            } 
         });
 
         // tutte le  props
         let pdata = await send_get("/api/props/find", {path : ""})
         //console.log(pdata)
         pdata.forEach(  (val) =>{
-            //console.log("prop",val.path, val.value)
+            console.log("prop",val.path, val.value)
             liveStore.updatePathData(val.path, val.value);
+
+            
         });
+
+        let grid = liveStore.get("home.grid","")
+        if (grid!="")
+        {
+            //console.log("home.grid", grid)
+            const [r, c] = grid.split(",").map(Number);
+            setGrid(r,c)
+        }
         
         await send_get("/api/report/get")
         await send_get("/api/event/get")
@@ -515,27 +443,9 @@ onMounted(() => {
   }
 
   loadLayout();
-  
+  /*
   function saveLayout() {
-    const layout = grid.save(false); // false = senza DOM
-    //console.log("saveLayout",layout)
-    if (layout.length !=widgetList.value.length )
-    {
-      alert("ATTENZIONE LEN WINDGET");
-        return;
-    }
-
     
-    //alert(widget_list.length);
-    let save=[]
-    for(var i=0;i<widgetList.value.length;i++)
-    {
-      const componentInstance = widgetRefs.value[widgetList.value[i].id];
-      //console.log("save",componentInstance.save())
-      save.push({"id": widgetList.value[i].id, "rect": layout[i],"type" : widgetList.value[i].type, "data": componentInstance.save()}) 
-      
-    }
-
     //console.log(save)
     fetch(`http://127.0.0.1:8000/api/layout/save`,
     {
@@ -547,22 +457,12 @@ onMounted(() => {
               throw new Error(`Errore HTTP! Stato: ${response.status}`);
           }
       });
-    
+   
     //localStorage.setItem("grid-layout", JSON.stringify(layout));
   }
-  grid.on("change", saveLayout);
+     */
 
   eventBus.on("chart-select", onChartSelect);
-
-  /*
-  grid.on('added', (event, items) => {
-      items.forEach(item => {
-        const el = item.el;
-        const h = el.clientHeight;
-        console.log('added height:', h);
-      });
-  
-  });    */
     
 });
 
@@ -572,24 +472,46 @@ onBeforeUnmount(() => {
 
 
 onUnmounted(() => {
-  //console.log("main onUnmounted")
   if (ws) ws.close();
 });
+
 </script>
 
 <style scoped>
-.dashboard-container { position: relative; width: 100%; height: 100vh; }
 
-.grid-stack { background: #f4f4f4; min-height: 500px; }
-:deep(.grid-stack-item-content) { background: white; border: 1px solid #ddd; }
+.sub-bar{
+  padding-left: 250px;
+  padding-right: 10px;
+  width: 100%;
+  display: flex;
+  background-color: rgb(204, 248, 248);
+}
+.selected {
+  outline: 5px solid #fbff00;
+  outline-offset: -5px;
+  border-radius: 8px;
+}
 
+.charts-grid {
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+  background-color: azure;
+  padding-right: 10px;
+}
+.charts-grid > * {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
 
 .layout {
   display: flex;
   height: 100vh;
   position: absolute;
+  top: 40px;
 }
-
 /* Sidebar */
 .sidebar {
   width: 64px;
@@ -626,21 +548,26 @@ onUnmounted(() => {
 /* Main */
 .content {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
 }
-
 .two-columns {
   display: grid;
-  grid-template-columns: 160px 1fr; /* sinistra fissa, destra fluida */
+  grid-template-columns: 160px 1fr;
   gap: 1rem;
-
-  height: 100vh;
-  margin-left:  68px;
-
+  flex: 1;
+  min-height: 0;
+  margin-left: 68px;
 }
 
 /* opzionale: scrolling indipendente */
 .two-columns > * {
   min-height: 0;
+}
+
+.home {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 </style>

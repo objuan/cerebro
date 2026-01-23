@@ -309,8 +309,14 @@ def get_symbols(limit: int = 1000):
 
 @app.get("/api/fundamentals")
 def get_fundamentals(symbol:str):
-    df =  client.get_fundamentals(symbol).iloc[0]
-    return JSONResponse(df.to_dict())
+    try:
+        df =  client.get_fundamentals(symbol)
+        if not df.empty:
+            return JSONResponse(df.iloc[0].to_dict())
+        else:
+            return JSONResponse({})
+    except:
+        return JSONResponse({})
 
 #################################
 

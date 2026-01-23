@@ -6,5 +6,12 @@
   },
   "balance": {
     "USD": 1000
+  },
+  "chart": {
+    "1": "REVB",
+    "2": "BGL"
+  },
+  "home": {
+    "grid": "1,1"
   }
 }

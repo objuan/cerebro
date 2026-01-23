@@ -209,7 +209,7 @@ const handleRefresh = async () => {
       // TASK LIST
 
       const task_response = await send_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
-      console.log("task list",task_response.data)
+      //console.log("task list",task_response.data)
       let _task_datas = task_response.data;
 
       // TRADE MARKER

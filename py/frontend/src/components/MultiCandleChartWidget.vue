@@ -1,13 +1,15 @@
 <template>
-  <div ref="multi_container" class="grid-stack-item-content border rounded bg-dark text-white shadow-sm">
+  <div ref="multi_container" @mousedown="handleSelect" class="grid-stack-item-content border rounded bg-dark text-white shadow-sm">
     <div class="header grid-stack-handle d-flex justify-content-between align-items-center p-2 bg-secondary bg-opacity-25 border-bottom">
       <div class="d-flex align-items-center">
          <span class="me-2" >📈</span>
-         <strong class="text-uppercase">Chart: <span style="color:yellow">{{ currentSymbol }}</span></strong>
+         <strong class="text-uppercase">{{number}} 
+          Chart: <span style="color:yellow">{{ currentSymbol }}</span>
+        </strong>
           
          <select 
           v-model="currentSymbol" 
-          @change="handleSymbols"
+          @change="onChangeSymbols"
           class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
         >
           <option
@@ -24,6 +26,18 @@
         </div>
       </div>
        <div class="buttons-right">
+
+          <select 
+            v-model="currentLayout" 
+            @change="onChangeLayouts"
+            class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
+          >
+            <option value="1,1">1x1</option>
+            <option value="1,2">1x2</option>
+            <option value="2,1">2x1</option>
+            <option value="2,2">2x2</option>
+          </select>
+
            <button
             v-for="tf in timeframes"
             :key="tf"
@@ -34,9 +48,11 @@
         <button @click="selectMode('')">..</button>
       </div>
     </div>
+
     <div class="trade_console p-0">
         <TradeConsole :symbol=symbol  ></TradeConsole> 
     </div>
+
     <div class="position-relative p-0 charts-grid"  style="height: calc(100% - 120px); overflow: hidden;" >
      
         <div v-if="currentMode!=''" style="height:100%" >
@@ -114,9 +130,11 @@ import CandleChartWidget from './CandleChartWidget.vue';
 import { computed } from 'vue';
 import  TradeConsole  from './TradeConsole.vue'
 import { eventBus } from "@/components/js/eventBus";
+import {send_post} from '@/components/js/utils.js'
 
 const props = defineProps({
   id: { type: String, required: true },
+  number: { type: Number, required: true },
   symbol: { type: String, required: true },
   timeframe_multi: { type: String, required: false,default:"10s,1m,5m,1d" },
   timeframe: { type: String, required: false ,default:"10s"},
@@ -125,10 +143,6 @@ const props = defineProps({
 
 const widgetRefs = ref({})
 
-//const emit = defineEmits(['close', 'initialized']);
-
-//const chartAllId = computed(() => `${props.id}_all`)
-
 // Elementi DOM e Variabili reattive
 
 const currentSymbol = ref(props.symbol);
@@ -136,8 +150,14 @@ const fundamentals = ref("")
 const ticker = ref("")  
 const symbolList = ref([]);
 const multi_container = ref(null)
+const currentLayout= ref("")  
 
 const currentMode = ref(props.timeframe );
+
+const emit = defineEmits(['select'])
+function handleSelect() {
+  emit('select', props.id)
+}
 
 // -------------
 
@@ -148,8 +168,11 @@ const timeframes = computed(() =>
     .filter(Boolean)
 );
 
-const handleSymbols = async () => {
-  console.log("handleSymbols",widgetRefs.value["_chart_1"])
+const onChangeLayouts = async () => {
+};
+
+const onChangeSymbols = async () => {
+  console.log("onChangeSymbols",widgetRefs.value["_chart_1"])
   if (currentMode.value?.trim() =="")
   {
     widgetRefs.value["_chart_1"].setSymbol(currentSymbol.value);
@@ -159,6 +182,8 @@ const handleSymbols = async () => {
   }
   else
     widgetRefs.value["_chart_all"].setSymbol(currentSymbol.value);
+
+    send_post('/api/props/save', { path: 'chart.'+props.number, value: currentSymbol.value });
 };
 
 
@@ -179,15 +204,7 @@ onMounted( async() => {
     symbolList.value= datas["symbols"];
 
     await updateAll();
-    /*
-    responses = await fetch(`http://localhost:8000/api/fundamentals?symbol=${currentSymbol.value} `);
-    datas = await responses.json();
-    //console.log("fundamentals ",datas); 
 
-    //fundamentals.value= datas["exchange"] + " " + datas["sector"] + " MktCap: " + (datas["market_cap"]/1e9).toFixed(2) + "B" ;
-    fundamentals.value= " MktCap: " + window.formatValue(datas["market_cap"])  ;
-    fundamentals.value+= "  FLOAT: <span style='color:yellow'><b>" + window.formatValue(datas["float"]) + "</b></span> / "+ window.formatValue(datas["shares_outstanding"])   ;
-    */
 });
 
 onBeforeUnmount(() => {
@@ -208,14 +225,14 @@ const updateAll = async ()=>
 const setSymbol = async (symbol) => {
   currentSymbol.value = symbol
   await updateAll();
-  handleSymbols()
+  onChangeSymbols()
 //  handleRefresh();
 };
 
 
 const resize =  () => {
    
-    //console.log("m resize ",rect,currentMode.value);
+    //console.log("m resize ",w,h);
 
     if (currentMode.value?.trim() =="")
     {
@@ -257,7 +274,7 @@ function onTickerReceived(msg)
   {
       let color = msg["gain"]>=0 ? '#4bffb5' : '#ff4976';  
       //console.log("MultiCandleChartWidget on_ticker",msg) 
-      ticker.value= ` Last: <span style='color:yellow'><b> ${msg["last"]} </b></span>  Gain: <span style='color:${color}'><b>${msg["gain"].toFixed(2)} %</b></span>  Vol: ${window.formatValue(msg["day_v"])}`  ;
+      ticker.value= ` Last: <span style='color:yellow'><b> ${msg["last"]} </b></span>  Gain: <span style='color:${color}'><b>${msg["gain"].toFixed(2)} %</b></span>  Vol: ${window.formatValue(msg["volume"])}`  ;
   }
 }
 
@@ -270,7 +287,6 @@ defineExpose({
   save,
   on_candle,
   setSymbol
-  //on_ticker
 });
 
 </script>

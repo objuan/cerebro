@@ -12,6 +12,10 @@ const updatePathData = (path, data) => {
   state.dataByPath[path] = data;
   //console.log(state,path,data)
 };
+const get = (path, defaultValue = null) => {
+  const value = state.dataByPath[path]
+  return value !== undefined ? value : defaultValue
+}
 const set = (path, data) => {
   
   state.dataByPath[path] = data;
@@ -21,5 +25,6 @@ const set = (path, data) => {
 export const liveStore = {
   state,//state: readonly(state),
   updatePathData,
-  set
+  set,
+  get
 };
