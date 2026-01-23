@@ -77,7 +77,7 @@
 				"scheduler":[
 					{
 						"name" : "TOP_PERC_GAIN",
-						"update_time" : 300,
+						"update_time" : 600,
 						"live_mode" : "ADD"
 					}
 				],

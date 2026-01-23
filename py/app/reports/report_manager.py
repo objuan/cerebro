@@ -32,7 +32,7 @@ class ReportManager:
             {"title": "Gap", "decimals": 1, "colors":{ "range_min": -10 , "range_max":10 ,  "color_min": "#FF0101" , "color_max":"#002FFF"   } }
 
         ]
-        job.on_symbols_update += self.on_update_symbols
+        job.on_symbols_update += self.on_symbols_update
         self.first_open=[]
         self.scheduler = AsyncScheduler()
 
@@ -51,9 +51,9 @@ class ReportManager:
     
     async def bootstrap(self):
          symbols = await self.job.send_cmd("symbols")
-         await self.on_update_symbols(symbols )
+         await self.on_symbols_update(symbols )
     
-    async def on_update_symbols(self, symbols):
+    async def on_symbols_update(self, symbols):
         logger.info(f"Report reset symbols {symbols}")
         self.symbols=symbols
         self.live_df = self.job.live_symbols()
@@ -98,7 +98,7 @@ class ReportManager:
                     "data": full_dict
             })
             
-    def make_diff(self, current, old):
+    def make_diff1(self, current, old):
         cols = ["rank","rank_delta","gain","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
 
         #logger.info(f"current \n{current}")
@@ -118,6 +118,40 @@ class ReportManager:
                     if change_mask.loc[symbol].any()
                 }
         return changed_dict
+    
+    def make_diff(self, current: pd.DataFrame, old: pd.DataFrame):
+        cols = [
+            "rank","rank_delta","gain","last","volume",
+            "avg_base_volume_1d","float","rel_vol_24",
+            "rel_vol_5m","gap"
+        ]
+
+        # allinea gli indici (union)
+        all_symbols = current.index.union(old.index)
+
+        current_aligned = current.reindex(all_symbols)
+        old_aligned = old.reindex(all_symbols)
+
+        # confronto (NaN != valore → True, perfetto per nuovi symbol)
+        change_mask = old_aligned[cols].ne(current_aligned[cols])
+
+        changed_dict = {}
+
+        for symbol in all_symbols:
+            row_mask = change_mask.loc[symbol]
+
+            if row_mask.any():
+                # se symbol nuovo (old tutto NaN) → tutte le colonne True
+                changed_cols = {
+                    col: self.py_value(current_aligned.loc[symbol, col])
+                    for col in cols
+                    if row_mask[col] and pd.notna(current_aligned.loc[symbol, col])
+                }
+
+                if changed_cols:
+                    changed_dict[symbol] = changed_cols
+
+        return changed_dict
 
 
     async def tick(self,render_page):
@@ -132,7 +166,7 @@ class ReportManager:
 
             #  symbol  last_close  last   volume  ask  bid  gain  ts   datetime
             df_tickers = self.job.getTickersDF()
-            #logger.info(f"Tickers \n{df_tickers}")
+            ##logger.info(f"Tickers \n{df_tickers}")
         
 
             df_5m = self.db.dataframe("5m")

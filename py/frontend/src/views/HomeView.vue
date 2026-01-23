@@ -1,5 +1,7 @@
 <template>
   <div class="home">
+    
+    
     <PageHeader title="Cerebro V0.1"/>
  
     <div class="layout">
@@ -30,6 +32,12 @@
           <button class="sidebar-btn"
               @click="tradeRef.toggle()"
                title="Trade">📑 Trade</button>
+
+
+          <button class="sidebar-btn"
+              @click="toastRef.toggle()"
+               title="Toast">📑 Web Events</button>
+
         </aside>
 
         <!-- Main content -->
@@ -57,7 +65,9 @@
          <SidePanel title="Trade" ref ="tradeRef" width="800px">
              <trade-config></trade-config>
         </SidePanel>
-
+        <SidePanel title="Toast" ref ="toastRef" width="400px">
+            <ToastHistory />
+        </SidePanel>
 
       </div>
 
@@ -100,6 +110,7 @@
       </div>
 
     </main>
+     <ErrorToast  />
   </div>
 </template>
 
@@ -118,6 +129,9 @@ import MultiCandleChartWidget from '@/components/MultiCandleChartWidget.vue';
 import { send_get } from '@/components/js/utils';
 import { eventBus } from "@/components/js/eventBus";
 import SidePanel from '@/components/SidePanel.vue';
+import ErrorToast from '@/components/ErrorToast.vue'
+import ToastHistory from '@/components/ToastHistory.vue'
+
 
 // --- STATO REATTIVO ---
 
@@ -126,6 +140,8 @@ const ordersRef = ref(null);
 const reportsRef= ref(null);
 const eventsRef= ref(null);
 const tradeRef= ref(null);
+const toastRef= ref(null);
+
 
 const showPopup = ref(false);
 const symbolsList = ref([]);
@@ -175,6 +191,7 @@ const initWebSocket_mulo = () => {
                 ? JSON.parse(msg.data)
                 : msg.data;
               dataParsed["timestamp"] = msg["timestamp"]
+              dataParsed["event_type"] = msg["event_type"]
           eventBus.emit("order-received", dataParsed);
           break
         case "TASK_ORDER":
@@ -183,6 +200,16 @@ const initWebSocket_mulo = () => {
           //.value?.handleMessage(msg);
           //msg.data= JSON.parse(msg.data)
           eventBus.emit("task-order-received", msg.data);
+          break
+        case "ERROR":
+          console.log("ERROR",msg)
+          //#ordersRef.value?.handleMessage(msg);
+          dataParsed =
+              typeof msg.data === "string"
+                ? JSON.parse(msg.data)
+                : msg.data;
+             
+          eventBus.emit("error-received", dataParsed);
           break
     }
   }
@@ -232,14 +259,14 @@ const initWebSocket = () => {
         break;
       case "event":
         {
-           console.log("event",msg.data);
+           //console.log("event",msg.data);
            eventBus.emit("event-received",msg.data);
        }
         break;
        case "events":
         {
            //let d = JSON.parse(msg.data)
-           console.log("events",msg.data);
+           //console.log("events",msg.data);
            msg.data.forEach( (v)=>
            {
                eventBus.emit("event-received",v);
@@ -476,7 +503,7 @@ onMounted(() => {
         order_list = await send_get('/order/task/list?onlyReady=true')
         order_list.data.forEach(  (msg) =>{
             msg.data= JSON.parse(msg.data)
-            //eventBus.emit("task-order-received", msg);
+            eventBus.emit("task-order-received", msg);
         });
 
     } catch (err) {

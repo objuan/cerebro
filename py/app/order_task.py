@@ -38,13 +38,15 @@ class OrderTaskManager:
     async def bootstrap():
         logger.info("ORDER BOOT")
 
-        cur.execute("""UPDATE task_orders set status='CANC' 
+   
+        cur.execute("""UPDATE task_orders set status='BOOT_CANC' 
             WHERE id IN (
                 SELECT MAX(o.id)
                 FROM task_orders o
                 GROUP BY task_id
             )
-            AND status =='READY' """)
+            AND status in ('READY','STEP') """)
+        
 
         df = pd.read_sql_query("""SELECT *
             FROM task_orders
@@ -77,17 +79,6 @@ class OrderTaskManager:
 
     ############
 
-    def wait_order(trade):
-        timeout = 2          # secondi
-        interval = 0.1          # ciclo ogni secondo
-        start_time = time.time()
-
-        while time.time() - start_time < timeout:
-            if  trade and  trade.orderStatus != None:
-                return True
-            else:
-                OrderManager.ib.sleep(interval)
-        return False
  
     async def on_task_order_trigger(order,order_step,ticker ):
         try:
@@ -98,21 +89,16 @@ class OrderTaskManager:
                     #real_price = lastPrice+  lastPrice* 0.001
 
                     #trade = OrderManager.order_limit(order["symbol"], order_step["quantity"],real_price)
-                    ret = OrderManager.smart_buy_limit(order["symbol"], order_step["quantity"],ticker)#real_price)
+                    ret = await OrderManager.smart_buy_limit(order["symbol"], order_step["quantity"],ticker)#real_price)
                     if ret:
                         #error
+                        order_step["error"] = ret
                         order["error"] = ret
                         logger.error(f">> {ret}")
                     else:
                         order_step["state"] = "filled"
                         order_step["trigger_price"] = ticker["last"]
-                    '''
-                    if OrderTaskManager.wait_order(trade):
-                        order_step["real_trade_id"] = trade.orderStatus.permId
-                        order_step["trigger_price"] = ticker ["last"]
-                    else:
-                        logger.error("ERROR",exc_info=True)
-                    '''
+       
 
             if order_step["side"] =="SELL":
                     #real_price = lastPrice-  lastPrice* 0.001
@@ -127,22 +113,15 @@ class OrderTaskManager:
                     else:
                         logger.info(f"SELL ALL {order['symbol']} {pos.position } at {ticker['last']} ")
 
-                        ret = OrderManager.smart_sell_limit(order["symbol"], order_step["quantity"],ticker)
+                        ret = await OrderManager.smart_sell_limit(order["symbol"], order_step["quantity"],ticker)
                         if ret:
                             #error
+                            order_step["error"] = ret
                             order["error"] = ret
                             logger.error(f">> {ret}")
                         else:
                             order_step["trigger_price"] = ticker["last"]
                             order_step["state"] = "filled"
-
-                        '''
-                        if OrderTaskManager.wait_order(trade):
-                            order_step["real_trade_id"] = trade.orderStatus.permId
-                            order_step["trigger_price"] = ticker ["last"]
-                        else:
-                            logger.error("ERROR",exc_info=True)
-                        '''
             
         except:
             try:
@@ -150,25 +129,37 @@ class OrderTaskManager:
                 err = traceback.format_exc()
                 order_step["error"] = err
                 order["error"] = err
-                cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                                VALUES (?,?, ?, ?, ?, ?)''',
-                            ( order["task_id"],order["symbol"],"ERROR", json.dumps(order["data"]),time.time(),-1))
-                conn.commit()
+                #cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
+                #                VALUES (?,?, ?, ?, ?, ?)''',
+                #            ( order["task_id"],order["symbol"],"ERROR", json.dumps(order["data"]),time.time(),-1))
+                #conn.commit()
+                await OrderTaskManager.push_state(order,"ERROR")
                 OrderTaskManager.task_orders.remove(order)
-                await OrderTaskManager.send_task_order(order)
             except:
                 order["error"] = "generic error"
                 logger.fatal("ERROR",exc_info=True)
-                cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                                VALUES (?,?, ?, ?, ?, ?)''',
-                            ( order["task_id"],order["symbol"],"FATAL ERROR", json.dumps(order["data"]),time.time(),-1))
-                conn.commit()
+                #cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
+                #                VALUES (?,?, ?, ?, ?, ?)''',
+                #            ( order["task_id"],order["symbol"],"FATAL ERROR", json.dumps(order["data"]),time.time(),-1))
+                #conn.commit()
+                await OrderTaskManager.push_state(order,"FATAL ERROR")
+
                 OrderTaskManager.task_orders.remove(order)
-                await OrderTaskManager.send_task_order(order)
+                
 
     def do_task_order_abort(order):
         order["cmd"] = "ABORT"
         
+    async def push_state(order,status):
+        cur.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
+                                        VALUES (?,?, ?, ?, ?, ?,?)''',
+                                    ( order["task_id"],order["symbol"],status,order["step"], json.dumps(order["data"]),time.time(),-1))
+        conn.commit()
+
+        logger.info(f">>> {order}")
+        await OrderTaskManager.send_task_order(order)
+
+
     ##############################
 
     def get_task_order(row):
@@ -262,7 +253,7 @@ class OrderTaskManager:
 
         OrderTaskManager.task_orders.append(order)
         await OrderTaskManager.send_task_order(order)
-        logger.info(f"TASK << {order}")
+        #logger.info(f"TASK << {order}")
         return order
     
     async def cancel_orderBySymbol(symbol):
@@ -273,13 +264,6 @@ class OrderTaskManager:
                 OrderTaskManager.do_task_order_abort(order)
 
 ##############
-
-    async def push_state(order,status):
-        cur.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
-                                        VALUES (?,?, ?, ?, ?, ?,?)''',
-                                    ( order["task_id"],order["symbol"],status,order["step"], json.dumps(order["data"]),time.time(),-1))
-        conn.commit()
-        await OrderTaskManager.send_task_order(order)
 
          
     async def onTicker(ticker):
@@ -349,11 +333,7 @@ class OrderTaskManager:
                                             order["step"] = order["step"]+1
                                             await OrderTaskManager.push_state(order,"STEP")
 
-                                        #cur.execute(f'UPDATE task_orders set step={order["step"]} WHERE ID={order["id"]}')
-                                        #conn.commit()
-                                            
-                                        await OrderTaskManager.send_task_order(order)
-                                        
+          
                                         max_step = 0
                                         for a in actions:
                                             max_step= max(max_step, a["step"])
@@ -364,12 +344,14 @@ class OrderTaskManager:
 
                                             logger.info(f'END {order}')
 
+                                            await OrderTaskManager.push_state(order,"DONE")
+
                                             # check end
-                                            cur.execute("""INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                                            VALUES (?,?, ?, ?, ?, ?)""",
-                                                (order["task_id"],order["symbol"],"DONE", json.dumps(order["data"]),time.time(),-1))
+                                            #cur.execute("""INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
+                                            #VALUES (?,?, ?, ?, ?, ?)""",
+                                            #    (order["task_id"],order["symbol"],"DONE", json.dumps(order["data"]),time.time(),-1))
                                 
-                                            conn.commit()
+                                            #conn.commit()
                                             logger.info(f'ORDER CLOSED {order}')
 
                                             if "trade" in order:

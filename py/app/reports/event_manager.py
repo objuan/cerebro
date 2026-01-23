@@ -114,7 +114,7 @@ class EventManager:
         for _, row_dict in df.iterrows():
             d = json.loads(row_dict['data'])
             arr.append(d)
-            logger.debug(f"{row_dict['data']}")
+            #logger.debug(f"{row_dict['data']}")
             
         arr.reverse()
 

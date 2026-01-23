@@ -241,6 +241,7 @@ def floor_ts(ts_ms, sec):
 class MyEvent:
     def __init__(self):
         self._handlers = []
+        self.debug=False
 
     def __iadd__(self, handler):
         if handler not in self._handlers:
@@ -265,13 +266,17 @@ class MyEvent:
             handler(*args, **kwargs)
 
     async def __call__(self, *args, **kwargs):
-        
+        if self.debug:
+            logger.info(f"CALL {self._handlers}")
+
         for handler in self._handlers:
             
             if inspect.iscoroutinefunction(handler):
                 await handler(*args, **kwargs)
             else:
                 handler(*args, **kwargs)
+
+###########
 
 def dict_to_paths(data, prefix=""):
     result = []

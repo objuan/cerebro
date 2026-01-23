@@ -120,8 +120,9 @@ function onTaskOrderReceived(msg) {
   try {
    // console.log("onTaskOrderReceived",msg);
 
-    msg.totalQuantity = msg.data.totalQuantity
-    msg.lmtPrice = msg.data.lmtPrice 
+    //msg.totalQuantity = msg.data.quantity
+    //msg.lmtPrice = msg.data.price 
+    
     task_ordersList.push(msg);
   } catch (e) {
     console.error("Orders parse error", e);

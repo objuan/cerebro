@@ -12,7 +12,7 @@
             "update_time_secs": 60,
             "widget": {
                 "type": "multi_chart",
-                "symbol": "SLGB",
+                "symbol": "SXTP",
                 "timeframe": 0,
                 "plot_config": {
                     "main_plot": {

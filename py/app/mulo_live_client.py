@@ -39,6 +39,7 @@ class MuloLiveClient:
         self.sym_mode = config["live_service"]["mode"] =="sym"
             
         self.on_symbols_update = MyEvent()
+        #self.on_symbols_update.debug=True
         self.on_candle_receive = MyEvent()
         self.on_ticker_receive = MyEvent()
 
@@ -175,8 +176,11 @@ class MuloLiveClient:
             self.tickers[s] =t
             '''
             self.tickers[s] = { "symbol": s, "gain" : 0, "low":0 , "high":0, "last" : 0, "volume": 0, "ts" : 0, "ask" : 0, "bid":0,
-                               "last_close": await self.last_close(s)}
-        self.on_symbols_update(self.symbols)
+                                   "last_close": await self.last_close(s)}
+
+        #logger.info(f">> {self.on_symbols_update._handlers}")  
+
+        await self.on_symbols_update(self.symbols)
 
         logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
 

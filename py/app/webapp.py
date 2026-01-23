@@ -47,7 +47,7 @@ from mulo_live_client import MuloLiveClient
 
 print(" STAT FROM ",os.getcwd())
 
-DEF_LAYOUT = "layouts/default_layout.json"
+DEF_LAYOUT = "app/layouts/default_layout.json"
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
@@ -130,6 +130,7 @@ client = MuloLiveClient(DB_FILE,config,propManager)
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+ib=None
 
 
 OrderTaskManager(config)
@@ -567,8 +568,9 @@ async def get_news(symbol, start: Optional[str] = None):
 ####################
 # no nsi ferma ?????
 @app.get("/order/limit")
-async def do_limit_order(symbol, qty,price):
+async def do_limit_order(symbol, qty):
     try:
+        logger.info(f"/order/limit {symbol} {qty}")
         await OrderManager.smart_buy_limit(symbol, qty,client.getTicker(symbol))
         return {"status": "ok" }
     except:
@@ -683,18 +685,22 @@ async def cancel_order(permId: int):
 async def clar_all_orders(symbol: str):
     try:
 
+        await OrderTaskManager.cancel_orderBySymbol(symbol)
+
         pos = Balance.get_position(symbol)
         if (pos and pos.position>0):
             logger.info(f"SELL ALL {symbol} {pos.position} ")
-            OrderManager.smart_sell_limit(symbol,pos.position, muloClient.getTicker(symbol))
+            ret = await OrderManager.smart_sell_limit(symbol,pos.position, client.getTicker(symbol))
 
-        OrderManager.cancel_orderBySymbol(symbol)
-        result = await OrderTaskManager.cancel_orderBySymbol(symbol, )
+        #OrderManager.cancel_orderBySymbol(symbol)
+            
       
-        if result:
-            return {"status": "ok", "message": f"Orders cancelled {symbol}"}
+            if not ret:
+                return {"status": "ok", "message": f"Orders cancelled {symbol}"}
+            else:
+                return {"status": "warn", "message": f"No order founds fo {symbol}"}
         else:
-            return {"status": "warn", "message": f"No order founds fo {symbol}"}
+            return {"status": "ok", "message": f"Orders cancelled {symbol}"}
     except Exception as e:
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
@@ -716,7 +722,7 @@ async def get_task_orders(start: Optional[str] = None,
                 FROM task_orders o
                 GROUP BY task_id
             )
-            AND status =='READY'
+            AND status in ('READY', 'STEP')
             AND ds_timestamp >= ? 
             """
         else:
@@ -962,9 +968,7 @@ if __name__ =="__main__":
     async def main():
         ancora=True
 
-       
 
-        
         if run_mode!= "sym":
         
             ib = IB()
@@ -1073,7 +1077,7 @@ if __name__ =="__main__":
                     
                     await asyncio.sleep(1)
 
-            #_tick_tick = asyncio.create_task(tick())
+            _tick_tick = asyncio.create_task(tick())
             
             await asyncio.wait(
                 [_server_task, _tick_orders,_tick_tickers], #_tick_tickers

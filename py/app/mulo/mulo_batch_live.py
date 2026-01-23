@@ -284,6 +284,22 @@ class LiveManager:
 
         await self.fetcher.on_update_symbols(symbols,True)
 
+        #check
+        to_remove = []
+
+        for symbol in self.tickers.keys():
+            f = self.fetcher.df_fundamentals[
+                self.fetcher.df_fundamentals["symbol"] == symbol
+            ]
+
+            if f.empty:
+                to_remove.append(symbol)
+
+        for s in to_remove:
+            logger.warning(f"REMOVE BAD SYMBOL {s}")
+            del self.tickers[s]
+
+                                  
         #if self.ws_manager:
         #    await self.ws_manager.broadcast({"evt":"on_update_symbols"})
         

@@ -177,6 +177,13 @@ const ev_columnsDataMap = columnsData.reduce((acc, col) => {
 
 console.log("columnsDataMap",columnsDataMap)
 
+function smart_fixed(value,decimals){
+  if (value)
+    return value.toFixed(decimals)
+  else
+  return 0;
+}
+
 function formatField(value, colData){
   //console.log("formatField", value, colData)
   let type = colData["type"]
@@ -190,10 +197,10 @@ function formatField(value, colData){
      return  formatValue(value) 
   }
   if (type =="float"){
-     return value.toFixed(decimals) 
+     return smart_fixed(value,decimals) 
   }
   if (type =="perc"){
-     return value.toFixed(decimals) +"%"
+     return smart_fixed(value,decimals) +"%"
   }
   if (type =="rank"){
      if (value >0) return "▲ "+value

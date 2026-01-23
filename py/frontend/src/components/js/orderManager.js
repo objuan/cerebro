@@ -22,13 +22,12 @@ export async function order_buy_at_level(symbol, qty, price){
     })
 }
 
-export async function order_limit(symbol, qty, price){
-    console.log("order_limit", symbol,qty, price)
+export async function order_limit(symbol, qty){
+    console.log("order_limit", symbol,qty)
 
     send_get("/order/limit", {
         "symbol" : symbol,
         "qty": qty,
-        "price" : price
     })
 }
 

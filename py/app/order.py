@@ -138,10 +138,18 @@ class OrderManager:
         OrderManager.lastError=""    
         # Assegna gli event handlers
 
-        def onError( reqId, errorCode, errorString, contract):
+        async def onError( reqId, errorCode, errorString, contract):
             logger.error(f"errorCode {errorCode} {errorString} {contract}")
 
             OrderManager.lastError = {"reqId" : reqId, "errorCode": errorCode, "errorString": errorString} 
+
+            if OrderManager.ws:
+                #data["type"] = "ORDER"
+                ser = json.dumps( OrderManager.lastError)
+                await OrderManager.ws.broadcast(
+                    {"type": "ERROR", "data":ser }
+                )
+
             if errorCode == 110:
                 pass
             if errorCode == 162:
@@ -320,12 +328,12 @@ class OrderManager:
         trade.statusEvent += onStatus
         '''
 
-    def send_order(symbol,order_handler):
+    async def send_order(symbol,order_handler,attempt):
         timeout = 2          # secondi
         interval = 0.1          # ciclo ogni secondo
         start_time = time.time()
 
-        trade:Trade = order_handler()
+        trade:Trade = order_handler(attempt)
         ### risolve i decimali 
         while time.time() - start_time < timeout:
             if trade.orderStatus.status =="PendingSubmit":
@@ -335,20 +343,20 @@ class OrderManager:
                             tick_size = min(0.1, tick_size *10)
                             OrderManager.tick_cache[symbol ] = tick_size
                             #logger.info(f"Redo  tick_size:{tick_size}")
-                            trade:Trade = order_handler()
-                OrderManager.ib.sleep(interval)
+                            trade:Trade = order_handler(attempt)
+                await asyncio.sleep(interval)
             else:
                 return trade
         return None
 
-    def smart_buy_limit(symbol,totalQuantity,ticker):
-        return OrderManager._smart_limit(symbol, "BUY",totalQuantity, ticker)
+    async def smart_buy_limit(symbol,totalQuantity,ticker):
+        return await OrderManager._smart_limit(symbol, "BUY",totalQuantity, ticker)
        
-    def smart_sell_limit(symbol,totalQuantity,ticker):
-        return  OrderManager._smart_limit(symbol, "SELL",totalQuantity, ticker)
+    async def smart_sell_limit(symbol,totalQuantity,ticker):
+        return  await OrderManager._smart_limit(symbol, "SELL",totalQuantity, ticker)
      
 
-    def _smart_limit(symbol,op, totalQuantity,ticker):
+    async def _smart_limit(symbol,op, totalQuantity,ticker):
         '''
         return error if != None
         '''
@@ -356,7 +364,10 @@ class OrderManager:
         contract = Stock(symbol, 'SMART', 'USD')
         OrderManager.ib.qualifyContracts(contract)  
         
-        timeout = 10          # secondi
+        timeout = 120          # secondi
+        if op =="BUY":
+            timeout = 20 
+
         interval = 2          # ciclo ogni secondo
         start_time = time.time()
         
@@ -370,7 +381,7 @@ class OrderManager:
             OrderManager.tick_cache[contract.symbol ] = tick_size
             if not tick_size or tick_size <= 0:
                 raise ValueError("minTick non valido")
-            
+        attempt = 0      
         while time.time() - start_time < timeout:
                         
             if trade:
@@ -383,7 +394,11 @@ class OrderManager:
                         logger.error(f"{OrderManager.lastError}")
                         return OrderManager.lastError
 
-                if trade.orderStatus.status == "PendingSubmit":
+                if trade.orderStatus.status == "Cancelled":
+                    logger.warning("Order Cancelled !!! ")
+                    return None
+                
+                elif trade.orderStatus.status == "PendingSubmit":
                     if not OrderManager.wait_order(trade):
                         logger.warning("Order not added !!! ")
                 elif trade.orderStatus.status == "PreSubmitted":
@@ -397,12 +412,14 @@ class OrderManager:
                     #aspetto
                     submittedCount=submittedCount+1
                     if submittedCount == 3:
-                        permId = trade.orderStatus.permId
-                        logger.info(f"Force remove {permId}")
-                        OrderManager.lastError = None
-                        #OrderManager.cancel_order(permId)
-                        OrderManager.ib.cancelOrder(trade.order)
-                        trade=None
+                        logger.info(f"filled {trade.orderStatus.filled}")
+                        if trade.orderStatus.filled==0:
+                            permId = trade.orderStatus.permId
+                            logger.info(f"Force remove {permId}")
+                            OrderManager.lastError = None
+                            #OrderManager.cancel_order(permId)
+                            OrderManager.ib.cancelOrder(trade.order)
+                            trade=None
 
                 if trade and trade.orderStatus.status == "Filled":
                     logger.info("BUY DONE")
@@ -410,16 +427,22 @@ class OrderManager:
 
             if not trade:
                     
-                    def do_order():
+                    def do_order(attempt):
+                        
                         tick_size = OrderManager.tick_cache[contract.symbol ] 
 
                         if (op =="BUY"):
-                            formatted_price = OrderManager.format_price(contract,ticker["last"]+ tick_size)
+                            price = ticker["last"]+ tick_size*attempt
+                           
+                            logger.info(f'Change price {ticker["last"]} s:{tick_size} ({attempt}) -> {price}')
+                            formatted_price = OrderManager.format_price(contract,price)
                         else:
-                            formatted_price = OrderManager.format_price(contract,ticker["last"]-tick_size)
+                            price = ticker["last"]- tick_size*attempt
+
+                            formatted_price = OrderManager.format_price(contract,price)
                         #formatted_price = round(ticker["last"] / tick_size) * tick_size
 
-                        logger.info(f">> LimitOrder : {symbol} {op} {totalQuantity} at {ticker['last']} -> {formatted_price} (tick_size:{tick_size}) ")
+                        logger.info(f">> LimitOrder : {symbol} ({attempt}) {op} {totalQuantity} at {ticker['last']} -> {formatted_price} (tick_size:{tick_size}) ")
 
                         # 🔹 ORDINE
                         entry = LimitOrder(
@@ -432,7 +455,8 @@ class OrderManager:
                         OrderManager.lastError = None
                         return OrderManager.ib.placeOrder(contract, entry)
 
-                    trade:Trade = OrderManager.send_order(contract.symbol,do_order)
+                    attempt=attempt+1
+                    trade:Trade = await OrderManager.send_order(contract.symbol,do_order,attempt)
                     submittedCount=0
 
                     ###trade:Trade = 
@@ -443,7 +467,13 @@ class OrderManager:
 
         if trade:
             logger.info("Final cancel")
+            OrderManager.lastError = None
             OrderManager.ib.cancelOrder(trade.order)
+            await asyncio.sleep(2)
+            if OrderManager.lastError!= None:
+                if OrderManager.lastError["errorCode"] ==  10148:# Order FILLED 
+                    logger.info("BUY DONE AFTER CANCEL")
+                    return None
 
         return  {"reqId" : 0, "errorCode": -1, "errorString": "TIMEOUT"} 
 
