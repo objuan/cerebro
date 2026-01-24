@@ -1,44 +1,7 @@
 <template>
   <div ref="container" class=" border rounded bg-dark text-white shadow-sm chart-parent" style="overflow: hidden;" >
     
-    
-    <div v-if="!props.multi_mode" class="header grid-stack-handle d-flex justify-content-between align-items-center p-2 bg-secondary bg-opacity-25 border-bottom">
-      <div class="d-flex align-items-center"  >
-        <span class="me-2">📈</span>
-        <strong class="text-uppercase">Single {{ currentSymbol }}</strong>
-        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
-        <select 
-          v-model="currentSymbol" 
-          @change="handleSymbols"
-          class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
-        >
-          <option
-            v-for="s in symbolList"
-            :key="s"
-            :value="s"
-          >
-           {{ s }}
-          </option>
-        </select>
-      </div>
-      <div class="controls d-flex gap-2">
-        <select 
-          v-model="currentTimeframe" 
-          @change="handleRefresh" 
-          class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
-        >
-          <option value="10s">10s</option>
-          <option value="1m">1m</option>
-          <option value="5m">5m</option>
-          <option value="1h">1h</option>
-          <option value="1d">1d</option>
-        </select>
-        <button @click="$emit('close', id)" class="btn btn-sm btn-outline-light border-0 close-btn">✕</button>
-      </div>
-    </div>
-
-
-    <div v-if="props.multi_mode" class="bulk_header" >
+    <div  class="bulk_header" >
       <div style="display: grid;grid-template-columns: 80px 1fr;">
         <select 
           v-model="currentTimeframe" 
@@ -54,6 +17,7 @@
         <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
       </div>
     </div>
+
     <!---   -->
     <div class="position-relative p-0 chart-panel">
       <div class="chart-legend-up  small" v-html="legendHtml"></div>
@@ -88,6 +52,10 @@
             @click="setDrawMode('delete_all')">
             ✕
           </button>
+           <button  class="btn btn-sm btn-success ms-1"  title="Indicators"
+            @click="openIndicatorMenu()">
+            ..
+          </button>
         </div>
         <div class="trade_bar">
             <button   class="btn btn-sm btn-outline-warning ms-2"   title="Set Trade"
@@ -118,6 +86,8 @@
    <div  ref="price_marker_sl" class="price-marker">
       <span class="icon">⛔</span>
    </div>
+   <CandleChartIndicator ref="indicatorMenu"
+    @add-indicator="onAddIndicator"></CandleChartIndicator>
   </div>
 </template>
 
@@ -125,9 +95,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js';
+import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
-   LineSeries, HistogramSeries,
+   LineSeries, HistogramSeries, applySMA,
 createInteractiveLineManager } from '@pipsend/charts'; //createTradingLine
 import { eventBus } from "@/components/js/eventBus";
 import { formatValue,send_delete,send_get,saveProp } from '@/components/js/utils.js'; // Usa il percorso corretto
@@ -135,7 +106,6 @@ import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMark
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 
 const props = defineProps({
-  multi_mode: { type: Boolean, default: false },
   id: { type: String, required: true },
   number: { type: Number, required: true },
   sub_number: { type: Number, required: true },
@@ -148,6 +118,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'initialized']);
 
 // Elementi DOM e Variabili reattive
+const indicatorMenu = ref(null);
 const mainChartRef = ref(null);
 const volumeChartRef = ref(null);
 const legendHtml = ref('');
@@ -159,6 +130,8 @@ const container = ref(null);
 const price_marker= ref(null);
 const price_marker_tp= ref(null);
 const price_marker_sl= ref(null);
+
+//const indicators = ["SMA","EMA"]
 
 const gfx_canvas = ref(null);
 
@@ -206,6 +179,26 @@ function onTimeFrameChange(){
   handleRefresh();
 }
 
+function onAddIndicator(ind){
+    console.log("onAddIndicator ",ind)
+
+    if (ind.type =="sma")
+    {
+      let serie = applySMA(series.main, charts.main, { 
+        period: ind.params.period, 
+        color: ind.params.color,
+      });
+      serie.applyOptions({
+        priceLineVisible: false,
+        lastValueVisible: false,
+        lineWidth: 1,
+      });
+  }
+}
+
+function openIndicatorMenu(){
+  indicatorMenu.value.open();
+}
 /*
  --- LOGICA REFRESH DATI ---
 */

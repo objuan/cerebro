@@ -118,6 +118,7 @@
 import { onMounted, onUnmounted, ref ,nextTick ,onBeforeUnmount,computed } from 'vue';
 
 import { liveStore } from '@/components/js/liveStore.js';
+import { staticStore } from '@/components/js/staticStore.js';
 import OrdersWidget from "@/components/OrdersWidget.vue";
 import PortfolioWidget from "@/components/PortfolioWidget.vue";
 import ReportPanel from "@/components/ReportPanel.vue";
@@ -170,7 +171,7 @@ function setGrid(r, c) {
   widgetRefs.value={}
   for (let i = 0; i < total; i++) {
 
-    let symbol = liveStore.get("chart."+(i+1)+".symbol","")
+    let symbol = staticStore.get("chart."+(i+1)+".symbol","")
     console.log("<< ",i+1, symbol)
 
     newCells.push({
@@ -383,12 +384,19 @@ onMounted(() => {
         //console.log(pdata)
         pdata.forEach(  (val) =>{
             console.log("prop",val.path, val.value)
-            liveStore.updatePathData(val.path, val.value);
+            if (val.path.startsWith("chart")  || val.path.startsWith("home") )
+            {
+              staticStore.set(val.path, val.value);
+            }
+            else
+            {
+              liveStore.set(val.path, val.value);
+            }
 
             
         });
 
-        let grid = liveStore.get("home.grid","")
+        let grid = staticStore.get("home.grid","")
         if (grid!="")
         {
             //console.log("home.grid", grid)

@@ -56,7 +56,6 @@
               :timeframe="cell.timeframe"
               :plot_config="cell.plot_config"
               :class="{ selected: selectedId === cell.id }"
-              :multi_mode=true
               :number="number"
               :sub_number ="cell.number"
           >
@@ -77,7 +76,8 @@ import { computed } from 'vue';
 import  TradeConsole  from './TradeConsole.vue'
 import { eventBus } from "@/components/js/eventBus";
 import {saveProp} from '@/components/js/utils.js'
-import { liveStore } from '@/components/js/liveStore.js';
+//import { liveStore } from '@/components/js/liveStore.js';
+import { staticStore } from '@/components/js/staticStore.js';
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -131,7 +131,7 @@ const onChangeLayouts = async () => {
     const newCells = []
 
     for (let i = 0; i < total; i++) {
-       let tf =  liveStore.get( get_layout_key(""+(i+1)+".timeframe"),"1m")
+       let tf =  staticStore.get( get_layout_key(""+(i+1)+".timeframe"),"1m")
         
        newCells.push({
         id: crypto.randomUUID(),
@@ -152,7 +152,7 @@ const onChangeLayouts = async () => {
 
 const onChangeSymbols = async () => {
 
-   currentLayout.value = liveStore.get( get_layout_key("grid"),"1,1")
+   currentLayout.value = staticStore.get( get_layout_key("grid"),"1,1")
   
    console.log("onChangeSymbols", currentLayout.value);
 
@@ -180,7 +180,7 @@ onMounted( async() => {
     await updateAll();
 
     // --------------
-    currentLayout.value = liveStore.get(get_layout_key("grid"),"1,1")
+    currentLayout.value = staticStore.get(get_layout_key("grid"),"1,1")
     
     onChangeLayouts()
 });

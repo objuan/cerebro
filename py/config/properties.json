@@ -12,10 +12,10 @@
   },
   "chart": {
     "1": {
-      "grid": "2,2",
+      "grid": "1,1",
       "symbol": "DRCT",
       "1": {
-        "timeframe": "5m"
+        "timeframe": "10s"
       },
       "2": {
         "timeframe": "1m"
