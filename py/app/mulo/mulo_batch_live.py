@@ -47,7 +47,7 @@ intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
 use_yahoo=False
-use_display = True
+use_display = False
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -451,27 +451,29 @@ class LiveManager:
       
     async def sym_tick_tickers(self):
                 #boot
-                self.sym_start_time= 9999999999999
+                self.sym_start_time= 0
                 #last_time={}
                 for symbol,ticker in self.tickers.items():
                     df = self.fetcher.get_df(f"SELECT MIN(timestamp) FROM ib_ohlc_history WHERE timeframe='10s' and symbol='{symbol}'")
                     #print(df)
                     if len(df)>0 and df.iloc[0][0]!=None:
                         ts_start =  int(df.iloc[0][0] )
-                        logger.info(f"SYMBOL TICKER BOOT {symbol} from {ts_start}") 
+                        logger.info(f"SYMBOL TICKER BOOT {symbol} from {datetime.fromtimestamp(ts_start/1000)}") 
                         #last_time[symbol] =ts_start
-                        self.sym_start_time = min(self.sym_start_time,ts_start)
+                        self.sym_start_time = max(self.sym_start_time,ts_start)
+
+                logger.info(f"SYM TIME  BEGIN AT  {datetime.fromtimestamp(self.sym_start_time/1000).strftime('%Y-%m-%d %H:%M:%S')}") 
 
                 for symbol,ticker in self.tickers.items():
                     ticker.last_close = await self.fetcher.last_close(symbol,datetime.fromtimestamp(self.sym_start_time/1000))
                     ticker.gain = 0    
+                    ticker.volume=0
                     ticker.symbol = symbol
                     logger.info(f"Start ticker {ticker} last_close{ticker.last_close}")
 
                 self.sym_current_time = int(_time.time())    
-              
-                logger.info(f"SYM TIME  BEGIN AT  {datetime.fromtimestamp(self.sym_start_time/1000).strftime('%Y-%m-%d %H:%M:%S')}") 
-                if self.on_display:
+
+                if use_display:
                     table = Table("Symbol", "Last", "Ask", "Bid","Last Close", "Gain","10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
                 else:
                     table=None
@@ -483,7 +485,7 @@ class LiveManager:
                         
                         self.sym_time = int((self.sym_start_time + delta*1000) / 1000)
 
-                        #logger.info(f"SYMBOL TICKER CHECK DELTA {delta} {self.sym_time}")   
+                        logger.info(f"SYMBOL TICKER CHECK DELTA {delta} {self.sym_time}")   
                         
                         for symbol,ticker in self.tickers.items():
                             
@@ -508,19 +510,29 @@ class LiveManager:
                                     row = df.iloc[0]
                                     ts = datetime.fromtimestamp(row["timestamp"]/1000)
 
+                                    if row['base_volume'] is None:
+                                        base_volume = 0
+                                    else:
+                                        base_volume = int(row['base_volume'])
+
                                     if interval == 10:
                                         ticker.last = float(row.get("close") or 0)
-                                        ticker.volume=  int(row.get("base_volume") or 0)
+                                        ticker.volume=  base_volume
                                         ticker.time=ts
                                         ticker.ask=0
                                         ticker.bid=0 
                                         ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
                                     
-                                    #logger.info(f"{ts}")   
-                                    data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), "v":int(row['base_volume']), "ts":int(start)*1000, "dts":start_time  }
+                                    #logger.info(f"{row}")   
+                                  
+                                    try:
+                                        data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), "v":base_volume, "ts":int(start)*1000, "dts":start_time  }
+                                   
                                      
-                                    pack = f"o:{row['open']:.2f} h:{row['high']:.2f} l:{row['low']:.2f} c:{row['close']:.2f} v:{row['base_volume']:.0f} ({start_time}, {time_str})"
-                                    hls[i] = pack
+                                        pack = f"o:{row['open']:.2f} h:{row['high']:.2f} l:{row['low']:.2f} c:{row['close']:.2f} v:{base_volume:.0f} ({start_time}, {time_str})"
+                                        hls[i] = pack
+                                    except:
+                                        logger.error(f"{row} {base_volume}")   
                                     ##await add_ticker(symbol,t)
                                     
                                     key = symbol+str(interval)
@@ -544,11 +556,13 @@ class LiveManager:
                                     #data = sanitize(data)
                                     
                             if table:
+                                print("k")
                                 table.add_row(symbol, f"{ticker.last:.6f}", 
                                         datetime.fromtimestamp(self.sym_time).strftime('%Y-%m-%d %H:%M:%S'),
                                         hls[0], hls[1], hls[2], hls[3])
 
-                            #live_display.update(table)
+                            if use_display:
+                                live_display.update(table)
               
                     except:
                         logger.error("ERR", exc_info=True)
@@ -727,9 +741,9 @@ async def main():
 
             _server_task = asyncio.create_task(server.serve())
           
-            _tick_tickers = await live.start_batch()
-
             await live.bootstrap(start_scan)
+    
+            _tick_tickers = await live.start_batch()
 
             #_tick_orders = asyncio.create_task(OrderManager.batch())
 

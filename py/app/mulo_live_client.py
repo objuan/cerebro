@@ -37,7 +37,10 @@ class MuloLiveClient:
 
         self.market = MarketService(config).getMarket("AUTO")
         self.sym_mode = config["live_service"]["mode"] =="sym"
-            
+        self.sym_time = None
+        self.sym_start_time = None
+        self.sym_start_speed=None
+        
         self.on_symbols_update = MyEvent()
         #self.on_symbols_update.debug=True
         self.on_candle_receive = MyEvent()
@@ -45,17 +48,21 @@ class MuloLiveClient:
 
         propManager.add_computed("root.sym_mode", lambda: self.sym_mode )
         propManager.add_computed("root.tz", lambda:  MZ_TABLE[self.getCurrentZone()] )
-
+        propManager.add_computed("root.sym_start_time", lambda: self.sym_start_time )
+        propManager.add_computed("root.sym_start_speed", lambda: self.sym_start_speed )
      
      
     async def bootstrap(self):
         
-        await self._on_update_symbols()
+        
         if self.sym_mode:
-                self.sym_time = await self.send_cmd("/sym/time")
-                self.sym_speed = await self.send_cmd("/sym/speed")
+                self.sym_start_time =  await self.send_cmd("sym/time")
+                self.sym_time = datetime.fromtimestamp(self.sym_start_time)
+                self.sym_speed = await self.send_cmd("sym/speed")
+                self.sym_start_speed = self.sym_speed
                 logger.info(f"START SYM TIME: {self.sym_time} sp:{self.sym_speed}")
-          
+        await self._on_update_symbols()
+
     async def batch(self):
         try:
             uri = "ws://localhost:3000/ws/tickers"
@@ -137,10 +144,11 @@ class MuloLiveClient:
 
     #########
     async def setSymTime(self,time):
-        await self.send_cmd("/sym/time/set", time)
+        self.sym_start_time = time
+        await self.send_cmd("sym/time/set", {"time": time})
     
     async  def setSymSpeed(self,speed):
-        await self.send_cmd("/sym/speed/set", speed)
+        await self.send_cmd("sym/speed/set", {"value":speed})
         
     def ordered_tickers(self) -> Ticker:
          #logger.info(f"{self.tickers}")
@@ -518,6 +526,7 @@ class MuloLiveClient:
         
         url = "http://127.0.0.1:3000/"+rest_point
 
+        logger.info(f">> {url} {msg}")
         if msg:
             params = msg
             response = requests.get(url, params=params, timeout=5)
@@ -527,7 +536,11 @@ class MuloLiveClient:
         if response.ok:
             data = response.json()
             if data["status"] == "ok":
-                return data["data"]
+                if "data" in data:
+                    return data["data"]
+                else:
+                    return "{}"
+            
             else:
                 logger.error("Errore:", response.status_code)
                 return None

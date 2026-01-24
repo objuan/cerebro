@@ -15,7 +15,7 @@
       "grid": "1,1",
       "symbol": "DRCT",
       "1": {
-        "timeframe": "10s"
+        "timeframe": "1m"
       },
       "2": {
         "timeframe": "1m"

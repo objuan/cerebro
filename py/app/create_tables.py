@@ -163,6 +163,21 @@ CREATE TABLE IF NOT EXISTS chart_lines (
 )
 """)
 
+
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS chart_indicator (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    data TEXT NOT NULL
+)
+""")
+
+cur.execute("""
+CREATE UNIQUE INDEX idx_chart_indicator_name
+ON chart_indicator(name);
+""")
+
 cur.execute("""
 CREATE TABLE IF NOT EXISTS trade_marker (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

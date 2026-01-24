@@ -204,7 +204,6 @@ if run_mode!= "sym":
     ib.tickNewsEvent += on_news_events
 '''
 
-sym_time = None
 
 app = FastAPI(  )
 
@@ -245,9 +244,7 @@ cur = conn.cursor()
 cur.execute("PRAGMA journal_mode=WAL;")
 cur.execute("PRAGMA synchronous=NORMAL;")
 
-#######################################################
 
-sym_time = None
 
 #######################################################
 
@@ -361,6 +358,33 @@ async def write_props(payload:dict):
     return JSONResponse("ok")
 
 ######################
+
+@app.post("/api/chart/indicator/save")
+def save_chart_indicator(payload: dict):
+    logger.info(f"SAVE CHART IND {payload}")   
+   
+    name = payload["name"]
+    data = payload["data"]
+      
+    logger.info(f"name {name} data {data}")   
+   
+    client.execute("""
+        INSERT INTO chart_indicator (name, data)
+            VALUES (?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                data = excluded.data
+    """, (
+        name,
+        json.dumps(data)
+    ))
+
+@app.get("/api/chart/indicator/list")
+def list_chart_indicator():
+    df = client.get_df("""
+        SELECT name,data
+        FROM chart_indicator
+    """)
+    return JSONResponse(df.to_dict(orient="records"))
 
 @app.post("/api/chart/save")
 def save_chart_line(payload: dict):

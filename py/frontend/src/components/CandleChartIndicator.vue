@@ -7,10 +7,10 @@
     <div class="form-group">
       <label>Indicator</label>
       <select v-model="selectedIndicator" class="form-select">
-        <option value="sma">SMA</option>
-        <option value="ema">EMA</option>
-        <option value="rsi">RSI</option>
-        <option value="macd">MACD</option>
+        <option value="SMA">SMA</option>
+        <option value="EMA">EMA</option>
+        <option value="RSI">RSI</option>
+        <option value="MACD">MACD</option>
       </select>
     </div>
 
@@ -48,6 +48,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { applyEMA, applySMA } from '@pipsend/charts'; //createTradingLine
 
 const showIndicatorModal = ref(false)
 const selectedIndicator = ref(null)
@@ -73,8 +74,49 @@ function open(){
   showIndicatorModal.value=true
 }
 
+function addIndicator(context,ind){
+    console.log("onAddIndicator ",ind)
+    let serie =null;
+    if (ind.type =="SMA")
+    {
+      serie = applySMA(context.series.main, context.charts.main, { 
+        period: ind.params.period, 
+        color: ind.params.color,
+      });
+
+      serie.applyOptions({
+        priceLineVisible: false,
+        lastValueVisible: false,
+        lineWidth: 1,
+      });
+   }
+   if (ind.type =="EMA")
+    {
+      serie = applyEMA(context.series.main, context.charts.main, { 
+        period: ind.params.period, 
+        color: ind.params.color,
+      });
+      serie.applyOptions({
+        priceLineVisible: false,
+        lastValueVisible: false,
+        lineWidth: 1,
+      });
+  }
+
+  console.log("add serie",serie)
+  //context.charts.main.removeSeries(serie)
+  return {"type" : ind.type.toUpperCase() ,"serie":  serie, "params" : 
+  {
+      "color" : ind.params.color,  
+      "period" : ind.params.period, "overbought" : ind.params.overbought, "oversold" : ind.params.oversold, 
+     }
+  };
+  
+}
+
 defineExpose({
   open,
+  addIndicator
 });
 
 

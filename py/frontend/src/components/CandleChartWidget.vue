@@ -24,13 +24,45 @@
 
       <div ref="chartContainer" class="chart-container  w-100 d-flex flex-column">
         <div ref="mainChartRef" class=" w-100" >
-          <div class="chart-legend-left-ind  small" v-html="legendIndHtml"></div>
-          <div class="chart-legend-left small"  >
+          
+           <!-- INDICATOR LEGENDS -->
+
+          <div class="chart-legend-left-ind">
+            <div
+              class="chart-legend-left-ind-item"
+              v-for="(ind, i) in indicatorList"
+              :key="ind.id || i"
+            >
+              <span :style="{ color: ind.params.color }">
+                {{ ind.type }}
+              </span>
+
+              <input
+                type="color"
+                v-model="ind.params.color"
+                class="ms-2"
+                @input="updateIndicatorColor(ind)"
+              />
+
+              <button
+                class="btn btn-sm btn-outline-danger ms-1" 
+                @click="removeIndicator(i)"
+                title="Rimuovi indicatore"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- VOLUME LEGENDS -->
+          <div class="chart-legend-left-bottom small"  >
                 <span class="text-white me-3">Vol: {{  formatValue(lastMainCandle?.volume) }}</span>
               </div>
         </div>
 
         <div ref="volumeChartRef" style="height: 100px;" class="w-100 border-top border-secondary"></div>
+
+        <!-- BUTTON BAR -->
 
         <div class="button_bar">
           <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
@@ -53,10 +85,18 @@
             ✕
           </button>
            <button  class="btn btn-sm btn-success ms-1"  title="Indicators"
-            @click="openIndicatorMenu()">
-            ..
+              @click="openIndicatorMenu()">
+              ..
           </button>
+
+          <DropdownMenu
+              :label="indicatorName"
+              :items="menuItems"
+              @select="handleMenu"
+            />
         </div>
+
+        <!-- TRADE BAR -->
         <div class="trade_bar">
             <button   class="btn btn-sm btn-outline-warning ms-2"   title="Set Trade"
               @click="setDrawMode('trade_marker')" 
@@ -88,22 +128,27 @@
    </div>
    <CandleChartIndicator ref="indicatorMenu"
     @add-indicator="onAddIndicator"></CandleChartIndicator>
+
+
   </div>
+
+  
 </template>
 
 
 <script setup>
-import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
+import { ref, onMounted, onUnmounted ,onBeforeUnmount,toRaw } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js';
 import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
-   LineSeries, HistogramSeries, applySMA,
+   LineSeries, HistogramSeries,
 createInteractiveLineManager } from '@pipsend/charts'; //createTradingLine
 import { eventBus } from "@/components/js/eventBus";
-import { formatValue,send_delete,send_get,saveProp } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { formatValue,send_delete,send_get,saveProp, send_post } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker, updateTradeMarker ,setTradeMarker
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
+import DropdownMenu from '@/components/DropdownMenu.vue';
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -122,7 +167,7 @@ const indicatorMenu = ref(null);
 const mainChartRef = ref(null);
 const volumeChartRef = ref(null);
 const legendHtml = ref('');
-const legendIndHtml = ref('');
+//const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
 const symbolList = ref([]);
@@ -130,6 +175,8 @@ const container = ref(null);
 const price_marker= ref(null);
 const price_marker_tp= ref(null);
 const price_marker_sl= ref(null);
+const indicatorList = ref([]);
+const indicatorName = ref("");
 
 //const indicators = ["SMA","EMA"]
 
@@ -179,22 +226,120 @@ function onTimeFrameChange(){
   handleRefresh();
 }
 
-function onAddIndicator(ind){
-    console.log("onAddIndicator ",ind)
+// ===============================
 
-    if (ind.type =="sma")
-    {
-      let serie = applySMA(series.main, charts.main, { 
-        period: ind.params.period, 
-        color: ind.params.color,
-      });
-      serie.applyOptions({
-        priceLineVisible: false,
-        lastValueVisible: false,
-        lineWidth: 1,
-      });
+
+const menuItems = [
+  { key: 'save', text: 'Save' },
+  { key: 'load', text: 'Load' },
+  { key: 'link', text: 'Link to'+ props.number }
+];
+function handleMenu(item) {
+  if (item.key === 'save') saveIndicators();
+  if (item.key === 'load') loadIndicators();
+}
+
+// ===================================
+
+async function loadIndicators()
+{
+  let list = await send_get("/api/chart/indicator/list")
+  list.forEach(line => {
+      line.data = JSON.parse(line.data);
+  });
+  if (!list.length) {
+    alert("Nessun set di indicatori salvato.");
+    return;
+  }
+
+  // Crea elenco numerato
+  const optionsText = list
+    .map((l, i) => `${i + 1}) ${l.name}`)
+    .join("\n");
+
+  const choice = prompt(
+    "Scegli quale set caricare:\n\n" + optionsText
+  );
+
+  if (!choice) return;
+
+   for(let idx = 0;idx < indicatorList.value.length;idx++)
+      removeIndicator(0)
+   
+
+  const index = parseInt(choice, 10) - 1;
+
+  if (isNaN(index) || index < 0 || index >= list.length) {
+    alert("Scelta non valida");
+    return;
+  }
+
+  const selected = list[index];
+
+  console.log("Carico:", selected.name, selected.data);
+
+  //let key = get_layout_key(`indicator.${selected.name}`)
+
+  getIndicators(selected)
+  // QUI assegni gli indicatori
+  // es:
+  // this.indicatorList = selected.data
+}
+
+function saveIndicators(){
+
+  if (indicatorList.value.length==0)
+    return;
+
+  const name = window.prompt("Nome per salvare gli indicatori:");
+
+  if (!name) return; // annullato o vuoto
+
+  // qui fai quello che ti serve con il nome
+  console.log("Salvo con nome:", name);
+  let data=[]
+  indicatorList.value.forEach((ind) => {
+   
+    data.push({"type" : ind.type ,"params" : ind.params})
+  });
+   console.log("data",data)
+
+   send_post("/api/chart/indicator/save", {"name": name, "data":data })
+}
+
+async function getIndicators(profile)
+{   
+  indicatorName.value = profile.name
+  console.log("getIndicators",profile)
+  profile.data.forEach( (ind)=>{
+      onAddIndicator(ind)
+  })
+}
+
+function updateIndicatorColor(ind) {
+  if (ind.serie) {
+    ind.serie.applyOptions({
+      color: ind.params.color
+    });
   }
 }
+
+//  ---------
+
+function onAddIndicator(ind){
+    let serie = indicatorMenu.value.addIndicator(context(),ind)
+    console.log("add",serie)
+    indicatorList.value.push(serie)
+}
+ function removeIndicator(index) {
+
+    const ind = toRaw(indicatorList.value[index]);
+
+    console.log("Remove",index, ind.serie)
+    indicatorList.value.splice(index, 1)
+
+    charts.main.removeSeries(ind.serie)
+  }
 
 function openIndicatorMenu(){
   indicatorMenu.value.open();
@@ -433,10 +578,10 @@ function watchPriceScale() {
 watchPriceScale();
 
 
-/* Full resize for gridstack
+/* buildChart
 */
 const buildChart =  () => {
- //console.log("buildChart")
+
   // 1. Main Chart
   try{
   charts.main = createChart(mainChartRef.value, {
@@ -521,7 +666,7 @@ const buildChart =  () => {
     try{
       if (!param.time || !param.seriesData.get(series.main)) {
         legendHtml.value = '';
-        legendIndHtml.value = '';
+        //legendIndHtml.value = '';
         charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
         return;
       }
@@ -565,12 +710,16 @@ const buildChart =  () => {
 
       lbl=""
       // Aggiungi valori indicatori alla legenda
-      Object.entries(series.indicators).forEach(([key, s]) => {
+
+      /*
+      console.log("indicatorList.value",indicatorList.value)
+      Object.entries(indicatorList.value).forEach(([key, s]) => {
         const val = param.seriesData.get(s);
         if (val) lbl += ` <span style="color:${props.plot_config.main_plot[key].color}">${key}: ${val.value.toFixed(3)}</span><br>`;
       });
       
       legendIndHtml.value = lbl;
+      */
     }catch(ex){
       console.debug(ex);
     }
@@ -657,16 +806,10 @@ const resize =  () => {
     const { width, height } = container.value.getBoundingClientRect()
    // console.log("c resize ",width,height,container);
    // console.log(charts.main)
-    if (props.multi_mode)
-    {
-      charts.main.resize(width-10,height-100);
-      charts.volume.resize(width-10,94);
-    }
-    else
-    {
-      charts.main.resize(width-10,height-150);
-      charts.volume.resize(width-10,94);
-    }
+
+    charts.main.resize(width-10,height-105);
+    charts.volume.resize(width-10,94);
+    
     handleRefresh();
 };
 
@@ -764,7 +907,7 @@ defineExpose({
   z-index: 10 !important;
   position: absolute;
 }
-.chart-legend-left {
+.chart-legend-left-bottom {
   left:  0px;
   bottom: 130px;
   text-align: left;
@@ -774,16 +917,37 @@ defineExpose({
   z-index: 10 !important;
   position: absolute;
 }
-.chart-legend-left-ind {
+
+.chart-legend-left-ind  {
   left:  0px;
-  top: 40px;
+  top: 60px;
   text-align: left;
-  pointer-events: none;
-  background: rgba(19, 23, 34, 0.7);
+  background: rgba(50, 59, 85, 0.7);
   border-bottom-right-radius: 4px;
-  z-index: 10 !important;
+  z-index: 20 !important;
   position: absolute;
+  display: flex;
+  flex-direction: column  !important;  /* ← verticale */
+  gap: 6px;                /* spazio tra elementi */
+  align-items: flex-start;              /* spazio tra elementi */
 }
+
+.chart-legend-left-ind-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.legend-remove-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color:white;
+    z-index: 1000 !important;
+}
+
 
 .timeframe-selector {
   width: auto;

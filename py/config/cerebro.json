@@ -69,10 +69,10 @@
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
-				"mode" : "live",
+				"mode" : "sym",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["NVDA"],
-				"start_scan" : "live",
+				"start_scan" : "keep_last_session",
 				"start_scan1" : "keep_last_session|debug|live",
 				"scheduler":[
 					{
