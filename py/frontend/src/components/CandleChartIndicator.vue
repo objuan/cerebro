@@ -9,8 +9,9 @@
       <select v-model="selectedIndicator" class="form-select">
         <option value="SMA">SMA</option>
         <option value="EMA">EMA</option>
-        <option value="RSI">RSI</option>
+        <option value="WMA">WMA</option>
         <option value="MACD">MACD</option>
+        <option value="RSI">RSI</option>
       </select>
     </div>
 
@@ -48,7 +49,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { applyEMA, applySMA } from '@pipsend/charts'; //createTradingLine
+import { applyEMA, applySMA, applyWMA, applyMACD, applyRSI } from '@pipsend/charts'; //createTradingLine
 
 const showIndicatorModal = ref(false)
 const selectedIndicator = ref(null)
@@ -77,35 +78,68 @@ function open(){
 function addIndicator(context,ind){
     console.log("onAddIndicator ",ind)
     let serie =null;
+    let name=""
     if (ind.type =="SMA")
     {
+      name ="SMA "+ind.params.period
       serie = applySMA(context.series.main, context.charts.main, { 
         period: ind.params.period, 
         color: ind.params.color,
       });
-
-      serie.applyOptions({
-        priceLineVisible: false,
-        lastValueVisible: false,
-        lineWidth: 1,
-      });
    }
    if (ind.type =="EMA")
     {
+      name ="EMA "+ind.params.period
       serie = applyEMA(context.series.main, context.charts.main, { 
         period: ind.params.period, 
         color: ind.params.color,
       });
-      serie.applyOptions({
+      
+    }
+    if (ind.type =="WMA")
+    {
+      name ="WMA "+ind.params.period
+      serie = applyWMA(context.series.main, context.charts.main, { 
+        period: ind.params.period, 
+        color: ind.params.color,
+      });
+      
+    }
+  if (ind.type =="RSI")
+    {
+      name ="RSI "+ind.params.period+","+ind.params.overbought+","+ind.params.oversold
+      serie = applyRSI(context.series.main, context.charts.main, { 
+        period: ind.params.period, 
+        color: ind.params.color,
+        overbought :  ind.params.overbought, 
+        oversold :  ind.params.oversold, 
+      });
+      
+    }
+     if (ind.type =="MACD")
+    {
+      name ="MACD "+ind.params.period
+      serie = applyMACD(context.series.main, context.charts.main, { 
+        macdColor: ind.params.color,
+       signalColor: '#ff9900',
+        histUpColor: '#00ff00',
+        histDownColor: '#ff0000',
+        fastPeriod: 12, 
+        slowPeriod: 26, 
+        signalPeriod: 9, 
+      });
+      
+    }
+
+  serie.applyOptions({
         priceLineVisible: false,
         lastValueVisible: false,
         lineWidth: 1,
       });
-  }
 
-  console.log("add serie",serie)
+  //console.log("add serie",serie)
   //context.charts.main.removeSeries(serie)
-  return {"type" : ind.type.toUpperCase() ,"serie":  serie, "params" : 
+  return {"type" : ind.type.toUpperCase() ,"name":name,"serie":  serie, "params" : 
   {
       "color" : ind.params.color,  
       "period" : ind.params.period, "overbought" : ind.params.overbought, "oversold" : ind.params.oversold, 
@@ -113,6 +147,8 @@ function addIndicator(context,ind){
   };
   
 }
+
+// ==================================================
 
 defineExpose({
   open,

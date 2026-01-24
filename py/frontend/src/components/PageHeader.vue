@@ -28,14 +28,14 @@
           type="time"
           class="form-control form-control-sm"
           v-model="selectedSymTime"
-          :disabled="loading"
+          :disabled="!selectedSymTime"
           style="width: 110px"
         />
 
         <button
           class="btn btn-sm btn-primary"
           @click="onSetSymTime"
-          :disabled="loading || !selectedSymTime"
+          :disabled="!selectedSymTime"
         >
           Set
         </button>

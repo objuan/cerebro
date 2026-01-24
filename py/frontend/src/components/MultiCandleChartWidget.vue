@@ -55,7 +55,7 @@
               :symbol="currentSymbol"
               :timeframe="cell.timeframe"
               :plot_config="cell.plot_config"
-              :class="{ selected: selectedId === cell.id }"
+              
               :number="number"
               :sub_number ="cell.number"
           >

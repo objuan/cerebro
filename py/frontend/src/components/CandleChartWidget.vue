@@ -28,24 +28,37 @@
            <!-- INDICATOR LEGENDS -->
 
           <div class="chart-legend-left-ind">
+            <DropdownMenu
+              :label="indicatorName"
+              :items="menuItems"
+              @select="handleMenu"
+            />
+            <button  class="btn btn-sm btn-success ms-1"  title="Indicators"
+              @click="openIndicatorMenu()">
+              ..
+               </button>
+
             <div
               class="chart-legend-left-ind-item"
               v-for="(ind, i) in indicatorList"
               :key="ind.id || i"
             >
               <span :style="{ color: ind.params.color }">
-                {{ ind.type }}
+                {{ ind.name }}
               </span>
 
               <input
                 type="color"
                 v-model="ind.params.color"
-                class="ms-2"
+                class="ms-0 p-0 b-0"
+                style="width:20px;height:20px"
                 @input="updateIndicatorColor(ind)"
               />
 
               <button
-                class="btn btn-sm btn-outline-danger ms-1" 
+                class="btn btn-sm btn-outline-danger ms-0 p-0 b-0" 
+                
+                style="width:20px;height:20px"
                 @click="removeIndicator(i)"
                 title="Rimuovi indicatore"
               >
@@ -84,16 +97,8 @@
             @click="setDrawMode('delete_all')">
             ✕
           </button>
-           <button  class="btn btn-sm btn-success ms-1"  title="Indicators"
-              @click="openIndicatorMenu()">
-              ..
-          </button>
-
-          <DropdownMenu
-              :label="indicatorName"
-              :items="menuItems"
-              @select="handleMenu"
-            />
+    
+          
         </div>
 
         <!-- TRADE BAR -->
@@ -137,8 +142,9 @@
 
 
 <script setup>
-import { ref, onMounted, onUnmounted ,onBeforeUnmount,toRaw } from 'vue';
+import { ref, onMounted, onUnmounted ,onBeforeUnmount,toRaw,computed, nextTick } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js';
+import { staticStore } from '@/components/js/staticStore.js';
 import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
@@ -149,6 +155,7 @@ import { formatValue,send_delete,send_get,saveProp, send_post } from '@/componen
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker, updateTradeMarker ,setTradeMarker
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
+
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -170,7 +177,7 @@ const legendHtml = ref('');
 //const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
-const symbolList = ref([]);
+//const symbolList = ref([]);
 const container = ref(null);
 const price_marker= ref(null);
 const price_marker_tp= ref(null);
@@ -219,6 +226,7 @@ function context() {
 }
 
 const get_layout_key = (subkey)=> { return `chart.${props.number}.${props.sub_number}.${subkey}`}
+const get_indicator_key = ()=> { return `chart.${props.number}.indicator.${currentTimeframe.value}`}
 
 function onTimeFrameChange(){
 
@@ -228,83 +236,33 @@ function onTimeFrameChange(){
 
 // ===============================
 
+const linkName = computed(() => `Link to slot:${props.number} tf: ${currentTimeframe.value}`);
 
 const menuItems = [
   { key: 'save', text: 'Save' },
   { key: 'load', text: 'Load' },
-  { key: 'link', text: 'Link to'+ props.number }
+  { key: 'link', text: linkName },
+  { key: 'link_clear', text: "Link Clear" }
 ];
-function handleMenu(item) {
+
+async function handleMenu(item) {
   if (item.key === 'save') saveIndicators();
-  if (item.key === 'load') loadIndicators();
+  if (item.key === 'load') await loadIndicators(null);
+  if (item.key === 'link') linkIndicators();
+  if (item.key === 'link_clear') linkClearIndicators();
 }
+
 
 // ===================================
 
-async function loadIndicators()
-{
-  let list = await send_get("/api/chart/indicator/list")
-  list.forEach(line => {
-      line.data = JSON.parse(line.data);
-  });
-  if (!list.length) {
-    alert("Nessun set di indicatori salvato.");
-    return;
-  }
-
-  // Crea elenco numerato
-  const optionsText = list
-    .map((l, i) => `${i + 1}) ${l.name}`)
-    .join("\n");
-
-  const choice = prompt(
-    "Scegli quale set caricare:\n\n" + optionsText
-  );
-
-  if (!choice) return;
-
-   for(let idx = 0;idx < indicatorList.value.length;idx++)
-      removeIndicator(0)
-   
-
-  const index = parseInt(choice, 10) - 1;
-
-  if (isNaN(index) || index < 0 || index >= list.length) {
-    alert("Scelta non valida");
-    return;
-  }
-
-  const selected = list[index];
-
-  console.log("Carico:", selected.name, selected.data);
-
-  //let key = get_layout_key(`indicator.${selected.name}`)
-
-  getIndicators(selected)
-  // QUI assegni gli indicatori
-  // es:
-  // this.indicatorList = selected.data
+function onAddIndicator(ind){
+    let serie = indicatorMenu.value.addIndicator(context(),ind)
+    console.log("add",serie)
+    indicatorList.value.push(serie)
 }
 
-function saveIndicators(){
-
-  if (indicatorList.value.length==0)
-    return;
-
-  const name = window.prompt("Nome per salvare gli indicatori:");
-
-  if (!name) return; // annullato o vuoto
-
-  // qui fai quello che ti serve con il nome
-  console.log("Salvo con nome:", name);
-  let data=[]
-  indicatorList.value.forEach((ind) => {
-   
-    data.push({"type" : ind.type ,"params" : ind.params})
-  });
-   console.log("data",data)
-
-   send_post("/api/chart/indicator/save", {"name": name, "data":data })
+function openIndicatorMenu(){
+  indicatorMenu.value.open();
 }
 
 async function getIndicators(profile)
@@ -324,43 +282,134 @@ function updateIndicatorColor(ind) {
   }
 }
 
-//  ---------
+// ------
 
-function onAddIndicator(ind){
-    let serie = indicatorMenu.value.addIndicator(context(),ind)
-    console.log("add",serie)
-    indicatorList.value.push(serie)
+async function loadIndicators(profileName)
+{
+  let list = await send_get("/api/chart/indicator/list")
+  list.forEach(line => {
+      line.data = JSON.parse(line.data);
+  });
+  if (!list.length) {
+    alert("Nessun set di indicatori salvato.");
+    return;
+  }
+
+  console.log("loadIndicators",profileName)
+
+  let index=null;
+  if (profileName==null)
+  {
+      // Crea elenco numerato
+      const optionsText = list
+        .map((l, i) => `${i + 1}) ${l.name}`)
+        .join("\n");
+
+      const choice = prompt(
+        "Scegli quale set caricare:\n\n" + optionsText
+      );
+
+      if (!choice) return;
+
+      index = parseInt(choice, 10) - 1;
+
+      if (isNaN(index) || index < 0 || index >= list.length) {
+        alert("Scelta non valida");
+        return;
+      }
+
+    }
+    else
+    {
+       for(let idx = 0;idx < list.length;idx++)
+       {
+          if (list[idx].name ==profileName )
+              index = idx
+       }
+ 
+      //console.log("FIND ",index)
+    }
+  
+    clearIndicators()
+
+    if (index!=null)
+    {
+      
+
+      const selected = list[index];
+
+      console.log("Load Profile:", selected.name, selected.data);
+
+      //let key = get_layout_key(`indicator.${selected.name}`)
+
+      getIndicators(selected)
+      // QUI assegni gli indicatori
+      // es:
+      // this.indicatorList = selected.data
+    }
+
+    console.log("loadIndicators","DONE")
 }
- function removeIndicator(index) {
+
+function saveIndicators(){
+
+  if (indicatorList.value.length==0)
+    return;
+
+  const name = window.prompt("Nome per salvare gli indicatori:");
+
+  if (!name) return; // annullato o vuoto
+
+  // qui fai quello che ti serve con il nome
+  console.log("Salvo con nome:", name);
+  let data=[]
+  indicatorList.value.forEach((ind) => {
+    data.push({"type" : ind.type ,"params" : ind.params})
+  });
+   console.log("data",data)
+
+   send_post("/api/chart/indicator/save", {"name": name, "data":data })
+}
+
+function removeIndicator(index) {
 
     const ind = toRaw(indicatorList.value[index]);
 
-    console.log("Remove",index, ind.serie)
-    indicatorList.value.splice(index, 1)
+    console.log("Remove",index, "len",indicatorList.value.length)
+    //indicatorList.value.splice(index, 1)
+    indicatorList.value = indicatorList.value.filter((_, i) => i !== index);
 
     charts.main.removeSeries(ind.serie)
-  }
-
-function openIndicatorMenu(){
-  indicatorMenu.value.open();
 }
+function clearIndicators(){
+    while(indicatorList.value.length>0)
+          removeIndicator(0)
+}
+function linkIndicators(){
+    if (indicatorName.value=="")
+      return
+
+     send_post('/api/props/save', { path: get_indicator_key(), "value": indicatorName.value });
+}
+function linkClearIndicators(){
+    send_post('/api/props/save', { path: get_indicator_key(), "value": "" });
+    clearIndicators();
+}
+//  ---------
 /*
  --- LOGICA REFRESH DATI ---
 */
 const handleRefresh = async () => {
   try {
-   // console.log("handleRefresh ", props.timeframe);
+    console.log("handleRefresh ", currentTimeframe.value);
 
     // SYMBOLS CANDLES
-    const responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
-    const datas = await responses.json();
-    //console.log("symbols",datas)
-    symbolList.value= datas["symbols"];
+
  
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
     const data = await response.json();
-    //console.log("response",data)
+    console.log("response",data)
 
     if (data.length>0)
     {
@@ -434,13 +483,20 @@ const handleRefresh = async () => {
 
 
         // Zoom finale
+        /*
         if ( data.length >timeframe_start[currentTimeframe.value])
         {
-          charts.main.timeScale().setVisibleLogicalRange({
-            from: data.length - timeframe_start[currentTimeframe.value],
-            to: data.length
-          });
+          try{
+            charts.main.timeScale().setVisibleLogicalRange({
+              from: data.length - timeframe_start[currentTimeframe.value],
+              to: data.length
+            });
+          }catch{
+            console.debug("!!")
+          }
         }
+          */
+         charts.main.timeScale().scrollToPosition(0, false);
 
         // TRADE MARKER
         if (_trade_marker_data.data!=null)
@@ -451,7 +507,7 @@ const handleRefresh = async () => {
             liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
                 
         }
-
+ 
         // TRADE MARKER
         if (_task_datas!=null){
 
@@ -479,13 +535,31 @@ const handleRefresh = async () => {
               });
             });
         }
+
+        // INDICATORS
+
+          let ind_profile = staticStore.get(get_indicator_key(),null)
+          if (ind_profile)
+          {
+            console.log("ind_profile",get_indicator_key())
+            nextTick(  loadIndicators(ind_profile))
+         
+          }
+          else
+            clearIndicators()
+          
       }
       //console.log("trade marker",data)
 
       //DEFAULT_INTERACTION = charts.main.options();
+
+    
+    
     }
+    else
+        console.log("empty ");
   } catch (err) {
-    console.error("Errore refresh:", err);
+    console.debug("Errore refresh:", err.stack);
   }
 };
 
@@ -540,7 +614,12 @@ function onTaskOrderReceived(order){
 }
 
 // --- INIZIALIZZAZIONE ---
-onMounted(() => {
+onMounted( () => {
+
+    //const responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
+    //const datas = await responses.json();
+    //console.log("symbols",datas)
+    //symbolList.value= datas["symbols"];
 
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
@@ -655,8 +734,16 @@ const buildChart =  () => {
   const mainTimeScale = charts.main.timeScale();
   const volumeTimeScale = charts.volume.timeScale();
 
-  mainTimeScale.subscribeVisibleLogicalRangeChange(range => volumeTimeScale.setVisibleLogicalRange(range));
-  volumeTimeScale.subscribeVisibleLogicalRangeChange(range => mainTimeScale.setVisibleLogicalRange(range));
+  mainTimeScale.subscribeVisibleLogicalRangeChange(range =>
+  { 
+    if (range)
+      volumeTimeScale.setVisibleLogicalRange(range)
+  });
+  volumeTimeScale.subscribeVisibleLogicalRangeChange(range => 
+  {
+    if (range)
+      mainTimeScale.setVisibleLogicalRange(range)
+  });
 
   //charts.main.timeScale().subscribeVisibleTimeRangeChange(updateMarker);
  
@@ -721,7 +808,7 @@ const buildChart =  () => {
       legendIndHtml.value = lbl;
       */
     }catch(ex){
-      console.debug(ex);
+      console.debug(ex.stack);
     }
     
   });
@@ -933,6 +1020,7 @@ defineExpose({
 }
 
 .chart-legend-left-ind-item {
+  font-size: 0.8em;
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -12,26 +12,35 @@
   },
   "chart": {
     "1": {
-      "grid": "1,1",
+      "grid": "1,2",
       "symbol": "DRCT",
       "1": {
         "timeframe": "1m"
       },
       "2": {
-        "timeframe": "1m"
+        "timeframe": "10s"
       },
       "4": {
         "timeframe": "10s"
       },
       "3": {
         "timeframe": "1d"
+      },
+      "indicator": {
+        "1m": "aa"
       }
     },
     "2": {
       "grid": "1,2",
-      "symbol": "DRCT",
+      "symbol": "MOVE",
       "2": {
-        "timeframe": "10s"
+        "timeframe": "5m"
+      },
+      "1": {
+        "timeframe": "1d"
+      },
+      "indicator": {
+        "5m": ""
       }
     },
     "4": {
