@@ -115,7 +115,7 @@ Inactive'''
 def get_trades(symbol = None,onlyActive = False):
       
         filtered_trades = []
-       # logger.info(f"{OrderManager.ib.trades()}")
+       # logger.info(f"{self.ib.trades()}")
         for t in OrderManager.ib.trades():
             if symbol and t.contract.symbol != symbol:
                 continue
@@ -133,20 +133,26 @@ class OrderManager:
     tick_cache = {}
     
 
-    def __init__(self,config,ib):
-        OrderManager.ib=ib
-        OrderManager.lastError=""    
+    def __init__(self,config):
+        self.config=config
+        self.lastError="" 
+        self.sym_mode = config["live_service"]["mode"] =="sym"
+        
+
         # Assegna gli event handlers
 
+    async def bootstrap(self,ib,ws):
+        OrderManager.ib = ib
+        self.ws=ws
         async def onError( reqId, errorCode, errorString, contract):
             logger.error(f"errorCode {errorCode} {errorString} {contract}")
 
-            OrderManager.lastError = {"reqId" : reqId, "errorCode": errorCode, "errorString": errorString} 
+            self.lastError = {"reqId" : reqId, "errorCode": errorCode, "errorString": errorString} 
 
-            if OrderManager.ws:
+            if self.ws:
                 #data["type"] = "ORDER"
-                ser = json.dumps( OrderManager.lastError)
-                await OrderManager.ws.broadcast(
+                ser = json.dumps( self.lastError)
+                await self.ws.broadcast(
                     {"type": "ERROR", "data":ser }
                 )
 
@@ -155,22 +161,19 @@ class OrderManager:
             if errorCode == 162:
                 return  # ignorato
            
-
         if ib:
-            OrderManager.ib.cancelOrderEvent += OrderManager.onCancelOrder
-            OrderManager.ib.openOrderEvent += OrderManager.onOpenOrder
-            OrderManager.ib.orderStatusEvent += OrderManager.onOrderStatus
-            OrderManager.ib.newOrderEvent += OrderManager.onNewOrder
-            OrderManager.ib.newOrderEvent += OrderManager.onNewOrder
-            OrderManager.ib.errorEvent += onError
-
-    async def bootstrap():
+            self.ib.cancelOrderEvent += self.onCancelOrder
+            self.ib.openOrderEvent += self.onOpenOrder
+            self.ib.orderStatusEvent += self.onOrderStatus
+            self.ib.newOrderEvent += self.onNewOrder
+            self.ib.newOrderEvent += self.onNewOrder
+            self.ib.errorEvent += onError
         pass 
 
     #####################
 
 
-    async def addOrder(trade:Trade,type):
+    async def addOrder(self,trade:Trade,type):
         logger.debug(f"ORDER: {type} {trade}")
         if trade.order.permId == 0:
             return
@@ -182,32 +185,32 @@ class OrderManager:
                     VALUES (?, ?, ?, ?, ?)''',
                 (trade.order.permId, trade.contract.symbol, trade.orderStatus.status,type,ser))
         
-        if OrderManager.ws:
+        if self.ws:
             #data["type"] = "ORDER"
             ser = json.dumps(data)
-            await OrderManager.ws.broadcast(
+            await self.ws.broadcast(
                 {"type": "ORDER", "trade_id": trade.order.permId, "symbol":trade.contract.symbol,
                  "status" :trade.orderStatus.status,"event_type":type,   "data" : data ,"timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
             )
 
-    async def onNewOrder(trade:Trade):
-       await OrderManager.addOrder(trade, "NEW")
+    async def onNewOrder(self,trade:Trade):
+       await self.addOrder(self,trade, "NEW")
 
-    async def onOrderModify(trade:Trade):
-      await OrderManager.addOrder(trade, "MODIFY")
+    async def onOrderModify(self,trade:Trade):
+      await self.addOrder(self,trade, "MODIFY")
 
-    async def onCancelOrder(trade:Trade):
-       await OrderManager.addOrder(trade, "CANCEL")
+    async def onCancelOrder(self,trade:Trade):
+       await self.addOrder(self,trade, "CANCEL")
 
-    async def onOpenOrder(trade:Trade):
-       await OrderManager.addOrder(trade, "OPEN")
+    async def onOpenOrder(self,trade:Trade):
+       await self.addOrder(self,trade, "OPEN")
 
-    async def onOrderStatus(trade:Trade):
-       await OrderManager.addOrder(trade, "STATUS")
+    async def onOrderStatus(self,trade:Trade):
+       await self.addOrder(self,trade, "STATUS")
 
     ###########
 
-    def format_price(contract,price)-> float:
+    def format_price(self,contract,price)-> float:
         def round_to_tick(price, tick):
             return round(round(price / tick) * tick, 10)
 
@@ -218,10 +221,10 @@ class OrderManager:
             decimals = decimals_from_tick(min_tick)
             return f"{price:.{decimals}f}"
 
-        #cd = OrderManager.ib.reqContractDetails(contract)[0]
+        #cd = self.ib.reqContractDetails(contract)[0]
 
-        #if contract.symbol in OrderManager.tick_cache:
-        tick = OrderManager.tick_cache[contract.symbol ]
+        #if contract.symbol in self.tick_cache:
+        tick = self.tick_cache[contract.symbol ]
        # else:
        #     tick =cd.minTick
         #    if not tick or tick <= 0:
@@ -237,14 +240,14 @@ class OrderManager:
 
 ##############
 
-    def order_limit(symbol,totalQuantity,lmtPrice)-> Trade:
+    def order_limit(self,symbol,totalQuantity,lmtPrice)-> Trade:
         '''
         '''
 
         contract = Stock(symbol, 'SMART', 'USD')
-        OrderManager.ib.qualifyContracts(contract)
+        self.ib.qualifyContracts(contract)
 
-        formatted_price = OrderManager.format_price(contract,lmtPrice)
+        formatted_price = self.format_price(contract,lmtPrice)
 
         logger.info(f"LIMIT ORDER {symbol} q:{totalQuantity} p:{lmtPrice}->{formatted_price}")
 
@@ -259,17 +262,17 @@ class OrderManager:
         #entry.orderId = ib.client.getReqId()
         #entry.transmit = True
         #entry.whatIf = True
-        trade = OrderManager.ib.placeOrder(contract, entry)
+        trade = self.ib.placeOrder(contract, entry)
 
         return trade
 
-    def order_limit_stop(symbol,totalQuantity,lmtPrice,stopPrice):
+    def order_limit_stop(self,symbol,totalQuantity,lmtPrice,stopPrice):
         '''
         Stop attivo solo se entry viene eseguito
         Se entry non fill → stop non entra mai
         '''
         contract = Stock(symbol, 'SMART', 'USD')
-        OrderManager.ib.qualifyContracts(contract)
+        self.ib.qualifyContracts(contract)
 
         # 🔹 ORDINE PADRE (ENTRY)
         entry = LimitOrder(
@@ -277,7 +280,7 @@ class OrderManager:
             totalQuantity=totalQuantity,
             lmtPrice=lmtPrice
         )
-        entry.orderId = OrderManager.ib.client.getReqId()
+        entry.orderId = self.ib.client.getReqId()
         entry.transmit = False
 
         # 🔹 STOP LOSS
@@ -290,17 +293,17 @@ class OrderManager:
         stop.transmit = True   # ultimo ordine = invio
 
         # 🔹 INVIO
-        OrderManager.ib.placeOrder(contract, entry)
-        OrderManager.ib.placeOrder(contract, stop)
+        self.ib.placeOrder(contract, entry)
+        self.ib.placeOrder(contract, stop)
 
-    def order_bracket(symbol,quantity,limitPrice,takeProfitPrice,stopLossPrice):
+    def order_bracket(self,symbol,quantity,limitPrice,takeProfitPrice,stopLossPrice):
         '''
     ENTRY + TAKE PROFIT + STOP LOSS)
         '''
         contract = Stock(symbol, 'SMART', 'USD')
-        OrderManager.ib.qualifyContracts(contract)
+        self.ib.qualifyContracts(contract)
 
-        bracket = OrderManager.ib.bracketOrder(
+        bracket = self.ib.bracketOrder(
             action='BUY',
             quantity=quantity,
             limitPrice=limitPrice,     # ENTRY
@@ -308,7 +311,7 @@ class OrderManager:
             stopLossPrice=stopLossPrice
         )
         for o in bracket:
-            OrderManager.ib.placeOrder(contract, o)
+            self.ib.placeOrder(contract, o)
         '''
         # Attendi aggiornamenti
         ib.sleep(1)
@@ -328,7 +331,7 @@ class OrderManager:
         trade.statusEvent += onStatus
         '''
 
-    async def send_order(symbol,order_handler,attempt):
+    async def send_order(self,symbol,order_handler,attempt):
         timeout = 2          # secondi
         interval = 0.1          # ciclo ogni secondo
         start_time = time.time()
@@ -337,11 +340,11 @@ class OrderManager:
         ### risolve i decimali 
         while time.time() - start_time < timeout:
             if trade.orderStatus.status =="PendingSubmit":
-                if OrderManager.lastError!= None:
-                        if OrderManager.lastError["errorCode"] == 110:
-                            tick_size= OrderManager.tick_cache[symbol ] 
+                if self.lastError!= None:
+                        if self.lastError["errorCode"] == 110:
+                            tick_size= self.tick_cache[symbol ] 
                             tick_size = min(0.1, tick_size *10)
-                            OrderManager.tick_cache[symbol ] = tick_size
+                            self.tick_cache[symbol ] = tick_size
                             #logger.info(f"Redo  tick_size:{tick_size}")
                             trade:Trade = order_handler(attempt)
                 await asyncio.sleep(interval)
@@ -349,20 +352,82 @@ class OrderManager:
                 return trade
         return None
 
-    async def smart_buy_limit(symbol,totalQuantity,ticker):
-        return await OrderManager._smart_limit(symbol, "BUY",totalQuantity, ticker)
+    async def smart_buy_limit(self,symbol,totalQuantity,ticker):
+        return await self._smart_limit(symbol, "BUY",totalQuantity, ticker)
        
-    async def smart_sell_limit(symbol,totalQuantity,ticker):
-        return  await OrderManager._smart_limit(symbol, "SELL",totalQuantity, ticker)
+    async def smart_sell_limit(self,symbol,totalQuantity,ticker):
+        return  await self._smart_limit(symbol, "SELL",totalQuantity, ticker)
      
 
-    async def _smart_limit(symbol,op, totalQuantity,ticker):
+    async def _smart_limit(self,symbol,op, totalQuantity,ticker):
+        if self.sym_mode:
+            await self._smart_limit_sym(symbol,op,totalQuantity,ticker)
+        else:
+            await self._smart_limit_real(symbol,op,totalQuantity,ticker)
+
+    async def _smart_limit_sym(self,symbol,op, totalQuantity,ticker):
+        logger.info(f"SMART SYM {op} LIMIT ORDER {symbol} q:{totalQuantity}")
+      
+        if self.ws:
+            #data["type"] = "ORDER"
+            trade_id = 614261832
+            
+            data = {
+                "trade_id": trade_id,
+                "orderId": 2018,
+                "symbol": symbol,
+                "exchange": "SMART",
+                "action": op,
+                "orderType": "LMT",
+                "totalQuantity": totalQuantity,
+                "lmtPrice": ticker["last"],
+                "status": "Filled",
+                "filled": 100.0,
+                "remaining": 0.0,
+                "avgFillPrice": ticker["last"],
+                "lastFillPrice": ticker["last"],
+                "log": [
+                    {
+                        "time": "2026-01-23T14:59:56.373293+00:00",
+                        "status": "PendingSubmit",
+                        "message": "",
+                        "errorCode": 0
+                    },
+                    {
+                        "time": "2026-01-23T14:59:56.551410+00:00",
+                        "status": "PreSubmitted",
+                        "message": "Fill 100.0@4.59",
+                        "errorCode": 0
+                    },
+                    {
+                        "time": "2026-01-23T14:59:56.552414+00:00",
+                        "status": "Filled",
+                        "message": "",
+                        "errorCode": 0
+                    }
+                ]
+            }
+            logger.info(f"ticker {ticker}")
+            logger.info(f"ticdataker {data}")
+            ser = json.dumps(data)
+            await self.ws.broadcast(
+                {"type": "ORDER", "trade_id": trade_id, "symbol":symbol,
+                 "status" :"Filled","event_type": "STATUS",   "data" : data ,"timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
+            )
+            if op == "BUY":
+                await Balance.sym_change(symbol,totalQuantity, ticker["last"] )
+            else:
+                await Balance.sym_change(symbol,-totalQuantity, ticker["last"] )
+
+        return None
+
+    async def _smart_limit_real(self,symbol,op, totalQuantity,ticker):
         '''
         return error if != None
         '''
         logger.info(f"SMART {op} LIMIT ORDER {symbol} q:{totalQuantity}")
         contract = Stock(symbol, 'SMART', 'USD')
-        OrderManager.ib.qualifyContracts(contract)  
+        self.ib.qualifyContracts(contract)  
         
         timeout = 120          # secondi
         if op =="BUY":
@@ -373,12 +438,12 @@ class OrderManager:
         
         trade=None
         submittedCount=0
-        if contract.symbol in OrderManager.tick_cache:
-            tick_size = OrderManager.tick_cache[contract.symbol ]
+        if contract.symbol in self.tick_cache:
+            tick_size = self.tick_cache[contract.symbol ]
         else:
-            cd = OrderManager.ib.reqContractDetails(contract)[0]
+            cd = self.ib.reqContractDetails(contract)[0]
             tick_size =cd.minTick
-            OrderManager.tick_cache[contract.symbol ] = tick_size
+            self.tick_cache[contract.symbol ] = tick_size
             if not tick_size or tick_size <= 0:
                 raise ValueError("minTick non valido")
         attempt = 0      
@@ -387,25 +452,25 @@ class OrderManager:
             if trade:
                 logger.info(f"Redo  status {trade.orderStatus.status} ")
 
-                if OrderManager.lastError!= None:
-                    if OrderManager.lastError["errorCode"] ==  202:# Order Canceled 
+                if self.lastError!= None:
+                    if self.lastError["errorCode"] ==  202:# Order Canceled 
                         pass
                     else:
-                        logger.error(f"{OrderManager.lastError}")
-                        return OrderManager.lastError
+                        logger.error(f"{self.lastError}")
+                        return self.lastError
 
                 if trade.orderStatus.status == "Cancelled":
                     logger.warning("Order Cancelled !!! ")
                     return None
                 
                 elif trade.orderStatus.status == "PendingSubmit":
-                    if not OrderManager.wait_order(trade):
+                    if not self.wait_order(trade):
                         logger.warning("Order not added !!! ")
                 elif trade.orderStatus.status == "PreSubmitted":
                     permId = trade.orderStatus.permId
                     logger.info(f"Force remove {permId}")
-                    OrderManager.lastError = None
-                    OrderManager.ib.cancelOrder(trade.order)
+                    self.lastError = None
+                    self.ib.cancelOrder(trade.order)
                         
                     trade=None
                 elif trade.orderStatus.status == "Submitted":
@@ -416,9 +481,9 @@ class OrderManager:
                         if trade.orderStatus.filled==0:
                             permId = trade.orderStatus.permId
                             logger.info(f"Force remove {permId}")
-                            OrderManager.lastError = None
-                            #OrderManager.cancel_order(permId)
-                            OrderManager.ib.cancelOrder(trade.order)
+                            self.lastError = None
+                            #self.cancel_order(permId)
+                            self.ib.cancelOrder(trade.order)
                             trade=None
 
                 if trade and trade.orderStatus.status == "Filled":
@@ -429,17 +494,17 @@ class OrderManager:
                     
                     def do_order(attempt):
                         
-                        tick_size = OrderManager.tick_cache[contract.symbol ] 
+                        tick_size = self.tick_cache[contract.symbol ] 
 
                         if (op =="BUY"):
                             price = ticker["last"]+ tick_size*attempt
                            
                             logger.info(f'Change price {ticker["last"]} s:{tick_size} ({attempt}) -> {price}')
-                            formatted_price = OrderManager.format_price(contract,price)
+                            formatted_price = self.format_price(contract,price)
                         else:
                             price = ticker["last"]- tick_size*attempt
 
-                            formatted_price = OrderManager.format_price(contract,price)
+                            formatted_price = self.format_price(contract,price)
                         #formatted_price = round(ticker["last"] / tick_size) * tick_size
 
                         logger.info(f">> LimitOrder : {symbol} ({attempt}) {op} {totalQuantity} at {ticker['last']} -> {formatted_price} (tick_size:{tick_size}) ")
@@ -452,41 +517,41 @@ class OrderManager:
                             tif='DAY' ,
                             outsideRth=True
                         )
-                        OrderManager.lastError = None
-                        return OrderManager.ib.placeOrder(contract, entry)
+                        self.lastError = None
+                        return self.ib.placeOrder(contract, entry)
 
                     attempt=attempt+1
-                    trade:Trade = await OrderManager.send_order(contract.symbol,do_order,attempt)
+                    trade:Trade = await self.send_order(contract.symbol,do_order,attempt)
                     submittedCount=0
 
                     ###trade:Trade = 
-                    #if not OrderManager.wait_order(trade):
+                    #if not self.wait_order(trade):
                     #    logger.error("Order not added !!! ")
 
-            OrderManager.ib.sleep(interval)
+            self.ib.sleep(interval)
 
         if trade:
             logger.info("Final cancel")
-            OrderManager.lastError = None
-            OrderManager.ib.cancelOrder(trade.order)
+            self.lastError = None
+            self.ib.cancelOrder(trade.order)
             await asyncio.sleep(2)
-            if OrderManager.lastError!= None:
-                if OrderManager.lastError["errorCode"] ==  10148:# Order FILLED 
+            if self.lastError!= None:
+                if self.lastError["errorCode"] ==  10148:# Order FILLED 
                     logger.info("BUY DONE AFTER CANCEL")
                     return None
 
         return  {"reqId" : 0, "errorCode": -1, "errorString": "TIMEOUT"} 
 
 
-    def sell_limit(symbol,totalQuantity,lmtPrice):
+    def sell_limit(self,symbol,totalQuantity,lmtPrice):
         '''
         '''
 
         logger.debug(f"SELL LIMIT ORDER {symbol} q:{totalQuantity} p:{lmtPrice}")
         contract = Stock(symbol, 'SMART', 'USD')
-        OrderManager.ib.qualifyContracts(contract)
+        self.ib.qualifyContracts(contract)
 
-        formatted_price = OrderManager.format_price(contract,lmtPrice)
+        formatted_price = self.format_price(contract,lmtPrice)
 
         # 🔹 ORDINE DI VENDITA
         entry = LimitOrder(
@@ -496,18 +561,18 @@ class OrderManager:
             tif='GTC' ,
             outsideRth=True
         )
-        OrderManager.ib.placeOrder(contract, entry)
+        self.ib.placeOrder(contract, entry)
 
-    def sell_all(symbol):
+    def sell_all(self,symbol):
         '''
         Vende tutte le azioni possedute per il simbolo specificato.
         '''                                  
         logger.debug(f"SELL ALL {symbol}")
         contract = Stock(symbol, 'SMART', 'USD')
-        OrderManager.ib.qualifyContracts(contract)
+        self.ib.qualifyContracts(contract)
 
         # Trova la posizione corrente
-        positions = OrderManager.ib.positions()
+        positions = self.ib.positions()
         position_qty = 0
         for pos in positions:
             if pos.contract.symbol == symbol:
@@ -520,18 +585,18 @@ class OrderManager:
                 action='SELL',
                 totalQuantity=position_qty
             )
-            OrderManager.ib.placeOrder(contract, entry)
+            self.ib.placeOrder(contract, entry)
             logger.info(f"Placed sell order for {position_qty} shares of {symbol}")
         else:
             logger.warning(f"No position found for {symbol} to sell")
 
-    def buy_at_level(symbol, quantity, level_price):
+    def buy_at_level(self,symbol, quantity, level_price):
         '''
         Compra quando il prezzo raggiunge il livello specificato (ordine stop).
         '''
         logger.debug(f"BUY AT LEVEL {symbol} q:{quantity} level:{level_price}")
         contract = Stock(symbol, 'SMART', 'USD')
-        OrderManager.ib.qualifyContracts(contract)
+        self.ib.qualifyContracts(contract)
 
         # Ordine stop di acquisto al livello di prezzo
         entry = StopOrder(
@@ -541,24 +606,24 @@ class OrderManager:
             tif='GTC',
             outsideRth=True
         )
-        OrderManager.ib.placeOrder(contract, entry)
+        self.ib.placeOrder(contract, entry)
         logger.info(f"Placed stop buy order for {quantity} shares of {symbol} at {level_price}")
 
-    def cancel_order(permId):
+    def cancel_order(self,permId):
         '''
         Cancella un ordine pendente dato il suo permId.
         '''
         logger.info(f"CANCEL ORDER permId: {permId} {get_trades( )}")
         for trade in get_trades( onlyActive=True):
             if trade.order.permId == permId:
-                OrderManager.ib.cancelOrder(trade.order)
+                self.ib.cancelOrder(trade.order)
                 logger.info(f"Cancelled order with permId {permId}")
                 return True
         logger.warning(f"No order found with permId {permId}")
         return False
     
     
-    def cancel_orderBySymbol(symbol):
+    def cancel_orderBySymbol(self,symbol):
         '''
         Cancella un ordine pendente dato il suo symbol.
         '''
@@ -566,18 +631,18 @@ class OrderManager:
         for trade in get_trades(symbol =symbol, onlyActive=True ):
             if trade.contract.symbol == symbol:
                 logger.info(f"trade {trade}")
-                OrderManager.ib.cancelOrder(trade.order)
+                self.ib.cancelOrder(trade.order)
                 logger.info(f"Cancelled order with symbol {symbol}")
               
      
     #####
 
-    async def onTicker(symbol,lastPrice):
+    async def onTicker(self,symbol,lastPrice):
         pass
 
     #########
 
-    async def batch():
+    async def batch(self):
         while True:
             await asyncio.sleep(1)
 
@@ -596,7 +661,7 @@ async def main():
     ib = IB()
     ib.connect('127.0.0.1', config["database"]["live"]["ib_port"], clientId=1)
     
-    OrderManager(config,ib)
+    o = OrderManager(config,ib)
 
     balance = Balance(config,ib)
     await Balance.bootstrap()
@@ -606,13 +671,13 @@ async def main():
     ticker = Ticker
     ticker["last"] = 2.802334
     
-    #et = OrderManager.smart_buy_limit("IVF",100,ticker)
+    #et = self.smart_buy_limit("IVF",100,ticker)
 
-    ret = OrderManager.smart_sell_limit("IVF",100,ticker)
+    ret = o.smart_sell_limit("IVF",100,ticker)
     if ret:
         logger.error(f">> {ret}")
-    #OrderManager.smart_sell_limit()
-    #OrderManager.order_limit("AAPL", 10,180)
+    #self.smart_sell_limit()
+    #self.order_limit("AAPL", 10,180)
     #logger.info("1")
 
     #ib.run()

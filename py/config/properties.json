@@ -12,8 +12,8 @@
   },
   "chart": {
     "1": {
-      "grid": "1,2",
-      "symbol": "DRCT",
+      "grid": "1,1",
+      "symbol": "MOVE",
       "1": {
         "timeframe": "1m"
       },

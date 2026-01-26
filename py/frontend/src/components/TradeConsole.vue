@@ -33,10 +33,59 @@
         Gain <strong>{{ Number(tradeData.profit_usd).toFixed(1) }}</strong>
       </div>
         
-     <div class="ms-auto">
-      <div class="position-badge">
+     <div class="ms-auto d-flex align-items-center gap-2">
+       
+      <!-- -->
+      <div v-if="lastTrade" class="position-badge">
+        <b style="color:red">{{ lastTrade.symbol }}</b>
+
+        <span>
+          BUY: {{ formatTime(lastTrade.entry_time) }}
+          {{ lastTrade.entry_size }}@{{ lastTrade.entry_price }}
+        </span>
+
+        <!-- Mostrati SOLO se non null -->
+        <span v-if="lastTrade.exit_time != null">
+          → SELL: {{ formatTime(lastTrade.exit_time) }}
+          @ {{ lastTrade.exit_price }}
+        </span>
+
+        <span 
+          v-if="lastTrade.pnl != null"
+          :style="{ color: lastTrade.pnl >= 0 ? 'lime' : 'red' }"
+        >
+          PnL: {{ lastTrade.pnl.toFixed(2) }}
+        </span>
+      </div>
+
+      <div class="position-badge position-main clickable"   @click="toggleTrades">
         {{symbol}} {{ position }}
       </div>
+      <!-- -->
+      <div v-if="showAll" class="trades-popup">
+        <div 
+          v-for="(t, i) in tradeList.slice().reverse()" 
+          :key="i"
+          class="trade-row"
+        >
+          <b>{{ t.symbol }}</b> |
+
+          Entry: {{ formatTime(t.entry_time) }} @ {{ t.entry_price }}
+
+          <template v-if="t.exit_time != null">
+            → Exit: {{ formatTime(t.exit_time) }} @ {{ t.exit_price }}
+          </template>
+
+          <span 
+            v-if="t.pnl != null"
+            :style="{ color: t.pnl >= 0 ? 'lime' : 'red' }"
+          >
+            | PnL: {{ t.pnl.toFixed(2) }}
+          </span>
+        </div>
+      </div>
+
+      
     </div>
       
     </div>
@@ -95,9 +144,28 @@ const quantity = ref(100);
 const ticker = ref(null);
 const position = ref(null);
 
+const tradeList = ref([]);
+const showAll = ref(false)
+
 const active_order = ref("...");
 const active_order_task = ref("...");
 
+const lastTrade = computed(() => {
+  if (tradeList.value.length === 0) return null
+  return tradeList.value[tradeList.value.length - 1]
+})
+
+function toggleTrades() {
+  showAll.value = !showAll.value
+}
+
+function formatTime(ms) {
+  return new Date(ms).toLocaleTimeString('it-IT', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
 function send_limit_order(){
   order_limit(props.symbol,quantity.value)
 }
@@ -207,13 +275,22 @@ function onPositionUpdated(msg){
   }
 }
 
+function onTradeUpdated(msg){
+ //  console.log("..",props.symbol,msg.data)
+ if (msg.data.symbol === props.symbol)
+   {
+    // console.log("...",msg.data)
+      tradeList.value.push(msg.data)
+  }
+}
+
 onMounted( async () => {
   eventBus.on("task-order-received", onTaskOrderReceived);
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("ticker-received", onTickerReceived);
   eventBus.on("update-portfolio", onPositionUpdated);
   eventBus.on("update-position", onPositionUpdated);
-
+  eventBus.on("trade-position", onTradeUpdated);
    
   let pos_list = await send_get('/account/positions')
   pos_list.forEach(  (val) =>{
@@ -229,6 +306,7 @@ onBeforeUnmount(() => {
   eventBus.off("ticker-received", onTickerReceived);
   eventBus.off("update-portfolio", onPositionUpdated);
   eventBus.off("update-position", onPositionUpdated);
+  eventBus.off("trade-position", onTradeUpdated);
 });
 
 
@@ -281,6 +359,26 @@ watch(quantity,  async (newValue, oldValue) => {
 </script>
 
 <style scoped>
+
+.clickable {
+  cursor: pointer;
+}
+
+.trades-popup {
+  position: absolute;
+  top: 160px;
+  right: 200px;
+  background: #1b1b1b;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 10px;
+  z-index: 9999;
+  min-width: 420px;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+}
+
 .position-badge {
   background: #ffffff;
   color: #000000;
@@ -292,6 +390,42 @@ watch(quantity,  async (newValue, oldValue) => {
   box-shadow: 0 4px 10px rgba(0,0,0,0.25);
   border: 1px solid #334155;
 }
+
+
+.position-main {
+  background: #4998ff; /* più scuro */
+  font-weight: bold;
+}
+
+.trade-box {
+  position: relative;
+  display: inline-block;
+  padding: 6px;
+  border: 1px solid #444;
+  background: #111;
+  color: white;
+  cursor: pointer;
+}
+
+.tooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #222;
+  border: 1px solid #555;
+  padding: 8px;
+  white-space: nowrap;
+  z-index: 999;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.trade-row {
+  font-size: 12px;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
 
 
 .trade-box {

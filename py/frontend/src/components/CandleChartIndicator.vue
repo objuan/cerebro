@@ -12,6 +12,7 @@
         <option value="WMA">WMA</option>
         <option value="MACD">MACD</option>
         <option value="RSI">RSI</option>
+        <option value="VWAP">VWAP</option>
       </select>
     </div>
 
@@ -49,7 +50,10 @@
 
 <script setup>
 import { ref } from 'vue';
-import { applyEMA, applySMA, applyWMA, applyMACD, applyRSI } from '@pipsend/charts'; //createTradingLine
+import { applyEMA,  applyWMA, applyMACD, applyRSI,applySMA,
+  applyVWAP} from  '@/components/js/ind.js'//  '@pipsend/charts'; //createTradingLine
+
+
 
 const showIndicatorModal = ref(false)
 const selectedIndicator = ref(null)
@@ -76,9 +80,10 @@ function open(){
 }
 
 function addIndicator(context,ind){
-    console.log("onAddIndicator ",ind)
+    //console.log("onAddIndicator ",ind)
     let serie =null;
     let name=""
+    
     if (ind.type =="SMA")
     {
       name ="SMA "+ind.params.period
@@ -105,7 +110,7 @@ function addIndicator(context,ind){
       });
       
     }
-  if (ind.type =="RSI")
+   if (ind.type =="RSI")
     {
       name ="RSI "+ind.params.period+","+ind.params.overbought+","+ind.params.oversold
       serie = applyRSI(context.series.main, context.charts.main, { 
@@ -121,17 +126,31 @@ function addIndicator(context,ind){
       name ="MACD "+ind.params.period
       serie = applyMACD(context.series.main, context.charts.main, { 
         macdColor: ind.params.color,
-       signalColor: '#ff9900',
+        signalColor: '#ff9900',
         histUpColor: '#00ff00',
         histDownColor: '#ff0000',
         fastPeriod: 12, 
         slowPeriod: 26, 
         signalPeriod: 9, 
       });
+
+      console.log("MACD",serie)
       
     }
+  
+     if (ind.type =="VWAP")
+    {
+        name ="VWAP "
+        serie = applyVWAP(context.series.main, context.charts.main, { 
+        period: ind.params.period, 
+        color: ind.params.color,
+      });
 
-  serie.applyOptions({
+    }
+
+
+    if (serie)
+      serie.applyOptions({
         priceLineVisible: false,
         lastValueVisible: false,
         lineWidth: 1,

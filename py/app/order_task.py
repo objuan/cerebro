@@ -31,8 +31,8 @@ class OrderTaskManager:
     ws :WSManager = None
     task_orders = []
 
-    def __init__(self,config):
-        pass
+    def __init__(self,config,orderManager):
+        OrderTaskManager.orderManager=orderManager
         # Assegna gli event handlers
 
     async def bootstrap():
@@ -67,7 +67,29 @@ class OrderTaskManager:
         logger.info(f"ORDER BOOT DONE {OrderTaskManager.task_orders}")   
 
   
+    async  def on_update_trade(trade_order : TradeOrder):
+        #logger.info(f"on_update_trade {trade_order} {OrderTaskManager.task_orders}")
 
+        if any(order["symbol"] == trade_order.symbol  for order in OrderTaskManager.task_orders):
+            existing_order = next(
+                (order for order in OrderTaskManager.task_orders if order["symbol"]  == trade_order.symbol ),
+                None
+            )
+            logger.info(f"on_update_trade {trade_order}  existing_order {existing_order}")
+
+            actions = existing_order["data"]
+            step = existing_order["step"]
+            
+            rules = [x for x in actions if x["step"] == step]
+            if step ==1:
+                rules[0]["price"] = trade_order.price
+                await OrderTaskManager.send_task_order(existing_order)
+            if step ==2 and len(rules) == 2:
+                rules[0]["price"] = trade_order.take_profit
+                rules[1]["price"] = trade_order.stop_loss
+                await OrderTaskManager.send_task_order(existing_order)
+
+           
     ##############
 
     async def send_task_order(order):
@@ -89,7 +111,7 @@ class OrderTaskManager:
                     #real_price = lastPrice+  lastPrice* 0.001
 
                     #trade = OrderManager.order_limit(order["symbol"], order_step["quantity"],real_price)
-                    ret = await OrderManager.smart_buy_limit(order["symbol"], order_step["quantity"],ticker)#real_price)
+                    ret = await OrderTaskManager.orderManager.smart_buy_limit(order["symbol"], order_step["quantity"],ticker)#real_price)
                     if ret:
                         #error
                         order_step["error"] = ret
@@ -113,7 +135,7 @@ class OrderTaskManager:
                     else:
                         logger.info(f"SELL ALL {order['symbol']} {pos.position } at {ticker['last']} ")
 
-                        ret = await OrderManager.smart_sell_limit(order["symbol"], order_step["quantity"],ticker)
+                        ret = await OrderTaskManager.orderManager.smart_sell_limit(order["symbol"], order_step["quantity"],ticker)
                         if ret:
                             #error
                             order_step["error"] = ret
@@ -306,7 +328,7 @@ class OrderTaskManager:
 
                             rules = [x for x in actions if x["step"] == step]
 
-                            #logger.info(f"VALID {rules}" )
+                            logger.info(f"VALID {rules}" )
 
                             for rule in rules:
                                 op = rule["op"]

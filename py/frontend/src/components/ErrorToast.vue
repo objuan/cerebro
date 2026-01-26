@@ -70,7 +70,8 @@ function onOrderReceived(msg) {
       if (msg.status =="Filled")  icon = `✔️`;
       if (msg.status =="Submitted")  icon = `⏱`;
       if (msg.status =="Cancelled")  icon = `❌`;
-      const  smsg =`${icon}  ${ msg.action } filled:${msg.filled}/${msg.totalQuantity } <br> state:${msg.status} `;
+
+      const  smsg =`${icon}  ${ msg.action } filled:${msg.filled}/${msg.totalQuantity }  at ${msg.lmtPrice} <br> state:${msg.status} `;
       addToast(msg.symbol, smsg, "info","order")
     }
 }

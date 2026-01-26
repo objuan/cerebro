@@ -93,11 +93,12 @@ class MuloJob:
                             close,
                             base_volume,
                             quote_volume,
+                            day_volume,
                             source,
                             updated_at,
                             ds_updated_at
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
                         ON CONFLICT(exchange, symbol, timeframe, timestamp)
                         DO UPDATE SET
                             open = excluded.open,
@@ -114,7 +115,9 @@ class MuloJob:
 
         self.cur_exe.execute(sql,(ex,symbol,tf,new_ticker["ts"],new_ticker["o"],
                                               new_ticker["h"],new_ticker["l"],new_ticker["c"],
-                                               new_ticker["v"],new_ticker["v"]* new_ticker["c"] , "live",  run_time, ds_run_time))
+                                               new_ticker["v"],new_ticker["v"]* new_ticker["c"],
+                                               new_ticker["day_v"]
+                                                 , "live",  run_time, ds_run_time))
         
         if int(new_ticker["tf"])>30:
             key = symbol+"_"+tf
@@ -426,6 +429,7 @@ class MuloJob:
         
     #######################
 
+    '''
     def getTicker(self,symbol):
         if symbol in self.tickers:
             return self.tickers[symbol]
@@ -437,25 +441,14 @@ class MuloJob:
             return pd.DataFrame(
                 columns=["symbol", "timestamp", "price", "bid", "ask", "volume_day"]
             )
-        '''
-        df = pd.DataFrame(
-            [{
-                "symbol": t.symbol,
-                "timestamp": t.timestamp ,
-                "price": t.price,
-                "bid": t.bid,
-                "ask": t.ask,
-                "volume_day": t.volume_day
-            } for k,t in self.tickers.items()]
-        )
-        '''
+  
         df = pd.DataFrame( [ t for k,t in self.tickers.items()])
     
         # sicurezza: timestamp come datetime
         #df["datetime"] = pd.to_datetime(df["timestamp"]/1000, utc=True, errors="coerce")
         df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
         return df
-        
+    '''
     async def last_close(self,symbol: str,sym_start_time:datetime = None)-> float:
         if not sym_start_time:
             await self._align_data(symbol,"1m")

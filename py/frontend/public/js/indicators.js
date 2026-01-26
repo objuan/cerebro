@@ -1,3 +1,4 @@
+/*
 function db_localTime(data)
 {
      const seconds = new Date(data).getTime() / 1000;
@@ -43,3 +44,4 @@ function calculateMovingAverageSeriesData(candleData, maLength) {
 
     return maData;
 }
+*/

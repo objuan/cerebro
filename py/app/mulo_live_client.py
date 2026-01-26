@@ -99,7 +99,8 @@ class MuloLiveClient:
                             '''
                             t:Ticker= self.tickers[new_ticker["s"]]
                             t.last = new_ticker["c"]
-                            t.volume = new_ticker["day_v"]
+                            t.volume = new_ticker["v"]
+                            t.day_volume = new_ticker["day_v"]
                             t.low = new_ticker["l"]
                             t.high = new_ticker["h"]
                             t.bid = new_ticker["bid"]
@@ -108,9 +109,11 @@ class MuloLiveClient:
                             t.gain = ((new_ticker["c"]-t.last_close) / t.last_close) * 100
                             '''
                             t = self.tickers[new_ticker["s"]]
-                            t.update({"last": new_ticker["c"],"volume": new_ticker["v"],"ask": new_ticker["ask"],"bid": new_ticker["bid"],
+                            t.update({"last": new_ticker["c"],"volume": new_ticker["v"],"day_volume": new_ticker["day_v"],
+                                      "ask": new_ticker["ask"],"bid": new_ticker["bid"],
                                       "low": new_ticker["l"],"high": new_ticker["h"],
-                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, "ts":new_ticker["ts"] })
+                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
+                                        "ts":new_ticker["ts"] })
                             
                             #logger.info(f"..  {t}")
                             # send event 
@@ -148,6 +151,8 @@ class MuloLiveClient:
         await self.send_cmd("sym/time/set", {"time": time})
     
     async  def setSymSpeed(self,speed):
+        self.sym_speed = speed
+        self.sym_start_speed = speed
         await self.send_cmd("sym/speed/set", {"value":speed})
         
     def ordered_tickers(self) -> Ticker:
@@ -183,7 +188,8 @@ class MuloLiveClient:
             t.gain = 0
             self.tickers[s] =t
             '''
-            self.tickers[s] = { "symbol": s, "gain" : 0, "low":0 , "high":0, "last" : 0, "volume": 0, "ts" : 0, "ask" : 0, "bid":0,
+            self.tickers[s] = { "symbol": s, "gain" : 0, "low":0 , "high":0, "last" : 0, "volume": 0, "ts" : 0,
+                                "ask" : 0, "bid":0,"day_volume" : 0,
                                    "last_close": await self.last_close(s)}
 
         #logger.info(f">> {self.on_symbols_update._handlers}")  
@@ -210,7 +216,7 @@ class MuloLiveClient:
     def getTickersDF(self):
         if not self.tickers:
             return pd.DataFrame(
-                columns=["symbol", "timestamp", "price", "bid", "ask", "volume_day","ts"]
+                columns=["symbol", "timestamp", "price", "bid", "ask", "day_volume","ts"]
             )
         df = pd.DataFrame( [ t for k,t in self.tickers.items()])
         df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)

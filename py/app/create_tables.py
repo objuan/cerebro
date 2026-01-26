@@ -46,6 +46,31 @@ cur.execute("PRAGMA journal_mode=WAL;")
 cur.execute("PRAGMA synchronous=NORMAL;")
 
 cur.execute("""
+                    
+CREATE TABLE IF NOT EXISTS ib_ohlc_history (
+        exchange TEXT,
+        symbol TEXT,
+        timeframe TEXT,
+        timestamp INTEGER,
+
+        open REAL,
+        high REAL,
+        low REAL,
+        close REAL,
+
+        base_volume REAL,
+        quote_volume REAL,
+        day_volume REAL,
+
+        source TEXT,        -- ib | live
+        updated_at INTEGER,          
+        ds_updated_at TEXT,
+
+        PRIMARY KEY (exchange, symbol, timeframe, timestamp)
+    )""")
+     
+
+cur.execute("""
     CREATE TABLE IF NOT EXISTS ib_ohlc_live (
         conindex INTEGER,
         symbol TEXT,

@@ -18,13 +18,15 @@
       </div>
     </div>
 
-    <!---   -->
+    <!---  
+      <canvas ref="bgCanvas" class="bg-overlay"></canvas>
+       -->
+
     <div class="position-relative p-0 chart-panel">
       <div class="chart-legend-up  small" v-html="legendHtml"></div>
 
-      <canvas ref="bgCanvas" class="bg-overlay"></canvas>
-
       <div ref="chartContainer" class="chart-container  w-100 d-flex flex-column">
+
         <div ref="mainChartRef" class=" w-100" >
           
            <!-- INDICATOR LEGENDS -->
@@ -138,8 +140,8 @@
 
 
   </div>
+  <!-- -->
 
-  
 </template>
 
 
@@ -150,9 +152,8 @@ import { staticStore } from '@/components/js/staticStore.js';
 import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
-   LineSeries, HistogramSeries,applyVolume,setVolumeData,
-createInteractiveLineManager } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
-
+   LineSeries, HistogramSeries,
+createInteractiveLineManager } from '@pipsend/charts'; //createTradingLine
 import { eventBus } from "@/components/js/eventBus";
 import { formatValue,send_delete,send_get,saveProp, send_post } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker, updateTradeMarker ,setTradeMarker
@@ -188,10 +189,8 @@ const price_marker_sl= ref(null);
 const indicatorList = ref([]);
 const indicatorName = ref("");
 
-const bgCanvas = ref(null);
-let canvas = null
-let ctx = null
-
+const bgCanvas= ref(null);
+//const inChartContainer= ref(null);
 //const indicators = ["SMA","EMA"]
 
 const gfx_canvas = ref(null);
@@ -264,7 +263,7 @@ async function handleMenu(item) {
 
 function onAddIndicator(ind){
     let serie = indicatorMenu.value.addIndicator(context(),ind)
-   // console.log("add",serie)
+  //  console.log("add",serie)
     indicatorList.value.push(serie)
 }
 
@@ -275,7 +274,7 @@ function openIndicatorMenu(){
 async function getIndicators(profile)
 {   
   indicatorName.value = profile.name
- //// console.log("getIndicators",profile)
+  //console.log("getIndicators",profile)
   profile.data.forEach( (ind)=>{
       onAddIndicator(ind)
   })
@@ -302,7 +301,7 @@ async function loadIndicators(profileName)
     return;
   }
 
- // console.log("loadIndicators",profileName)
+  //console.log("loadIndicators",profileName)
 
   let index=null;
   if (profileName==null)
@@ -345,7 +344,7 @@ async function loadIndicators(profileName)
 
       const selected = list[index];
 
-     // console.log("Load Profile:", selected.name, selected.data);
+      console.log("Load Profile:", selected.name, selected.data);
 
       //let key = get_layout_key(`indicator.${selected.name}`)
 
@@ -355,7 +354,7 @@ async function loadIndicators(profileName)
       // this.indicatorList = selected.data
     }
 
-  //  console.log("loadIndicators","DONE")
+    console.log("loadIndicators","DONE")
 }
 
 function saveIndicators(){
@@ -382,7 +381,7 @@ function removeIndicator(index) {
 
     const ind = toRaw(indicatorList.value[index]);
 
-   // console.log("Remove",index, "len",indicatorList.value.length)
+    //console.log("Remove",index, "len",indicatorList.value.length)
     //indicatorList.value.splice(index, 1)
     indicatorList.value = indicatorList.value.filter((_, i) => i !== index);
 
@@ -460,9 +459,6 @@ const handleRefresh = async () => {
           color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
         })));
 
-        
-        //setVolumeData(series, chartData);
-
         lastMainCandle = formattedData[formattedData.length - 1];
 
         // Gestione Indicatori (EMA, etc)
@@ -493,7 +489,7 @@ const handleRefresh = async () => {
 
 
         // Zoom finale
-        
+        /*
         if ( data.length >timeframe_start[currentTimeframe.value])
         {
           try{
@@ -505,18 +501,8 @@ const handleRefresh = async () => {
             console.debug("!!")
           }
         }
-          
-        // charts.main.timeScale().scrollToPosition(0, false);
-        nextTick( ()=>
-      {
-                setVolumeData(series.main,data.map(d => ({
-          time: window.db_localTime ? window.db_localTime(d.t) : d.t,
-          volume: d.bv,
-          color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
-        })));
-      }
-    );
- 
+          */
+         charts.main.timeScale().scrollToPosition(0, false);
 
         // TRADE MARKER
         if (_trade_marker_data.data!=null)
@@ -636,13 +622,16 @@ function onTaskOrderReceived(order){
 // --- INIZIALIZZAZIONE ---
 onMounted( () => {
 
+ // canvas = bgCanvas.value
+  //ctx = canvas.getContext('2d')
 
-    canvas = bgCanvas.value
-    ctx = canvas.getContext('2d')
+  console.log("ctx",canvas,ctx,bgCanvas)
 
-    console.log("ctx",canvas,ctx,bgCanvas)
 
-  //const responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
+  //resizeCanvas()
+  //window.addEventListener('resize', resizeCanvas)
+
+    //const responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
     //const datas = await responses.json();
     //console.log("symbols",datas)
     //symbolList.value= datas["symbols"];
@@ -656,6 +645,8 @@ onMounted( () => {
 });
 
 onBeforeUnmount(() => {
+ // window.removeEventListener('resize', resizeCanvas)
+
   eventBus.off("order-received", onOrderReceived);
   eventBus.off("task-order-received", onTaskOrderReceived);
 });
@@ -682,6 +673,24 @@ function watchPriceScale() {
 
 watchPriceScale();
 
+
+
+let ctx = null
+let canvas = null
+
+/*
+function resizeCanvas() {
+  try{
+  const rect = inChartContainer.value.getBoundingClientRect()
+  canvas.width = rect.width
+  canvas.height = rect.height
+  }catch{
+    console.log("err")
+  }
+  
+}
+  */
+/*
 function generate5MinBands(from, to) {
   const FIVE_MIN = 5 * 60
   const ranges = []
@@ -703,7 +712,7 @@ function drawBands(ranges) {
   const timeScale = charts.main.timeScale()
 
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.fillStyle = 'rgba(255,80,80,0.90)'
+  ctx.fillStyle = 'rgba(80,80,80,0.10)'
 
   for (const r of ranges) {
     const x1 = timeScale.timeToCoordinate(r.from)
@@ -714,7 +723,7 @@ function drawBands(ranges) {
     }
   }
 }
-
+*/
 /* buildChart
 */
 const buildChart =  () => {
@@ -753,16 +762,7 @@ const buildChart =  () => {
     priceScaleId: '',
     scaleMargins: { top: 0.7, bottom: 0 }
   });
-
-
-  applyVolume(series.main, charts.main, {
-      colorUp: '#26a69a',
-      colorDown: '#ef5350'
-  });
-
-    let panes = charts.main.panes();
-    //panes[0]?.setHeight(0.1);
-    panes[1]?.setStretchFactor(0.5);
+  
 
   // Add SMA (Simple Moving Average) - appears on main chart
   //applySMA(series.main, charts.main, { period: 20, color: '#FFFF00' });
@@ -813,13 +813,14 @@ const buildChart =  () => {
   });
 
   //charts.main.timeScale().subscribeVisibleTimeRangeChange(updateMarker);
- 
-    mainTimeScale.subscribeVisibleTimeRangeChange((range) => {
+  /*
+ mainTimeScale.subscribeVisibleTimeRangeChange((range) => {
     if (!range) return
 
     const bands = generate5MinBands(range.from, range.to)
     drawBands(bands)
   })
+    */
 
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
   charts.main.subscribeCrosshairMove(param => 
@@ -967,9 +968,6 @@ const resize =  () => {
     const { width, height } = container.value.getBoundingClientRect()
    // console.log("c resize ",width,height,container);
    // console.log(charts.main)
-
-    bgCanvas.value.width = width-10
-    bgCanvas.value.height = height-105
 
     charts.main.resize(width-10,height-105);
     charts.volume.resize(width-10,94);
@@ -1146,12 +1144,14 @@ defineExpose({
   font-size: medium;
   padding: 3px;
 }
+.chart-wrapper1 {
+  position: relative;
+}
+
 .bg-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 100;
-  display: none;
-
+  z-index: 1;
 }
 </style>

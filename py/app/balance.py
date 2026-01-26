@@ -21,6 +21,42 @@ logger.setLevel(logging.DEBUG)
 
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
+
+class PositionTrade:
+    def __init__(self, symbol, entry_price, entry_size):
+        self.symbol = symbol
+        self.entry_time = datetime.now()
+        self.entry_price = entry_price
+        self.entry_size = entry_size
+
+        self.exit_time = None
+        self.exit_price = None
+        self.pnl = None
+
+    def close(self, exit_price):
+        self.exit_time = datetime.now()
+        self.exit_price = exit_price
+        self.pnl = (exit_price - self.entry_price) * self.entry_size
+
+    def to_dict(self):
+        return {
+            "symbol": self.symbol,
+            "entry_time": int(self.entry_time.timestamp() * 1000) if self.entry_time else None,
+            "entry_price": self.entry_price,
+            "entry_size": self.entry_size,
+            "exit_time": int(self.exit_time.timestamp() * 1000) if self.exit_time else None,
+            "exit_price": self.exit_price,
+            "pnl": self.pnl,
+        }
+
+    def getHistory(self):
+        h = []
+        for trade in self.trades:
+            h.append(trade.to_dict())
+        return h
+
+###############
+
 class Position:
     position:float
     avgCost:float
@@ -34,14 +70,57 @@ class Position:
         self.marketPrice=None
         self.marketValue=None
 
+        self.current_trade: PositionTrade | None = None
+        self.trades: list[PositionTrade] = []
+
+    async def set(self, name, value):
+        if name == "position":
+            old_position = self.position
+            self.position = value
+
+            logger.info(f"{old_position} -> {value}  {self.current_trade}")
+            # OPEN TRADE: 0 -> >0
+            if old_position == 0 and value > 0:
+                self.current_trade = PositionTrade(
+                    self.symbol,
+                    entry_price=self.avgCost,
+                    entry_size=value
+                )
+             
+                if Balance.ws:
+                    msg = {"type": "POSITION_TRADE", "data" : self.current_trade.to_dict() }
+                    await Balance.ws.broadcast(msg)
+
+               
+            # CLOSE TRADE: >0 -> 0
+            elif old_position > 0 and value == 0 and self.current_trade:
+                self.current_trade.close(self.avgCost)
+                self.trades.append(self.current_trade)
+              
+                if Balance.ws:
+                    msg = {"type": "POSITION_TRADE", "data" : self.current_trade.to_dict() }
+                    await Balance.ws.broadcast(msg)
+            
+                self.current_trade = None
+
+
+        elif name == "avgCost":
+            self.avgCost = value
+
+        elif name == "marketPrice":
+            self.marketPrice = value
+            
+
     def to_dict(self):
         return {
             "symbol" :  self.symbol ,
             "position" :  self.position ,
-            "avgCost" :  self.avgCost if self.avgCost else None,
+            "avgCost" :  self.avgCost if self.avgCost is not None else None,
             "marketPrice" :  self.marketPrice if self.marketPrice else None,
             "marketValue" :  self.marketValue if self.marketValue else None,
         }
+    
+###############
 
 class Balance:
     
@@ -80,27 +159,30 @@ class Balance:
         else:
             return Position(symbol)
     
-    def update(symbol, data):
+    async def update(symbol, data):
 
         logger.info(f"BALANCE  {data}")
         if not symbol in Balance.positionMap:
             Balance.positionMap[ symbol] = Position(symbol)
-        
-        if "position" in data and data["position"]:
-            Balance.positionMap[symbol].position = data["position"]
-        if "avgCost" in data and data["avgCost"]:
-            Balance.positionMap[symbol].avgCost = data["avgCost"]
-        if "marketPrice" in data and data["marketPrice"]:
-            Balance.positionMap[symbol].marketPrice = data["marketPrice"]
-        if "marketValue" in data and data["marketValue"]:
-            Balance.positionMap[symbol].marketValue = data["marketValue"]
+
+        if "avgCost" in data :
+            #Balance.positionMap[symbol].avgCost = data["avgCost"]
+            await Balance.positionMap[symbol].set("avgCost",data["avgCost"])
+   
+        if "position" in data :
+            await Balance.positionMap[symbol].set("position",data["position"])
+     
+        #if "marketPrice" in data and data["marketPrice"]:
+        #    Balance.positionMap[symbol].marketPrice = data["marketPrice"]
+        #if "marketValue" in data and data["marketValue"]:
+        #    Balance.positionMap[symbol].marketValue = data["marketValue"]
     
     async def onUpdatePortfolio(portfoglio : PortfolioItem):
         #logger.info(f"onUpdatePortfolio: {portfoglio}")
 
       
         msg = {"type": "UPDATE_PORTFOLIO", "symbol" : portfoglio.contract.symbol , "position" : portfoglio.position, "marketPrice": portfoglio.marketPrice, "marketValue" : portfoglio.marketValue}
-        Balance.update(portfoglio.contract.symbol,msg)
+        await Balance.update(portfoglio.contract.symbol,msg)
         if Balance.ws:
             ser = json.dumps(msg)
             await Balance.ws.broadcast(msg)
@@ -109,7 +191,22 @@ class Balance:
         #logger.info(f"onPositionEvent: {position}")
 
         msg = {"type": "POSITION", "symbol" : position.contract.symbol , "position" : position.position, "avgCost": position.avgCost}
-        Balance.update(position.contract.symbol,msg)
+        await Balance.update(position.contract.symbol,msg)
+        if Balance.ws:
+            ser = json.dumps(msg)
+            await Balance.ws.broadcast(msg)
+
+    async def sym_change(symbol, quantity, price):
+        logger.info(f"sym_change: {symbol} {quantity} {price}")
+        if not symbol in Balance.positionMap:
+            Balance.positionMap[ symbol] = Position(symbol)
+
+        pos = Balance.get_position(symbol)
+        logger.info(f" pos.position: { pos.position}")
+        
+        msg = {"type": "POSITION", "symbol" : symbol , "position" : float(pos.position) + float(quantity), "avgCost": price}
+        
+        await Balance.update(symbol,msg)
         if Balance.ws:
             ser = json.dumps(msg)
             await Balance.ws.broadcast(msg)

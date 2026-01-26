@@ -130,7 +130,7 @@ class DBDataframe_TimeFrame:
 
         self.df["date"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True).dt.date
             #print( "NEW ",self.df.tail())
-        #logger.info( f"DB {self.df}" )
+        #logger.info( f"DB \n{self.df}" )
 
     def dataframe(self,symbol="") -> pd.DataFrame:
         if not self.last_timestamp:

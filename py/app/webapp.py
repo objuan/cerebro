@@ -86,18 +86,19 @@ file_handler.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 
+########################################
+
+with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+    config = json.load(f)
+config = convert_json(config)
+
+orderManager = OrderManager(config)
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s")
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
-
-########################################
-
-with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-    config = json.load(f)
-config = convert_json(config)
 
 #############
 
@@ -120,7 +121,7 @@ market = ms.getMarket("AUTO")
 
 ws_manager = WSManager()
 ws_manager_orders = WSManager()
-OrderManager.ws = ws_manager_orders
+
 OrderTaskManager.ws = ws_manager_orders
 Balance.ws = ws_manager_orders
 propManager = PropertyManager()
@@ -134,7 +135,7 @@ if sys.platform == 'win32':
 ib=None
 
 
-OrderTaskManager(config)
+OrderTaskManager(config,orderManager=orderManager)
 
 db = DBDataframe(config,client)
 report = ReportManager(config,client,db)
@@ -142,6 +143,8 @@ event_manager = EventManager(config,report)
 tradeManager = TradeManager(config,client,propManager)
 render_page = RenderPage(ws_manager)
 event_manager.render_page=render_page
+
+tradeManager.on_trade_changed+= OrderTaskManager.on_update_trade
 
 #layout = Layout(client,db,config)
 #layout.read(DEF_LAYOUT)
@@ -611,7 +614,7 @@ async def get_news(symbol, start: Optional[str] = None):
 async def do_limit_order(symbol, qty):
     try:
         logger.info(f"/order/limit {symbol} {qty}")
-        await OrderManager.smart_buy_limit(symbol, qty,client.getTicker(symbol))
+        await orderManager.smart_buy_limit(symbol, qty,client.getTicker(symbol))
         return {"status": "ok" }
     except:
         logger.error("ERROR", exc_info=True)
@@ -626,7 +629,7 @@ async def do_buy_at_level(symbol:str, qty:float,price:float):
         if zone != MarketZone.LIVE or order_mode=="task_all":
             await OrderTaskManager.add_at_level(symbol,"buy_at_level", qty,price,"")
         else:
-            OrderManager.buy_at_level(symbol, qty,price)
+            orderManager.buy_at_level(symbol, qty,price)
             
         return {"status": "ok" }
     except:
@@ -644,7 +647,7 @@ async def do_bracket(symbol:str,timeframe:str):
             await OrderTaskManager.bracket(symbol,timeframe)
         else:
             pass
-            #OrderManager.buy_at_level(symbol, qty,price)
+            #orderManager.buy_at_level(symbol, qty,price)
             
         return {"status": "ok" }
     except:
@@ -659,7 +662,7 @@ async def do_sell_at_level(symbol:str, qty:float,price:float,desc:str):
         if zone != MarketZone.LIVE or order_mode=="task_all":
             await OrderTaskManager.add_at_level(symbol,"sell_at_level", qty,price,desc)
         else:
-            OrderManager.buy_at_level(symbol, qty,price)
+            orderManager.buy_at_level(symbol, qty,price)
             
         return {"status": "ok" }
     except:
@@ -669,7 +672,7 @@ async def do_sell_at_level(symbol:str, qty:float,price:float,desc:str):
 @app.get("/order/sell/all")
 async def do_sell_order(symbol):
     try:
-        OrderManager.sell_all(symbol)
+        orderManager.sell_all(symbol)
         return {"status": "ok" }
     except:
         logger.error("ERROR", exc_info=True)
@@ -710,7 +713,7 @@ async def get_orders(start: Optional[str] = None):
 @app.get("/order/cancel")
 async def cancel_order(permId: int):
     try:
-        result = OrderManager.cancel_order(permId)
+        result = orderManager.cancel_order(permId)
         if result:
             return {"status": "ok", "message": f"Order with permId {permId} cancelled"}
         else:
@@ -730,7 +733,7 @@ async def clar_all_orders(symbol: str):
         pos = Balance.get_position(symbol)
         if (pos and pos.position>0):
             logger.info(f"SELL ALL {symbol} {pos.position} ")
-            ret = await OrderManager.smart_sell_limit(symbol,pos.position, client.getTicker(symbol))
+            ret = await orderManager.smart_sell_limit(symbol,pos.position, client.getTicker(symbol))
 
         #OrderManager.cancel_orderBySymbol(symbol)
             
@@ -1034,13 +1037,16 @@ if __name__ =="__main__":
 
             logger.info(f"TEST CONTACT : {contract}")
 
-            OrderManager(config,ib)
+            #orderManager.ib = ib
+            #orderManager.ws = ws_manager_orders
+            await orderManager.bootstrap(ib,ws_manager_orders)
             # Subscribe to news bulletins
             ib.reqNewsBulletins(allMessages=True)
             Balance(config,ib)
 
         else:
-            OrderManager(config,None)
+            #orderManager.ws = ws_manager_orders
+            await orderManager.bootstrap(None,ws_manager_orders)
             Balance(config,None)
 
         try:
@@ -1068,7 +1074,7 @@ if __name__ =="__main__":
                 
                 await event_manager.bootstrap()
                 
-                await OrderManager.bootstrap()
+                #await orderManager.bootstrap()
                 
                 await OrderTaskManager.bootstrap()
                 
@@ -1077,7 +1083,7 @@ if __name__ =="__main__":
 
             await bootstrap()
             
-            _tick_orders = asyncio.create_task(OrderManager.batch())
+            _tick_orders = asyncio.create_task(orderManager.batch())
 
             _tick_tickers = asyncio.create_task(client.batch())
 

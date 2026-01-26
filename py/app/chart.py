@@ -25,7 +25,7 @@ class ChartWidget(Widget):
        
        #for candle in candles:
            #logger.info(f"{candle['tf']} { self.timeframe} { self.symbol} v {type(candle['day_v']) }" )
-           if candle["s"] == self.symbol and (self.timeframe==0 or candle["tf"] == self.timeframe) and not  math.isnan(candle["day_v"]):
+           if candle["s"] == self.symbol and (self.timeframe==0 or candle["tf"] == self.timeframe) and not  math.isnan(candle["day_volume"]):
                #logger.info(f"notify_candles {candle}")
 
                await page.send({

@@ -447,7 +447,7 @@ class LiveManager:
     def setSymSpeed(self,speed):
         logger.info(f"SET SYM SPEED TO {speed}")
         self.sym_current_time = int(_time.time())  
-        self.sym_speed = min(10,max(0.1,speed))
+        self.sym_speed = min(10,max(0,speed))
       
     async def sym_tick_tickers(self):
                 #boot
@@ -510,6 +510,11 @@ class LiveManager:
                                     row = df.iloc[0]
                                     ts = datetime.fromtimestamp(row["timestamp"]/1000)
 
+                                    if row['day_volume'] is None:
+                                        day_volume = 0
+                                    else:
+                                        day_volume = int(row['day_volume'])
+
                                     if row['base_volume'] is None:
                                         base_volume = 0
                                     else:
@@ -526,7 +531,8 @@ class LiveManager:
                                     #logger.info(f"{row}")   
                                   
                                     try:
-                                        data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), "v":base_volume, "ts":int(start)*1000, "dts":start_time  }
+                                        data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), 
+                                                "v":base_volume, "ts":int(start)*1000, "dts":start_time  }
                                    
                                      
                                         pack = f"o:{row['open']:.2f} h:{row['high']:.2f} l:{row['low']:.2f} c:{row['close']:.2f} v:{base_volume:.0f} ({start_time}, {time_str})"
@@ -545,7 +551,7 @@ class LiveManager:
 
                                         data["bid"]=0
                                         data["ask"]=0
-                                        data["day_v"]=ticker.volume
+                                        data["day_v"]=day_volume
 
                                         #logger.info(f"SEND {data}")
                                         if self.ws_manager:

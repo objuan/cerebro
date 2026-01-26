@@ -6,7 +6,7 @@ import json
 import pandas as pd
 from dataclasses import dataclass
 from config import DB_FILE,CONFIG_FILE
-from utils import convert_json
+from utils import MyEvent, convert_json
 from props_manager import PropertyManager
 #from mulo_client import MuloClient
 
@@ -76,6 +76,8 @@ class TradeManager:
         self.props=props
         self.client=client
 
+        self.on_trade_changed = MyEvent()
+
         props.add_computed("trade.risk_per_trade", self.risk_per_trade)
         props.add_computed("trade.max_day_loss", self.max_day_loss)
 
@@ -109,6 +111,8 @@ class TradeManager:
          order.loss_usd  = order.quantity * order.stop_loss-order.total_price_usd
          order.profit_usd  =order.quantity * order.take_profit- order.total_price_usd
 
+    '''
+    '''
     async  def update_order(self,symbol, timeframe,data)-> TradeOrder:
         self.client.execute("DELETE FROM trade_marker WHERE symbol=?",
             (symbol,))
@@ -123,11 +127,15 @@ class TradeManager:
                 timeframe,
                 json.dumps(order.to_dict())
             ))
+        
+        await self.on_trade_changed(order)
+
         return order
 
     async  def add_order(self,symbol, timeframe,data)-> TradeOrder:
         self.client.execute("DELETE FROM trade_marker WHERE symbol=? ",
             (symbol,))
+        
         
         order =None
         if data["type"] =="bracket":

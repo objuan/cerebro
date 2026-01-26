@@ -166,7 +166,7 @@ class ReportManager:
 
             #  symbol  last_close  last   volume  ask  bid  gain  ts   datetime
             df_tickers = self.job.getTickersDF()
-            ##logger.info(f"Tickers \n{df_tickers}")
+            #logger.info(f"Tickers \n{df_tickers}")
         
 
             df_5m = self.db.dataframe("5m")
@@ -188,7 +188,7 @@ class ReportManager:
             #           
             df_1d = self.db.dataframe("1d")
             #df_df_1d5m = df_1d.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
-            #logger.info(df_1d)
+            logger.info(f"df_1d \n{df_1d}")
 
 
             mean_base_volume_1d = (
@@ -260,7 +260,7 @@ class ReportManager:
                 .transform(lambda x: x.tail(5).sum())
             )
 
-            df['rel_vol_24'] = (df['volume'] / df['avg_base_volume_1d'])  * 100
+            df['rel_vol_24'] = (df['day_volume'] / df['avg_base_volume_1d'])  * 100
             df['rel_vol_5m'] = ((df['volume_5m'] / df['avg_base_volume_5m']) ) * 100
 
             #float

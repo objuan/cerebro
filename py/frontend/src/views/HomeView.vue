@@ -236,6 +236,12 @@ const initWebSocket_mulo = () => {
           //portfolioRef.value?.handleMessage(msg);
           eventBus.emit("update-position", msg);
           break
+        case "POSITION_TRADE":
+          console.log("POSITION_TRADE",msg)
+          //portfolioRef.value?.handleMessage(msg);
+          eventBus.emit("trade-position", msg);
+          break
+
         case "ORDER":
           //#ordersRef.value?.handleMessage(msg);
           dataParsed =

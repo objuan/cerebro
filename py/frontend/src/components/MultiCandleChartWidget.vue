@@ -101,7 +101,6 @@ const rows = ref(1)
 const cols = ref(1)
 const cells = ref([])  // contiene i widget attivi
 
-
 const emit = defineEmits(['select'])
 function handleSelect() {
   emit('select', props.id)
