@@ -228,7 +228,7 @@ class MuloJob:
 
                 ################
 
-                logger.debug(f"{i} Find rows # {len(ohlcv)}")
+                logger.info(f"{i} Find rows # {len(ohlcv)}")
                 if len(ohlcv) <1:
                     break
 
@@ -238,8 +238,9 @@ class MuloJob:
 
                 for o in ohlcv:
                     ts, open_, high, low, close, vol = o
-                    
-                    #logger.debug(f"add {exchange} {symbol} {timeframe} {ts}")
+
+                    #if symbol == "USAR":
+                    #    logger.info(f"add {exchange} {symbol} {timeframe} {ts}")
                     cursor.execute("""
                 INSERT INTO ib_ohlc_history (
                         exchange,

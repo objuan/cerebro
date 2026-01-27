@@ -76,9 +76,28 @@ class MuloLiveClient:
                 
                 async def updateTickers(new_ticker):
                     #logger.info(f"new_ticker {new_ticker}")
+ 
+                    if "ticker" in new_ticker:
+                        symbol =  new_ticker["ticker"]
+                      
+                        logger.info(f"<<TICKER {new_ticker}")
 
-                  
-                    if self.sym_mode and "sym" in new_ticker:
+                        t = self.tickers[symbol]
+                        t.update({"last": new_ticker["last"],
+                                  "day_volume": new_ticker["day_v"],
+                                  "volume": new_ticker["v"],
+                                  "ask": new_ticker["ask"],"bid": new_ticker["bid"],
+                                   "open": new_ticker["open"],
+                                   "low": new_ticker["low"],"high": new_ticker["high"],
+                                  "gain": ((new_ticker["last"]-t["last_close"]) / t["last_close"]) * 100,
+                                  "ts" : int(new_ticker["ts"]*1000)
+                                  })
+                            
+                         #logger.info(f"..  {t}")
+                         # send event 
+                        await self.on_ticker_receive(t)
+
+                    elif self.sym_mode and "sym" in new_ticker:
                         self.sym_time = new_ticker["sym"]
                         self.sym_speed = new_ticker["speed"]
 
@@ -91,23 +110,12 @@ class MuloLiveClient:
                         new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
                         #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
                         #print(new_ticker)
+                        # send to UI
                         await self.on_candle_receive(new_ticker)
                         
-
+                        
                         if new_ticker["tf"]=="10s" and new_ticker["s"] in self.tickers:
                             
-                            '''
-                            t:Ticker= self.tickers[new_ticker["s"]]
-                            t.last = new_ticker["c"]
-                            t.volume = new_ticker["v"]
-                            t.day_volume = new_ticker["day_v"]
-                            t.low = new_ticker["l"]
-                            t.high = new_ticker["h"]
-                            t.bid = new_ticker["bid"]
-                            t.ask = new_ticker["ask"]
-                            t.time = datetime.fromtimestamp( new_ticker["ts"]  / 1000) 
-                            t.gain = ((new_ticker["c"]-t.last_close) / t.last_close) * 100
-                            '''
                             t = self.tickers[new_ticker["s"]]
                             t.update({"last": new_ticker["c"],"volume": new_ticker["v"],"day_volume": new_ticker["day_v"],
                                       "ask": new_ticker["ask"],"bid": new_ticker["bid"],
@@ -118,9 +126,9 @@ class MuloLiveClient:
                             #logger.info(f"..  {t}")
                             # send event 
                             await self.on_ticker_receive(t)
-                            #logger.info(f"new_ticker {t}")
+                           # logger.info(f"new_ticker {t}")
                         #self.render_page.send({"type":"candle","data":new_ticker}) 
-                   
+                        
                 # live on last scanner
 
                 # first
@@ -139,7 +147,7 @@ class MuloLiveClient:
             exit(-1)
         except Exception as e:
             logger.error(f"Errore: {e}")
-            exit(-1)
+           # exit(-1)
 
    
     def getCurrentZone(self):

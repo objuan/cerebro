@@ -123,7 +123,7 @@ function addIndicator(context,ind){
     }
      if (ind.type =="MACD")
     {
-      name ="MACD "+ind.params.period
+      name ="MACD"
       serie = applyMACD(context.series.main, context.charts.main, { 
         macdColor: ind.params.color,
         signalColor: '#ff9900',
@@ -149,7 +149,7 @@ function addIndicator(context,ind){
     }
 
 
-    if (serie)
+    if (name != "MACD")
       serie.applyOptions({
         priceLineVisible: false,
         lastValueVisible: false,

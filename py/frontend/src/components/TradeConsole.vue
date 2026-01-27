@@ -22,6 +22,7 @@
           <option :value="1000">1000</option>
         </select>
       </div>
+
       <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
         Cost <strong>{{ Number(tradeData.total_price_usd).toFixed(1) }}</strong>
         ({{ Number(tradeData.price).toFixed(1) }}x{{ tradeData.quantity }})
@@ -61,19 +62,18 @@
       <div class="position-badge position-main clickable"   @click="toggleTrades">
         {{symbol}} {{ position }}
       </div>
-      <!-- -->
+
+      <!-- ALL TOOLTIP  -->
       <div v-if="showAll" class="trades-popup">
         <div 
           v-for="(t, i) in tradeList.slice().reverse()" 
           :key="i"
           class="trade-row"
         >
-          <b>{{ t.symbol }}</b> |
-
-          Entry: {{ formatTime(t.entry_time) }} @ {{ t.entry_price }}
+          BUY {{ formatTime(t.entry_time) }} @ {{ t.entry_price }}
 
           <template v-if="t.exit_time != null">
-            → Exit: {{ formatTime(t.exit_time) }} @ {{ t.exit_price }}
+            → SELL: {{ formatTime(t.exit_time) }} @ {{ t.exit_price }}
           </template>
 
           <span 
@@ -421,11 +421,14 @@ watch(quantity,  async (newValue, oldValue) => {
 }
 
 .trade-row {
-  font-size: 12px;
-  padding: 2px 0;
-  white-space: nowrap;
+ display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: monospace; /* fondamentale per allineamento numeri */
 }
-
+.trade-col {
+  min-width: 120px;
+}
 
 
 .trade-box {

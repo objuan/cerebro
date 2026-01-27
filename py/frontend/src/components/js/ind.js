@@ -11740,6 +11740,11 @@ class SeriesApi {
         const rows = this._internal__series._internal_bars()._internal_rows();
         return rows.map((row) => seriesCreator(row));
     }
+    rawData() {
+        
+        const rows = this._internal__series._internal_bars()._internal_rows();
+        return rows;
+    }
     subscribeDataChanged(handler) {
         this._private__dataChangedDelegate._internal_subscribe(handler);
     }
@@ -15979,8 +15984,7 @@ function applyVolume(series, chart, options = {}) {
         },
         priceScaleId: '',
     }, 3);
-    const panes = chart.panes();
-    console.log("panes",panes)
+   
     //panes[0]?.setHeight(50);
     // Configure the price scale for volume
     volumeSeries.priceScale().applyOptions({
@@ -16011,6 +16015,7 @@ function applyVolume(series, chart, options = {}) {
                 });
             }
         }
+       
         return results;
     };
     // Update function
@@ -16053,6 +16058,13 @@ function setVolumeData(series, data) {
             cache.set(timeKey, d.volume);
         }
     }
+}
+function updateVolumeData( series, d) {
+    const cache = volumeCache.get(series);
+    //console.log("updateVolumeData",d)
+
+    const timeKey = typeof d.time === 'string' ? d.time : String(d.time);
+    cache.set(timeKey, d.volume);
 }
 
 // Internal cache for volume data (reuse from volume-indicator)
@@ -16719,16 +16731,27 @@ function applyVWAP(series, chart, options = {}) {
         },
     }, 0);
 
+    const cache = volumeCache.get(series);
+    /*
+    for (const d of data) {
+        if ('time' in d && 'volume' in d) {
+            const timeKey = typeof d.time === 'string' ? d.time : String(d.time);
+            cache.set(timeKey, d.volume);
+        }
+    }
+        */
+
     // Function to calculate VWAP
     const calculateVWAP = (data) => {
 
-        console.log("calculateVWAP", data)
+        //console.log("calculateVWAP", data,cache)
         if (!data || data.length === 0) {
             return [];
         }
 
         let cumulativeTPV = 0; // Typical Price * Volume
         let cumulativeVolume = 0;
+        let currentDay = null;
 
         const results = [];
 
@@ -16737,16 +16760,33 @@ function applyVWAP(series, chart, options = {}) {
             if (
                 d.high === undefined ||
                 d.low === undefined ||
-                d.close === undefined ||
-                d.volume === undefined
+                d.close === undefined 
+               //d.volume === undefined
             ) {
                 continue;
             }
+             // ===== ricava il giorno dal timestamp =====
+            const date = new Date(d.time * 1000);
+            const dayKey = date.toISOString().slice(0, 10); // YYYY-MM-DD
+            // ===== reset VWAP a cambio giorno =====
+            if (currentDay !== dayKey) {
+                        cumulativeTPV = 0;
+                        cumulativeVolume = 0;
+                        currentDay = dayKey;
+            }
 
+
+            const timeKey = typeof d.time === 'string' ? d.time : String(d.time);
+
+            //console.log("vol", timeKey)
+
+            const volume = cache.get(timeKey);
+
+            //console.log("vol", volume)
             const typicalPrice = (d.high + d.low + d.close) / 3;
 
-            cumulativeTPV += typicalPrice * d.volume;
-            cumulativeVolume += d.volume;
+            cumulativeTPV += typicalPrice * volume;
+            cumulativeVolume += volume;
 
             if (cumulativeVolume === 0) {
                 continue;
@@ -16754,12 +16794,12 @@ function applyVWAP(series, chart, options = {}) {
 
             const vwap = cumulativeTPV / cumulativeVolume;
 
-            if (d.time) {
+            //if (d.time) {
                 results.push({
                     time: d.time,
                     value: vwap,
                 });
-            }
+           // }
         }
 
         return results;
@@ -16791,4 +16831,4 @@ function applyVWAP(series, chart, options = {}) {
 
     return vwapSeries;
 }
-export { applyVWAP , areaSeries as AreaSeries, barSeries as BarSeries, baselineSeries as BaselineSeries, candlestickSeries as CandlestickSeries, ColorType, CrosshairMode, DraggablePriceLine, histogramSeries as HistogramSeries, InteractiveLineManager, LastPriceAnimationMode, lineSeries as LineSeries, LineStyle, LineType, MismatchDirection, PriceLineSource, PriceScaleMode, TickMarkType, TrackingModeExitMode, applyATR, applyBollingerBands, applyEMA, applyMACD, applyOBV, applyRSI, applySMA, applyStochastic, applyVolume, applyWMA, createChart, createChartEx, createImageWatermark, createInteractiveLineManager, createOptionsChart, createSeriesMarkers, createTextWatermark, createTradingLine, createUpDownMarkers, createYieldCurveChart, customSeriesDefaultOptions, defaultHorzScaleBehavior, isBusinessDay, isUTCTimestamp, setOBVVolumeData, setVolumeData, version };
+export { applyVWAP , updateVolumeData ,areaSeries as AreaSeries, barSeries as BarSeries, baselineSeries as BaselineSeries, candlestickSeries as CandlestickSeries, ColorType, CrosshairMode, DraggablePriceLine, histogramSeries as HistogramSeries, InteractiveLineManager, LastPriceAnimationMode, lineSeries as LineSeries, LineStyle, LineType, MismatchDirection, PriceLineSource, PriceScaleMode, TickMarkType, TrackingModeExitMode, applyATR, applyBollingerBands, applyEMA, applyMACD, applyOBV, applyRSI, applySMA, applyStochastic, applyVolume, applyWMA, createChart, createChartEx, createImageWatermark, createInteractiveLineManager, createOptionsChart, createSeriesMarkers, createTextWatermark, createTradingLine, createUpDownMarkers, createYieldCurveChart, customSeriesDefaultOptions, defaultHorzScaleBehavior, isBusinessDay, isUTCTimestamp, setOBVVolumeData, setVolumeData, version };

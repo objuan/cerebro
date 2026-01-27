@@ -9,6 +9,7 @@
           class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
         >
           <option value="10s">10s</option>
+          <option value="30s">30s</option>
           <option value="1m">1m</option>
           <option value="5m">5m</option>
           <option value="1h">1h</option>
@@ -22,7 +23,7 @@
     <div class="position-relative p-0 chart-panel">
       <div class="chart-legend-up  small" v-html="legendHtml"></div>
 
-      <canvas ref="bgCanvas" class="bg-overlay"></canvas>
+      <!--<canvas ref="bgCanvas" class="bg-overlay"></canvas>-->
 
       <div ref="chartContainer" class="chart-container  w-100 d-flex flex-column">
         <div ref="mainChartRef" class=" w-100" >
@@ -69,14 +70,9 @@
             </div>
           </div>
 
-          <!-- VOLUME LEGENDS -->
-          <div class="chart-legend-left-bottom small"  >
-                <span class="text-white me-3">Vol: {{  formatValue(lastMainCandle?.volume) }}</span>
-              </div>
         </div>
 
-        <div ref="volumeChartRef" style="height: 100px;" class="w-100 border-top border-secondary"></div>
-
+    
         <!-- BUTTON BAR -->
 
         <div class="button_bar">
@@ -150,11 +146,11 @@ import { staticStore } from '@/components/js/staticStore.js';
 import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
-   LineSeries, HistogramSeries,applyVolume,setVolumeData,
+   LineSeries, applyVolume,setVolumeData,updateVolumeData,
 createInteractiveLineManager } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 import { eventBus } from "@/components/js/eventBus";
-import { formatValue,send_delete,send_get,saveProp, send_post } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_delete,send_get,saveProp, send_post } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker, updateTradeMarker ,setTradeMarker
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
@@ -175,7 +171,6 @@ const emit = defineEmits(['close', 'initialized']);
 // Elementi DOM e Variabili reattive
 const indicatorMenu = ref(null);
 const mainChartRef = ref(null);
-const volumeChartRef = ref(null);
 const legendHtml = ref('');
 //const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
@@ -188,9 +183,11 @@ const price_marker_sl= ref(null);
 const indicatorList = ref([]);
 const indicatorName = ref("");
 
+/*
 const bgCanvas = ref(null);
 let canvas = null
 let ctx = null
+*/
 
 //const indicators = ["SMA","EMA"]
 
@@ -236,7 +233,7 @@ const get_layout_key = (subkey)=> { return `chart.${props.number}.${props.sub_nu
 const get_indicator_key = ()=> { return `chart.${props.number}.indicator.${currentTimeframe.value}`}
 
 function onTimeFrameChange(){
-
+  console.log("onTimeFrameChange")
   saveProp(get_layout_key("timeframe"), currentTimeframe.value)
   handleRefresh();
 }
@@ -258,7 +255,6 @@ async function handleMenu(item) {
   if (item.key === 'link') linkIndicators();
   if (item.key === 'link_clear') linkClearIndicators();
 }
-
 
 // ===================================
 
@@ -416,7 +412,7 @@ const handleRefresh = async () => {
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
     const data = await response.json();
-    console.log("response",data)
+    //console.log("response",data)
 
     if (data.length>0)
     {
@@ -451,17 +447,18 @@ const handleRefresh = async () => {
           open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
         }));
 
+        //console.info("formattedData ",data)
+
         series.main.setData(formattedData);
 
         // Formatta dati per Volume
+        /*
         series.volume.setData(data.map(d => ({
           time: window.db_localTime ? window.db_localTime(d.t) : d.t,
           value: d.bv,
           color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
         })));
-
-        
-        //setVolumeData(series, chartData);
+        */
 
         lastMainCandle = formattedData[formattedData.length - 1];
 
@@ -510,12 +507,11 @@ const handleRefresh = async () => {
         nextTick( ()=>
       {
                 setVolumeData(series.main,data.map(d => ({
-          time: window.db_localTime ? window.db_localTime(d.t) : d.t,
-          volume: d.bv,
-          color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
-        })));
-      }
-    );
+                  time: window.db_localTime ? window.db_localTime(d.t) : d.t,
+                  volume: d.bv,
+                  color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
+                })));
+      } );
  
 
         // TRADE MARKER
@@ -574,7 +570,7 @@ const handleRefresh = async () => {
       //DEFAULT_INTERACTION = charts.main.options();
 
     
-    
+     console.log("handleRefresh DONE")
     }
     else
         console.log("empty ");
@@ -605,12 +601,15 @@ async function setDrawMode(mode) {
   drawPoints = [];
   console.log("Draw mode:", mode);
 }
-
+/*
 const handleSymbols = async () => {
+   console.log("handleSymbols")
   handleRefresh();
 };
+*/
 
 const setSymbol = async (symbol) => {
+  console.log("setSymbol")
   currentSymbol.value= symbol
   handleRefresh();
 };
@@ -633,25 +632,21 @@ function onTaskOrderReceived(order){
   }
 }
 
+
+
 // --- INIZIALIZZAZIONE ---
 onMounted( () => {
 
-
-    canvas = bgCanvas.value
-    ctx = canvas.getContext('2d')
-
-    console.log("ctx",canvas,ctx,bgCanvas)
-
-  //const responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
-    //const datas = await responses.json();
-    //console.log("symbols",datas)
-    //symbolList.value= datas["symbols"];
+  console.log("onMounted")
+  //canvas = bgCanvas.value
+  //ctx = canvas.getContext('2d')
+  //console.log("ctx",canvas,ctx,bgCanvas)
 
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
 
   buildChart();
-  handleRefresh();
+ // handleRefresh();
   resize()
 });
 
@@ -663,7 +658,7 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
 
   if (charts.main) charts.main.remove();
-  if (charts.volume) charts.volume.remove();
+  //if (charts.volume) charts.volume.remove();
 });
 
 
@@ -681,7 +676,7 @@ function watchPriceScale() {
   }
 
 watchPriceScale();
-
+/*
 function generate5MinBands(from, to) {
   const FIVE_MIN = 5 * 60
   const ranges = []
@@ -714,7 +709,7 @@ function drawBands(ranges) {
     }
   }
 }
-
+*/
 /* buildChart
 */
 const buildChart =  () => {
@@ -739,7 +734,7 @@ const buildChart =  () => {
   });
 
   // 2. Volume Chart
-  
+  /*
   charts.volume = createChart(volumeChartRef.value, {
     height: 100,
     layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
@@ -748,12 +743,15 @@ const buildChart =  () => {
   });
 
 
-  series.volume = charts.volume.addSeries(HistogramSeries, {
+*/
+
+/*
+  series.volume = charts.main.addSeries(HistogramSeries, {
     priceFormat: { type: 'volume' },
     priceScaleId: '',
     scaleMargins: { top: 0.7, bottom: 0 }
   });
-
+  */
 
   applyVolume(series.main, charts.main, {
       colorUp: '#26a69a',
@@ -764,17 +762,6 @@ const buildChart =  () => {
     //panes[0]?.setHeight(0.1);
     panes[1]?.setStretchFactor(0.5);
 
-  // Add SMA (Simple Moving Average) - appears on main chart
-  //applySMA(series.main, charts.main, { period: 20, color: '#FFFF00' });
-  /*
-  const stopLoss = createTradingLine(series.main, charts.main, {
-    price: 185.35,
-    type: 'stop-loss',
-    onDragStart: (price) => console.log('Drag started',price),
-    onDragMove: (price) => console.log('Moving:', price),
-    onDragEnd: (price) => console.log('Final:', price)
-});
-*/
 
     //console.log("stopLoss",stopLoss );
 
@@ -798,9 +785,9 @@ const buildChart =  () => {
   }
 
   // 4. Sincronizzazione TimeScale
-  const mainTimeScale = charts.main.timeScale();
-  const volumeTimeScale = charts.volume.timeScale();
-
+  //const mainTimeScale = charts.main.timeScale();
+  //const volumeTimeScale = charts.volume.timeScale();
+/*
   mainTimeScale.subscribeVisibleLogicalRangeChange(range =>
   { 
     if (range)
@@ -811,15 +798,17 @@ const buildChart =  () => {
     if (range)
       mainTimeScale.setVisibleLogicalRange(range)
   });
-
+*/
   //charts.main.timeScale().subscribeVisibleTimeRangeChange(updateMarker);
  
+    /*
     mainTimeScale.subscribeVisibleTimeRangeChange((range) => {
-    if (!range) return
+      if (!range) return
 
-    const bands = generate5MinBands(range.from, range.to)
-    drawBands(bands)
-  })
+      const bands = generate5MinBands(range.from, range.to)
+      drawBands(bands)
+    })
+      */
 
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
   charts.main.subscribeCrosshairMove(param => 
@@ -855,9 +844,10 @@ const buildChart =  () => {
 
       // VOLUUME LINK
       
-      charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
-      const bar = series.volume.data().find(x => x.time === param.time);
-      const vol = bar?.value;
+      //charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
+      //const bar = series.volume.data().find(x => x.time === param.time);
+      //const vol = bar?.value;
+      const vol =0;
       
 
       //console.log("MOVE ",vol)
@@ -938,13 +928,13 @@ const buildChart =  () => {
   //
   // Caricamento Iniziale
   //buildChart();
-  handleSymbols();
+  //handleSymbols();
     
   // Esponi l'oggetto al genitore (per aggiornamenti WS)
   emit('initialized', { 
     id: props.id, 
     mainSeries: series.main, 
-    volumeSeries: series.volume,
+    //volumeSeries: series.volume,
     refresh: buildChart 
   });
 
@@ -962,45 +952,76 @@ const buildChart =  () => {
 };
 
 // =========================
+let old_size = [0,0]
 
 const resize =  () => {
     const { width, height } = container.value.getBoundingClientRect()
-   // console.log("c resize ",width,height,container);
-   // console.log(charts.main)
+    if (old_size[0] != width || old_size[1] != height )
+    {
+      old_size = [ width, height ]
+   //   console.log("c resize ",width,height,container);
+    // console.log(charts.main)
 
-    bgCanvas.value.width = width-10
-    bgCanvas.value.height = height-105
+      ///bgCanvas.value.width = width-10
+    // bgCanvas.value.height = height-10
 
-    charts.main.resize(width-10,height-105);
-    charts.volume.resize(width-10,94);
-    
-    handleRefresh();
+      charts.main.resize(width-10,height-10);
+      //charts.volume.resize(width-10,94);
+
+      handleRefresh();
+    }
 };
 
 
+function onTickerReceived(){
+  /*
+  console.log("onTickerReceived", msg)
+  if (lastMainCandle !=null)
+  {
+    const new_value = {
+      time: lastMainCandle.time,
+      open : msg.open,
+      close : msg.last,
+      low: msg.low,
+      high: msg.high      
+    }
+    series.main.update(new_value);
+  }
+    */
+}
 
 function on_candle(c)
 {
   //
   if (c.tf !== currentTimeframe.value) return;  
 
-   // console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
+  // console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
 
   const new_value = {
     time: window.db_localTime(c.ts),
-    open: c.o, high: c.h, low: c.l, close: c.c,volume: c.v
+    open: c.o, high: c.h, low: c.l, close: c.c
   }
   //console.log("new_value",c) 
   if (lastMainCandle !=null && new_value.time >= lastMainCandle.time )
   {
     lastMainCandle =new_value;
+    
+    updateVolumeData(series.main,{
+                time: window.db_localTime(c.ts),
+                volume: c.v
+    })
+
     series.main.update(new_value);
     
+   
+    /*
     series.volume.update({
                 time: window.db_localTime(c.ts),
                 value: c.v,
                 color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
     });  
+    */
+    
 
   }
   else
@@ -1015,6 +1036,8 @@ defineExpose({
   resize,
   setSymbol,
   on_candle,
+  onTickerReceived
+
 });
 
 
@@ -1064,7 +1087,7 @@ defineExpose({
   overflow: hidden;
 }
 .chart-legend-up{
-  left:  50px;
+  left:  130px;
   pointer-events: none;
   background: rgba(19, 23, 34, 0.7);
   border-bottom-right-radius: 4px;

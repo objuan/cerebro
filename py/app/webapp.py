@@ -925,6 +925,20 @@ async def account_positions():
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
     
+
+@app.get("/trade/history")
+def trade_history(symbol: str):
+    pos = Balance.get_position(symbol)
+    if pos:
+        
+
+    #logger.info(f"READ TRADE MARKER {symbol} {timeframe} -> {df} ")    
+    
+    if df.empty:
+        return JSONResponse({})
+    else:
+        return JSONResponse(df.iloc[0].to_dict())
+    
 ###############################
 
 @app.get("/monitor/open")

@@ -66,9 +66,9 @@ class ReportManager:
     async def take_snapshot(self,key:str):
         #logger.info(f"take_snapshot {key} {len(self.shapshot_history)} ")
 
-        diff = self.make_diff(self.df_report,self.shapshot_history[-1] )
+        #diff = self.make_diff(self.df_report,self.shapshot_history[-1] )
         
-        #logger.info(f"take_snapshot diff \n{diff}")
+        #logger.info(f"take_snapshot diff \n{self.df_report}")
 
         self.shapshot_history.append(self.df_report)
         if len(self.shapshot_history)>=2:
@@ -87,7 +87,7 @@ class ReportManager:
             full_dict = {
                 symbol: {
                     col: self.py_value(self.df_report.loc[symbol, col])
-                    for col in ["rank","rank_delta","gain","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+                    for col in ["rank","rank_delta","gain","last", "day_volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
                 }
                 for symbol in self.df_report.index
             }
@@ -99,7 +99,7 @@ class ReportManager:
             })
             
     def make_diff1(self, current, old):
-        cols = ["rank","rank_delta","gain","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+        cols = ["rank","rank_delta","gain","last", "day_volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
 
         #logger.info(f"current \n{current}")
         #logger.info(f"old \n{old}")
@@ -121,7 +121,7 @@ class ReportManager:
     
     def make_diff(self, current: pd.DataFrame, old: pd.DataFrame):
         cols = [
-            "rank","rank_delta","gain","last","volume",
+            "rank","rank_delta","gain","last","day_volume",
             "avg_base_volume_1d","float","rel_vol_24",
             "rel_vol_5m","gap"
         ]
@@ -188,7 +188,7 @@ class ReportManager:
             #           
             df_1d = self.db.dataframe("1d")
             #df_df_1d5m = df_1d.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
-            logger.info(f"df_1d \n{df_1d}")
+            #logger.info(f"df_1d \n{df_1d}")
 
 
             mean_base_volume_1d = (
@@ -210,7 +210,7 @@ class ReportManager:
             #df_1d["date"] = pd.to_datetime(df_1d["timestamp"], unit="ms", utc=True).dt.date
             #logger.info(f"df_1m \n{df_1m.to_string(index=False)}")
          
-            df = df_tickers.copy()#self.get_last(df_1m)#.drop(columns=["quote_volume"])
+            df = df_tickers[["symbol","last_close","last","gain","ask","bid","day_volume","ts"]].copy()#self.get_last(df_1m)#.drop(columns=["quote_volume"])
 
             #logger.info(f"df \n{df.to_string(index=False)}")
 

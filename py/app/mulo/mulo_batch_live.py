@@ -44,6 +44,7 @@ from mulo.mulo_job import MuloJob
 from mulo.mulo_scanner import Scanner
 
 intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
+#intervals = [10]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
 use_yahoo=False
@@ -315,15 +316,20 @@ class LiveManager:
                 else:
                     ts = ticker.time.timestamp()
 
+                Ticker
                 # Update history
                 if symbol not in self.ticker_history:
-                    self.ticker_history[symbol] = deque()
-                self.ticker_history[symbol].append((ts, ticker.last, ticker.volume))
-                # Remove old entries older than 5 minutes
-                while self.ticker_history[symbol] and self.ticker_history[symbol][0][0] < ts - 300:
-                    self.ticker_history[symbol].popleft()
+                    self.ticker_history[symbol] = {}
 
-                #logger.info(f" onTicker{ticker}")
+                history = self.ticker_history[symbol] 
+
+                #self.ticker_history[symbol].append((ts, ticker.last, ticker.volume))
+                # Remove old entries older than 5 minutes
+                #while self.ticker_history[symbol] and self.ticker_history[symbol][0][0] < ts - 300:
+                #    self.ticker_history[symbol].popleft()
+
+                #if symbol =="USAR":
+                #    logger.info(f" onTicker{ticker.volume}")
 
                 ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
                 hls=None
@@ -344,54 +350,128 @@ class LiveManager:
 
                     # Compute OHLC for each interval
                     hls = []
-                    toSend=True
+           
                     for interval in intervals:
+                        
+                        if interval not in history:
+                            history[interval]= None
+
                         start = ts - (ts % interval)
                         start_time = datetime.fromtimestamp(start).strftime("%H:%M:%S")
 
-                        prices = [p for t, p, v in self.ticker_history[symbol] if t >= start]
-                        volumes = [v for t, p, v in self.ticker_history[symbol] if t >= start]
+                        candle = history[interval]
                         
-                        remaining = interval - (ts % interval)
-                        time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
-                        
-                        vol_diff = volumes[-1] - volumes[0] if len(volumes) >= 2 else 0#(volumes[0] if volumes else 0)
-                        if not use_yahoo: 
-                            vol_diff=vol_diff*100
-                        if prices:
-                            open_p = prices[0]
-                            close_p = prices[-1]
-                            high = max(prices)
-                            low = min(prices)
-                            data = {"s":symbol, "tf":interval,  "o":open_p,"c":close_p,"h":high,"l":low, "v":vol_diff, "ts":int(start)*1000, "dts":start_time  }
+ 
+                        # ===== NUOVA CANDELA =====
+                        if candle is None or candle["start"] != start:
+                            if candle is not None:  # se esisteva, va inviata
+                                #logger.info("send")
+                                # send
+                                data = {
+                                    "s": symbol,
+                                    "tf": interval,
+                                    "o": candle["open"],
+                                    "c": candle["close"],
+                                    "h": candle["high"],
+                                    "l": candle["low"],
+                                    "v": candle["volume"] if use_yahoo else  candle["volume"] * 100,
+                                    "ts": int(candle["start"]) * 1000,
+                                    "dts": start_time,
+                                    "bid": ticker.bid,
+                                    "ask": ticker.ask,
+                                    "day_v": ticker.volume if use_yahoo else ticker.volume * 100
+                                }
 
-                            pack = f"o:{open_p:.2f} h:{high:.2f} l:{low:.2f} c:{close_p:.2f} v:{vol_diff:.0f} ({start_time}, {time_str})"
-                        else:
-                            pack = f"- ({start_time}, {time_str})"
-
-                        key = symbol+str(interval)
-
-                        if prices:
-                            if key in self.live_send_key:
-                                toSend = self.live_send_key[key] != pack
-
-                            if toSend:
-                                self.live_send_key[key]=pack
-
-                                data["bid"]=ticker.bid
-                                data["ask"]=ticker.ask  
-                                if not use_yahoo: 
-                                    data["day_v"]=ticker.volume*100
-                                else:
-                                    data["day_v"]=ticker.volume
-                                #logger.info(f"SEND {data}")
-                                # TO DB
                                 await self.fetcher.db_updateTicker(data)
-                                # TO WS
+
                                 if self.ws_manager:
                                     await self.ws_manager.broadcast(data)
+                                ###
+
+                            candle = {
+                                "start": start,
+                                "open": ticker.last,
+                                "high": ticker.last,
+                                "low": ticker.last,
+                                "close": ticker.last,
+                                "volume": 0,
+                                "last_volume": ticker.volume
+                            }
+
+                            history[interval] = candle
+                            
+                        # ===== AGGIORNA CANDELA CORRENTE =====
+                        else:
+                             # check ticker changed
+                            
+                            
+                            candle["high"] = max(candle["high"], ticker.last)
+                            candle["low"] = min(candle["low"], ticker.last)
+
+                            #vol_diff = ticker.volume - candle["last_volume"]
+                            candle["volume"]  = ticker.volume - candle["last_volume"] 
+                            candle["close"] = ticker.last
+
+                            data = {
+                                    "s": symbol,
+                                    "tf": interval,
+                                    "o": candle["open"],
+                                    "c": candle["close"],
+                                    "h": candle["high"],
+                                    "l": candle["low"],
+                                    "v": candle["volume"] if use_yahoo else  candle["volume"] * 100,
+                                    "ts": int(candle["start"]) * 1000,
+                                    "dts": start_time,
+                                    "bid": ticker.bid,
+                                    "ask": ticker.ask,
+                                    "day_v": ticker.volume if use_yahoo else ticker.volume * 100
+                                }
+
+                         
+                            if self.ws_manager:
+                                    await self.ws_manager.broadcast(data)
+
+                            '''
+                            if ( candle["close"]  != ticker.last):
+                                if self.ws_manager:
+                                    await self.ws_manager.broadcast({"ticker" : symbol, 
+                                                                     "last":ticker.last,
+                                                                     "ask": ticker.ask,
+                                                                     "bid": ticker.bid,
+                                                                     "open": candle["open"],
+                                                                     "high":  candle["high"],
+                                                                     "low":  candle["low"] ,
+                                                                     "close": ticker.last,
+                                                                     "vwap" : ticker.vwap,
+                                                                     "v" :   candle["volume"] if use_yahoo else  candle["volume"] * 100,
+                                                                     "day_v":  ticker.volume if use_yahoo else  ticker.volume * 100,
+                                                                     "ts" : ticker.time.timestamp()})    
+
+                            #candle["volume"] += max(vol_diff, 0)
+                            #candle["last_volume"] = ticker.volume
+                            candle["close"] = ticker.last
+                            '''
+
+
+
+                        remaining = interval - (ts % interval)
+                        time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
+
+                        
+                        pack = (
+                            f"o:{candle['open']:.2f} "
+                            f"h:{candle['high']:.2f} "
+                            f"l:{candle['low']:.2f} "
+                            f"c:{candle['close']:.2f} "
+                            f"v:{candle['volume']:.0f} "
+                            f"({start_time}, {time_str})"
+                        )
+
+                        #logger.info(f"candle t:{start_time} l:{ticker.last} v:{ticker.volume} --> {pack}")
 
                         hls.append(pack)
+
+                  
 
                 data = sanitize(data)
                 #data.append({"symbol": symbol, "last": ticker.last, "bid": ticker.bid, "ask": ticker.ask, "low": ticker.low, "high": ticker.high, "volume": ticker.volume*100, "ts": ticker.time.timestamp()})

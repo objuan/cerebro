@@ -194,19 +194,19 @@ class OrderManager:
             )
 
     async def onNewOrder(self,trade:Trade):
-       await self.addOrder(self,trade, "NEW")
+       await self.addOrder(trade, "NEW")
 
     async def onOrderModify(self,trade:Trade):
-      await self.addOrder(self,trade, "MODIFY")
+      await self.addOrder(trade, "MODIFY")
 
     async def onCancelOrder(self,trade:Trade):
-       await self.addOrder(self,trade, "CANCEL")
+       await self.addOrder(trade, "CANCEL")
 
     async def onOpenOrder(self,trade:Trade):
-       await self.addOrder(self,trade, "OPEN")
+       await self.addOrder(trade, "OPEN")
 
     async def onOrderStatus(self,trade:Trade):
-       await self.addOrder(self,trade, "STATUS")
+       await self.addOrder(trade, "STATUS")
 
     ###########
 

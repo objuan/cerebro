@@ -145,7 +145,7 @@ class EventManager:
                 # Espandiamo le altre colonne
                 **{
                     col: self.py_value(df.loc[symbol, col])
-                    for col in ["rank","gain","last", "volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap","ts"]
+                    for col in ["rank","gain","last", "day_volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap","ts"]
                 }
             }
             for symbol in df.index
