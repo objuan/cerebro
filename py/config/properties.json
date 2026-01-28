@@ -8,48 +8,34 @@
     "USD": 1000
   },
   "home": {
-    "grid": "1,1"
+    "grid": "1_1"
   },
   "chart": {
     "1": {
-      "grid": "1,1",
-      "symbol": "MBAI",
-      "1": {
-        "timeframe": "30s"
-      },
-      "2": {
-        "timeframe": "10s"
-      },
-      "4": {
-        "timeframe": "10s"
-      },
-      "3": {
-        "timeframe": "1d"
-      },
+      "grid": "2_2",
+      "symbol": "GITS",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
-        "30s": "vwap"
-      }
-    },
-    "2": {
-      "grid": "1,2",
-      "symbol": "MOVE",
-      "2": {
-        "timeframe": "5m"
-      },
-      "1": {
-        "timeframe": "1d"
-      },
-      "indicator": {
+        "30s": "vwap",
         "5m": ""
+      },
+      "1_1": {
+        "1": {
+          "timeframe": "5m"
+        }
+      },
+      "2_2": {
+        "1": {
+          "timeframe": "5m"
+        },
+        "4": {
+          "timeframe": "10s"
+        },
+        "3": {
+          "timeframe": "1d"
+        }
       }
-    },
-    "4": {
-      "grid": "1,1"
-    },
-    "3": {
-      "grid": "1,1"
     }
   }
 }

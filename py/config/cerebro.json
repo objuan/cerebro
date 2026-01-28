@@ -40,7 +40,22 @@
 	},
 	"events":{
 		
+		"stategies":[
+			{
+				"name": "GAIN_5",
+				"time": 60,
+				"code" : "process_gain",
+				"args" : [300,5]
+			},
+			{
+				"name": "GAIN_1",
+				"time": 10,
+				"code" : "process_gain",
+				"args" : [10,0.01]
+			}
+		],
 		"GAIN_5_MIN" : 5,
+		"GAIN_5_MIN_TIMER" : 60,
 
 		"FLOAT_TIME_SECS" : 3000,
 		"LF_MAX_FLOAT" : 5000000,  
@@ -48,17 +63,20 @@
         "LF_MIN_GAIN" : 10,
 		"_LF_IN_REL_VOL" :"Almeno il doppio della media",
         "LF_IN_REL_VOL" : 2.0 ,
+		"LF_TIMER": 20,
                     
         "MF_MIN_FLOAT" :  5000001,
-        "MF_MAX_FLOAT" : 50000000,
+        "MF_MAX_FLOAT" : 20000000,
 		"_MF_MAX_PRICE" :  "Prezzo ancora sotto il 20%",
         "MF_MAX_PRICE" : 20,
 		"_MF_MIN_REL_VOL" : "Volume molto alto (High Rel Vol)",
         "MF_MIN_REL_VOL" : 5.0 ,
+		"MF_TIMER": 30,
 
 		"-MOMO_MIN_REL_VOL_24": "# Molto volume nelle ultime 24h",
 		"MOMO_MIN_REL_VOL_24" : 3.0 ,
-        "MOMO_MIN_GAIN": 5.0
+        "MOMO_MIN_GAIN": 5.0,
+		"MOMO_TIMER": 10
 	},
 	"live_service":
 	{
@@ -71,12 +89,12 @@
 				"fetch_enabled" : true,
 				"mode" : "live",
 				"mode1" : "live|offline|sym",
-				"debug_symbols" : ["NVDA"],
+				"debug_symbols" : ["XTKG"],
 				"start_scan" : "live",
 				"start_scan1" : "keep_last_session|debug|live",
 				"scheduler":[
 					{
-						"name" : "TOP_PERC_GAIN",
+						"name" : "TOP_PERC_GAIN SMALL",
 						"update_time" : 600,
 						"live_mode" : "ADD"
 					}
@@ -84,19 +102,36 @@
 				"profiles": 
 				[
 					{
-						"name" : "TOP_PERC_GAIN",
+						"name" : "TOP_PERC_GAIN > 1B$",
 						"instrument": "STK",
-						"location": "STK.NASDAQ",
+						"location": "STK.US.MAJOR",
 						"type": "TOP_PERC_GAIN",
 						"type22": "HIGH_PRICE|MOST_ACTIVE|HIGH_OPEN_GAP|TOP_PERC_GAIN",
 						
 						"filter": 
 						{
-							"abovePrice": 1,
-							"belowPrice": 10000,
+							"abovePrice": 0.5,
+							"belowPrice": 5,
 							"aboveVolume": 10,
-							"usdVolumeBelow": 10,
 							"marketCapAbove" : 1000
+							
+						}
+					},
+					{
+						"name" : "TOP_PERC_GAIN SMALL",
+						"instrument": "STK",
+						"location": "STK.US.MAJOR",
+						"type": "TOP_PERC_GAIN",
+						"type22": "HIGH_PRICE|MOST_ACTIVE|HIGH_OPEN_GAP|TOP_PERC_GAIN",
+						
+						"filter": 
+						{
+							"abovePrice": 0.5,
+							"belowPrice": 2,
+							"aboveVolume": 10,
+		
+							"marketCapAbove" : 10
+						
 						}
 					},
 					{

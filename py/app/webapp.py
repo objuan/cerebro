@@ -92,7 +92,6 @@ with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     config = json.load(f)
 config = convert_json(config)
 
-orderManager = OrderManager(config)
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s")
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
@@ -127,6 +126,8 @@ Balance.ws = ws_manager_orders
 propManager = PropertyManager()
 
 client = MuloLiveClient(DB_FILE,config,propManager)
+
+orderManager = OrderManager(config,client)
 
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
 if sys.platform == 'win32':
@@ -928,17 +929,20 @@ async def account_positions():
 
 @app.get("/trade/history")
 def trade_history(symbol: str):
-    pos = Balance.get_position(symbol)
-    if pos:
-        
 
-    #logger.info(f"READ TRADE MARKER {symbol} {timeframe} -> {df} ")    
-    
-    if df.empty:
-        return JSONResponse({})
-    else:
-        return JSONResponse(df.iloc[0].to_dict())
-    
+    list = []
+    trades = orderManager.getTradeHistory(symbol)
+    for trade in trades:
+        #logger.info(f"trade {trade.to_dict()}")
+        list.append(trade.to_dict())
+
+    return list
+
+@app.get("/trade/last")
+def trade_history(symbol: str):
+
+
+    return orderManager.getLastTrade(symbol)
 ###############################
 
 @app.get("/monitor/open")

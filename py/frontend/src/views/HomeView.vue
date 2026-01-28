@@ -56,7 +56,7 @@
             <ReportPanel ></ReportPanel>
         </SidePanel>
 
-         <SidePanel title="Events" ref ="eventsRef" width="800px">
+         <SidePanel title="Events" ref ="eventsRef" width="1000px">
             <ReportPanel mode="event" ></ReportPanel>
          </SidePanel>
 
@@ -184,7 +184,7 @@ function setGrid(r, c) {
 
   cells.value = newCells
   
-  send_post('/api/props/save', { path: 'home.grid', value: `${r},${c}` });
+  send_post('/api/props/save', { path: 'home.grid', value: `${r}_${c}` });
 
   nextTick(resizeAllCharts)
 }
@@ -237,9 +237,9 @@ const initWebSocket_mulo = () => {
           eventBus.emit("update-position", msg);
           break
         case "POSITION_TRADE":
-          console.log("POSITION_TRADE",msg)
+          //console.log("POSITION_TRADE",msg)
           //portfolioRef.value?.handleMessage(msg);
-          eventBus.emit("trade-position", msg);
+          eventBus.emit("trade-position", msg.data);
           break
 
         case "ORDER":
@@ -406,7 +406,7 @@ onMounted(() => {
         if (grid!="")
         {
             //console.log("home.grid", grid)
-            const [r, c] = grid.split(",").map(Number);
+            const [r, c] = grid.split("_").map(Number);
             setGrid(r,c)
         }
         

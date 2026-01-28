@@ -67,7 +67,10 @@ class MuloLiveClient:
         try:
             uri = "ws://localhost:3000/ws/tickers"
                 
-            async with websockets.connect(uri) as websocket:
+            async with websockets.connect(uri,
+                        ping_interval=30,
+                        ping_timeout=60,
+                        close_timeout=10,) as websocket:
                 logger.info(f"Connesso a {uri}")
                 
                 # Invia un messaggio al server

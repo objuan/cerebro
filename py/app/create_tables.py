@@ -153,6 +153,7 @@ cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     trade_id TEXT,
     symbol TEXT,
+    side TEXT,
     status TEXT, 
     event_type TEXT,
     data TEXT,
@@ -199,7 +200,7 @@ CREATE TABLE IF NOT EXISTS chart_indicator (
 """)
 
 cur.execute("""
-CREATE UNIQUE INDEX idx_chart_indicator_name
+CREATE UNIQUE INDEX  IF NOT EXISTS  idx_chart_indicator_name
 ON chart_indicator(name);
 """)
 

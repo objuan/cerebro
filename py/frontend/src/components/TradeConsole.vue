@@ -36,26 +36,27 @@
         
      <div class="ms-auto d-flex align-items-center gap-2">
        
-      <!-- -->
+      <!--TRADE LAST -->
       <div v-if="lastTrade" class="position-badge">
-        <b style="color:red">{{ lastTrade.symbol }}</b>
+        <b style="color:blue">{{ lastTrade.symbol }}</b>
 
-        <span>
-          BUY: {{ formatTime(lastTrade.entry_time) }}
-          {{ lastTrade.entry_size }}@{{ lastTrade.entry_price }}
-        </span>
-
-        <!-- Mostrati SOLO se non null -->
-        <span v-if="lastTrade.exit_time != null">
-          → SELL: {{ formatTime(lastTrade.exit_time) }}
-          @ {{ lastTrade.exit_price }}
-        </span>
-
-        <span 
-          v-if="lastTrade.pnl != null"
-          :style="{ color: lastTrade.pnl >= 0 ? 'lime' : 'red' }"
+        <span
+          v-for="(fill, i) in lastTrade.list"
+          :key="i"
+          style="margin-left:8px"
         >
-          PnL: {{ lastTrade.pnl.toFixed(2) }}
+          <span :style="{ color: fill.side === 'BUY' ? 'lime' : 'red' }">
+            {{ fill.side }}
+          </span>
+          {{ formatTime(fill.time) }}
+          {{ fill.size }}@{{ fill.price }}
+        </span>
+
+        <span
+          v-if="lastTrade.pnl != null"
+          :style="{ color: lastTrade.pnl >= 0 ? 'lime' : 'red', marginLeft: '8px' }"
+        >
+          | PnL: {{ lastTrade.pnl.toFixed(2) }}
         </span>
       </div>
 
@@ -63,25 +64,34 @@
         {{symbol}} {{ position }}
       </div>
 
-      <!-- ALL TOOLTIP  -->
+      <!-- TRADE ALL TOOLTIP  -->
       <div v-if="showAll" class="trades-popup">
-        <div 
-          v-for="(t, i) in tradeList.slice().reverse()" 
-          :key="i"
-          class="trade-row"
+        <div
+          v-for="(trade, ti) in tradeList.slice().reverse()"
+          :key="ti"
+          class="trade-block"
         >
-          BUY {{ formatTime(t.entry_time) }} @ {{ t.entry_price }}
+          <div class="trade-header">
+            {{ trade.symbol }}
+            <span
+              v-if="trade.pnl != null"
+              :style="{ color: trade.pnl >= 0 ? 'lime' : 'red' }"
+            >
+              | PnL: {{ trade.pnl.toFixed(2) }}
+            </span>
+          </div>
 
-          <template v-if="t.exit_time != null">
-            → SELL: {{ formatTime(t.exit_time) }} @ {{ t.exit_price }}
-          </template>
-
-          <span 
-            v-if="t.pnl != null"
-            :style="{ color: t.pnl >= 0 ? 'lime' : 'red' }"
+          <div
+            v-for="(fill, fi) in trade.list"
+            :key="fi"
+            class="trade-row"
           >
-            | PnL: {{ t.pnl.toFixed(2) }}
-          </span>
+            {{ fill.side }}
+            {{ formatTime(fill.time) }}
+            @ {{ fill.price }}
+            x {{ fill.size }}
+          </div>
+
         </div>
       </div>
 
@@ -159,12 +169,13 @@ function toggleTrades() {
   showAll.value = !showAll.value
 }
 
-function formatTime(ms) {
-  return new Date(ms).toLocaleTimeString('it-IT', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
+function formatTime(unixSeconds) {
+   const date = new Date(unixSeconds * 1000);
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  const ss = String(date.getSeconds()).padStart(2, '0');
+
+  return `${hh}:${mm}:${ss}`;
 }
 function send_limit_order(){
   order_limit(props.symbol,quantity.value)
@@ -276,12 +287,14 @@ function onPositionUpdated(msg){
 }
 
 function onTradeUpdated(msg){
- //  console.log("..",props.symbol,msg.data)
- if (msg.data.symbol === props.symbol)
+   console.log("onTradeUpdated ",props.symbol,msg)
+  
+ if (msg.symbol === props.symbol)
    {
     // console.log("...",msg.data)
-      tradeList.value.push(msg.data)
+      tradeList.value.push(msg)
   }
+      
 }
 
 onMounted( async () => {
@@ -298,6 +311,11 @@ onMounted( async () => {
         onPositionUpdated(val);
   });
 
+  let trade_list = await send_get('/trade/history',{'symbol': props.symbol})
+  trade_list.forEach(  (t) =>{
+     onTradeUpdated(t)
+  });
+
 });
 
 onBeforeUnmount(() => {
@@ -309,6 +327,26 @@ onBeforeUnmount(() => {
   eventBus.off("trade-position", onTradeUpdated);
 });
 
+// ========================
+watch(
+  () => props.symbol,
+  async () => {
+   // console.log('symbol cambiato:', oldVal, '→', newVal)
+    // qui fai quello che ti serve
+    tradeList.value=[]
+    let trade_list = await send_get('/trade/history',{'symbol': props.symbol})
+    trade_list.forEach(  (t) =>{
+      onTradeUpdated(t)
+    });
+
+      let pos_list = await send_get('/account/positions')
+      pos_list.forEach(  (val) =>{
+            val["type"] = "POSITION"
+            onPositionUpdated(val);
+      });
+
+  }
+)
 
 // sync STORE → SELECT
 

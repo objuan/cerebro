@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import HTTPException
 from ib_insync import *
 import asyncio
@@ -11,7 +12,7 @@ import sqlite3
 from config import DB_FILE,CONFIG_FILE
 from utils import convert_json
 from renderpage import WSManager
-from balance import Balance
+from balance import Balance, PositionTrade
 import traceback
 from decimal import Decimal, ROUND_DOWN
 
@@ -124,6 +125,8 @@ def get_trades(symbol = None,onlyActive = False):
             
         return filtered_trades
     
+##########################
+
 class OrderManager:
 
     ib=None
@@ -133,8 +136,9 @@ class OrderManager:
     tick_cache = {}
     
 
-    def __init__(self,config):
+    def __init__(self,config,client):
         self.config=config
+        self.client=client
         self.lastError="" 
         self.sym_mode = config["live_service"]["mode"] =="sym"
         
@@ -170,6 +174,73 @@ class OrderManager:
             self.ib.errorEvent += onError
         pass 
 
+    #############
+
+    def rebuild_trades(self,df)-> List[PositionTrade]:
+        trades = []
+        current = None
+
+        # scorri dall'ultima riga alla prima
+        for row in df.iloc[::-1].itertuples(index=False):
+            symbol = row.symbol
+            side = row.side
+            data = json.loads(row.data)
+            logger.info(f"row {data}")
+            price = data["avgFillPrice"]
+            size = data["totalQuantity"]
+
+            time = data["log"][-1]["time"]
+            dt = datetime.fromisoformat(time)
+            unix_time = dt.timestamp()
+
+            logger.info(f"unix_time {unix_time}")
+          
+            if side == "BUY":
+                if current is None:
+                    current = PositionTrade(symbol)
+                    trades.append(current)
+                current.appendBuy(price, size, unix_time)
+
+            elif side == "SELL":
+                if current is not None:
+                    current.appendSell(price, size, unix_time)
+                    if current.isClosed:
+                        current = None
+
+        return trades
+
+    def getTradeHistory(self,symbol)-> List[PositionTrade]:
+        
+        df = self.client.get_df(f"""
+                select distinct symbol,side,data from ib_orders 
+                WHERE SYMBOL = '{symbol}' AND status = 'Filled' AND event_type = 'STATUS'
+                order by id desc 
+                LIMIT 10
+                """)
+        
+        trades = self.rebuild_trades(df)
+        
+        #PositionTrade
+
+        return trades
+
+    def getLastTrade(self,symbol)-> PositionTrade:
+        
+        df = self.client.get_df(f"""
+                select * from ib_orders 
+                WHERE SYMBOL = '{symbol}' AND status = 'Filled' AND event_type = 'STATUS'
+                order by id desc 
+                LIMIT 5
+                """)
+        
+        trades = self.rebuild_trades(df)
+        
+        #PositionTrade
+        if len(trades)>0:
+            return trades[-1]
+        else:
+            return None
+
     #####################
 
 
@@ -179,11 +250,11 @@ class OrderManager:
             return
         
         data =  trade_to_dict(trade)
-
+        action = data["action"]
         ser = json.dumps(data)
-        cur.execute('''INSERT INTO ib_orders (trade_id, symbol, status, event_type, data)
-                    VALUES (?, ?, ?, ?, ?)''',
-                (trade.order.permId, trade.contract.symbol, trade.orderStatus.status,type,ser))
+        cur.execute('''INSERT INTO ib_orders (trade_id, symbol, side,status, event_type, data)
+                    VALUES (?, ?, ?, ?, ?,?)''',
+                (trade.order.permId, trade.contract.symbol,action, trade.orderStatus.status,type,ser))
         
         if self.ws:
             #data["type"] = "ORDER"
@@ -192,6 +263,13 @@ class OrderManager:
                 {"type": "ORDER", "trade_id": trade.order.permId, "symbol":trade.contract.symbol,
                  "status" :trade.orderStatus.status,"event_type":type,   "data" : data ,"timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
             )
+
+            #if action =="BUY":
+            #    msg = {"type": "POSITION_TRADE", "data" : {} }
+            #    await self.ws.broadcast(msg)
+            if action =="SELL" and trade.orderStatus.status =="Filled" and type=="STATUS":
+                msg = {"type": "POSITION_TRADE", "data" : self.getLastTrade(trade.contract.symbol).to_dict() }
+                await self.ws.broadcast(msg)
 
     async def onNewOrder(self,trade:Trade):
        await self.addOrder(trade, "NEW")

@@ -237,6 +237,15 @@ def floor_ts(ts_ms, sec):
     # ritorna in ms
     return (ts_ms // (sec*1000)) * (sec*1000)
 
+def find_method(cls, method_name):
+    if hasattr(cls, method_name):
+        attr = getattr(cls, method_name)
+        if callable(attr):
+            return attr
+    return None
+
+def find_method_local(cls, method_name):
+    return cls.__dict__.get(method_name)
 
 class MyEvent:
     def __init__(self):

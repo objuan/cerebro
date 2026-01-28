@@ -182,95 +182,107 @@ class MuloJob:
 
             logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
             
-            dt_start =  datetime.fromtimestamp(float(since)/1000)
+            #dt_start =  datetime.fromtimestamp(float(since)/1000)
 
             exchange = self.get_exchange(symbol)
-        
-            batch_count = 500
-            i = 0
-            while ( True):
-                i=i+1
 
-                #logger.info(f"{i} ASK  {dt_start}")
+            if timeframe == "1m":
+                dt_end = datetime.utcnow()
+                dt_start = dt_end - timedelta(days=6)
+                logger.info(f">> Fetching LAST WEEK only for 1m {symbol} {dt_start} -> {dt_end}")
 
-                ###########
                 df = yf.download(
                     tickers=symbol,
                     start=dt_start.strftime("%Y-%m-%d"),
-                    #period="1d",
-                    interval=timeframe,
+                    interval="1m",
                     auto_adjust=False,
                     progress=False,
                 )
-                df = df.reset_index()
-                df.columns = [
-                    c[0] if isinstance(c, tuple) else c
-                    for c in df.columns
-                ]
-                #logger.debug(df.head())      
-                dateName = "Date"
-                if not dateName in df.columns:
-                    dateName ="Datetime"
+
+                await self.process_data(exchange,symbol, timeframe, cursor, df)
+
+            else:
+
+                MAX_WINDOW = timedelta(days=7)
+
+                dt_cursor = datetime.fromtimestamp(float(since) / 1000)
+                dt_now = datetime.utcnow()
+
+                batch_count = 500
+                i = 0
+                while dt_cursor < dt_now:
+
+                    dt_end = min(dt_cursor + MAX_WINDOW, dt_now)
+
+                    logger.info(
+                        f"Fetching {timeframe} chunk {symbol} {dt_cursor} -> {dt_end}"
+                    )
+
+                    df = yf.download(
+                        tickers=symbol,
+                        start=dt_cursor.strftime("%Y-%m-%d"),
+                        end=dt_end.strftime("%Y-%m-%d"),
+                        interval=timeframe,
+                        auto_adjust=False,
+                        progress=False,
+                    )
+
+                    if not await self.process_data(exchange,symbol, timeframe, cursor, df):
+                        break
+
+                    # AVANZA IL CURSORE DI 7 GIORNI
+                    dt_cursor = dt_end - timedelta(hours=1)
+
+        except:
+            logger.error("ERROR", exc_info=True)
+
+    ########
+
+    async def process_data(self,exchange,symbol,timeframe,cursor,df):
                 
+                if df.empty:
+                    logger.info("No data returned, stopping.")
+                    return False
+
+                df = df.reset_index()
+                df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
+
+                dateName = "Date" if "Date" in df.columns else "Datetime"
                 df[dateName] = df[dateName].astype("int64") // 10**9
 
-                #logger.debug(df.head())      
-                # 3. Converti i dati in un formato leggibile (List of Dicts)
-                # util.df(bars) creerebbe un DataFrame, ma per JSON usiamo una lista
-                ohlcv =  [
-                    (b[0]*1000, b.Open, b.High, b.Low, b.Close, b.Volume)
-                        for b in df.itertuples(index=False)
+                ohlcv = [
+                    (b[0] * 1000, b.Open, b.High, b.Low, b.Close, b.Volume)
+                    for b in df.itertuples(index=False)
                 ]
 
-                # lì'ultima è parsiale
+                # ultima candela parziale
                 ohlcv = ohlcv[:-1]
-                #print(data)
 
-                ################
+                logger.info(f"Rows fetched: {len(ohlcv)}")
 
-                logger.info(f"{i} Find rows # {len(ohlcv)}")
-                if len(ohlcv) <1:
-                    break
+                if not ohlcv:
+                    return False
 
-                last = ohlcv[-1]
-                since = last[0] + 1
-                #logger.info(f"last # {last}")
-
-                for o in ohlcv:
-                    ts, open_, high, low, close, vol = o
-
-                    #if symbol == "USAR":
-                    #    logger.info(f"add {exchange} {symbol} {timeframe} {ts}")
+                for ts, open_, high, low, close, vol in ohlcv:
                     cursor.execute("""
-                INSERT INTO ib_ohlc_history (
-                        exchange,
-                        symbol,
-                        timeframe,
-                        timestamp,
-                        open,
-                        high,
-                        low,
-                        close,
-                        base_volume,
-                        quote_volume,
-                        source,
-                        updated_at,
-                        ds_updated_at
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(exchange, symbol, timeframe, timestamp)
-                    DO UPDATE SET
-                        open = excluded.open,
-                        high = excluded.high,
-                        low = excluded.low,
-                        close = excluded.close,
-                        base_volume = excluded.base_volume,
-                        quote_volume = excluded.quote_volume,
-                        source = excluded.source,
-                        updated_at = excluded.updated_at,
-                        ds_updated_at = excluded.ds_updated_at
-                    
-                                
+                        INSERT INTO ib_ohlc_history (
+                            exchange, symbol, timeframe, timestamp,
+                            open, high, low, close,
+                            base_volume, quote_volume,
+                            source, updated_at, ds_updated_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(exchange, symbol, timeframe, timestamp)
+                        DO UPDATE SET
+                            open = excluded.open,
+                            high = excluded.high,
+                            low = excluded.low,
+                            close = excluded.close,
+                            base_volume = excluded.base_volume,
+                            quote_volume = excluded.quote_volume,
+                            source = excluded.source,
+                            updated_at = excluded.updated_at,
+                            ds_updated_at = excluded.ds_updated_at
                     """, (
                         exchange,
                         symbol,
@@ -286,12 +298,9 @@ class MuloJob:
                         int(time.time() * 1000),
                         datetime.utcnow().isoformat()
                     ))
-        
-                    
-                    cursor.commit()
-                break
-        except:
-            logger.error("ERROR", exc_info=True)
+
+                cursor.commit()
+                return True
 
     async def _align_data(self, symbol, timeframe):
         if not self.historyActive:

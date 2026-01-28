@@ -43,6 +43,16 @@ class TickerHistory:
         else:
             return None
 
+#########################
+class Strategy:
+    name:str
+    time:int
+    args : List
+    handler:None
+
+    def __str__(self):
+        return f"{self.name} t:{self.time} handler:{self.handler} args:{self.args}"
+
 class EventManager:
 
     def __init__(self, config,report:ReportManager):
@@ -52,25 +62,73 @@ class EventManager:
 
         self.FLOAT_TIME_SECS = config["events"]["FLOAT_TIME_SECS"]
         self.GAIN_5_MIN = config["events"]["GAIN_5_MIN"]
+        self.GAIN_5_MIN_TIMER =           config["events"]["GAIN_5_MIN_TIMER"]
 
         self.LF_MAX_FLOAT =  config["events"]["LF_MAX_FLOAT"]  # Esempio: Max 5 milioni di azioni (molto basso)
         self.LF_MIN_GAIN =  config["events"]["LF_MIN_GAIN"]        # Gain minimo del 10% per trigger
         self.LF_IN_REL_VOL =  config["events"]["LF_IN_REL_VOL"]      # Almeno il doppio della media
-                    
+        self.LF_TIMER =           config["events"]["LF_TIMER"]
+
         self.MF_MIN_FLOAT =  config["events"]["MF_MIN_FLOAT"]
         self.MF_MAX_FLOAT =  config["events"]["MF_MAX_FLOAT"]
         self.MF_MAX_PRICE =  config["events"]["MF_MAX_PRICE"]        # Prezzo ancora "sotto il 20%"
         self.MF_MIN_REL_VOL =  config["events"]["MF_MIN_REL_VOL"]      # Volume molto alto (High Rel Vol)
-
+        self.MF_TIMER =           config["events"]["MF_TIMER"]
         # 3. Former Momo Stock
         # Titoli che hanno volumi altissimi rispetto alla loro media storica
         # e mostrano un cambio di rank positivo (rank_delta)
         self.MOMO_MIN_REL_VOL_24 = config["events"]["MOMO_MIN_REL_VOL_24"] # Molto volume nelle ultime 24h
         self.MOMO_MIN_GAIN = config["events"]["MOMO_MIN_GAIN"]
+        self.MOMO_TIMER =           config["events"]["MOMO_TIMER"]
 
-        #logger.info(f"gain_5_min_thresold {self.gain_5_min_thresold}")
+        self.scheduler = AsyncScheduler()
+
+        async def _GAIN_5_MIN_TIMER():
+            #print("GAIN_5_MIN_TIMER")
+            await self.process_gain()
         
+            
+        #self.scheduler.schedule_every(self.GAIN_5_MIN_TIMER, _GAIN_5_MIN_TIMER)
+
+        async def _LF_TIMER():
+           # print("LF_TIMER")
+            await self.process_float("LF")
+           
+            
+        self.scheduler.schedule_every(self.LF_TIMER, _LF_TIMER)
+
+        async def _MF_TIMER():
+           # print("MF_TIMER")
+            await self.process_float("MF")
       
+            
+        self.scheduler.schedule_every(self.MF_TIMER, _MF_TIMER)
+
+        async def _MOMO_TIMER():
+           # print("MOMO_TIMER")
+            await self.process_float("MOMO")
+         
+            
+        self.scheduler.schedule_every(self.MOMO_TIMER, _MOMO_TIMER)
+        #logger.info(f"gain_5_min_thresold {self.gain_5_min_thresold}")
+
+        ############
+        self.strategies = []
+        for strat_def in config["events"]["stategies"]:
+
+            code =  strat_def["code"]
+
+            strat = Strategy()
+            self.strategies.append(strat)
+            strat.name= strat_def["name"]
+            strat.time= strat_def["time"]
+            strat.handler = find_method_local(EventManager,code)
+            strat.args= strat_def["args"]
+            logger.info(f"ADD STRAT {strat}")
+        
+            self.scheduler.schedule_every(strat.time, strat.handler,self, * strat.args)
+        
+
     async def bootstrap(self):
         symbols = await self.job.send_cmd("symbols")
         await self.on_update_symbols(symbols )
@@ -127,7 +185,7 @@ class EventManager:
 
     async def send_event(self, symbol, name, df):
             
-            #logger.info(f"SEND EVENT {name} \n{df}")
+            logger.info(f"SEND EVENT {name} \n{df}")
             '''
             full_dict = {
                 symbol: {
@@ -163,36 +221,55 @@ class EventManager:
             })
 
     async def tick(self,render_page):
-        
+        await self.scheduler.tick()
+
+
+    #################
+
+    async def process_gain(self,delta_time,gain_limit):
+        logger.info(f"process_gain d:{delta_time} g:{gain_limit}")
         try:
-            
-            
             for symbol,ticker_history in self.ticker_history_map.items():
                 last = ticker_history.popLast()
                 if not last:
                     continue
-
                 current_last = last["last"]
                 # 5min events
-
                 try:
                     df = self.report.getLastDF().loc[[symbol]]
                 except:
                     continue
 
-                prev_5m = ticker_history.take_prev(self.FLOAT_TIME_SECS)
+                prev = ticker_history.take_prev(delta_time)
+                
+                logger.info(f"CHECK  {symbol} {prev}")
 
-                if prev_5m:
-                    previous_last = prev_5m["last"]
+                if prev:
+                    previous_last = prev["last"]
 
                     ##### GAIN 5% in 5 min check
                     gain = ((current_last - previous_last) / previous_last) * 100
 
-                    logger.info(f"CHECK 5m {gain} ")
+                    logger.info(f"CHECK {symbol} {gain} > {gain_limit}")
 
-                    if gain > self.GAIN_5_MIN:
-                        await self.send_event(symbol,"Up 5% in 5Min", df)
+                    if gain > gain_limit:
+                        await self.send_event(symbol,f"Up {gain_limit}% in {delta_time} Min", df)
+        except:
+            logger.error("REPORT ERROR" , exc_info=True)
                 
+    async def process_float(self, mode ):
+
+        try:
+            for symbol,ticker_history in self.ticker_history_map.items():
+                last = ticker_history.popLast()
+                if not last:
+                    continue
+                current_last = last["last"]
+                try:
+                    df = self.report.getLastDF().loc[[symbol]]
+                except:
+                    continue
+
                 #
                 prev_float= ticker_history.take_prev(20)
 
@@ -218,19 +295,22 @@ class EventManager:
                         
                     # 3. Hunter Trigger: Prezzo + Volume + Float
                     #LF_MAX_FLOAT ??
-                    if gain >= self.LF_MIN_GAIN and rel_vol_5m >= self.LF_IN_REL_VOL:
+                    if mode == "LF":
+                        if gain >= self.LF_MIN_GAIN and rel_vol_5m >= self.LF_IN_REL_VOL:
                             await self.send_event(symbol,"Low Float Volatility", df)
                             #alert_volatility_hunter(symbol, row, gain)
 
                     # --- STRATEGIA B: MEDIUM FLOAT - HIGH REL VOL ---
-                    if self.MF_MIN_FLOAT <= current_float <= self.MF_MAX_FLOAT:
+                    if mode == "MF":
+                        if self.MF_MIN_FLOAT <= current_float <= self.MF_MAX_FLOAT:
                             # Condizione: High Rel Vol E Price under 20
                             if rel_vol_5m >= self.MF_MIN_REL_VOL and current_last < self.MF_MAX_PRICE:
                                  await self.send_event(symbol,"Medium Float-High Rel Vol E Price under 20$", df)
             
                     #--- STRATEGIA 3: FORMER MOMO STOCK ---
                     # Cerchiamo titoli con forte volume relativo giornaliero e segnale di risveglio (rank_delta > 0)
-                    if rel_vol_24 > self.MOMO_MIN_REL_VOL_24 and rank_delta >= 0:
+                    if mode == "MOMO":
+                        if rel_vol_24 > self.MOMO_MIN_REL_VOL_24 and rank_delta >= 0:
                             if gain >= self.MOMO_MIN_GAIN:
                                 await self.send_event(symbol,"FORMER MOMO REBORN", df)
 

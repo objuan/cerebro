@@ -48,7 +48,7 @@ intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
 use_yahoo=False
-use_display = False
+use_display = True
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -280,7 +280,7 @@ class LiveManager:
         symbols=[]
         for symbol, ticker  in self.tickers.items():
             #if (ticker.time  and  not math.isnan(ticker.last)) or self.run_mode=="offline":
-            if (ticker.time  ) or self.run_mode=="offline":
+            #if (ticker.time  ) or self.run_mode=="offline":
                 symbols.append(symbol)
 
         await self.fetcher.on_update_symbols(symbols,True)
@@ -404,53 +404,53 @@ class LiveManager:
                         else:
                              # check ticker changed
                             
+                            if  ticker.last !=  candle["close"]:
+                                candle["high"] = max(candle["high"], ticker.last)
+                                candle["low"] = min(candle["low"], ticker.last)
+
+                                #vol_diff = ticker.volume - candle["last_volume"]
+                                candle["volume"]  = ticker.volume - candle["last_volume"] 
+                                candle["close"] = ticker.last
+
+                                data = {
+                                        "s": symbol,
+                                        "tf": interval,
+                                        "o": candle["open"],
+                                        "c": candle["close"],
+                                        "h": candle["high"],
+                                        "l": candle["low"],
+                                        "v": candle["volume"] if use_yahoo else  candle["volume"] * 100,
+                                        "ts": int(candle["start"]) * 1000,
+                                        "dts": start_time,
+                                        "bid": ticker.bid,
+                                        "ask": ticker.ask,
+                                        "day_v": ticker.volume if use_yahoo else ticker.volume * 100
+                                    }
+
                             
-                            candle["high"] = max(candle["high"], ticker.last)
-                            candle["low"] = min(candle["low"], ticker.last)
-
-                            #vol_diff = ticker.volume - candle["last_volume"]
-                            candle["volume"]  = ticker.volume - candle["last_volume"] 
-                            candle["close"] = ticker.last
-
-                            data = {
-                                    "s": symbol,
-                                    "tf": interval,
-                                    "o": candle["open"],
-                                    "c": candle["close"],
-                                    "h": candle["high"],
-                                    "l": candle["low"],
-                                    "v": candle["volume"] if use_yahoo else  candle["volume"] * 100,
-                                    "ts": int(candle["start"]) * 1000,
-                                    "dts": start_time,
-                                    "bid": ticker.bid,
-                                    "ask": ticker.ask,
-                                    "day_v": ticker.volume if use_yahoo else ticker.volume * 100
-                                }
-
-                         
-                            if self.ws_manager:
-                                    await self.ws_manager.broadcast(data)
-
-                            '''
-                            if ( candle["close"]  != ticker.last):
                                 if self.ws_manager:
-                                    await self.ws_manager.broadcast({"ticker" : symbol, 
-                                                                     "last":ticker.last,
-                                                                     "ask": ticker.ask,
-                                                                     "bid": ticker.bid,
-                                                                     "open": candle["open"],
-                                                                     "high":  candle["high"],
-                                                                     "low":  candle["low"] ,
-                                                                     "close": ticker.last,
-                                                                     "vwap" : ticker.vwap,
-                                                                     "v" :   candle["volume"] if use_yahoo else  candle["volume"] * 100,
-                                                                     "day_v":  ticker.volume if use_yahoo else  ticker.volume * 100,
-                                                                     "ts" : ticker.time.timestamp()})    
+                                        await self.ws_manager.broadcast(data)
 
-                            #candle["volume"] += max(vol_diff, 0)
-                            #candle["last_volume"] = ticker.volume
-                            candle["close"] = ticker.last
-                            '''
+                                '''
+                                if ( candle["close"]  != ticker.last):
+                                    if self.ws_manager:
+                                        await self.ws_manager.broadcast({"ticker" : symbol, 
+                                                                        "last":ticker.last,
+                                                                        "ask": ticker.ask,
+                                                                        "bid": ticker.bid,
+                                                                        "open": candle["open"],
+                                                                        "high":  candle["high"],
+                                                                        "low":  candle["low"] ,
+                                                                        "close": ticker.last,
+                                                                        "vwap" : ticker.vwap,
+                                                                        "v" :   candle["volume"] if use_yahoo else  candle["volume"] * 100,
+                                                                        "day_v":  ticker.volume if use_yahoo else  ticker.volume * 100,
+                                                                        "ts" : ticker.time.timestamp()})    
+
+                                #candle["volume"] += max(vol_diff, 0)
+                                #candle["last_volume"] = ticker.volume
+                                candle["close"] = ticker.last
+                                '''
 
 
 
@@ -674,8 +674,7 @@ class LiveManager:
 
             symbols =  self.config["live_service"]["debug_symbols"]   
             filter = str(symbols)[1:-1]
-            df_symbols = self.fetcher.get_df(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})")
-                
+            df_symbols = self.fetcher.get_df(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})")   
             await self.updateLive(df_symbols )
         else:
             if  start_scan== "keep_last_session":

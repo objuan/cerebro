@@ -11,7 +11,7 @@ from config import DB_FILE,CONFIG_FILE
 from utils import convert_json
 from renderpage import WSManager
 import traceback
-
+from collections import deque
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -21,39 +21,83 @@ logger.setLevel(logging.DEBUG)
 
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
-
+class TradeOp:
+    def __init__(self,side, price,size,time):
+        self.side=side
+        self.price=price
+        self.size=size
+        self.time = time
+        
+        
 class PositionTrade:
-    def __init__(self, symbol, entry_price, entry_size):
+
+    
+    def __init__(self, symbol):
         self.symbol = symbol
-        self.entry_time = datetime.now()
-        self.entry_price = entry_price
-        self.entry_size = entry_size
+        self.list=[]
 
-        self.exit_time = None
-        self.exit_price = None
-        self.pnl = None
+    def appendBuy(self, price,size,time):
+        self.list.append(TradeOp("BUY", price,size,time))
 
-    def close(self, exit_price):
-        self.exit_time = datetime.now()
-        self.exit_price = exit_price
-        self.pnl = (exit_price - self.entry_price) * self.entry_size
+    def appendSell(self, price,size,time):
+        self.list.append(TradeOp("SELL", price,size,time))
+        #self.exit_time = datetime.now()
+        #self.exit_price = exit_price
+        #self.pnl = (exit_price - self.entry_price) * self.entry_size
+
+    def isClosed(self):
+        if len(self.list)>0:
+            return self.list[-1].side == "SELL"
+        else:
+            return False
+        
+    @property
+    def pnl(self):
+ 
+        buys = deque()
+        pnl = 0.0
+
+        for op in self.list:
+            if op.side == "BUY":
+                buys.append([op.size, op.price])
+
+            elif op.side == "SELL":
+                sell_size = op.size
+                sell_price = op.price
+
+                while sell_size > 0 and buys:
+                    buy_size, buy_price = buys[0]
+
+                    matched = min(buy_size, sell_size)
+
+                    pnl += (sell_price - buy_price) * matched
+
+                    buy_size -= matched
+                    sell_size -= matched
+
+                    if buy_size == 0:
+                        buys.popleft()
+                    else:
+                        buys[0][0] = buy_size
+
+        return pnl
 
     def to_dict(self):
         return {
             "symbol": self.symbol,
-            "entry_time": int(self.entry_time.timestamp() * 1000) if self.entry_time else None,
-            "entry_price": self.entry_price,
-            "entry_size": self.entry_size,
-            "exit_time": int(self.exit_time.timestamp() * 1000) if self.exit_time else None,
-            "exit_price": self.exit_price,
-            "pnl": self.pnl,
+            "list": [
+                {
+                    "side": op.side,
+                    "price": op.price,
+                    "size": op.size,
+                    "time": op.time,
+                }
+                for op in self.list
+            ],
+            "pnl": self.pnl
         }
 
-    def getHistory(self):
-        h = []
-        for trade in self.trades:
-            h.append(trade.to_dict())
-        return h
+
 
 ###############
 
@@ -70,22 +114,22 @@ class Position:
         self.marketPrice=None
         self.marketValue=None
 
-        self.current_trade: PositionTrade | None = None
-        self.trades: list[PositionTrade] = []
+        #self.current_trade: PositionTrade | None = None
+        #self.trades: list[PositionTrade] = []
 
     async def set(self, name, value):
         if name == "position":
             old_position = self.position
             self.position = value
 
-            logger.info(f"{old_position} -> {value}  {self.current_trade}")
+            '''
+            logger.info(f"{old_position} -> {value} ")
             # OPEN TRADE: 0 -> >0
             if old_position == 0 and value > 0:
-                self.current_trade = PositionTrade(
-                    self.symbol,
-                    entry_price=self.marketPrice,
-                    entry_size=value
-                )
+                #self.current_trade = PositionTrade(
+                #    self.symbol
+                #)
+                #self.current_trade.appendBuy( entry_price=self.marketPrice,entry_size=value)
              
                 if Balance.ws:
                     msg = {"type": "POSITION_TRADE", "data" : self.current_trade.to_dict() }
@@ -94,15 +138,16 @@ class Position:
                
             # CLOSE TRADE: >0 -> 0
             elif old_position > 0 and value == 0 and self.current_trade:
-                self.current_trade.close(self.marketPrice)
-                self.trades.append(self.current_trade)
+                pass
+                #self.current_trade.appendSell(self.marketPrice)
+                #self.trades.append(self.current_trade)
               
                 if Balance.ws:
                     msg = {"type": "POSITION_TRADE", "data" : self.current_trade.to_dict() }
                     await Balance.ws.broadcast(msg)
             
-                self.current_trade = None
-
+                #self.current_trade = None
+            '''
 
         elif name == "avgCost":
             self.avgCost = value
@@ -119,7 +164,7 @@ class Position:
             "marketPrice" :  self.marketPrice if self.marketPrice else None,
             "marketValue" :  self.marketValue if self.marketValue else None,
         }
-    def get_history()
+ 
     
 ###############
 

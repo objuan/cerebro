@@ -54,9 +54,9 @@
             <tr
               v-for="(row, index) in events"
               :key="row.symbol || index"
-              class="border-t hover:bg-gray-50 text-sm"
+              class="border-t hover:bg-gray-50 text-sm" :style="eventStyle(row.name)"
             >
-                <td v-for="col in columns" :key="col.bind" class="px-0 py-0">
+                <td v-for="col in columns" :key="col.bind" class="px-0 py-0" >
     
                   <template v-if="col.type === 'chart_link'">
                     <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(row[col.bind])">
@@ -146,7 +146,7 @@ const columnsData = [
    {"title": "Pos" ,"bind" : "rank_delta",  "type" :"rank" },
    {"title": "Price","decimals": 2 ,"bind" : "last"},
    {"title": "Volume","bind" : "day_volume", "type" :"volume" },
-   {"title": "Float" ,"bind" : "float","type" :"volume" },
+   {"title": "Float" ,"bind" : "float","type" :"volume","color_scale":{ "low": 0 ,"low_color": "#0000FF", "mid":20000000 , "mid_color": "#00FF00" , "hi":30000000, "hi_color":"#FFFFFF"    } },
    {"title": "Rel Vol 1d","bind" : "rel_vol_24", "decimals": 2 },
    {"title": "Rel Vol 5m","bind" : "rel_vol_5m", "decimals": 2 },
    {"title": "Gap","bind" : "gap", "type" :"perc" , "decimals": 1,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,   "color_min": "#FFFFFF" , "color_max":"#14A014"    } }
@@ -242,9 +242,49 @@ function formatStyle(value, colData)
       backgroundColor:s
     }
   }
+  colors = colData["color_scale"]
+  if (colors)
+  {
+    //"range_min": -2 , "range_max":10 ,  "color_min": "#FFFFFF" , "color_max":"#14A014"   
+    let low = colors["low"]
+    let mid = colors["mid"]
+    let hi = colors["hi"]
+    let low_color = colors["low_color"]
+    let mid_color = colors["mid_color"]
+    let hi_color = colors["hi_color"]
+
+    const clamped = Math.min(Math.max(value, low), hi)
+    let s = null;
+    if (clamped<= mid)
+    {
+      const t = (clamped - low) / (mid - low || 1)
+      s =  interpolateColor(low_color,mid_color,t,0.5)
+    }  
+    else
+    {
+      const  t = (clamped - mid) / (hi - mid || 1)
+      s =  interpolateColor(mid_color,hi_color,t,0.5)
+    }
+
+    return {
+      backgroundColor:s
+    }
+  }
   else
     return ""
 }
+function eventStyle(name){
+  console.log("eventStyle",name)
+  let s="#ffffff"
+  if (name =="Up 5% in 5Min") s="rgb(255,255,0,0.5)"
+  else if (name =="Low Float Volatility") s="rgb(255,0,255,0.5)"
+  else if (name =="Medium Float-High Rel Vol E Price under 20$") s="rgb(123,255,255,0.6)"
+  else if (name =="FORMER MOMO REBORN") s="rgb(0,255,255,0.5)"
+  return {
+      backgroundColor:s
+    }
+}
+
 
 function setSort(column) {
   if (sortBy.value === column) {
@@ -323,6 +363,10 @@ onBeforeUnmount(() => {
 
 
 <style scoped>
+td {
+  padding: 0;   /* ← questa è la chiave */
+}
+
 .numeric {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -337,5 +381,6 @@ th:hover {
   width:100%;
   height: 100%;
   display: block;
+   box-sizing: border-box;
 }
 </style>

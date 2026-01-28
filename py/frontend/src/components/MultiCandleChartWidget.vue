@@ -33,16 +33,16 @@
             @change="onChangeLayouts"
             class="form-select-sm bg-dark text-white border-secondary "
           >
-            <option value="1,1">1x1</option>
-            <option value="1,2">1x2</option>
-            <option value="2,1">2x1</option>
-            <option value="2,2">2x2</option>
+            <option value="1_1">1x1</option>
+            <option value="1_2">1x2</option>
+            <option value="2_1">2x1</option>
+            <option value="2_2">2x2</option>
           </select>
       </div>
     </div>
 
     <div class="trade_console p-0">
-        <TradeConsole :symbol=symbol  ></TradeConsole> 
+        <TradeConsole :symbol=currentSymbol  ></TradeConsole> 
     </div>
 
   
@@ -58,6 +58,7 @@
               
               :number="number"
               :sub_number ="cell.number"
+              :grid ="grid"
           >
           </CandleChartWidget>
         </div>
@@ -110,6 +111,9 @@ const get_layout_key = (subkey)=> { return `chart.${props.number}.${subkey}`}
 
 // -------------
 
+const grid = computed( ()=>{
+  return `${rows.value}_${cols.value}`
+})
 
 const gridStyle = computed(() => ({
   display: 'grid',
@@ -122,7 +126,7 @@ const gridStyle = computed(() => ({
 }))
 
 const onChangeLayouts = async () => {
-    const [r, c] = currentLayout.value.split(",").map(Number);
+    const [r, c] = currentLayout.value.split("_").map(Number);
     rows.value = r
     cols.value = c
     widgetRefs.value={}
@@ -130,7 +134,10 @@ const onChangeLayouts = async () => {
     const newCells = []
 
     for (let i = 0; i < total; i++) {
-       let tf =  staticStore.get( get_layout_key(""+(i+1)+".timeframe"),"1m")
+       //let tf =  staticStore.get( get_layout_key("layout."+(i+1)+".timeframe"),"1m")
+       let key = get_layout_key(`${grid.value}.${(i+1)}.timeframe`)
+       console.log(key)
+       let tf =  staticStore.get( get_layout_key(`${grid.value}.${(i+1)}.timeframe`),"1m")
         
        newCells.push({
         id: crypto.randomUUID(),
@@ -142,7 +149,7 @@ const onChangeLayouts = async () => {
     
   cells.value = newCells
   
-  saveProp(get_layout_key("grid"),`${r},${c}` );
+  saveProp(get_layout_key("grid"),grid.value );
 
   nextTick(resize)
 };
@@ -151,7 +158,7 @@ const onChangeLayouts = async () => {
 
 const onChangeSymbols = async () => {
 
-   currentLayout.value = staticStore.get( get_layout_key("grid"),"1,1")
+   currentLayout.value = staticStore.get( get_layout_key("grid"),"1_1")
   
    console.log("onChangeSymbols", currentLayout.value);
 
@@ -179,7 +186,7 @@ onMounted( async() => {
     await updateAll();
 
     // --------------
-    currentLayout.value = staticStore.get(get_layout_key("grid"),"1,1")
+    currentLayout.value = staticStore.get(get_layout_key("grid"),"1_1")
     
     onChangeLayouts()
 });

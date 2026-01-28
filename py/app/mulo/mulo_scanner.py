@@ -104,7 +104,26 @@ class Scanner:
                 scanCode=filter["type"]
                 # marketCapAbove= 1_000_000 , abovePrice= 100, aboveVolume= 100000
             )
-
+            '''
+            DA XML
+            <RangeFilter>
+				<code>priceAbove</code>
+                <code>priceBelow</code>
+            <SimpleFilter>
+                <code>volumeAbove</code>
+            <RangeFilter>
+                <code>ihNumSharesInsiderAbove</code>
+                <code>ihNumSharesInsiderBelow</code>
+                <displayName># Shares held by Insider</displayName>
+            <RangeFilter>
+                <code>ihInsiderOfFloatPercAbove</code>
+                <code>ihInsiderOfFloatPercBelow</code>
+				<displayName>Insider Shares as % of Float </displayName>
+            <RangeFilter>
+                <code>marketCapAbove1e6</code><code>marketCapBelow1e6</code>
+				<displayName>Capitalization</displayName>
+            
+            '''
             #if zone == MarketZone.LIVE:
             if True:
                 sub.stockTypeFilter = "COMMON" # solo azione vere, no nETF
@@ -112,10 +131,16 @@ class Scanner:
                     sub.abovePrice = filter["abovePrice" ]
                 if "belowPrice" in filter:
                     sub.belowPrice = filter["belowPrice" ]
+                
+                # numero di azioni
+                # È il volume giornaliero cumulato del titolo nel momento in cui lo scanner gira.
                 if "aboveVolume" in filter:
                     sub.aboveVolume = filter["aboveVolume" ]
+
                 if "marketCapAbove" in filter:
                     sub.marketCapAbove = filter["marketCapAbove" ]
+                if "marketCapBelow" in filter:
+                    sub.marketCapBelow = filter["marketCapBelow" ]
             '''
             else:
                 sub.instrument="STK"

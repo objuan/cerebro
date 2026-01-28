@@ -28,18 +28,24 @@
       <div ref="chartContainer" class="chart-container  w-100 d-flex flex-column">
         <div ref="mainChartRef" class=" w-100" >
           
-           <!-- INDICATOR LEGENDS -->
+           <!-- INDICATOR MENU -->
 
           <div class="chart-legend-left-ind">
-            <DropdownMenu
-              :label="indicatorName"
+
+              <DropdownMenu
+              label="="
               :items="menuItems"
               @select="handleMenu"
             />
-            <button  class="btn btn-sm btn-success ms-1"  title="Indicators"
-              @click="openIndicatorMenu()">
-              ..
-               </button>
+
+            <DropdownMenu
+              :label="profileName"
+              :items="menu_indicatorList"
+              @select="selectProfile"
+            />
+            
+
+            <!-- INDICATOR LEGENDS -->
 
             <div
               class="chart-legend-left-ind-item"
@@ -130,7 +136,7 @@
       <span class="icon">⛔</span>
    </div>
    <CandleChartIndicator ref="indicatorMenu"
-    @add-indicator="onAddIndicator"></CandleChartIndicator>
+        @add-indicator="onAddIndicator"></CandleChartIndicator>
 
 
   </div>
@@ -159,6 +165,7 @@ import DropdownMenu from '@/components/DropdownMenu.vue';
 const props = defineProps({
   id: { type: String, required: true },
   number: { type: Number, required: true },
+  grid: { type: String, required: true },
   sub_number: { type: Number, required: true },
   symbol: { type: String, required: true },
   timeframe: { type: String, default: '1m' },
@@ -181,7 +188,7 @@ const price_marker= ref(null);
 const price_marker_tp= ref(null);
 const price_marker_sl= ref(null);
 const indicatorList = ref([]);
-const indicatorName = ref("");
+const profileName = ref("");
 
 /*
 const bgCanvas = ref(null);
@@ -229,12 +236,25 @@ function context() {
     };
 }
 
-const get_layout_key = (subkey)=> { return `chart.${props.number}.${props.sub_number}.${subkey}`}
+const get_layout_key = (subkey)=> { return `chart.${props.number}.${props.grid}.${props.sub_number}.${subkey}`}
 const get_indicator_key = ()=> { return `chart.${props.number}.indicator.${currentTimeframe.value}`}
 
 function onTimeFrameChange(){
   console.log("onTimeFrameChange")
+  
   saveProp(get_layout_key("timeframe"), currentTimeframe.value)
+  staticStore.set(get_layout_key("timeframe"), currentTimeframe.value)
+  //profileName=""
+  let ind_profile = staticStore.get(get_indicator_key(),null)
+  if (ind_profile)
+          {
+            console.log("ind_profile",get_indicator_key())
+            nextTick(  loadIndicators(ind_profile))
+         
+          }
+          else
+            clearIndicators()
+
   handleRefresh();
 }
 
@@ -242,18 +262,44 @@ function onTimeFrameChange(){
 
 const linkName = computed(() => `Link to slot:${props.number} tf: ${currentTimeframe.value}`);
 
+const menu_indicatorList = []
+const profile_indicatorList=[]
+
 const menuItems = [
+  { key: 'add', text: 'Add Indicator' },
   { key: 'save', text: 'Save' },
   { key: 'load', text: 'Load' },
   { key: 'link', text: linkName },
   { key: 'link_clear', text: "Link Clear" }
 ];
+console.log(menuItems)
+
 
 async function handleMenu(item) {
+ 
+  if (item.key === 'add') openIndicatorMenu();
   if (item.key === 'save') saveIndicators();
   if (item.key === 'load') await loadIndicators(null);
   if (item.key === 'link') linkIndicators();
   if (item.key === 'link_clear') linkClearIndicators();
+}
+
+
+async function selectProfile(item) {
+  console.log("...",item)
+  clearIndicators()
+  if (item!=null)
+  {
+    let index=-1;
+    for(let idx = 0;idx < profile_indicatorList.length;idx++)
+    {
+        if (profile_indicatorList[idx].name ==item.text )
+          index = idx
+    }
+    if (index!= -1)
+      getIndicators(profile_indicatorList[index])
+    
+  }
 }
 
 // ===================================
@@ -268,10 +314,10 @@ function openIndicatorMenu(){
   indicatorMenu.value.open();
 }
 
-async function getIndicators(profile)
+function getIndicators(profile)
 {   
-  indicatorName.value = profile.name
- //// console.log("getIndicators",profile)
+  profileName.value = profile.name
+  console.log("getIndicators",profile)
   profile.data.forEach( (ind)=>{
       onAddIndicator(ind)
   })
@@ -289,6 +335,7 @@ function updateIndicatorColor(ind) {
 
 async function loadIndicators(profileName)
 {
+  /*
   let list = await send_get("/api/chart/indicator/list")
   list.forEach(line => {
       line.data = JSON.parse(line.data);
@@ -297,10 +344,12 @@ async function loadIndicators(profileName)
     alert("Nessun set di indicatori salvato.");
     return;
   }
+    */
 
  // console.log("loadIndicators",profileName)
 
   let index=null;
+  /*
   if (profileName==null)
   {
       // Crea elenco numerato
@@ -322,11 +371,11 @@ async function loadIndicators(profileName)
       }
 
     }
-    else
+    else*/
     {
-       for(let idx = 0;idx < list.length;idx++)
+       for(let idx = 0;idx < profile_indicatorList.length;idx++)
        {
-          if (list[idx].name ==profileName )
+          if (profile_indicatorList[idx].name ==profileName )
               index = idx
        }
  
@@ -339,7 +388,7 @@ async function loadIndicators(profileName)
     {
       
 
-      const selected = list[index];
+      const selected = profile_indicatorList[index];
 
      // console.log("Load Profile:", selected.name, selected.data);
 
@@ -385,14 +434,15 @@ function removeIndicator(index) {
     charts.main.removeSeries(ind.serie)
 }
 function clearIndicators(){
+  profileName.value=""
     while(indicatorList.value.length>0)
           removeIndicator(0)
 }
 function linkIndicators(){
-    if (indicatorName.value=="")
+    if (profileName.value=="")
       return
 
-     send_post('/api/props/save', { path: get_indicator_key(), "value": indicatorName.value });
+     send_post('/api/props/save', { path: get_indicator_key(), "value": profileName.value });
 }
 function linkClearIndicators(){
     send_post('/api/props/save', { path: get_indicator_key(), "value": "" });
@@ -635,7 +685,7 @@ function onTaskOrderReceived(order){
 
 
 // --- INIZIALIZZAZIONE ---
-onMounted( () => {
+onMounted(  () => {
 
   console.log("onMounted")
   //canvas = bgCanvas.value
@@ -644,6 +694,21 @@ onMounted( () => {
 
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
+
+  fetch("http://127.0.0.1:8000/api/chart/indicator/list")
+  .then(res => res.json())
+  .then(list => {
+     console.log("list", list )
+     menu_indicatorList.push({"text" :"------" ,"data" : null })
+    list.forEach(line => {
+        line.data = JSON.parse(line.data);
+        profile_indicatorList.push(line)
+        //console.log("INDICASTORS", line.data )
+        menu_indicatorList.push({"text" :line.name,"data" : line.data })
+    });
+     
+  });
+  
 
   buildChart();
  // handleRefresh();
