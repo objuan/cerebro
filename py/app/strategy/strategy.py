@@ -16,65 +16,69 @@ from reports.report_manager import ReportManager
 
 
 class Strategy:
-    name:str
-    schedule_time:int
     params : Dict
     timeframe: str
     
     def __init__(self,manager):
         self.manager=manager
         self.render_page=manager.render_page
+        self.client = manager.client
         self.indicators={}
         
     def load(self,strat_def):
-        self.name= strat_def["name"]
-        self.schedule_time= strat_def["schedule_time"]
         #strat.handler = find_method_local(EventManager,code)
         self.params= strat_def["params"]
         self.timeframe =  SECONDS_TO_TIMEFRAME[strat_def["timeframe"]]
 
+    def get_fundamentals(self,symbol)->pd.DataFrame:
+        return self.client.get_fundamentals(symbol)
+   
     def addIndicator(self,tf:str, ind:Indicator):
         if not  tf in self.indicators:
             self.indicators[tf] = []
         self.indicators[tf].append(ind)
+        ind.client = self.client
 
-    def _fill_indicators(self,allMode,df=None):
+    def _fill_indicators(self,timeframe, allMode,df=None):
         for tf, inds in self.indicators.items():
-            for ind in inds:
-                if allMode:
-                    ind.apply(self.df[tf])    
-                else:
-                    ind.apply(df)
+            if tf == timeframe:
+                for ind in inds:
+                    if allMode:
+                        ind.apply(self.df(tf))    
+                    else:
+                        ind.apply(df)
         
     async def on_start(self):
         pass
 
     async def bootstrap(self):
 
-        logger.info(f"bootstrap {self.name} tf:{self.timeframe }")
+        logger.info(f"bootstrap {self.__class__} tf:{self.timeframe }")
 
         await self.on_start()
 
-        self.df_map={}
+        self.db_df_map={}
         self._populate_dataframes()
 
-        self.df= {}
-        for tf, db_df in self.df_map.items():
+        self.df_map= {}
+        for tf, db_df in self.db_df_map.items():
             #copia
-            self.df[tf] = db_df.dataframe().copy()
+            self.df_map[tf] = db_df.dataframe().copy()
             #
-            self.populate_indicators( self.df[tf] , {} )
+        self.populate_indicators( )
 
-        self._fill_indicators(allMode=True)
+        for tf, db_df in self.db_df_map.items():
+            self._fill_indicators(tf,allMode=True)
+            db_df.on_df_last_added+= self._on_df_last_added
 
-        self.df_map[self.timeframe].on_df_last_added+= self._on_df_last_added
-
-        logger.info(f"END \n{self.df}")
+        for tf,df in self.df_map.items():
+            #df_ = df.loc[df["symbol"] == "HCTI"]
+            logger.info(f"END {tf}\n{df.tail(10)}")
 
     async def _on_df_last_added(self, tf, new_df):
-        logger.info(f"_on_df_last_added {tf} {new_df}")
+        logger.info(f"=== {self.__class__} >> on_df_last_added {tf} ")#\n{new_df}")
 
-        df_tf = self.df[tf]
+        df_tf = self.df_map[tf]
         rows_to_add = []
 
         for _, row in new_df.iterrows():
@@ -92,43 +96,89 @@ class Strategy:
 
         if rows_to_add:
             add_df = pd.DataFrame(rows_to_add)
-            logger.info(f"TO ADD {add_df}")
+
+            logger.info(f"TO ADD \n {add_df}")
+
             df_tf = pd.concat([df_tf, add_df], ignore_index=True)
-            self.df[tf] = df_tf
+            self.df_map[tf] = df_tf
             #self._fill_indicators(allMode=False,df=add_df)
             #TODO BETTER
-            self._fill_indicators(allMode=True)
+            self._fill_indicators(tf,allMode=True)
             
             last_rows = df_tf.tail(len(rows_to_add))
-
+        
+            #logger.info(f"ADD FINAL  {tf}\n{df_tf.tail(10)}")
             #self._fill_indicators()
-            for symbol, group in df_tf.groupby("symbol"):
-               await self.on_symbol_candle(symbol, group,{})
+
+            # candele solo per l'evento principale
+            if self.timeframe == tf:
+                symbols = add_df["symbol"].unique().tolist()
+
+                logger.info(f"symbols  {symbols}")
+ 
+                await self.on_all_candle( self.df_map[self.timeframe],{})
+
+                for symbol, group in self.df_map[self.timeframe].groupby("symbol"):
+                    if symbol in symbols:
+                        await self.on_symbol_candle(symbol, group,{})
 
     def _populate_dataframes(self):
-        self.df_map[self.timeframe] = self.manager.db.db_dataframe(self.timeframe)
-        pass
+        self.db_df_map[self.timeframe] = self.manager.db.db_dataframe(self.timeframe)
+        for tf in self.extra_dataframes():
+            self.db_df_map[tf] = self.manager.db.db_dataframe(tf)
+        
+    def df(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
+        if not symbol:
+            return self.df_map[timeframe]
+        else:
+            return self.df_map[timeframe][self.df_map[timeframe]["symbol"] == symbol]
+    
+    def extra_dataframes(self)->List[str]:
+        return []
 
     def populate_indicators(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
         pass
     
-    async def on_symbol_candle(self, symbol:str, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
+
+    async def on_all_candle(self, dataframe: pd.DataFrame, metadata: dict) :
+        '''
+        call at every main timeframe candle, dataframe is all
+        '''
         pass
 
-    async def send_event(self,symbol:str, name:str, desc:str , data):
-        await self.render_page.send(
-            {
-                "type" : "strategy",
-                "symbol": symbol,
-                "name" : name,
-                "desc" : desc,
-                "ts" :  int(time.time() * 1000),
-                "data" : data
-            }
-        )
+    async def on_symbol_candle(self, symbol:str, dataframe: pd.DataFrame, metadata: dict):
+        '''
+        call at every main timeframe  symbol  candle,dataframe is filtered
+        '''
+        pass
+
+    #######################
+
+    async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str, data):
+       
+        try:
+            data["small_desc"]= small_desc
+            data["full_desc"]= full_desc
+            query = "INSERT INTO events ( symbol, name,timestamp,data) values (?, ?,?,?)"
+            self.client.execute(query, (symbol, name,  int(time.time() * 1000), json.dumps(data) ))
+
+            #logger.info(f"SEND {data}")
+
+            await self.render_page.send(
+                {
+                    "type" : "strategy",
+                    "symbol": symbol,
+                    "name" : name,
+                    "timestamp" :  int(time.time() * 1000),
+                    "data" : data
+                }
+            )
+            #logger.info(f"SEND DONE")
+        except:
+            logger.error("SEND ERROR", exc_info=True)
 
     def __str__(self):
-        return f"{self.__class__} {self.name} t:{self.schedule_time} params:{self.params}"
+        return f"{self.__class__} params:{self.params}"
 
 #############
 

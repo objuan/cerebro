@@ -21,29 +21,31 @@ from reports.report_manager import ReportManager
 
 class StrategyManager:
 
-    def __init__(self, config,db:DBDataframe,render_page : RenderPage):
+    def __init__(self, config,db:DBDataframe,client, render_page : RenderPage):
    
         self.db = db
         self.render_page=render_page
+        self.client = client
                 
         self.strategies = []
-        for strat_def in config["stategies"]:
+        if "stategies" in config:
+            for strat_def in config["stategies"]:
 
-            name = strat_def["class"]
-            cls = globals().get(name)
-            if cls is None:
-                raise ValueError(f"Strategy class {name} not found")
+                name = strat_def["class"]
+                cls = globals().get(name)
+                if cls is None:
+                    raise ValueError(f"Strategy class {name} not found")
 
-            strat = cls(self)
-            strat.load(strat_def)
+                strat = cls(self)
+                strat.load(strat_def)
 
-            logger.info(f"ADD STRAT {strat_def} {strat}")
+                logger.info(f"ADD STRAT {strat_def} {strat}")
 
-            self.strategies.append(strat)
+                self.strategies.append(strat)
 
-            #self.scheduler.schedule_every(strat.time, strat.handler,self, * strat.args)
+                #self.scheduler.schedule_every(strat.time, strat.handler,self, * strat.args)
 
-        pass
+            pass
 
     async def bootstrap(self):
 

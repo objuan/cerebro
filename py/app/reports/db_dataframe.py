@@ -78,9 +78,11 @@ class DBDataframe_TimeFrame:
             df_h["date"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True).dt.date
             df_h = df_h.sort_values("timestamp")
             self.df = df_h
+            self.df.fillna(0, inplace=True)
             for symbol in  self.symbols:
                 symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
-                self.last_index_by_symbol[symbol] = symbol_rows[-1]
+                if len(symbol_rows)>0:
+                    self.last_index_by_symbol[symbol] = symbol_rows[-1]
 
             logger.info(f"START INDEX {self.last_index_by_symbol}")
             #logger.info(f"\n {self.df}")
@@ -113,9 +115,9 @@ class DBDataframe_TimeFrame:
                 "high": ticker["h"],
                 "low": ticker["l"],
                 "close": ticker["c"],
-                "base_volume": ticker["v"],
-                "quote_volume":  ticker["c"] * ticker["v"] ,
-                "day_volume": ticker["day_v"],
+                "base_volume":  ticker.get("v", 0) or 0,
+                "quote_volume": (ticker.get("c", 0) or 0) * (ticker.get("v", 0) or 0),
+                "day_volume":  ticker.get("day_v", 0) or 0,
                 "datetime": pd.to_datetime(ts, unit="ms", utc=True)
             }
         
@@ -128,9 +130,11 @@ class DBDataframe_TimeFrame:
 
             df_h = await self.client.history_data([symbol] , self.timeframe , limit= 999999 )
             df_h = df_h.drop(columns=["ds_updated_at", "updated_at","source","exchange"], errors="ignore")
+            df_h.fillna(0, inplace=True)
             df_h["datetime"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True)
             df_h["date"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True).dt.date
             df_h = df_h.sort_values("timestamp")
+            
 
             #adfd
             if not self.last_timestamp:
@@ -148,6 +152,9 @@ class DBDataframe_TimeFrame:
             await self.on_symbol_added(symbol)
             #df.loc[len(df)] = row_data
             #self.last_index_by_symbol[symbol] = self.df.index[-1]
+
+            #logger.info(f"SYMBOL BOOT \n{self.df }")
+
             return
         
         last_idx = self.last_index_by_symbol[symbol]
@@ -155,7 +162,7 @@ class DBDataframe_TimeFrame:
 
         # ---- CASO NORMALE ----
         if ts > last_ts:
-            logger.info(f"APPEND {self.timeframe}")
+            logger.info(f"========== APPEND {self.timeframe} ==========")
             new_row = self.df.loc[last_idx].copy()
             new_row.update(row_data)
 

@@ -39,7 +39,7 @@ from order import OrderManager
 from balance import Balance
 from order_task import OrderTaskManager
 from trade_manager import TradeManager
-from reports.event_manager import EventManager
+#from reports.event_manager import EventManager
 from reports.report_manager import ReportManager
 
 from reports.db_dataframe import *
@@ -141,12 +141,12 @@ OrderTaskManager(config,orderManager=orderManager)
 
 db = DBDataframe(config,client)
 report = ReportManager(config,client,db)
-event_manager = EventManager(config,report)
+#event_manager = EventManager(config,report)
 tradeManager = TradeManager(config,client,propManager)
 render_page = RenderPage(ws_manager)
-event_manager.render_page=render_page
+#event_manager.render_page=render_page
 report.render_page=render_page
-strategy = StrategyManager(config,db,render_page)
+strategy = StrategyManager(config,db,client,render_page)
 
 
 tradeManager.on_trade_changed+= OrderTaskManager.on_update_trade
@@ -840,39 +840,27 @@ async def get_task_symbol_orders(symbol:str,
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
 ###################
-# 
-'''
-@app.get("/api/layout/select")
-async def load_layout():
-    all = await layout.load()
-    return {"status": "ok", "data": json.dumps(all)}
 
-@app.post("/api/layout/save")
-async def save_layout(request: Request):
-    dati_json = await request.json()
-    #logger.info(f"data {dati_json}")
-    layout.from_data(dati_json)
-    return {"status": "ok"}
 
-@app.post("/api/layout/cmd")
-async def layout_cmd(request: Request):
-    dati_json = await request.json()
-    logger.info(f"cmd {dati_json}")
-    if dati_json["scope"] =="layout":
-        await layout.process_cmd(dati_json, render_page)
-    return {"status": "ok"}
-'''
-#############
 @app.get("/api/report/get")
 async def get_report():
     await report.send_current()
     return {"status": "ok"}
 
 @app.get("/api/event/get")
-async def get_report():
+async def get_events():
+    
     try:
-        await event_manager.send_current()
-        return {"status": "ok"}
+        # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
+        query = """
+        SELECT * FROM events 
+        ORDER BY id DESC limit 10
+        """
+        df = client.get_df(query)
+
+        return JSONResponse(df.to_dict(orient="records"))
+    
+    
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error"}
@@ -1094,7 +1082,7 @@ if __name__ =="__main__":
           
                 await report.bootstrap()
                 
-                await event_manager.bootstrap()
+               # await event_manager.bootstrap()
 
                 await strategy.bootstrap()
                 

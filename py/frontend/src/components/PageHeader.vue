@@ -90,7 +90,7 @@ const marketStatus = computed(() => {
 
 const symStatus = computed(() => {
    const sym_mode = liveStore.state.dataByPath['root.sym_mode'];
-   console.log("sym_mode",sym_mode)
+   //console.log("sym_mode",sym_mode)
    if (sym_mode)
       return { label: 'Sym', color: 'bg-danger' };
   else

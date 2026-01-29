@@ -21,7 +21,7 @@
         
         <tbody v-if="props.mode=='report'">
             <tr
-              v-for="row in rows"
+              v-for="row in report_rows"
               :key="row.symbol"
               class="border-t hover:bg-gray-50 text-sm"
             >
@@ -98,6 +98,7 @@
 import { computed,onMounted,onBeforeUnmount,reactive,ref  } from 'vue'
 import { eventBus } from "@/components/js/eventBus";
 import { formatValue,interpolateColor ,formatUnixTimeOnly} from "@/components/js/utils";// scaleColor
+import { reportStore as report } from "@/components/js/reportStore";
 
 const  props = defineProps({
   mode: {
@@ -106,16 +107,16 @@ const  props = defineProps({
   }
 })
 
-const report = reactive({})
+//const report = reactive({})
 const events = reactive([])
 const sortBy = ref('gain') // 'gain' | 'gap'
 const sortDir = ref('desc') // 'asc' | 'desc'
 
-const rows = computed(() => {
+const report_rows = computed(() => {
   const key = sortBy.value
   const dir = sortDir.value === 'asc' ? 1 : -1
 
-  return Object.entries(report)
+  return Object.entries(report.items)
     .map(([symbol, data]) => ({
       symbol,
       ...data
@@ -309,8 +310,9 @@ function onSymbolClick(symbol) {
   // router.push({ name: 'symbol', params: { symbol } })
 }
 console.log("onSymbolClick",onSymbolClick)
-// =================
 
+// =================
+/*
 function patchReport(incoming) {
   for (const [symbol, data] of Object.entries(incoming)) {
     if (!report[symbol]) {
@@ -320,6 +322,7 @@ function patchReport(incoming) {
     Object.assign(report[symbol], data)
   }
 }
+
 
 function onReportReceived(data){
   //console.log("onReportReceived",data)
@@ -340,23 +343,26 @@ function onEventReceived(data){
   }
   
 }
-
+*/
 
 // =================
 
 onMounted( async () => {
+  /*
   if (props.mode=="report")
       eventBus.on("report-received", onReportReceived);
   else
       eventBus.on("event-received", onEventReceived);
-
+*/
 });
 
 onBeforeUnmount(() => {
+   /*
   if (props.mode=="report")
       eventBus.off("report-received", onReportReceived);
   else
       eventBus.off("event-received", onEventReceived);
+    */
 });
 
 </script>

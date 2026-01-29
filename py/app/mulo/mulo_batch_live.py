@@ -6,6 +6,7 @@ from datetime import datetime,time
 import time as _time
 import math
 import os
+import re
 import signal
 import json
 from typing import Optional
@@ -48,7 +49,7 @@ intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
 use_yahoo=False
-use_display = False
+use_display = True
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -139,7 +140,25 @@ class LiveManager:
                     self.tickers[contract.symbol].cancelled = False
 
                 return  # ignorato
-            logger.error(f"{errorCode} reqId={reqId}: {errorString}")
+            if errorCode ==10168:
+                logger.error(f"{errorCode} reqId={reqId}: {errorString} {contract}")
+                '''
+                Error 10168, reqId 4: Requested market data is not subscribed. Delayed market data is not enabled., contract: Stock(conId=822082077, symbol='TCGL', exchange='SMART', primaryExchange='AMEX', currency='USD', localSymbol='TCGL', tradingClass='TCGL')
+                :param contract: Description
+                '''
+                       
+                logger.error(f"DISCARD {contract.symbol} 10168")    
+
+                self.fetcher.add_blacklist(contract.symbol,f"{10168} {errorString}")
+
+            elif errorCode == 10089:
+                logger.error(f"{errorCode} reqId={reqId}: {errorString}")
+                part = errorString.split("market data is available.", 1)[1].strip()
+                symbol = part.split()[0]
+                logger.error(f"DISCARD {symbol} 10089")    
+                self.fetcher.add_blacklist(symbol,f"{10089} {errorString}")
+            else:
+                logger.error(f"{errorCode} reqId={reqId}: {errorString}")
         if ib:
             ib.errorEvent += onError
 
@@ -181,6 +200,14 @@ class LiveManager:
 
 
     async def updateLive(self,df_symbols):#, range_min=None,range_max=None):
+
+        logger.info(f"updateLive {df_symbols}")
+
+        # filter on blacklist
+        mask = df_symbols["symbol"].apply(lambda s: not fetcher.is_in_blacklist(s))
+        df_symbols = df_symbols[mask]
+
+        logger.info(f"updateLive BLACKED {df_symbols}")
 
         # cut
         if self.max_symbols != None:
@@ -237,7 +264,7 @@ class LiveManager:
                 #reqId = self.ib.client.getReqId()
                 #self.reqId2contract[reqId] = contract
           
-                market_data = self.ib.reqMktData(contract)#, reqId=reqId)
+                market_data = self.ib.reqMktData(contract, "", False, False, [])#, reqId=reqId)
                 market_data.gain = 0
                 market_data.last_close = await self.fetcher.last_close(symbol)
                 market_data.symbol = symbol
@@ -368,6 +395,8 @@ class LiveManager:
                             if candle is not None:  # se esisteva, va inviata
                                 #logger.info("send")
                                 # send
+                                v = ticker.volume - candle["last_volume"]
+                                
                                 data = {
                                     "m": "full",
                                     "s": symbol,
@@ -376,7 +405,7 @@ class LiveManager:
                                     "c": candle["close"],
                                     "h": candle["high"],
                                     "l": candle["low"],
-                                    "v": candle["volume"] if use_yahoo else  candle["volume"] * 100,
+                                    "v": v if use_yahoo else v * 100,
                                     "ts": int(candle["start"]) * 1000,
                                     "dts": start_time,
                                     "bid": ticker.bid,
@@ -384,6 +413,7 @@ class LiveManager:
                                     "day_v": ticker.volume if use_yahoo else ticker.volume * 100
                                 }
 
+                                #logger.info(f"add {data} \n{ticker}")
                                 await self.fetcher.db_updateTicker(data)
 
                                 if self.ws_manager:
@@ -434,29 +464,6 @@ class LiveManager:
                             
                                 if self.ws_manager:
                                         await self.ws_manager.broadcast(data)
-
-                                '''
-                                if ( candle["close"]  != ticker.last):
-                                    if self.ws_manager:
-                                        await self.ws_manager.broadcast({"ticker" : symbol, 
-                                                                        "last":ticker.last,
-                                                                        "ask": ticker.ask,
-                                                                        "bid": ticker.bid,
-                                                                        "open": candle["open"],
-                                                                        "high":  candle["high"],
-                                                                        "low":  candle["low"] ,
-                                                                        "close": ticker.last,
-                                                                        "vwap" : ticker.vwap,
-                                                                        "v" :   candle["volume"] if use_yahoo else  candle["volume"] * 100,
-                                                                        "day_v":  ticker.volume if use_yahoo else  ticker.volume * 100,
-                                                                        "ts" : ticker.time.timestamp()})    
-
-                                #candle["volume"] += max(vol_diff, 0)
-                                #candle["last_volume"] = ticker.volume
-                                candle["close"] = ticker.last
-                                '''
-
-
 
                         remaining = interval - (ts % interval)
                         time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"

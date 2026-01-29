@@ -272,7 +272,7 @@ const menuItems = [
   { key: 'link', text: linkName },
   { key: 'link_clear', text: "Link Clear" }
 ];
-console.log(menuItems)
+//console.log(menuItems)
 
 
 async function handleMenu(item) {
@@ -286,7 +286,7 @@ async function handleMenu(item) {
 
 
 async function selectProfile(item) {
-  console.log("...",item)
+ // console.log("...",item)
   clearIndicators()
   if (item!=null)
   {
@@ -317,7 +317,7 @@ function openIndicatorMenu(){
 function getIndicators(profile)
 {   
   profileName.value = profile.name
-  console.log("getIndicators",profile)
+ // console.log("getIndicators",profile)
   profile.data.forEach( (ind)=>{
       onAddIndicator(ind)
   })
@@ -454,7 +454,7 @@ function linkClearIndicators(){
 */
 const handleRefresh = async () => {
   try {
-    console.log("handleRefresh ", currentTimeframe.value);
+    //console.log("handleRefresh ", currentTimeframe.value);
 
     // SYMBOLS CANDLES
 
@@ -607,7 +607,7 @@ const handleRefresh = async () => {
           let ind_profile = staticStore.get(get_indicator_key(),null)
           if (ind_profile)
           {
-            console.log("ind_profile",get_indicator_key())
+          //  console.log("ind_profile",get_indicator_key())
             nextTick(  loadIndicators(ind_profile))
          
           }
@@ -620,7 +620,7 @@ const handleRefresh = async () => {
       //DEFAULT_INTERACTION = charts.main.options();
 
     
-     console.log("handleRefresh DONE")
+     //console.log("handleRefresh DONE")
     }
     else
         console.log("empty ");
@@ -669,14 +669,14 @@ const setSymbol = async (symbol) => {
 function onOrderReceived(order) {
   if (order.symbol == props.symbol)
   {
-    console.debug("Chart → ordine:", order);
+  //  console.debug("Chart → ordine:", order);
   }
 }
 
 function onTaskOrderReceived(order){
   if (order.symbol == props.symbol)
   {
-     console.log("Chart → task ordine:", order);
+    // console.log("Chart → task ordine:", order);
      handleRefresh();
    // console.log("Chart → task ordine:", order);
   }
@@ -687,7 +687,7 @@ function onTaskOrderReceived(order){
 // --- INIZIALIZZAZIONE ---
 onMounted(  () => {
 
-  console.log("onMounted")
+ // console.log("onMounted")
   //canvas = bgCanvas.value
   //ctx = canvas.getContext('2d')
   //console.log("ctx",canvas,ctx,bgCanvas)
@@ -698,7 +698,7 @@ onMounted(  () => {
   fetch("http://127.0.0.1:8000/api/chart/indicator/list")
   .then(res => res.json())
   .then(list => {
-     console.log("list", list )
+    //console.log("list", list )
      menu_indicatorList.push({"text" :"------" ,"data" : null })
     list.forEach(line => {
         line.data = JSON.parse(line.data);

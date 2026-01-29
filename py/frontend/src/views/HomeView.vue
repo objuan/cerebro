@@ -87,12 +87,12 @@
                title="Toast">📑 Web Events</button>
       </div>
 
-    <main class="two-columns">
+    <main class="main-columns">
       
  
         <div>
           <TickersSummary ref="tickets_summary"></TickersSummary>
-          <EventWidget></EventWidget>
+          
         </div>
 
         <div class="charts-grid" :style="gridStyle">
@@ -107,6 +107,9 @@
               :class="{ selected: selectedId === cell.id }"
               @select="onSelect"
           />
+        </div>
+        <div>
+          <EventWidget></EventWidget>
         </div>
      
 
@@ -135,6 +138,8 @@ import ErrorToast from '@/components/ErrorToast.vue'
 import ToastHistory from '@/components/ToastHistory.vue'
 import EventWidget from '@/components/EventWidget.vue'
 import { eventStore } from "@/components/js/eventStore";
+import { reportStore } from "@/components/js/reportStore";
+
 
 // --- STATO REATTIVO ---
 
@@ -174,7 +179,7 @@ function setGrid(r, c) {
   for (let i = 0; i < total; i++) {
 
     let symbol = staticStore.get("chart."+(i+1)+".symbol","")
-    console.log("<< ",i+1, symbol)
+    //console.log("<< ",i+1, symbol)
 
     newCells.push({
       id: crypto.randomUUID(),
@@ -316,7 +321,9 @@ const initWebSocket = () => {
       case "report":
         {
          // console.log("Report\\\\",msg.data);
-           eventBus.emit("report-received", msg.data);
+           //eventBus.emit("report-received", msg.data);
+           reportStore.push( msg.data)
+
        }
         break;
       case "event":
@@ -401,7 +408,7 @@ onMounted(() => {
         let pdata = await send_get("/api/props/find", {path : ""})
         //console.log(pdata)
         pdata.forEach(  (val) =>{
-            console.log("prop",val.path, val.value)
+          //  console.log("prop",val.path, val.value)
             if (val.path.startsWith("chart")  || val.path.startsWith("home") )
             {
               staticStore.set(val.path, val.value);
@@ -574,9 +581,9 @@ onUnmounted(() => {
   flex: 1;
   overflow: hidden;
 }
-.two-columns {
+.main-columns {
   display: grid;
-  grid-template-columns: 160px 1fr;
+   grid-template-columns: 160px 1fr 170px;
   gap: 1rem;
   flex: 1;
   min-height: 0;

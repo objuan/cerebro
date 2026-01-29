@@ -8,5 +8,8 @@ export const eventStore = reactive({
     if (this.items.length > 200) {
       this.items.pop()
     }
+  },
+  clear(){
+    this.items.length =0;
   }
 })

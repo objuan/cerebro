@@ -216,9 +216,24 @@ CREATE TABLE IF NOT EXISTS trade_marker (
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     name VARCHAR(255),
     symbol VARCHAR(20),
-    data TEXT
+    data TEXT,
+    timestamp INTEGER,
+    ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    
+);
+            """)
+
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS  black_list (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol VARCHAR(255),
+    error TEXT,
+    mulo_enable INT,
+    user_enable INT,
+    retry_day INT,
+    last_day INTEGER
 );
             """)

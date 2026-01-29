@@ -190,7 +190,11 @@ class MuloLiveClient:
 
         if len(self.symbols) > 0:
             self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
-
+            self.fundamentals_map = (
+            self.df_fundamentals
+                .set_index("symbol")
+                .to_dict(orient="index")
+)
         #logger.debug(f"Fundamentals \n{self.df_fundamentals}")
                                               
         self.sql_symbols = str(self.symbols)[1:-1]
@@ -242,6 +246,9 @@ class MuloLiveClient:
     def get_fundamentals(self,symbol)->pd.DataFrame:
         return self.df_fundamentals[self.df_fundamentals["symbol"]==symbol  ]
             
+    def get_fundamentals_dict(self, symbol) -> dict:
+        return self.fundamentals_map.get(symbol, {})
+
     ###############
 
     async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000)-> pd.DataFrame:

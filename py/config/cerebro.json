@@ -38,16 +38,53 @@
 	{
 		"shapshot_time" : 10
 	},
-	"stategies":[
+	"stategies1":[
 			{
-				"name": "GAIN_1",
-				"schedule_time": 10,
 				"class" : "GainStrategy",
+				"timeframe" : "5m",
+				"params" :
+				{
+					"eta" : 5,
+					"min_gain" : 0.1
+				}
+			},
+			{
+				"class" : "LowFlowStrategy",
 				"timeframe" : "10s",
 				"params" :
 				{
 					"eta" : 5,
-					"gain_limit" : 0.1
+					"min_gain" : 0.1,
+					"avg_5m_eta" : 50,
+					"min_rel_vol_5m" : 0
+				}
+			},
+			{
+				"class" : "MidFloatStrategy",
+				"timeframe" : "10s",
+				"params" :
+				{
+					"_MF_MAX_PRICE" :  "Prezzo ancora sotto il 20%",
+					"max_price" : 20,
+					"min_float" : 5000001,
+					"max_float" : 20000000,
+					"_MF_MIN_REL_VOL" : "Volume molto alto (High Rel Vol)",
+					"min_rel_vol_5m" : 0.1,
+					"avg_5m_eta" : 50
+				}
+			}
+	]
+	,"stategies":[
+			{
+				"class" : "MomoStrategy",
+				"timeframe" : "10s",
+				"params" :
+				{
+					"-MOMO_MIN_REL_VOL_24": "# Molto volume nelle ultime 24h",
+					"min_gain" : 0.1,
+					"eta_gain" : 10,
+					"min_rel_vol_24" : 1,
+					"avg_1d_eta" : 10
 				}
 			}
 		],
@@ -83,13 +120,13 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :2,
+				"max_symbols" :10,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
 				"mode" : "live",
 				"mode1" : "live|offline|sym",
-				"debug_symbols" : ["XTKG"],
+				"debug_symbols" : ["TCGL"],
 				"start_scan" : "live",
 				"start_scan1" : "keep_last_session|debug|live",
 				"scheduler":[

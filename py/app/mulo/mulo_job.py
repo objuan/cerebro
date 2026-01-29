@@ -241,7 +241,7 @@ class MuloJob:
     async def process_data(self,exchange,symbol,timeframe,cursor,df):
                 
                 if df.empty:
-                    logger.info("No data returned, stopping.")
+                    #logger.info("No data returned, stopping.")
                     return False
 
                 df = df.reset_index()
@@ -492,6 +492,49 @@ class MuloJob:
             return  float(df.iloc[0][0])
         else:
             return 0
+    #######################
+
+    def is_in_blacklist(self,symbol):
+        df = self.get_df(f"""
+                SELECT * from  black_list
+                WHERE symbol='{symbol}'
+            """)
+        if (len(df)>0):
+            return not (df.iloc[0]["mulo_enable"] == 1 or df.iloc[0]["user_enable"] == 1)
+        else:
+            return False
+        
+    def add_blacklist(self,symbol, errorDesc ):
+        df = self.get_df(f"""
+                SELECT * from  black_list
+                WHERE symbol='{symbol}'
+            """)
+        if len(df) == 0:
+            self.cur_exe.execute("""
+                        INSERT INTO black_list (
+                            symbol,error,mulo_enable,user_enable,retry_day,last_day
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        symbol,
+                        errorDesc,
+                        0,
+                        0,
+                        1,
+                        int(time.time() * 1000)
+                    ))
+
+            self.conn_exe.commit()
+        else:
+            self.cur_exe.execute("""
+                        UPDATE black_list set mulo_enable=0, last_day=? where symbol = ? """, (
+                        int(time.time() * 1000),
+                        symbol)
+                    )
+
+            self.conn_exe.commit()
+   
+        
     #######################
     
     def get_df(self,query, params=()):

@@ -135,8 +135,8 @@ const onChangeLayouts = async () => {
 
     for (let i = 0; i < total; i++) {
        //let tf =  staticStore.get( get_layout_key("layout."+(i+1)+".timeframe"),"1m")
-       let key = get_layout_key(`${grid.value}.${(i+1)}.timeframe`)
-       console.log(key)
+    //   let key = get_layout_key(`${grid.value}.${(i+1)}.timeframe`)
+      // console.log(key)
        let tf =  staticStore.get( get_layout_key(`${grid.value}.${(i+1)}.timeframe`),"1m")
         
        newCells.push({
