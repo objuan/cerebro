@@ -45,6 +45,7 @@ from reports.report_manager import ReportManager
 from reports.db_dataframe import *
 from props_manager import PropertyManager
 from mulo_live_client import MuloLiveClient
+from strategy.strategy_manager import StrategyManager
 
 print(" STAT FROM ",os.getcwd())
 
@@ -144,6 +145,9 @@ event_manager = EventManager(config,report)
 tradeManager = TradeManager(config,client,propManager)
 render_page = RenderPage(ws_manager)
 event_manager.render_page=render_page
+report.render_page=render_page
+strategy = StrategyManager(config,db,render_page)
+
 
 tradeManager.on_trade_changed+= OrderTaskManager.on_update_trade
 
@@ -152,14 +156,14 @@ tradeManager.on_trade_changed+= OrderTaskManager.on_update_trade
 #layout.set_render_page(render_page)   
 #client.on_candle_receive += layout.notify_candles    
 
-async def _on_candle_receive(candle):
+async def _on_partial_candle_receive(candle):
     #logger.info(f"candle {candle}")
     await render_page.send({
                    "type" : "candle",
                    "data": candle
                })
 
-client.on_candle_receive += _on_candle_receive
+client.on_partial_candle_receive += _on_partial_candle_receive
 
 async def _on_ticker_receive(ticker):
     await OrderTaskManager.onTicker(ticker)
@@ -282,8 +286,8 @@ def health():
 async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
     
     try:
-        if True:
-
+        if not timeframe in ["1m","5m"]:
+            # live test
             df:pd.DataFrame = await client.ohlc_data(symbol,timeframe,limit)
             df = df.dropna()
             #logger.info(df)
@@ -295,11 +299,11 @@ async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
             df_co = (
                 df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
                 .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
-                .copy()
+                .copy().fillna(0)
             )
-            logger.debug(df_co.isna().any().any())
+            #logger.info(f"NAN {df_co.isna().any().any()}")
 
-            logger.info(df_co)
+            #logger.info(df_co.to_dict(orient="records"))
             return JSONResponse(df_co.to_dict(orient="records"))
     except:
         logger.error("Error", exc_info=True)
@@ -861,13 +865,13 @@ async def layout_cmd(request: Request):
 #############
 @app.get("/api/report/get")
 async def get_report():
-    await report.send_current(render_page)
+    await report.send_current()
     return {"status": "ok"}
 
 @app.get("/api/event/get")
 async def get_report():
     try:
-        await event_manager.send_current(render_page)
+        await event_manager.send_current()
         return {"status": "ok"}
     except:
         logger.error("ERROR", exc_info=True)
@@ -1091,6 +1095,8 @@ if __name__ =="__main__":
                 await report.bootstrap()
                 
                 await event_manager.bootstrap()
+
+                await strategy.bootstrap()
                 
                 #await orderManager.bootstrap()
                 
@@ -1127,11 +1133,11 @@ if __name__ =="__main__":
                         
                         await ws_manager.broadcast(msg)
                         
-                        await db.tick()
+                        #await db.tick()
 
-                        await report.tick(render_page)
+                        await report.tick()
                             
-                        await event_manager.tick(render_page)
+                        #await event_manager.tick(render_page)
                         
                         #await layout.tick(render_page)
                         

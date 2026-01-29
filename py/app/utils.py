@@ -7,6 +7,15 @@ import inspect
 
 logger = logging.getLogger()
 
+
+SECONDS_TO_TIMEFRAME = {
+    10 : "10s",
+    30 : "30s",
+    60 : "1m",
+    300 : "5m",
+    3600 : "1h",
+}
+
 TIMEFRAME_SECONDS = {
     "1s": 1,
     "5s": 5,

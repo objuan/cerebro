@@ -19,40 +19,37 @@ class ReportManager:
         self.db=db
         self.gain_time_min = 60
         self.history_days  = 50
-
-        self.columnsData = [
-            {"title": f"Change From Close" ,"decimals": 2, "colors":{ "range_min": -2 , "range_max":10 ,  "color_min": "#FFFFFF" , "color_max":"#14A014"   } },
-            {"title": "Symbol/News" , "type" :"str" },
-            {"title": "Price","decimals": 5 },
-            {"title": "Volume" },
-            {"title": "VolumeAVG" },
-            {"title": "Float" },
-            {"title": "Rel Vol (DaylyRate)","decimals": 2 },
-            {"title": "Rel Vol (5 min %)","decimals": 2},
-            {"title": "Gap", "decimals": 1, "colors":{ "range_min": -10 , "range_max":10 ,  "color_min": "#FF0101" , "color_max":"#002FFF"   } }
-
-        ]
+        self.render_page=None
+        self.invalidate=False
         job.on_symbols_update += self.on_symbols_update
-        self.first_open=[]
+        
+
+    async def bootstrap(self):
+        symbols = await self.job.send_cmd("symbols")
+        
+        await self.on_symbols_update(symbols )
+
         self.scheduler = AsyncScheduler()
 
-        shapshot_time = config["reports"]["shapshot_time"]
+        shapshot_time = self.config["reports"]["shapshot_time"]
         logger.info(f"shapshot_time {shapshot_time}")
         
         self.scheduler.schedule_every(shapshot_time,self.take_snapshot, key= "10m")
+
         self.df_report =None
         self.shapshot_history =  deque(maxlen=100)
         # events
         self.on_snapshot_10m = MyEvent()
-     
+        ##
+        self.invalidate=True
+        self.db.db_dataframe("1m").on_row_added+= self.on_db_1m_added
+
+        self.first_open=[]
+
         #self.fill()
     def getLastDF(self):
         return self.shapshot_history[-1]
-    
-    async def bootstrap(self):
-         symbols = await self.job.send_cmd("symbols")
-         await self.on_symbols_update(symbols )
-    
+
     async def on_symbols_update(self, symbols):
         logger.info(f"Report reset symbols {symbols}")
         self.symbols=symbols
@@ -80,7 +77,7 @@ class ReportManager:
             v = v.item()
         return round(v, 6) if isinstance(v, float) else v
 
-    async def send_current(self,render_page):
+    async def send_current(self):
             # prima volta mando tutto 
             #self.df_report = self.df_report.reset_index()  
             
@@ -93,7 +90,7 @@ class ReportManager:
             }
 
             #logger.info(f"full_dict \n{full_dict}")
-            await render_page.send({
+            await self.render_page.send({
                     "type" : "report",
                     "data": full_dict
             })
@@ -153,11 +150,18 @@ class ReportManager:
 
         return changed_dict
 
+    async def on_db_1m_added(self,row):
+        self.invalidate=True
 
-    async def tick(self,render_page):
+    async def tick(self):
         
+        if not self.invalidate:
+            return
+        self.invalidate=False
         try:
             
+            logger.info("TICK")
+
             await self.scheduler.tick()
 
             isLiveZone = self.job.market.isLiveZone()
@@ -170,6 +174,7 @@ class ReportManager:
         
 
             df_5m = self.db.dataframe("5m")
+            #logger.info(df_5m)
             df_5m = df_5m.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
 
             mean_base_volume_5m = (
@@ -301,7 +306,7 @@ class ReportManager:
                 if len(changed_dict)>0:
                     #logger.info(f"changed_dict {changed_dict}")
 
-                    await render_page.send({
+                    await self.render_page.send({
                         "type" : "report",
                         "data": changed_dict
                     })

@@ -50,40 +50,200 @@ class DBDataframe_TimeFrame:
         self.lastTime = datetime.now()
         self.last_timestamp=None
         self.df=None
+        self.last_index_by_symbol={}
         
         self.TIMEFRAME_UPDATE_SECONDS =config["live_service"]["TIMEFRAME_UPDATE_SECONDS"]  
         self.TIMEFRAME_LEN_CANDLES =config["live_service"]["TIMEFRAME_LEN_CANDLES"]  
 
         self.client.on_symbols_update += self.on_update_symbols
+        self.client.on_full_candle_receive += self.mulo_on_candle_receive
+
+        self.on_symbol_added = MyEvent()
+        self.on_row_added = MyEvent()
+        self.on_df_last_added = MyEvent()
        #self.update_symbols()
         #self.update()
 
     async def bootstrap(self):
         # load symbols
-        await self.on_update_symbols(self.client.live_symbols())
-        await self.update()
+        
+        self.symbols=self.client.live_symbols()
+        logger.info(f"DB boot symbols {self.symbols} {self.timeframe}")
+
+        if True:#not self.timeframe in ["1m","5m"]:
+            # non LIVE
+            df_h = await self.client.history_data( self.symbols , self.timeframe , limit= 999999 )
+            df_h = df_h.drop(columns=["ds_updated_at", "updated_at","source","exchange"], errors="ignore")
+            df_h["datetime"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True)
+            df_h["date"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True).dt.date
+            df_h = df_h.sort_values("timestamp")
+            self.df = df_h
+            for symbol in  self.symbols:
+                symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
+                self.last_index_by_symbol[symbol] = symbol_rows[-1]
+
+            logger.info(f"START INDEX {self.last_index_by_symbol}")
+            #logger.info(f"\n {self.df}")
+            self.last_timestamp=datetime.now()
+
+        #await self.update()
 
     async def tick(self):
         if (datetime.now() - self.lastTime  > timedelta(seconds= self.TIMEFRAME_UPDATE_SECONDS[self.timeframe] )):
             #logger.info(f"Update  {self.timeframe}")
-            await self.update()
+            #await self.update()
             self.lastTime = datetime.now()
 
     def set_indicators(self,df):
         pass
         #df['datetime_local'] = (pd.to_datetime(df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
 
+    def get_last_rows(self) -> pd.DataFrame:
+        idxs = list(self.last_index_by_symbol.values())
+        return self.df.loc[idxs]
+
+    async def _on_candle_receive(self, ticker):
+        symbol = ticker["s"]
+        ts = int(ticker["ts"])
+
+        row_data = {
+                "symbol": ticker["s"],
+                "timestamp": ts,
+                "open": ticker["o"],
+                "high": ticker["h"],
+                "low": ticker["l"],
+                "close": ticker["c"],
+                "base_volume": ticker["v"],
+                "quote_volume":  ticker["c"] * ticker["v"] ,
+                "day_volume": ticker["day_v"],
+                "datetime": pd.to_datetime(ts, unit="ms", utc=True)
+            }
+        
+        if ticker['tf'] == "1m" and symbol=="MRNO":
+            logger.info(f"receive {ticker['tf']} {self.last_index_by_symbol} < {row_data}")
+
+        if symbol not in self.last_index_by_symbol:
+            # 
+            logger.info(f"SYMBOL BOOT {symbol}")
+
+            df_h = await self.client.history_data([symbol] , self.timeframe , limit= 999999 )
+            df_h = df_h.drop(columns=["ds_updated_at", "updated_at","source","exchange"], errors="ignore")
+            df_h["datetime"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True)
+            df_h["date"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True).dt.date
+            df_h = df_h.sort_values("timestamp")
+
+            #adfd
+            if not self.last_timestamp:
+                self.df = df_h
+                logger.info(f"boot first {symbol}")
+                self.last_timestamp=datetime.now()
+            else:
+                logger.info(f"boot new {symbol}")
+                #start_len = len(self.df)
+                self.df = pd.concat([self.df, df_h], ignore_index=True)
+
+            symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
+            self.last_index_by_symbol[symbol] = symbol_rows[-1]
+
+            await self.on_symbol_added(symbol)
+            #df.loc[len(df)] = row_data
+            #self.last_index_by_symbol[symbol] = self.df.index[-1]
+            return
+        
+        last_idx = self.last_index_by_symbol[symbol]
+        last_ts = int(self.df.at[last_idx, "timestamp"])
+
+        # ---- CASO NORMALE ----
+        if ts > last_ts:
+            logger.info(f"APPEND {self.timeframe}")
+            new_row = self.df.loc[last_idx].copy()
+            new_row.update(row_data)
+
+            new_idx = self.df.index.max() + 1
+            self.df.loc[new_idx] = new_row
+            self.last_index_by_symbol[symbol] = new_idx
+
+            await self.on_row_added(row_data)
+            await self.on_df_last_added(self.timeframe,self.get_last_rows())
+            return
+
+        # ---- UPDATE CANDELA CORRENTE ----
+        if ts == last_ts:
+            #logger.info("update")
+            for k in ["open","high", "low", "close", "base_volume", "quote_volume","day_volume","datetime"]:
+                self.df.at[last_idx, k] = row_data[k]
+            return
+
+        # ---- CASO IMPORTANTE: OUT OF ORDER ----
+        if ts < last_ts:
+            mask = self.df["symbol"].eq(symbol)
+
+            #logger.info("rollback")
+            # 1) tieni solo le righe di quel symbol <= ts
+            keep_mask = ~mask | (self.df["timestamp"] <= ts)
+            self.df.drop(self.df.index[~keep_mask], inplace=True)
+
+            # 2) trova la nuova ultima riga del symbol
+            symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
+            new_last_idx = symbol_rows[-1]
+            self.last_index_by_symbol[symbol] = new_last_idx
+
+            # 3) ora fai update/append normalmente
+            if self.df.at[new_last_idx, "timestamp"] == ts:
+                for k in ["open","high", "low", "close", "base_volume","quote_volume", "day_volume","datetime"]:
+                    self.df.at[new_last_idx, k] = row_data[k]
+            else:
+                new_row = self.df.loc[new_last_idx].copy()
+                new_row.update(row_data)
+                new_idx = self.df.index.max() + 1
+                self.df.loc[new_idx] = new_row
+                self.last_index_by_symbol[symbol] = new_idx
+                await self.on_row_added(row_data)
+                await self.on_df_last_added(self.timeframe,self.get_last_rows())
+
+    async def mulo_on_candle_receive(self, ticker):
+        try:
+            #logger.info(f"DB on_candle_receive {ticker} {self.timeframe}")
+            if ticker["tf"] == self.timeframe:
+               
+                #if self.timeframe =="1m":#and ticker["s"] == 'XTKG':
+                if True:
+                    await self._on_candle_receive(ticker)
+
+                    #logger.info(f"last XTKG\n{self.df[self.df['symbol'] == 'XTKG'].tail()}")
+                    '''
+                    logger.info(
+                        "last 5 per symbol\n%s",
+                        self.df.groupby("symbol", group_keys=False).tail(5)
+                    )
+                    '''
+                            
+        except:
+            logger.error("ERROR", exc_info=True)
+
     async def on_update_symbols(self, symbols):
         logger.info(f"DB reset symbols {symbols} {self.timeframe}")
         self.symbols=symbols
+        #await self.update()
 
-    async def update(self):
+    async def update_bo(self):
      
         #logger.info(f"---- DF UPDATE ------- {self.timeframe}")
 
         if not self.last_timestamp:
             self.df = await self.client.history_data(self.symbols , self.timeframe , limit= 999999 )
+            self.df = self.df.drop(columns=["ds_updated_at", "updated_at","quote_volume"], errors="ignore")
 
+            self.df["datetime"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True)
+            self.df["date"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True).dt.date
+
+            self.last_index_by_symbol = (
+                self.df.reset_index()
+                .groupby("symbol")["index"]
+                .max()
+                .to_dict()
+            )
+                        
             #logger.debug(f"GETTING HISTORY {self.symbols} {self.df }")
             #print(self.df)
             #self.df = self.df.set_index("timestamp", drop=True)
@@ -128,11 +288,13 @@ class DBDataframe_TimeFrame:
 
             self.last_timestamp = self.df['timestamp'].max()
 
-        self.df["date"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True).dt.date
+        #self.df["date"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True).dt.date
             #print( "NEW ",self.df.tail())
         #logger.info( f"DB \n{self.df}" )
 
     def dataframe(self,symbol="") -> pd.DataFrame:
+        #logger.info(f"{self.tim} {self.last_timestamp} {self.df}")
+
         if not self.last_timestamp:
             return None
         if symbol=="":
@@ -185,6 +347,7 @@ class DBDataframe:
             '''
             
             #leggo dal db l'esistente
+            await self.db_dataframe("10s").bootstrap()
             await self.db_dataframe("1m").bootstrap()
             await self.db_dataframe("5m").bootstrap()
             await self.db_dataframe("1d").bootstrap()

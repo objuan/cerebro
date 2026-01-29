@@ -113,6 +113,7 @@ class EventManager:
         #logger.info(f"gain_5_min_thresold {self.gain_5_min_thresold}")
 
         ############
+        '''
         self.strategies = []
         for strat_def in config["events"]["stategies"]:
 
@@ -127,7 +128,7 @@ class EventManager:
             logger.info(f"ADD STRAT {strat}")
         
             self.scheduler.schedule_every(strat.time, strat.handler,self, * strat.args)
-        
+        '''
 
     async def bootstrap(self):
         symbols = await self.job.send_cmd("symbols")

@@ -43,7 +43,8 @@ class MuloLiveClient:
         
         self.on_symbols_update = MyEvent()
         #self.on_symbols_update.debug=True
-        self.on_candle_receive = MyEvent()
+        self.on_partial_candle_receive = MyEvent()
+        self.on_full_candle_receive = MyEvent()
         self.on_ticker_receive = MyEvent()
 
         propManager.add_computed("root.sym_mode", lambda: self.sym_mode )
@@ -110,12 +111,16 @@ class MuloLiveClient:
                              await self._on_update_symbols()
 
                     else:
+                        mode = new_ticker["m"]
                         new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
                         #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
                         #print(new_ticker)
                         # send to UI
-                        await self.on_candle_receive(new_ticker)
-                        
+                        if mode =="full":
+                            await self.on_full_candle_receive(new_ticker)
+                        else:
+                            await self.on_partial_candle_receive(new_ticker)
+                       
                         
                         if new_ticker["tf"]=="10s" and new_ticker["s"] in self.tickers:
                             

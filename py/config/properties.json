@@ -12,8 +12,8 @@
   },
   "chart": {
     "1": {
-      "grid": "2_2",
-      "symbol": "GITS",
+      "grid": "1_1",
+      "symbol": "MRNO",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -22,7 +22,7 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "5m"
+          "timeframe": "1m"
         }
       },
       "2_2": {

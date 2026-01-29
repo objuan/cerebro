@@ -92,6 +92,7 @@
  
         <div>
           <TickersSummary ref="tickets_summary"></TickersSummary>
+          <EventWidget></EventWidget>
         </div>
 
         <div class="charts-grid" :style="gridStyle">
@@ -132,7 +133,8 @@ import { eventBus } from "@/components/js/eventBus";
 import SidePanel from '@/components/SidePanel.vue';
 import ErrorToast from '@/components/ErrorToast.vue'
 import ToastHistory from '@/components/ToastHistory.vue'
-
+import EventWidget from '@/components/EventWidget.vue'
+import { eventStore } from "@/components/js/eventStore";
 
 // --- STATO REATTIVO ---
 
@@ -323,6 +325,16 @@ const initWebSocket = () => {
            eventBus.emit("event-received",msg.data);
        }
         break;
+       case "strategy":
+        {
+           //let d = JSON.parse(msg.data)
+          console.log("strategy",msg);
+
+          eventBus.emit("strategy-received",msg);
+          eventStore.push(msg); 
+
+          break;
+       }
        case "events":
         {
            //let d = JSON.parse(msg.data)

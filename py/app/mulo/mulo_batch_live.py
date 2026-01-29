@@ -48,7 +48,7 @@ intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
 use_yahoo=False
-use_display = True
+use_display = False
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -108,6 +108,7 @@ class LiveManager:
         self.config=config
         self.scanner = scanner
         self.fetcher=fetcher
+        self.conn = sqlite3.connect(fetcher.db_file)
         self.ws_manager=ws_manager
         #print(self.config)
         self.max_symbols =   config["live_service"]["max_symbols"]
@@ -368,6 +369,7 @@ class LiveManager:
                                 #logger.info("send")
                                 # send
                                 data = {
+                                    "m": "full",
                                     "s": symbol,
                                     "tf": interval,
                                     "o": candle["open"],
@@ -388,6 +390,7 @@ class LiveManager:
                                     await self.ws_manager.broadcast(data)
                                 ###
 
+                            #reinit
                             candle = {
                                 "start": start,
                                 "open": ticker.last,
@@ -413,6 +416,7 @@ class LiveManager:
                                 candle["close"] = ticker.last
 
                                 data = {
+                                        "m": "partial",
                                         "s": symbol,
                                         "tf": interval,
                                         "o": candle["open"],
@@ -585,8 +589,14 @@ class LiveManager:
 
                                 #logger.info(f".. {symbol} {start} interval {interval}   ts {ts}")   
                                 
-                                df = self.fetcher.get_df(f"SELECT * FROM ib_ohlc_history WHERE timeframe='{TF_SEC_TO_DESC[interval]}' and symbol='{symbol}' and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1")
+                                print("..",ts_check,symbol,interval)
+
+                                #self.conn. df = pd.read_sql_query(query, conn, params=params)
+                                df = pd.read_sql_query(f"SELECT * FROM ib_ohlc_history WHERE  symbol='{symbol}' and timeframe='{TF_SEC_TO_DESC[interval]}'  and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1",
+                                                       self.conn)
+                                #df = self.fetcher.get_df(f"SELECT * FROM ib_ohlc_history WHERE timeframe='{TF_SEC_TO_DESC[interval]}' and symbol='{symbol}' and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1")
                                 if len(df)>0:
+                                    
                                     row = df.iloc[0]
                                     ts = datetime.fromtimestamp(row["timestamp"]/1000)
 
@@ -641,8 +651,9 @@ class LiveManager:
 
                                     #data = sanitize(data)
                                     
+                                    
                             if table:
-                                print("k")
+                               
                                 table.add_row(symbol, f"{ticker.last:.6f}", 
                                         datetime.fromtimestamp(self.sym_time).strftime('%Y-%m-%d %H:%M:%S'),
                                         hls[0], hls[1], hls[2], hls[3])

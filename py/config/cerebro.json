@@ -38,22 +38,22 @@
 	{
 		"shapshot_time" : 10
 	},
-	"events":{
-		
-		"stategies":[
-			{
-				"name": "GAIN_5",
-				"time": 60,
-				"code" : "process_gain",
-				"args" : [300,5]
-			},
+	"stategies":[
 			{
 				"name": "GAIN_1",
-				"time": 10,
-				"code" : "process_gain",
-				"args" : [10,0.01]
+				"schedule_time": 10,
+				"class" : "GainStrategy",
+				"timeframe" : "10s",
+				"params" :
+				{
+					"eta" : 5,
+					"gain_limit" : 0.1
+				}
 			}
 		],
+
+	"events":{
+		
 		"GAIN_5_MIN" : 5,
 		"GAIN_5_MIN_TIMER" : 60,
 
@@ -83,7 +83,7 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :10,
+				"max_symbols" :2,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
@@ -164,7 +164,7 @@
 					}
 				]
 
-			
+				,"_comment" : "Dataframe database update time by timeframe"
 				,"TIMEFRAME_UPDATE_SECONDS" : {
 					"10s": 10,
 					"30s": 30,
@@ -187,7 +187,7 @@
 					"1h": "30d",
 					"2h": "30d",
 					"4h": "30d",
-					"1d": "60d"
+					"1d": "120d"
 				}
 	}
 

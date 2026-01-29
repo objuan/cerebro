@@ -347,7 +347,7 @@ class MuloJob:
                                 update=True
                             if (timeframe =="5m" and last_update_delta_min.total_seconds()/60 > 5):
                                 update=True
-                            if (timeframe =="1h" and last_update_delta_min.total_seconds()/60 > 1):
+                            if (timeframe =="1h" and last_update_delta_min.total_seconds()/60 > 30):
                                 update=True
                             if (timeframe =="1d" and last_update_delta_min.total_seconds()/60 > 24*60):
                                 update=True
