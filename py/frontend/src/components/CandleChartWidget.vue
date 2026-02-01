@@ -28,6 +28,7 @@
       <div ref="chartContainer" class="chart-container  w-100 d-flex flex-column">
         <div ref="mainChartRef" class=" w-100" >
           
+           <!-- TODO aggiungere FLOAT, MARKETCAP -->
            <!-- INDICATOR MENU -->
 
           <div class="chart-legend-left-ind">
@@ -37,7 +38,7 @@
               :items="menuItems"
               @select="handleMenu"
             />
-
+            
             <DropdownMenu
               :label="profileName"
               :items="menu_indicatorList"

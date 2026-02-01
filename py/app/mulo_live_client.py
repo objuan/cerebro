@@ -29,6 +29,7 @@ class MuloLiveClient:
     def __init__(self,db_file, config, propManager):
         self.db_file = db_file
         self.ready=False
+        self.render_page=None
         self.propManager=propManager
         self.config=config
         self.symbols=[]
@@ -184,10 +185,19 @@ class MuloLiveClient:
     async def _on_update_symbols(self):
         logger.info(f"LIVE >> UPDATE SYMBOLS ..")#MAX:{self.max_symbols}")
 
-        self.symbols = await self.send_cmd("symbols")
+        new_symbols = await self.send_cmd("symbols")
 
-        logger.info(f"<< {self.symbols}")
+        set_new = set(new_symbols)
+        set_old = set(self.symbols)
 
+        to_add = list(set_new - set_old)       # presenti in new_symbols ma non prima
+        to_remove = list(set_old - set_new)    # presenti prima ma non più
+        common = list(set_new & set_old)       # presenti in entrambi
+
+        self.symbols = new_symbols
+
+        logger.info(f"<< {self.symbols} ADD {to_add} DEL {to_remove}")
+        
         if len(self.symbols) > 0:
             self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
             self.fundamentals_map = (
@@ -215,6 +225,18 @@ class MuloLiveClient:
         #logger.info(f">> {self.on_symbols_update._handlers}")  
 
         await self.on_symbols_update(self.symbols)
+
+        await self.render_page.send({
+            "type" :"symbols",
+            "add" : to_add,
+            "del" : to_remove
+        })
+
+        for symbol in to_add:
+                await self.send_event("mule",symbol,"NEW  SYMBOL", "New  symbol : "+symbol,"", {"color": "#00b627"})
+
+        for symbol in to_remove:
+                await self.send_event("mule",symbol,"DEL SYMBOL", "Del  symbol : "+symbol,"", {"color": "#ff5084"})
 
         logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
 
@@ -537,6 +559,38 @@ class MuloLiveClient:
         else:
             return 0
         
+    ################################
+
+    async def send_event(self,source:str,symbol:str, name:str, small_desc:str,  full_desc:str, data):
+       
+        try:
+            data["small_desc"]= small_desc
+            data["full_desc"]= full_desc
+            query = "INSERT INTO events ( type,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            self.execute(query, (source,symbol, name,  int(time.time() * 1000), json.dumps(data) ))
+
+            #logger.info(f"SEND {data}")
+
+            await self.render_page.send(
+                {
+                    "type" : "event",
+                    "source" : source,
+                    "symbol": symbol,
+                    "name" : name,
+                    "timestamp" :  int(time.time() * 1000),
+                    "data" : data
+                }
+            )
+            #logger.info(f"SEND DONE")
+        except:
+            logger.error("SEND ERROR", exc_info=True)
+
+    def __str__(self):
+        return f"{self.__class__} params:{self.params}"
+
+    ##################################
+
+
     def get_df(self,query, params=()):
         conn = sqlite3.connect(self.db_file)
         df = pd.read_sql_query(query, conn, params=params)
@@ -549,6 +603,7 @@ class MuloLiveClient:
         cur.execute(sql, params)
         line_id = cur.lastrowid
         conn.commit()
+        conn.close()
         return line_id
     
     async def send_cmd(self,rest_point, msg=None):

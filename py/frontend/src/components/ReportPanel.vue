@@ -23,20 +23,29 @@
             <tr
               v-for="row in report_rows"
               :key="row.symbol"
-              class="border-t hover:bg-gray-50 text-sm"
+             :class="[
+                'border-t text-sm hover:bg-gray-50',
+                row.deleted && 'bg-gray-200 opacity-60'
+              ]"
             >
                 <td v-for="col in columns" :key="col.bind" class="px-0 py-0">
-    
+
                   <template v-if="col.type === 'chart_link'">
-                    <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(row[col.bind])">
+                    <a  v-if="!row.deleted" href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(row[col.bind])">
                       {{ row[col.bind] }}
                     </a>
+                    <span v-if="row.deleted">
+                        {{ row[col.bind] }}
+                    </span>
                   </template>
 
-                  <template v-else-if="col.type === 'rank'">
+                  <template v-else-if="col.type === 'rank' && !row.deleted">
                     <span v-if="row[col.bind] > 0" class="text-green-600">▲ {{ row[col.bind] }}</span>
                     <span v-else-if="row[col.bind] < 0" class="text-red-600">▼ {{ Math.abs(row[col.bind]) }}</span>
                     <span v-else class="text-gray-400">–</span>
+                  </template>
+                  <template v-else-if="col.type === 'rank' && row.deleted">
+                      <span class="text-gray-400">X</span>
                   </template>
 
                   <template v-else>
@@ -65,9 +74,9 @@
                   </template>
 
                   <template v-else-if="col.type === 'rank'">
-                    <span v-if="row[col.bind] > 0" class="text-green-600">▲ {{ row[col.bind] }}</span>
-                    <span v-else-if="row[col.bind] < 0" class="text-red-600">▼ {{ Math.abs(row[col.bind]) }}</span>
-                    <span v-else class="text-gray-400">–</span>
+                    <span v-if="row[col.bind] > 0" class="text-red-600">▼ {{ row[col.bind] }}</span>
+                    <span v-else-if="row[col.bind] < 0" class="text-green-600">▲{{ row[col.bind] }}</span>
+                    <span v-else class="text-gray-400">– {{ row[col.bind] }}</span>
                   </template>
 
                   <template v-else-if="col.type === 'str'">
@@ -112,6 +121,25 @@ const events = reactive([])
 const sortBy = ref('gain') // 'gain' | 'gap'
 const sortDir = ref('desc') // 'asc' | 'desc'
 
+/*
+const report_rows = computed(() => {
+  const key = sortBy.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+
+  return Object.entries(report.items)
+    .map(([symbol, data]) => ({
+      symbol,
+      ...data
+    }))
+    .filter(item => item.deleted === false)   // ✅ filtro
+    .sort((a, b) => {
+      const av = a[key] ?? -Infinity
+      const bv = b[key] ?? -Infinity
+      return (av - bv) * dir
+    })
+})
+    */
+
 const report_rows = computed(() => {
   const key = sortBy.value
   const dir = sortDir.value === 'asc' ? 1 : -1
@@ -122,11 +150,18 @@ const report_rows = computed(() => {
       ...data
     }))
     .sort((a, b) => {
+      // ✅ prima separa deleted
+      if (!!a.deleted !== !!b.deleted) {
+        return a.deleted ? 1 : -1
+      }
+
+      // ✅ poi il tuo ordinamento normale
       const av = a[key] ?? -Infinity
       const bv = b[key] ?? -Infinity
       return (av - bv) * dir
     })
 })
+
 const columns = computed(() => {
    if (props.mode=="report")
       return columnsData;

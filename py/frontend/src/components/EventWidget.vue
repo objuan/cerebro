@@ -36,12 +36,28 @@
                     <div class="msg" v-html="event.data.small_desc"></div>
                   </div>
            
-              
+                <!-- detail -->
                 <div
                       v-if="openKey === (event.timestamp + event.symbol + event.name)"
-                      class="full"
-                      v-html="event.data.full_desc"
-                    ></div>
+                      class="full" >
+                      <div class="div-col">
+                        <div>
+                            {{ event.data.full_desc }} 
+                        </div>
+                        <div v-if="fullDetails[event.symbol]" class="report">
+                          <div class="report-item">Rank:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;{{ fullDetails[event.symbol].rank }}</div>
+                          <div class="report-item">From Close: {{ fullDetails[event.symbol].gain }}%</div>
+                          <div class="report-item">Gap: &nbsp;{{ fullDetails[event.symbol].gap }}%</div>
+                          <div class="report-item">Volume: {{ formatValue(fullDetails[event.symbol].day_volume) }}</div>
+
+                          <div class="report-item">Float:&nbsp;&nbsp;&nbsp; {{ formatValue(fullDetails[event.symbol].float) }}</div>
+                          <div class="report-item">Rel 5: &nbsp;&nbsp;&nbsp;{{ fullDetails[event.symbol].rel_vol_24 }}</div>
+                          <div class="report-item">Rel 24:&nbsp; {{ fullDetails[event.symbol].rel_vol_5m }}</div>
+                          
+                          
+                        </div>
+                      </div>
+                </div>
            </div>
    </div>
     </div>
@@ -55,7 +71,10 @@ import { ref,computed,onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 import { eventBus } from "@/components/js/eventBus";
 import { eventStore as store } from "@/components/js/eventStore";
 import { send_get } from '@/components/js/utils';
+import { reportStore as report } from "@/components/js/reportStore";
+import { formatValue} from "@/components/js/utils";// scaleColor
 
+const fullDetails = {} // key -> result
 
 const sortedEvents = computed(() =>
   [...store.items].sort((a, b) => b.timestamp - a.timestamp)
@@ -67,7 +86,11 @@ const openKey = ref(null)
 function toggle(event) {
   const key = event.timestamp + event.symbol + event.name
   openKey.value = openKey.value === key ? null : key
+
+  fullDetails[event.symbol] = report.get_report(event.symbol)
+  console.log("fullDetails",fullDetails[event.symbol])
 }
+
 
 /*
 function formatTs(ts) {
@@ -103,10 +126,6 @@ onUnmounted(() => {
 });
 
 
-defineExpose({
- // updateSymbol,
-});
-
 </script>
 
 <style scoped>
@@ -134,7 +153,7 @@ defineExpose({
 }
 
 .event.open {
-  max-height: 200px; /* abbastanza per il testo */
+  max-height: 300px; /* abbastanza per il testo */
    border: 3px solid rgb(21, 255, 0);   /* bordo bold quando selezionato */
 }
 
@@ -183,5 +202,12 @@ defineExpose({
    flex-grow: 1;
    align-self:flex-start;
    background-color: rgb(210, 234, 255);
+}
+.report{
+  background-color: antiquewhite;
+
+}.report-item{
+  text-align: start
+  
 }
 </style>

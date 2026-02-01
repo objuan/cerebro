@@ -139,6 +139,7 @@ import ToastHistory from '@/components/ToastHistory.vue'
 import EventWidget from '@/components/EventWidget.vue'
 import { eventStore } from "@/components/js/eventStore";
 import { reportStore } from "@/components/js/reportStore";
+import { tickerStore } from "@/components/js/tickerStore";
 
 
 // --- STATO REATTIVO ---
@@ -285,87 +286,117 @@ const initWebSocket = () => {
 
   ws.onmessage = (event) => {
     //console.log(">>",event.data)
-    const msg = JSON.parse(event.data);
+    try
+    {
+      const msg = JSON.parse(event.data);
+  
 
-    if (msg.path) {
-      // Aggiornando liveData[path], Vue notifica tutti i componenti in ascolto
-        liveStore.updatePathData(msg.path, msg.data);
-    }
 
-    switch (msg.type) {
-    
-      case "candle":
+      if (msg.path) {
+        // Aggiornando liveData[path], Vue notifica tutti i componenti in ascolto
+          liveStore.updatePathData(msg.path, msg.data);
+      }
+
+      switch (msg.type) {
+      
+        case "symbols":
         {
-           // console.log("WS CANDLE",msg) 
+            console.log("update symbols",msg) 
 
-            for (const id in widgetRefs.value) {
-              const comp = widgetRefs.value[id]
-              if (comp)
-                comp.on_candle(msg.data)
-            }
-            //#componentInstance.on_candle(msg.data);  
+            msg.del.forEach(symbol => {
+               tickerStore.del_ticker(symbol)
+
+               reportStore.del_symbol( symbol)
+
+            })
+            msg.add.forEach(symbol => {
+               reportStore.resume_symbol( symbol)
+            })
+            //eventBus.emit("symbols-received",msg.del);
+
+            break;
         }
-        break;
-      case "ticker":
-        {
-          //console.log("WS TICKER",msg.data);
-          eventBus.emit("ticker-received", msg.data);
-        } 
-        break
-       case "props":
-        {
-           console.log("WS props",msg);          
-           liveStore.updatePathData(msg.path, msg.value);
-        } 
-        break
-      case "report":
-        {
-         // console.log("Report\\\\",msg.data);
-           //eventBus.emit("report-received", msg.data);
-           reportStore.push( msg.data)
 
-       }
-        break;
-      case "event":
-        {
-           //console.log("event",msg.data);
-           eventBus.emit("event-received",msg.data);
-       }
-        break;
-       case "strategy":
-        {
-           //let d = JSON.parse(msg.data)
-          console.log("strategy",msg);
+        case "candle":
+          {
+            // console.log("WS CANDLE",msg) 
 
-          eventBus.emit("strategy-received",msg);
-          eventStore.push(msg); 
-
-          break;
-       }
-       case "events":
-        {
-           //let d = JSON.parse(msg.data)
-           //console.log("events",msg.data);
-           msg.data.forEach( (v)=>
-           {
-               eventBus.emit("event-received",v);
-           });
-           
-           //eventBus.emit("event-received",msg.data);
-       }
-        break;
-      case "del":
-        {
-          /*
-          const target = chart_list[msg.id];
-          if (target) {
-            grid.removeWidget(target.widget_ele);
-            delete chart_list[msg.id];
+              for (const id in widgetRefs.value) {
+                const comp = widgetRefs.value[id]
+                if (comp)
+                  comp.on_candle(msg.data)
+              }
+              //#componentInstance.on_candle(msg.data);  
           }
-            */
-       }
-        break;
+          break;
+        case "ticker":
+          {
+            //console.log("WS TICKER",msg.data);
+            tickerStore.push(msg.data)
+            eventBus.emit("ticker-received", msg.data);
+          } 
+          break
+        case "props":
+          {
+            console.log("WS props",msg);          
+            liveStore.updatePathData(msg.path, msg.value);
+          } 
+          break
+        case "report":
+          {
+          // console.log("Report\\\\",msg.data);
+            //eventBus.emit("report-received", msg.data);
+            reportStore.push( msg.data)
+
+        }
+          break;
+        case "event":
+          {
+            console.log("event",msg);
+            eventBus.emit("event-received",msg.data);
+            eventStore.push(msg); 
+        }
+          break;
+        case "event_bo":
+          {
+            //let d = JSON.parse(msg.data)
+            console.log("event",msg);
+          
+            eventBus.emit("strategy-received",msg);
+            eventStore.push(msg); 
+
+            break;
+        }
+        case "events":
+          {
+            //let d = JSON.parse(msg.data)
+            //console.log("events",msg.data);
+            msg.data.forEach( (v)=>
+            {
+                eventBus.emit("event-received",v);
+            });
+            
+            //eventBus.emit("event-received",msg.data);
+        }
+          break;
+        case "del":
+          {
+            /*
+            const target = chart_list[msg.id];
+            if (target) {
+              grid.removeWidget(target.widget_ele);
+              delete chart_list[msg.id];
+            }
+              */
+        }
+          break;
+      }
+  }
+  catch(e){
+      console.error(e)
+      return
     }
+
   };
 };
 

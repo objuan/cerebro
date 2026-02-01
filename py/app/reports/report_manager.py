@@ -314,7 +314,7 @@ class ReportManager:
                 df_new_report["rank_old"] =  df_new_report["rank"] 
                 df_new_report["rank_delta"] = df_new_report["rank"] - df_new_report["rank_old"] 
 
-            #logger.info(f"result \n{df_new_report}")
+            logger.info(f"result \n{df_new_report}")
 
             self.df_report  = df_new_report
         

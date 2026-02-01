@@ -4,7 +4,7 @@
      <div class="d-flex flex-wrap gap-2">
 
       <div
-        v-for="item in symbolList"
+        v-for="item in tickerList.get_list()"
         :key="item.symbol"
         class="card ticket-card"
       >
@@ -23,7 +23,45 @@
             class="fw-bold ms-3"
             :class="item.gain >= 0 ? 'text-success' : 'text-danger'"
           >
-            {{ item.gain }}%
+            {{ Number(item.gain).toFixed(1) }}%
+          </div>
+
+           <!-- Bottone menu contestuale -->
+          <div class="dropdown">
+            <button
+              class="btn btn-sm btn-light border-0"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              @click.stop
+            >
+              ⋮
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <a class="dropdown-item"
+                  href="#"
+                  @click.prevent="openChart(item.symbol)">
+                  Open
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item"
+                  href="#"
+                  @click.prevent="addToWatchlist(item.symbol)">
+                  Add to Watchlist
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item text-danger"
+                  href="#"
+                  @click.prevent="addToBlack(item.symbol)">
+                  Add to black list
+                </a>
+              </li>
+            </ul>
           </div>
 
         </div>
@@ -35,13 +73,27 @@
 
 <script setup>
 
-import {  ref,onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
+import {  onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
 import { send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { eventBus } from "@/components/js/eventBus";
+import { tickerStore as tickerList } from "@/components/js/tickerStore";
 
-const symbolList = ref([]);
+//const symbolList = ref([]);
+
+function openChart(symbol) {
+  eventBus.emit("chart-select", { symbol, id: "chart_1" });
+}
+
+function addToWatchlist(symbol) {
+  console.log("Add to watchlist:", symbol);
+  eventBus.emit("watchlist-add", { symbol });
+}
+
+function addToBlack(symbol) {
+  send_get("/api/admin/add_to_black", {"symbol": symbol})
+}
 
 // Esponiamo i dati dello store al template
 //const liveData = computed(() => liveStore.state.dataByPath);
@@ -50,9 +102,9 @@ function onSymbolClick(symbol) {
   eventBus.emit("chart-select",{"symbol" : symbol , "id": "chart_1"});
 }
 
-function onTickerReceived(ticker) {
+function onTickerReceived() {
   //console.log("Summary → ticker:", ticker);
-  updateSymbol(ticker);
+  //updateSymbol(ticker);
 }
 
 defineProps({
@@ -61,13 +113,14 @@ defineProps({
 onMounted( async () => {
   eventBus.on("ticker-received", onTickerReceived);
 
+  /*
   let data = await send_get("/api/symbols")
   //console.log("Symbols ",data.symbols)
   symbolList.value =[]
   data.symbols.forEach(symbol => {
     symbolList.value.push({"symbol" : symbol});
   });
- 
+ */
 });
 
 onBeforeUnmount(() => {
@@ -79,6 +132,7 @@ onUnmounted(() => {
 
 });
 
+/*
 function updateSymbol(ticket){
     //console.log("updateSymbol", ticket);
     const item = symbolList.value.find(
@@ -89,6 +143,7 @@ function updateSymbol(ticket){
       item.gain = ticket.gain.toFixed(2);
     }
 }
+    */
 
 defineExpose({
  // updateSymbol,

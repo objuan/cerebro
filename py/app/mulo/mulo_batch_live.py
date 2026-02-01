@@ -120,6 +120,7 @@ class LiveManager:
         self.symbol_map=None
         self.symbol_to_conid_map=None
         self.tickers={}
+        self.ticker_contracts={}
 
         self.ticker_history ={}  # symbol -> deque of (ts, price)
         #self.ticker_map = {}
@@ -191,9 +192,20 @@ class LiveManager:
              o_tickers = self.ordered_tickers()
              #logger.info(f"..{o_tickers}")
              to_remove = o_tickers[self.max_symbols:]
-             symbols = [x.contract.symbol for x in to_remove]
+             #symbols = [x.contract.symbol for x in to_remove]
+             symbols = [
+                x.contract.symbol
+                for x in to_remove
+                if (datetime.now() - x.start_time).total_seconds() > 60
+            ]
+
              logger.info(f"REMOVE LAST symbols {symbols}")
 
+             if len(symbols)>0:
+                     self.actual_df = self.actual_df[
+                        ~self.actual_df["symbol"].isin(symbols)
+                        ].reset_index(drop=True)
+                     
              await self.manage_live([],symbols )
 
     ######################
@@ -213,21 +225,44 @@ class LiveManager:
         if self.max_symbols != None:
              df_symbols= df_symbols [:self.max_symbols]
 
-        if not self.symbol_map:
+        logger.info(f"PROCESS  {df_symbols}")
+        logger.info(f"ACTUAL {self.actual_df}")
+
+        if len(df_symbols)==0:
             self.actual_df = df_symbols
-            await self.manage_live(self.actual_df["symbol"].to_list(),[])
+            self.symbol_map =={}
+            self.symbol_to_conid_map = {}
         else:
-            delta_new = df_symbols[~df_symbols["symbol"].isin(self.actual_df["symbol"])]
+            if not self.symbol_map:
+                self.actual_df = df_symbols
+                await self.manage_live(self.actual_df["symbol"].to_list(),[])
+            else:
+                delta_prev = self.actual_df[~self.actual_df["symbol"].isin(df_symbols["symbol"])]
+                logger.info(f"PREV DELTA {delta_prev}")
+                to_remove= []
+                for s in delta_prev["symbol"].to_list():
+                    if  fetcher.is_in_blacklist(s):
+                        to_remove.append(s)
+                    
+                logger.info(f"TO  REMOVED {to_remove}")
+                    
+                delta_new = df_symbols[~df_symbols["symbol"].isin(self.actual_df["symbol"])]
 
-            logger.info(f"DELTA {delta_new}")
-            self.actual_df = pd.concat([self.actual_df, delta_new], ignore_index=True)
+                logger.info(f"NEW ADDED {delta_new}")
 
-            logger.info(f"NEW LIST  {self.actual_df }")
-            #in append
-            await self.manage_live(delta_new["symbol"].to_list(),[])
+                if len(to_remove)>0:
+                     self.actual_df = self.actual_df[
+                        ~self.actual_df["symbol"].isin(to_remove)
+                        ].reset_index(drop=True)
 
-        self.symbol_map = self.actual_df.set_index("symbol")["listing_exchange"].to_dict()
-        self.symbol_to_conid_map = self.actual_df.set_index("symbol")["conidex"].to_dict()
+                self.actual_df = pd.concat([self.actual_df, delta_new], ignore_index=True)
+                
+                logger.info(f"NEW LIST  {self.actual_df }")
+                #in append
+                await self.manage_live(delta_new["symbol"].to_list(),to_remove)
+
+            self.symbol_map = self.actual_df.set_index("symbol")["listing_exchange"].to_dict()
+            self.symbol_to_conid_map = self.actual_df.set_index("symbol")["conidex"].to_dict()
 
 
     async def manage_live(self, symbol_list_add, symbol_list_remove):
@@ -266,6 +301,7 @@ class LiveManager:
           
                 market_data = self.ib.reqMktData(contract, "", False, False, [])#, reqId=reqId)
                 market_data.gain = 0
+                market_data.start_time = datetime.now()
                 market_data.last_close = await self.fetcher.last_close(symbol)
                 market_data.symbol = symbol
                 
@@ -287,10 +323,11 @@ class LiveManager:
                 '''
 
             self.tickers[symbol]  = market_data
+            self.ticker_contracts[symbol]  = contract
 
         for symbol in symbol_list_remove:
-            exchange = "SMART"#symbol_map[symbol]
-            contract = Stock(symbol, exchange, 'USD')
+            #exchange = "SMART"#symbol_map[symbol]
+            contract = self.ticker_contracts[symbol]# Stock(symbol, exchange, 'USD')
             logger.info(f">> Close  feeds {contract}")
             try:
                 self.ib.cancelMktData(contract)
@@ -773,6 +810,13 @@ async def get_symbols():
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(status_code=204)
+
+@app.get("/admin/add_to_black")
+async def add_to_black(symbol):
+    fetcher.add_blacklist(symbol,"USER SETTING", isUser=True)
+    return {"status": "ok"}
+    
+#############
 
 @app.get("/sym/time")
 async def get_sym_time():

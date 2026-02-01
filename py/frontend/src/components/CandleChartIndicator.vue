@@ -1,3 +1,8 @@
+<!--
+EMA 9 - 20 200 
+
+MACD ROSS 12-26 - signal 9 close
+-->
 <template>
   <div v-if="showIndicatorModal" class="indicator-modal-backdrop">
   <div class="indicator-modal">

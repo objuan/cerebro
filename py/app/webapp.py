@@ -147,6 +147,7 @@ render_page = RenderPage(ws_manager)
 #event_manager.render_page=render_page
 report.render_page=render_page
 strategy = StrategyManager(config,db,client,render_page)
+client.render_page=render_page
 
 
 tradeManager.on_trade_changed+= OrderTaskManager.on_update_trade
@@ -866,7 +867,13 @@ async def get_events():
         return {"status": "error"}
 
 ###################################
-
+# utils
+@app.get("/api/admin/add_to_black")
+async def add_to_black(symbol):
+    await client.send_cmd("/admin/add_to_black", {"symbol": symbol})
+    return {"status": "ok"}
+    
+    
 #######################
 
 @app.get("/account/summary")

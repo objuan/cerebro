@@ -28,7 +28,7 @@ class GainStrategy(Strategy):
 
     async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
      
-        #logger.info(f"on_symbol_candle  {symbol} \n {dataframe.tail(5)}" )
+        logger.info(f"on_symbol_candle  {symbol} \n {dataframe.tail(2)}" )
 
         gain = dataframe.iloc[-1]["gain"]
 
@@ -183,7 +183,7 @@ class MomoStrategy(Strategy):
         
         df_1d = self.df("1d",symbol)
 
-        logger.info(f"on_symbol_candle \n{self.rank_map} diff : {self.diff}")
+        logger.debug(f"on_symbol_candle \n{self.rank_map} diff : {self.diff}")
       
         gain = dataframe.iloc[-1]["gain"]
 
@@ -191,7 +191,7 @@ class MomoStrategy(Strategy):
         volume_1d = df_1d.iloc[-1]["base_volume"]
         rel_vol_1d=volume_1d / avg_base_volume
 
-        logger.info(f"g:{gain:.2} {volume_1d}/{avg_base_volume} =_> {rel_vol_1d} ")
+        logger.debug(f"g:{gain:.2} {volume_1d}/{avg_base_volume} =_> {rel_vol_1d} ")
 
         if rel_vol_1d <=self.min_rel_vol_24:
             if gain >= self.min_gain:

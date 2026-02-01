@@ -180,7 +180,7 @@ class MuloJob:
             update_delta_min = datetime.now() - datetime.fromtimestamp(float(since)/1000)
             candles= candles_from_seconds(update_delta_min.total_seconds(),timeframe)
 
-            logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
+            logger.debug(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
             
             #dt_start =  datetime.fromtimestamp(float(since)/1000)
 
@@ -189,7 +189,7 @@ class MuloJob:
             if timeframe == "1m":
                 dt_end = datetime.utcnow()
                 dt_start = dt_end - timedelta(days=6)
-                logger.info(f">> Fetching LAST WEEK only for 1m {symbol} {dt_start} -> {dt_end}")
+                logger.debug(f">> Fetching LAST WEEK only for 1m {symbol} {dt_start} -> {dt_end}")
 
                 df = yf.download(
                     tickers=symbol,
@@ -214,7 +214,7 @@ class MuloJob:
 
                     dt_end = min(dt_cursor + MAX_WINDOW, dt_now)
 
-                    logger.info(
+                    logger.debug(
                         f"Fetching {timeframe} chunk {symbol} {dt_cursor} -> {dt_end}"
                     )
 
@@ -234,7 +234,7 @@ class MuloJob:
                     dt_cursor = dt_end - timedelta(hours=1)
 
         except:
-            logger.error("ERROR", exc_info=True)
+            logger.debug("ERROR", exc_info=True)
 
     ########
 
@@ -258,7 +258,7 @@ class MuloJob:
                 # ultima candela parziale
                 ohlcv = ohlcv[:-1]
 
-                logger.info(f"Rows fetched: {len(ohlcv)}")
+                logger.debug(f"Rows fetched: {len(ohlcv)}")
 
                 if not ohlcv:
                     return False
@@ -340,7 +340,7 @@ class MuloJob:
                             #cache_key = f"{symbol}_{timeframe}_{max_dt}"
                             #val = self.cache.getCache(cache_key)
                             #if not val:
-                            logger.info(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
+                            logger.debug(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
                             # devo aggiornare ??? 
                             
                             if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 1):
@@ -358,7 +358,7 @@ class MuloJob:
                             (datetime.now() - timedelta(seconds=self.TIMEFRAME_LEN_CANDLES[timeframe]))
                             .timestamp()
                             )
-                        logger.info(f"BEGIN HISTORY {max_dt} ")
+                        logger.debug(f"BEGIN HISTORY {max_dt} ")
 
                     #update=True
                     if update:
@@ -368,7 +368,7 @@ class MuloJob:
                         #if not val:
                         if True:
                             #logger.debug(f"MAX.. {max_dt}")
-                            logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
+                            logger.debug(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
 
                             await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000)
                             #self.cache.addCache_str(cache_key,cache_key)
@@ -500,16 +500,18 @@ class MuloJob:
                 WHERE symbol='{symbol}'
             """)
         if (len(df)>0):
-            return not (df.iloc[0]["mulo_enable"] == 1 or df.iloc[0]["user_enable"] == 1)
+            return (df.iloc[0]["mulo_enable"] == 0 or df.iloc[0]["user_enable"] == 0)
         else:
             return False
         
-    def add_blacklist(self,symbol, errorDesc ):
+    def add_blacklist(self,symbol, errorDesc, isUser=False ):
         df = self.get_df(f"""
                 SELECT * from  black_list
                 WHERE symbol='{symbol}'
             """)
         if len(df) == 0:
+            mulo_enable = 0 if not isUser else 1
+            user_enable = 0 if isUser else 1
             self.cur_exe.execute("""
                         INSERT INTO black_list (
                             symbol,error,mulo_enable,user_enable,retry_day,last_day
@@ -518,17 +520,19 @@ class MuloJob:
                     """, (
                         symbol,
                         errorDesc,
-                        0,
-                        0,
+                        mulo_enable,
+                        user_enable,
                         1,
                         int(time.time() * 1000)
                     ))
 
             self.conn_exe.commit()
         else:
+            mulo_enable = 0 if not isUser else int(df.iloc[0]["mulo_enable"])
+            user_enable = 0 if isUser else int(f.iloc[0]["user_enable"])
             self.cur_exe.execute("""
-                        UPDATE black_list set mulo_enable=0, last_day=? where symbol = ? """, (
-                        int(time.time() * 1000),
+                        UPDATE black_list set mulo_enable=?,user_enable=?, last_day=? where symbol = ? """, (
+                        mulo_enable, user_enable,int(time.time() * 1000),
                         symbol)
                     )
 

@@ -216,6 +216,7 @@ CREATE TABLE IF NOT EXISTS trade_marker (
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type VARCHAR(255),
     name VARCHAR(255),
     symbol VARCHAR(20),
     data TEXT,

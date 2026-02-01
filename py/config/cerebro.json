@@ -72,10 +72,7 @@
 					"min_rel_vol_5m" : 0.1,
 					"avg_5m_eta" : 50
 				}
-			}
-	]
-	,"stategies":[
-			{
+			},{
 				"class" : "MomoStrategy",
 				"timeframe" : "10s",
 				"params" :
@@ -85,6 +82,17 @@
 					"eta_gain" : 10,
 					"min_rel_vol_24" : 1,
 					"avg_1d_eta" : 10
+				}
+			}
+	]
+	,"stategies3":[
+			{
+				"class" : "GainStrategy",
+				"timeframe" : "10s",
+				"params" :
+				{
+					"eta" : 5,
+					"min_gain" : 0.1
 				}
 			}
 		],
@@ -120,19 +128,19 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :10,
+				"max_symbols" :2,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
 				"mode" : "live",
 				"mode1" : "live|offline|sym",
-				"debug_symbols" : ["TCGL"],
+				"debug_symbols" : ["live"],
 				"start_scan" : "live",
 				"start_scan1" : "keep_last_session|debug|live",
 				"scheduler":[
 					{
 						"name" : "TOP_PERC_GAIN SMALL",
-						"update_time" : 600,
+						"update_time" : 30,
 						"live_mode" : "ADD"
 					}
 				],

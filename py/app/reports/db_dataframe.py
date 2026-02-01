@@ -162,7 +162,7 @@ class DBDataframe_TimeFrame:
 
         # ---- CASO NORMALE ----
         if ts > last_ts:
-            logger.info(f"========== APPEND {self.timeframe} ==========")
+            logger.debug(f"========== APPEND {self.timeframe} ==========")
             new_row = self.df.loc[last_idx].copy()
             new_row.update(row_data)
 

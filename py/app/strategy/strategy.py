@@ -76,7 +76,7 @@ class Strategy:
             logger.info(f"END {tf}\n{df.tail(10)}")
 
     async def _on_df_last_added(self, tf, new_df):
-        logger.info(f"=== {self.__class__} >> on_df_last_added {tf} ")#\n{new_df}")
+        #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} ")#\n{new_df}")
 
         df_tf = self.df_map[tf]
         rows_to_add = []
@@ -97,7 +97,7 @@ class Strategy:
         if rows_to_add:
             add_df = pd.DataFrame(rows_to_add)
 
-            logger.info(f"TO ADD \n {add_df}")
+            logger.debug(f"TO ADD \n {add_df}")
 
             df_tf = pd.concat([df_tf, add_df], ignore_index=True)
             self.df_map[tf] = df_tf
@@ -114,7 +114,7 @@ class Strategy:
             if self.timeframe == tf:
                 symbols = add_df["symbol"].unique().tolist()
 
-                logger.info(f"symbols  {symbols}")
+                logger.debug(f"symbols  {symbols}")
  
                 await self.on_all_candle( self.df_map[self.timeframe],{})
 
@@ -156,26 +156,7 @@ class Strategy:
 
     async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str, data):
        
-        try:
-            data["small_desc"]= small_desc
-            data["full_desc"]= full_desc
-            query = "INSERT INTO events ( symbol, name,timestamp,data) values (?, ?,?,?)"
-            self.client.execute(query, (symbol, name,  int(time.time() * 1000), json.dumps(data) ))
-
-            #logger.info(f"SEND {data}")
-
-            await self.render_page.send(
-                {
-                    "type" : "strategy",
-                    "symbol": symbol,
-                    "name" : name,
-                    "timestamp" :  int(time.time() * 1000),
-                    "data" : data
-                }
-            )
-            #logger.info(f"SEND DONE")
-        except:
-            logger.error("SEND ERROR", exc_info=True)
+        await self.client.send_event("strategy",symbol,name,small_desc,full_desc,data)
 
     def __str__(self):
         return f"{self.__class__} params:{self.params}"
