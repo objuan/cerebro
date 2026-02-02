@@ -85,7 +85,7 @@ class DBDataframe_TimeFrame:
                     self.last_index_by_symbol[symbol] = symbol_rows[-1]
 
             logger.info(f"START INDEX {self.last_index_by_symbol}")
-            #logger.info(f"\n {self.df}")
+            logger.info(f"\n {self.df}")
             self.last_timestamp=datetime.now()
 
         #await self.update()
@@ -121,8 +121,8 @@ class DBDataframe_TimeFrame:
                 "datetime": pd.to_datetime(ts, unit="ms", utc=True)
             }
         
-        if ticker['tf'] == "1m" and symbol=="MRNO":
-            logger.info(f"receive {ticker['tf']} {self.last_index_by_symbol} < {row_data}")
+        #if ticker['tf'] == "1m" and symbol=="MRNO":
+        #    logger.info(f"receive {ticker['tf']} {self.last_index_by_symbol} < {row_data}")
 
         if symbol not in self.last_index_by_symbol:
             # 
@@ -153,7 +153,7 @@ class DBDataframe_TimeFrame:
             #df.loc[len(df)] = row_data
             #self.last_index_by_symbol[symbol] = self.df.index[-1]
 
-            #logger.info(f"SYMBOL BOOT \n{self.df }")
+            logger.info(f"SYMBOL BOOT \n{self.df }")
 
             return
         
@@ -162,9 +162,12 @@ class DBDataframe_TimeFrame:
 
         # ---- CASO NORMALE ----
         if ts > last_ts:
-            logger.debug(f"========== APPEND {self.timeframe} ==========")
+            
             new_row = self.df.loc[last_idx].copy()
             new_row.update(row_data)
+
+            #logger.info(f"========== APPEND {self.timeframe} ")# \n{new_row}==========")
+          
 
             new_idx = self.df.index.max() + 1
             self.df.loc[new_idx] = new_row
@@ -232,72 +235,6 @@ class DBDataframe_TimeFrame:
         logger.info(f"DB reset symbols {symbols} {self.timeframe}")
         self.symbols=symbols
         #await self.update()
-
-    async def update_bo(self):
-     
-        #logger.info(f"---- DF UPDATE ------- {self.timeframe}")
-
-        if not self.last_timestamp:
-            self.df = await self.client.history_data(self.symbols , self.timeframe , limit= 999999 )
-            self.df = self.df.drop(columns=["ds_updated_at", "updated_at","quote_volume"], errors="ignore")
-
-            self.df["datetime"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True)
-            self.df["date"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True).dt.date
-
-            self.last_index_by_symbol = (
-                self.df.reset_index()
-                .groupby("symbol")["index"]
-                .max()
-                .to_dict()
-            )
-                        
-            #logger.debug(f"GETTING HISTORY {self.symbols} {self.df }")
-            #print(self.df)
-            #self.df = self.df.set_index("timestamp", drop=True)
-
-            self.last_timestamp = self.df['timestamp'].max()
-            #logger.info(f"FIRST {self.timeframe} last_timestamp {self.last_timestamp}")
-            #self.df['datetime_local'] = (pd.to_datetime(self.df['timestamp'], unit='ms', utc=True) .dt.tz_convert('Europe/Rome') )
-            
-            
-        else:            
-            #logger.info(f"UPDATE {self.timeframe} last_timestamp {self.last_timestamp}")
-            new_df = await self.client.history_data(self.symbols , self.timeframe ,since = self.last_timestamp- timeframe_to_milliseconds(self.timeframe)*2, limit= 9999)
-             
-            #logger.info( f"NEW \n{new_df.head()}")
-            
-            self.df = pd.concat([self.df, new_df], ignore_index=True)
-
-            # 🔥 OVERWRITE: tieni l’ultimo record per stessa chiave
-            
-            '''
-            self.df  = (
-                    self.df .sort_values("timestamp")
-                    .drop_duplicates(
-                        subset=["exchange", "symbol", "timeframe", "timestamp"],
-                        keep="last"
-                    )
-                )
-            '''
-            
-            
-            self.df  = self.df.drop_duplicates(
-                        subset=["exchange", "symbol", "timeframe", "timestamp"],
-                        keep="last"
-                    )
-            
-            #self.df .sort_values("timestamp")
-
-            # tieni solo gli ultimi N arrivi
-            self.df = self.df.tail(self.TIMEFRAME_LEN_CANDLES[self.timeframe] * len(self.symbols)).reset_index(drop=True)
-
-            self.set_indicators(self.df)
-
-            self.last_timestamp = self.df['timestamp'].max()
-
-        #self.df["date"] = pd.to_datetime(self.df["timestamp"], unit="ms", utc=True).dt.date
-            #print( "NEW ",self.df.tail())
-        #logger.info( f"DB \n{self.df}" )
 
     def dataframe(self,symbol="") -> pd.DataFrame:
         #logger.info(f"{self.tim} {self.last_timestamp} {self.df}")

@@ -49,7 +49,7 @@ intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
 use_yahoo=False
-use_display = True
+use_display = False
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -597,6 +597,7 @@ class LiveManager:
                     ticker.gain = 0    
                     ticker.volume=0
                     ticker.symbol = symbol
+                    ticker.last_tick_time = {}
                     logger.info(f"Start ticker {ticker} last_close{ticker.last_close}")
 
                 self.sym_current_time = int(_time.time())    
@@ -606,6 +607,7 @@ class LiveManager:
                 else:
                     table=None
 
+                #cicle
                 while True:
                     try:
                         delta = int(_time.time())  -self.sym_current_time
@@ -613,7 +615,7 @@ class LiveManager:
                         
                         self.sym_time = int((self.sym_start_time + delta*1000) / 1000)
 
-                        logger.info(f"SYMBOL TICKER CHECK DELTA {delta} {self.sym_time}")   
+                        #logger.info(f"SYMBOL TICKER CHECK DELTA {delta} {self.sym_time}")   
                         
                         for symbol,ticker in self.tickers.items():
                             
@@ -628,72 +630,82 @@ class LiveManager:
                                 start = ts - (ts % interval)
                                 start_time = datetime.fromtimestamp(start).strftime("%H:%M:%S")
 
-                                remaining = interval - (ts % interval)
-                                time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
+                                if not interval in ticker.last_tick_time:
+                                    ticker.last_tick_time[interval] = datetime.fromtimestamp(0)
+                                last_tick_time = ticker.last_tick_time[interval]
 
-                                #logger.info(f".. {symbol} {start} interval {interval}   ts {ts}")   
-                                
-                                print("..",ts_check,symbol,interval)
-
-                                #self.conn. df = pd.read_sql_query(query, conn, params=params)
-                                df = pd.read_sql_query(f"SELECT * FROM ib_ohlc_history WHERE  symbol='{symbol}' and timeframe='{TF_SEC_TO_DESC[interval]}'  and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1",
-                                                       self.conn)
-                                #df = self.fetcher.get_df(f"SELECT * FROM ib_ohlc_history WHERE timeframe='{TF_SEC_TO_DESC[interval]}' and symbol='{symbol}' and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1")
-                                if len(df)>0:
+                                if last_tick_time != start_time:
                                     
-                                    row = df.iloc[0]
-                                    ts = datetime.fromtimestamp(row["timestamp"]/1000)
 
-                                    if row['day_volume'] is None:
-                                        day_volume = 0
-                                    else:
-                                        day_volume = int(row['day_volume'])
-
-                                    if row['base_volume'] is None:
-                                        base_volume = 0
-                                    else:
-                                        base_volume = int(row['base_volume'])
-
-                                    if interval == 10:
-                                        ticker.last = float(row.get("close") or 0)
-                                        ticker.volume=  base_volume
-                                        ticker.time=ts
-                                        ticker.ask=0
-                                        ticker.bid=0 
-                                        ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
+                                    ticker.last_tick_time[interval]=start_time
                                     
-                                    #logger.info(f"{row}")   
-                                  
-                                    try:
-                                        data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), 
-                                                "v":base_volume, "ts":int(start)*1000, "dts":start_time  }
-                                   
-                                     
-                                        pack = f"o:{row['open']:.2f} h:{row['high']:.2f} l:{row['low']:.2f} c:{row['close']:.2f} v:{base_volume:.0f} ({start_time}, {time_str})"
-                                        hls[i] = pack
-                                    except:
-                                        logger.error(f"{row} {base_volume}")   
-                                    ##await add_ticker(symbol,t)
+                                    remaining = interval - (ts % interval)
+                                    time_str = f"{int(remaining // 60)}:{int(remaining % 60):02d}"
+
+                                    #logger.info(f".. {symbol} {start} interval {interval}   ts {ts}")   
                                     
-                                    key = symbol+str(interval)
+                                    logger.info(f"..{ts_check} {symbol} {interval}")
 
-                                    if key in self.live_send_key:
-                                        toSend = self.live_send_key[key] != pack
+                                    #self.conn. df = pd.read_sql_query(query, conn, params=params)
+                                    df = pd.read_sql_query(f"SELECT * FROM ib_ohlc_history WHERE  symbol='{symbol}' and timeframe='{TF_SEC_TO_DESC[interval]}'  and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1",
+                                                        self.conn)
+                                    #df = self.fetcher.get_df(f"SELECT * FROM ib_ohlc_history WHERE timeframe='{TF_SEC_TO_DESC[interval]}' and symbol='{symbol}' and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1")
+                                    if len(df)>0:
+                                        
+                                        row = df.iloc[0]
+                                        ts = datetime.fromtimestamp(row["timestamp"]/1000)
 
-                                    if toSend:
-                                        self.live_send_key[key]=pack
+                                        if row['day_volume'] is None:
+                                            day_volume = 0
+                                        else:
+                                            day_volume = int(row['day_volume'])
 
-                                        data["bid"]=0
-                                        data["ask"]=0
-                                        data["day_v"]=day_volume
+                                        if row['base_volume'] is None:
+                                            base_volume = 0
+                                        else:
+                                            base_volume = int(row['base_volume'])
 
-                                        #logger.info(f"SEND {data}")
-                                        if self.ws_manager:
-                                            await self.ws_manager.broadcast({"sym":self.sym_time,"speed" : self.sym_speed})
+                                        if interval == 10:
+                                            ticker.last = float(row.get("close") or 0)
+                                            ticker.volume=  base_volume
+                                            ticker.time=ts
+                                            ticker.ask=0
+                                            ticker.bid=0 
+                                            ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
+                                        
+                                        #logger.info(f"{row}")   
+                                    
+                                        try:
+                                            data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), 
+                                                    "v":base_volume, "ts":int(start)*1000, "dts":start_time  }
+                                    
+                                        
+                                            pack = f"o:{row['open']:.2f} h:{row['high']:.2f} l:{row['low']:.2f} c:{row['close']:.2f} v:{base_volume:.0f} ({start_time}, {time_str})"
+                                            hls[i] = pack
+                                        except:
+                                            logger.error(f"{row} {base_volume}")   
+                                        ##await add_ticker(symbol,t)
+                                        
+                                        key = symbol+str(interval)
 
-                                            await self.ws_manager.broadcast(data)
+                                        if key in self.live_send_key:
+                                            toSend = self.live_send_key[key] != pack
 
-                                    #data = sanitize(data)
+                                        if toSend:
+                                            self.live_send_key[key]=pack
+
+                                            data["bid"]=0
+                                            data["ask"]=0
+                                            data["day_v"]=day_volume
+                                            data["m"]="full"
+
+                                            #logger.info(f"SEND {data}")
+                                            if self.ws_manager:
+                                                await self.ws_manager.broadcast({"sym":self.sym_time,"speed" : self.sym_speed})
+
+                                                await self.ws_manager.broadcast(data)
+
+                                        #data = sanitize(data)
                                     
                                     
                             if table:

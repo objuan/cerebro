@@ -840,7 +840,9 @@ async def get_task_symbol_orders(symbol:str,
     except Exception as e:
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
+    
 ###################
+
 
 
 @app.get("/api/report/get")

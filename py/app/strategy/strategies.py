@@ -28,7 +28,7 @@ class GainStrategy(Strategy):
 
     async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
      
-        logger.info(f"on_symbol_candle  {symbol} \n {dataframe.tail(2)}" )
+        logger.debug(f"on_symbol_candle  {symbol} \n {dataframe.tail(2)}" )
 
         gain = dataframe.iloc[-1]["gain"]
 

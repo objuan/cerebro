@@ -85,44 +85,18 @@
 				}
 			}
 	]
-	,"stategies3":[
+	,"stategies":[
 			{
 				"class" : "GainStrategy",
 				"timeframe" : "10s",
 				"params" :
 				{
 					"eta" : 5,
-					"min_gain" : 0.1
+					"min_gain" : 2
 				}
 			}
 		],
 
-	"events":{
-		
-		"GAIN_5_MIN" : 5,
-		"GAIN_5_MIN_TIMER" : 60,
-
-		"FLOAT_TIME_SECS" : 3000,
-		"LF_MAX_FLOAT" : 5000000,  
-		"_LF_MIN_GAIN" :"# Gain minimo del 10% per trigger",
-        "LF_MIN_GAIN" : 10,
-		"_LF_IN_REL_VOL" :"Almeno il doppio della media",
-        "LF_IN_REL_VOL" : 2.0 ,
-		"LF_TIMER": 20,
-                    
-        "MF_MIN_FLOAT" :  5000001,
-        "MF_MAX_FLOAT" : 20000000,
-		"_MF_MAX_PRICE" :  "Prezzo ancora sotto il 20%",
-        "MF_MAX_PRICE" : 20,
-		"_MF_MIN_REL_VOL" : "Volume molto alto (High Rel Vol)",
-        "MF_MIN_REL_VOL" : 5.0 ,
-		"MF_TIMER": 30,
-
-		"-MOMO_MIN_REL_VOL_24": "# Molto volume nelle ultime 24h",
-		"MOMO_MIN_REL_VOL_24" : 3.0 ,
-        "MOMO_MIN_GAIN": 5.0,
-		"MOMO_TIMER": 10
-	},
 	"live_service":
 	{
 				"enabled" : true,
@@ -132,10 +106,10 @@
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
-				"mode" : "live",
+				"mode" : "sym",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["live"],
-				"start_scan" : "live",
+				"start_scan" : "keep_last_session",
 				"start_scan1" : "keep_last_session|debug|live",
 				"scheduler":[
 					{

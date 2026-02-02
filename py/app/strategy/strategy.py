@@ -76,7 +76,7 @@ class Strategy:
             logger.info(f"END {tf}\n{df.tail(10)}")
 
     async def _on_df_last_added(self, tf, new_df):
-        #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} ")#\n{new_df}")
+        #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} \n{new_df}")
 
         df_tf = self.df_map[tf]
         rows_to_add = []
@@ -86,18 +86,23 @@ class Strategy:
             ts = int(row["timestamp"])
 
             symbol_rows = df_tf[df_tf["symbol"] == symbol]
-
+            #logger.info(f"symbol_rows {symbol} {ts}")
             if symbol_rows.empty:
                 rows_to_add.append(row)
             else:
                 last_ts = int(symbol_rows.iloc[-1]["timestamp"])
+
+                #logger.info(f"last_ts {last_ts}")
+                
                 if ts > last_ts:
                     rows_to_add.append(row)
+
+        #logger.info(f"rows_to_add \n{rows_to_add}")
 
         if rows_to_add:
             add_df = pd.DataFrame(rows_to_add)
 
-            logger.debug(f"TO ADD \n {add_df}")
+            #logger.info(f"TO ADD \n {add_df.tail(4)}")
 
             df_tf = pd.concat([df_tf, add_df], ignore_index=True)
             self.df_map[tf] = df_tf
@@ -114,7 +119,7 @@ class Strategy:
             if self.timeframe == tf:
                 symbols = add_df["symbol"].unique().tolist()
 
-                logger.debug(f"symbols  {symbols}")
+                #logger.debug(f"symbols  {symbols}")
  
                 await self.on_all_candle( self.df_map[self.timeframe],{})
 

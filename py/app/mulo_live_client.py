@@ -85,7 +85,7 @@ class MuloLiveClient:
                     if "ticker" in new_ticker:
                         symbol =  new_ticker["ticker"]
                       
-                        logger.info(f"<<TICKER {new_ticker}")
+                        #logger.info(f"<<TICKER {new_ticker}")
 
                         t = self.tickers[symbol]
                         t.update({"last": new_ticker["last"],
@@ -119,6 +119,8 @@ class MuloLiveClient:
                         # send to UI
                         if mode =="full":
                             await self.on_full_candle_receive(new_ticker)
+                            if self.sym_mode:
+                                await self.on_partial_candle_receive(new_ticker)
                         else:
                             await self.on_partial_candle_receive(new_ticker)
                        
@@ -155,7 +157,7 @@ class MuloLiveClient:
             logger.error("Errore: Assicurati che il server sia attivo!")
             exit(-1)
         except Exception as e:
-            logger.error(f"Errore: {e}")
+            logger.error(f"Errore", exc_info=True)
            # exit(-1)
 
    
@@ -312,35 +314,56 @@ class MuloLiveClient:
             logger.error("symbol empty !!!")
             return None
 
-        sql_symbols = str(symbols)[1:-1]
-     
-        conn = sqlite3.connect(self.db_file)
-        if since:
-            #since = int(dt_from.timestamp()) * 1000
-            query = f"""
-                SELECT *
-                FROM ib_ohlc_history
-                WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
-                and timestamp>= {since}
-                ORDER BY timestamp DESC
-                LIMIT {limit}"""
-                
-            #print("since",since)
-            df = pd.read_sql_query(query, conn)
-        else:
-            query = f"""
-                SELECT *
-                FROM ib_ohlc_history
-                WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
-                ORDER BY timestamp DESC
-                LIMIT {limit}"""
-          
-            df = pd.read_sql_query(query, conn)
-            #print(query)
+        if self.sym_mode:
+            sql_symbols = str(symbols)[1:-1]
+            conn = sqlite3.connect(self.db_file)
 
-        df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()     
-        return df
+            logger.info(f"SYM BOOT TIME {self.sym_start_time}")
+
+            query = f"""
+                    SELECT *
+                    FROM ib_ohlc_history
+                    WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
+                    and timestamp<= {self.sym_start_time*1000}
+                    ORDER BY timestamp DESC
+                    LIMIT {limit}"""
+                    
+            print("since",query)
+            df = pd.read_sql_query(query, conn)
+            df = df.iloc[::-1].reset_index(drop=True)
+            conn.close()    
+            return df 
+
+        else:
+            sql_symbols = str(symbols)[1:-1]
+        
+            conn = sqlite3.connect(self.db_file)
+            if since:
+                #since = int(dt_from.timestamp()) * 1000
+                query = f"""
+                    SELECT *
+                    FROM ib_ohlc_history
+                    WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
+                    and timestamp>= {since}
+                    ORDER BY timestamp DESC
+                    LIMIT {limit}"""
+                    
+                #print("since",since)
+                df = pd.read_sql_query(query, conn)
+            else:
+                query = f"""
+                    SELECT *
+                    FROM ib_ohlc_history
+                    WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
+                    ORDER BY timestamp DESC
+                    LIMIT {limit}"""
+            
+                df = pd.read_sql_query(query, conn)
+                #print(query)
+
+            df = df.iloc[::-1].reset_index(drop=True)
+            conn.close()     
+            return df
 
 
     async def _align_data(self, symbol, timeframe):

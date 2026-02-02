@@ -51,8 +51,8 @@
                           <div class="report-item">Volume: {{ formatValue(fullDetails[event.symbol].day_volume) }}</div>
 
                           <div class="report-item">Float:&nbsp;&nbsp;&nbsp; {{ formatValue(fullDetails[event.symbol].float) }}</div>
-                          <div class="report-item">Rel 5: &nbsp;&nbsp;&nbsp;{{ fullDetails[event.symbol].rel_vol_24 }}</div>
-                          <div class="report-item">Rel 24:&nbsp; {{ fullDetails[event.symbol].rel_vol_5m }}</div>
+                          <div class="report-item">Rel 5: &nbsp;&nbsp;&nbsp;{{ fullDetails[event.symbol].rel_vol_5m }}</div>
+                          <div class="report-item">Rel 24:&nbsp; {{ fullDetails[event.symbol].rel_vol_24 }}</div>
                           
                           
                         </div>

@@ -345,8 +345,9 @@ const initWebSocket = () => {
         case "report":
           {
           // console.log("Report\\\\",msg.data);
-            //eventBus.emit("report-received", msg.data);
+            
             reportStore.push( msg.data)
+            eventBus.emit("report-received", msg.data);
 
         }
           break;
