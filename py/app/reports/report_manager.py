@@ -27,7 +27,7 @@ class ReportManager:
     async def bootstrap(self):
         symbols = await self.job.send_cmd("symbols")
         
-        await self.on_symbols_update(symbols )
+        await self.on_symbols_update(symbols, symbols,[])
 
         self.scheduler = AsyncScheduler()
 
@@ -50,7 +50,7 @@ class ReportManager:
     def getLastDF(self):
         return self.shapshot_history[-1]
 
-    async def on_symbols_update(self, symbols):
+    async def on_symbols_update(self, symbols,to_add,to_remove):
         logger.info(f"Report reset symbols {symbols}")
         self.symbols=symbols
         self.live_df = self.job.live_symbols()

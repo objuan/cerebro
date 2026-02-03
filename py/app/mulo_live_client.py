@@ -226,7 +226,7 @@ class MuloLiveClient:
 
         #logger.info(f">> {self.on_symbols_update._handlers}")  
 
-        await self.on_symbols_update(self.symbols)
+        await self.on_symbols_update(self.symbols,to_add,to_remove)
 
         await self.render_page.send({
             "type" :"symbols",
@@ -605,6 +605,19 @@ class MuloLiveClient:
                 }
             )
             #logger.info(f"SEND DONE")
+        except:
+            logger.error("SEND ERROR", exc_info=True)
+
+    async def send_ticker_order(self,  data):
+       
+        try:
+            await self.render_page.send(
+                {
+                    "type" : "ticker_order",
+                    "timestamp" :  int(time.time() * 1000),
+                    "data" : data
+                }
+            )
         except:
             logger.error("SEND ERROR", exc_info=True)
 

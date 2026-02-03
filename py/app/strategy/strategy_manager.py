@@ -26,6 +26,7 @@ class StrategyManager:
         self.db = db
         self.render_page=render_page
         self.client = client
+        self.client.on_symbols_update += self.on_update_symbols
                 
         self.strategies = []
         if "stategies" in config:
@@ -46,6 +47,10 @@ class StrategyManager:
                 #self.scheduler.schedule_every(strat.time, strat.handler,self, * strat.args)
 
             pass
+
+    async def on_update_symbols(self, symbols,to_add,to_remove):
+         for strat in self.strategies:
+            await strat.on_symbols_update(symbols,to_add,to_remove)
 
     async def bootstrap(self):
 

@@ -432,7 +432,16 @@ function removeIndicator(index) {
     //indicatorList.value.splice(index, 1)
     indicatorList.value = indicatorList.value.filter((_, i) => i !== index);
 
-    charts.main.removeSeries(ind.serie)
+    console.log("Remove",ind.serie)
+
+    if (ind.serie.isComposite)
+      {
+        charts.main.removeSeries(ind.serie.macd);
+        charts.main.removeSeries(ind.serie.signal);
+        charts.main.removeSeries(ind.serie.histogram);
+      }
+    else
+      charts.main.removeSeries(ind.serie)
 }
 function clearIndicators(){
   profileName.value=""

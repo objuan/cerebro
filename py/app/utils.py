@@ -32,6 +32,8 @@ TIMEFRAME_SECONDS = {
     "4h": 14400,
     "1d": 86400,
 }
+
+
 def candles_from_seconds(period_seconds: int, timeframe: str) -> int:
     tf_sec = TIMEFRAME_SECONDS[timeframe]
     return period_seconds // tf_sec

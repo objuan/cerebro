@@ -232,9 +232,9 @@ CREATE TABLE IF NOT EXISTS  black_list (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol VARCHAR(255),
     error TEXT,
-    mulo_enable INT,
-    user_enable INT,
-    retry_day INT,
-    last_day INTEGER
+    provider_disable INT,
+    user_day_disable INT,
+    user_all_disable INT,
+    last_day TEXT
 );
             """)

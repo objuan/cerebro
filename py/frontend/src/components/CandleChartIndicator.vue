@@ -138,8 +138,8 @@ function addIndicator(context,ind){
         slowPeriod: 26, 
         signalPeriod: 9, 
       });
-
-      console.log("MACD",serie)
+      serie.isComposite=true;
+      //console.log("MACD",serie)
       
     }
   

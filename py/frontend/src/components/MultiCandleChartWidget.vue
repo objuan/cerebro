@@ -1,6 +1,6 @@
 <template>
   <div ref="multi_container" @mousedown="handleSelect" class="border rounded bg-dark text-white shadow-sm">
-    <div class="chart-header ">
+    <div class="chart-header">
       <div class="top-row">
          <strong class="text-uppercas symbol">({{number}} )
           <span class="symbol">{{ currentSymbol }}</span>

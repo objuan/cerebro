@@ -24,6 +24,8 @@ class Strategy:
         self.render_page=manager.render_page
         self.client = manager.client
         self.indicators={}
+        self.db_df_map={}
+        self.df_map={}
         
     def load(self,strat_def):
         #strat.handler = find_method_local(EventManager,code)
@@ -57,7 +59,7 @@ class Strategy:
 
         await self.on_start()
 
-        self.db_df_map={}
+     
         self._populate_dataframes()
 
         self.df_map= {}
@@ -74,6 +76,20 @@ class Strategy:
         for tf,df in self.df_map.items():
             #df_ = df.loc[df["symbol"] == "HCTI"]
             logger.info(f"END {tf}\n{df.tail(10)}")
+
+    ########
+
+    async def on_symbols_update(self, symbols,to_add,to_remove):
+        logger.info(f"=== {self.__class__} >> on_symbols_update {to_add} \n{to_remove}")
+        
+ 
+        for tf, db_df in self.df_map.items():
+            db_df.drop(
+                db_df[db_df["symbol"].isin(to_remove)].index,
+                inplace=True
+            )
+
+    ########
 
     async def _on_df_last_added(self, tf, new_df):
         #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} \n{new_df}")
@@ -162,6 +178,7 @@ class Strategy:
     async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str, data):
        
         await self.client.send_event("strategy",symbol,name,small_desc,full_desc,data)
+
 
     def __str__(self):
         return f"{self.__class__} params:{self.params}"

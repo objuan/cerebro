@@ -25,8 +25,8 @@
                title="GAP">📑 GAP</button>
 
           <button class="sidebar-btn"
-              @click="eventsRef.toggle()"
-               title="Events">📑 Events</button>
+              @click="rankRef.toggle()"
+               title="Rank">📑 Ranks</button>
 
 
           <button class="sidebar-btn"
@@ -56,13 +56,14 @@
             <ReportPanel ></ReportPanel>
         </SidePanel>
 
-         <SidePanel title="Events" ref ="eventsRef" width="1000px">
-            <ReportPanel mode="event" ></ReportPanel>
+         <SidePanel title="Ranks" ref ="rankRef" width="600px">
+            <OrderChartWidget  ></OrderChartWidget>
          </SidePanel>
 
          <SidePanel title="Trade" ref ="tradeRef" width="800px">
              <trade-config></trade-config>
         </SidePanel>
+
         <SidePanel title="Toast" ref ="toastRef" width="400px">
             <ToastHistory />
         </SidePanel>
@@ -112,9 +113,10 @@
           <EventWidget></EventWidget>
         </div>
      
-
+        
     </main>
      <ErrorToast  />
+
   </div>
 </template>
 
@@ -131,6 +133,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import TradeConfig from '@/components/TradeConfig.vue'
 //import CandleChartWidget from '@/components/CandleChartWidget.vue';
 import MultiCandleChartWidget from '@/components/MultiCandleChartWidget.vue';
+import OrderChartWidget from '@/components/OrderChartWidget.vue';
 import { send_get,send_post } from '@/components/js/utils';
 import { eventBus } from "@/components/js/eventBus";
 import SidePanel from '@/components/SidePanel.vue';
@@ -147,7 +150,7 @@ import { tickerStore } from "@/components/js/tickerStore";
 const portfolioRef = ref(null);
 const ordersRef = ref(null);
 const reportsRef= ref(null);
-const eventsRef= ref(null);
+const rankRef= ref(null);
 const tradeRef= ref(null);
 const toastRef= ref(null);
 
@@ -358,16 +361,13 @@ const initWebSocket = () => {
             eventStore.push(msg); 
         }
           break;
-        case "event_bo":
+        case "ticker_order":
           {
-            //let d = JSON.parse(msg.data)
-            console.log("event",msg);
-          
-            eventBus.emit("strategy-received",msg);
-            eventStore.push(msg); 
-
-            break;
+            //console.log("ticker_order",msg);
+            eventBus.emit("ticker-order",msg);
+           
         }
+          break;
         case "events":
           {
             //let d = JSON.parse(msg.data)

@@ -231,7 +231,7 @@ class DBDataframe_TimeFrame:
         except:
             logger.error("ERROR", exc_info=True)
 
-    async def on_update_symbols(self, symbols):
+    async def on_update_symbols(self, symbols,to_add,to_remove):
         logger.info(f"DB reset symbols {symbols} {self.timeframe}")
         self.symbols=symbols
         #await self.update()

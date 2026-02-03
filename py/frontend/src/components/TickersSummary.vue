@@ -25,7 +25,7 @@
           </div>
           
            <!-- STARS-->
-          <div class="star-wrapper">
+          <div class="star-wrapper" v-if="item.summary">
             <div class="star-grid">
               <div
                 v-for="key in orderedKeys"
@@ -94,7 +94,7 @@
                 <div class="label">Rel 24</div>
                 <div
                   class="value"
-                  :style="{ color: priceColor(item.summary.float) }"
+                  :style="{ color: priceColor(item.summary.rel_vol_24) }"
                 >
                   {{ item.report.rel_vol_24.toFixed(1) }}%
                 </div>
@@ -133,16 +133,16 @@
               <li>
                 <a class="dropdown-item"
                   href="#"
-                  @click.prevent="addToWatchlist(item.symbol)">
-                  Add to Watchlist
+                  @click.prevent="addToDayBlack(item.symbol)">
+                   Add to day black list
                 </a>
               </li>
               <li><hr class="dropdown-divider"></li>
               <li>
                 <a class="dropdown-item text-danger"
                   href="#"
-                  @click.prevent="addToBlack(item.symbol)">
-                  Add to black list
+                  @click.prevent="addToEverBlack(item.symbol)">
+                  Add to permanet black list
                 </a>
               </li>
             </ul>
@@ -197,13 +197,13 @@ function openChart(symbol) {
   eventBus.emit("chart-select", { symbol, id: "chart_1" });
 }
 
-function addToWatchlist(symbol) {
-  console.log("Add to watchlist:", symbol);
-  eventBus.emit("watchlist-add", { symbol });
+function addToDayBlack(symbol) {
+  //console.log("Add to watchlist:", symbol);
+   send_get("/api/admin/add_to_black", {"mode":"day", "symbol": symbol})
 }
 
-function addToBlack(symbol) {
-  send_get("/api/admin/add_to_black", {"symbol": symbol})
+function addToEverBlack(symbol) {
+  send_get("/api/admin/add_to_black", {"mode":"all", "symbol": symbol})
 }
 
 // Esponiamo i dati dello store al template

@@ -871,8 +871,8 @@ async def get_events():
 ###################################
 # utils
 @app.get("/api/admin/add_to_black")
-async def add_to_black(symbol):
-    await client.send_cmd("/admin/add_to_black", {"symbol": symbol})
+async def add_to_black(mode,symbol):
+    await client.send_cmd("/admin/add_to_black", {"mode": mode, "symbol": symbol})
     return {"status": "ok"}
     
     

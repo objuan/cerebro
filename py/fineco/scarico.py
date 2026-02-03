@@ -133,6 +133,11 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
     )
         
+    data = yf.download("AQST", period="2d", interval="1m", progress=False,auto_adjust=True)
+            
+    logger.info(f"\n{data.tail(20)}")
+    exit()
+
     get_floating_shares("NVDA")
     exit()
     

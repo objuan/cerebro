@@ -15,6 +15,7 @@ from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
 
+from strategy.order_strategy import *
 
 class GainStrategy(Strategy):
 

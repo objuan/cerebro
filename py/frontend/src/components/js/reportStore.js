@@ -46,7 +46,7 @@ export const reportStore = reactive({
     else
     return 0;
   },
-  gap_map(val, min,max){
+  gain_map(val, min,max){
     if (val < min) return 0;
     val = Math.min(val,max)
     return 0.5 + (val -max )*0.5
@@ -57,9 +57,9 @@ export const reportStore = reactive({
          let rep = this.items[symbol]
          //console.log("rep",rep)
           return {
-            "gap" :  this.gap_map(rep.gap,2,10), // rep.gap > 2, // 2)	Gain > 2% nel trading pre mercato
-            "volume": this.gap_map(rep.rel_vol_24,5,10), //rep.rel_vol_24 > 5, // 1)	Volume scambio > 500% alla media (5 volte) a 50 giorni
-            "gain" :  this.gap_map(rep.gap,10,20) , // rep.gain > 10 , 
+            "gap" :  this.gain_map(rep.gap,2,10), // rep.gap > 2, // 2)	Gain > 2% nel trading pre mercato
+            "volume": this.gain_map(rep.rel_vol_24,5,10), //rep.rel_vol_24 > 5, // 1)	Volume scambio > 500% alla media (5 volte) a 50 giorni
+            "gain" :  this.gain_map(rep.gain,10,20) , // rep.gain > 10 , 
             "price" : this.value_map(rep.last, 1, 20, 3, 8),//rep.last>=1 &&  rep.last < 20, 
             "float":  this.value_map(rep.float, 1000000, 10000000, 1000000, 10000000), // rep.float < 10000000, 
             "news" : 0}

@@ -13,7 +13,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "NUWE",
+      "symbol": "AQST",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -22,7 +22,7 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "10s"
+          "timeframe": "1m"
         }
       },
       "2_2": {

@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, HTMLResponse
+from ib_insync import Stock,util
 import websockets
 import time as _time
 import pandas as pd
 import sqlite3
-from datetime import datetime, timedelta,time
+from datetime import datetime, timedelta,time,timezone
 import time
 import logging
 from typing import List, Dict
@@ -23,8 +24,32 @@ warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
-
 intervals = [10, 30, 60, 300] 
+
+#Legal ones are: 1 secs, 5 secs, 10 secs, 15 secs, 30 secs, 1 min, 2 mins, 3 mins, 
+#4 mins, 5 mins, 10 mins, 15 mins, 20 mins, 30 mins, 1 hour, 2 hours, 3 hours, 4 hours, 8 hours, 1 day, 1W, 1M,
+tf_to_ib ={
+    "10s" : "10 secs",
+    "30s" : "30 secs",
+    "1m" : "1 min",
+    "5m" : "5 mins",
+    "19m" : "10 mins",
+    "15m" : "15 mins",
+    "30m" : "30 mins",
+    "1h" : "1 hour",
+    "1d" : "1 day"
+}
+tf_to_ib_period ={
+    "10s" : '1 D',
+    "30s" : '1 D',
+    "1m" : '7 D',
+    "5m" : '7 D',
+    "19m" : '7 D',
+    "15m" : '7 D',
+    "30m" : '7 D',
+    "1h" : '30 D',
+    "1d" : '2 M',
+}
 
 RETENTION_DAYS = 1
 
@@ -40,7 +65,7 @@ def week_ago_ms():
 class MuloJob:
 
     def __init__(self,db_file, config):
-        
+        self.ib=None
         self.ready=False
         #self.cache = JobCache()
         self.config=config
@@ -55,7 +80,8 @@ class MuloJob:
 
         self.TIMEFRAME_UPDATE_SECONDS =config["live_service"]["TIMEFRAME_UPDATE_SECONDS"]  
         self.TIMEFRAME_LEN_CANDLES =config["live_service"]["TIMEFRAME_LEN_CANDLES"]  
-
+        self.history_provider = config["live_service"]["history_provider"]
+        self.useHistoryYahoo = self.history_provider=="yahoo"
         self.market = MarketService(config).getMarket("AUTO")
         self.marketZone = None
 
@@ -161,7 +187,7 @@ class MuloJob:
         if liveMode:
             for symbol in self.symbols:
                 for k,interval in TF_SEC_TO_DESC.items():
-                    if int(k) > 30:
+                    #if int(k) > 30:
                         await self._align_data(symbol,interval)
 
     ##############
@@ -180,29 +206,65 @@ class MuloJob:
             update_delta_min = datetime.now() - datetime.fromtimestamp(float(since)/1000)
             candles= candles_from_seconds(update_delta_min.total_seconds(),timeframe)
 
-            logger.debug(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
+            logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
             
             #dt_start =  datetime.fromtimestamp(float(since)/1000)
 
             exchange = self.get_exchange(symbol)
 
-            if timeframe == "1m":
+            if timeframe == "1m" or not self.useHistoryYahoo:
                 dt_end = datetime.utcnow()
                 dt_start = dt_end - timedelta(days=6)
-                logger.debug(f">> Fetching LAST WEEK only for 1m {symbol} {dt_start} -> {dt_end}")
+                #logger.info(f">> Fetching LAST WEEK only for 1m  {symbol} {dt_start} -> {dt_end}")
 
-                df = yf.download(
-                    tickers=symbol,
-                    start=dt_start.strftime("%Y-%m-%d"),
-                    interval="1m",
-                    auto_adjust=False,
-                    progress=False,
-                )
+                if self.useHistoryYahoo:
+                    
+                    df = yf.download(
+                        tickers=symbol,
+                        start=dt_start.strftime("%Y-%m-%d"),
+                        interval="1m",
+                        auto_adjust=False,
+                        progress=False,
+                    )
+                else:
+                    contract =  Stock(symbol, 'SMART', 'USD')
 
+                    #if timeframe != "1d":
+                    end = datetime.now(timezone.utc).strftime('%Y%m%d-%H:%M:%S')
+                    #else:
+                    #    end = datetime.now(timezone.utc).strftime('%Y%m%d-00:00:00')
+
+                    logger.info(f">> end {end}")
+
+                    bars =  self.ib.reqHistoricalData(
+                        contract,
+                        endDateTime=end,
+                        durationStr=tf_to_ib_period[timeframe],      # period back: 2 giorni
+                        barSizeSetting=tf_to_ib[timeframe], #'1 min', # 1 minuto
+                        whatToShow='TRADES',
+                        useRTH=True,           # includi orari estesi
+                        formatDate=2 #unixtime
+                    )
+                    df = util.df(bars)
+                    #df["timestamp"] = df["date"] * 1000
+                    #df["Datetime"] = (df["date"].view("int64") // 10**6).astype("int64")
+                    df = df.rename(columns={
+                        "open": "Open",
+                        "high": "High",
+                        "low": "Low",
+                        "close": "Close",
+                        "volume": "Volume",
+                        "date" :"Datetime"
+                    })
+                    #df = df[["Datetime","Open","Close","High","Low","Volume"]]
+                    #df.reset_index(drop=True, inplace=True)
+                    #df.drop(columns=["index"], inplace=True)
+                    #logger.info(f"\n{df.tail(50)}")
+                
                 await self.process_data(exchange,symbol, timeframe, cursor, df)
 
             else:
-
+                
                 MAX_WINDOW = timedelta(days=7)
 
                 dt_cursor = datetime.fromtimestamp(float(since) / 1000)
@@ -218,14 +280,17 @@ class MuloJob:
                         f"Fetching {timeframe} chunk {symbol} {dt_cursor} -> {dt_end}"
                     )
 
+                 
                     df = yf.download(
-                        tickers=symbol,
-                        start=dt_cursor.strftime("%Y-%m-%d"),
-                        end=dt_end.strftime("%Y-%m-%d"),
-                        interval=timeframe,
-                        auto_adjust=False,
-                        progress=False,
-                    )
+                            tickers=symbol,
+                            start=dt_cursor.strftime("%Y-%m-%d"),
+                            end=dt_end.strftime("%Y-%m-%d"),
+                            interval=timeframe,
+                            auto_adjust=False,
+                            progress=False,
+                        )
+                   
+                        
 
                     if not await self.process_data(exchange,symbol, timeframe, cursor, df):
                         break
@@ -234,7 +299,7 @@ class MuloJob:
                     dt_cursor = dt_end - timedelta(hours=1)
 
         except:
-            logger.debug("ERROR", exc_info=True)
+            logger.error("ERROR", exc_info=True)
 
     ########
 
@@ -244,11 +309,24 @@ class MuloJob:
                     #logger.info("No data returned, stopping.")
                     return False
 
-                df = df.reset_index()
+                if self.useHistoryYahoo:
+                    df = df.reset_index()
+
                 df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
 
-                dateName = "Date" if "Date" in df.columns else "Datetime"
-                df[dateName] = df[dateName].astype("int64") // 10**9
+                logger.info(f"\n{df}")
+
+                if self.useHistoryYahoo:
+                    dateName = "Date" if "Date" in df.columns else "Datetime"
+                    df[dateName] = df[dateName].astype("int64") // 10**9
+                else:
+                    if timeframe == "1d":
+                        df["Datetime"] = (
+                            pd.to_datetime(df["Datetime"], utc=True)
+                            .view("int64") // 10**9
+                        ).astype("int64")
+                    else:
+                        df["Datetime"] = df["Datetime"].astype("int64") // 10**9
 
                 ohlcv = [
                     (b[0] * 1000, b.Open, b.High, b.Low, b.Close, b.Volume)
@@ -259,6 +337,8 @@ class MuloJob:
                 ohlcv = ohlcv[:-1]
 
                 logger.debug(f"Rows fetched: {len(ohlcv)}")
+
+                provider = "yahoo" if self.useHistoryYahoo else "ib"
 
                 if not ohlcv:
                     return False
@@ -294,7 +374,7 @@ class MuloJob:
                         close,
                         vol,
                         vol * close,
-                        "yahoo",
+                        provider,
                         int(time.time() * 1000),
                         datetime.utcnow().isoformat()
                     ))
@@ -500,39 +580,51 @@ class MuloJob:
                 WHERE symbol='{symbol}'
             """)
         if (len(df)>0):
-            return (df.iloc[0]["mulo_enable"] == 0 or df.iloc[0]["user_enable"] == 0)
+            date =  str(df.loc[0, "last_day"])
+            date_str = str(datetime.now().date())
+
+            logger.info("BLACK : "+symbol+ " "+ date +"=="+ date_str)
+            
+            return (df.iloc[0]["provider_disable"] == 1 
+                    or (df.iloc[0]["user_day_disable"] == 1 and date_str == date)
+                    or df.iloc[0]["user_all_disable"] == 1)
         else:
             return False
         
-    def add_blacklist(self,symbol, errorDesc, isUser=False ):
+    def add_blacklist(self,symbol, errorDesc, user_mode=None ):
         df = self.get_df(f"""
                 SELECT * from  black_list
                 WHERE symbol='{symbol}'
             """)
+        provider_disable = 1 if not user_mode else 0
+        user_day_disable = 1 if user_mode =="day" else 0
+        user_all_disable = 1 if user_mode =="all" else 0
+    
+       # date_str = datetime.fromisoformat(row[0]).date().isoformat()
+        date_str = str(datetime.now().date())
+
         if len(df) == 0:
-            mulo_enable = 0 if not isUser else 1
-            user_enable = 0 if isUser else 1
+          
             self.cur_exe.execute("""
                         INSERT INTO black_list (
-                            symbol,error,mulo_enable,user_enable,retry_day,last_day
+                            symbol,error,provider_disable,user_day_disable,user_all_disable,last_day
                         )
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ? )
                     """, (
                         symbol,
                         errorDesc,
-                        mulo_enable,
-                        user_enable,
-                        1,
-                        int(time.time() * 1000)
+                        provider_disable,
+                        user_day_disable,
+                        user_all_disable,
+                        date_str
                     ))
 
             self.conn_exe.commit()
         else:
-            mulo_enable = 0 if not isUser else int(df.iloc[0]["mulo_enable"])
-            user_enable = 0 if isUser else int(f.iloc[0]["user_enable"])
+           
             self.cur_exe.execute("""
-                        UPDATE black_list set mulo_enable=?,user_enable=?, last_day=? where symbol = ? """, (
-                        mulo_enable, user_enable,int(time.time() * 1000),
+                        UPDATE black_list set provider_disable=?,user_day_disable=?, user_all_disable=?,last_day=? where symbol = ? """, (
+                        provider_disable,user_day_disable, user_all_disable,date_str,
                         symbol)
                     )
 

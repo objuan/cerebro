@@ -28,6 +28,7 @@ import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi import WebSocket, WebSocketDisconnect
+
 util.startLoop()  # uncomment this line when in a notebook
 
 import sys, os
@@ -105,6 +106,7 @@ class LiveManager:
 
     def __init__(self,ib,config,fetcher:MuloJob,scanner:Scanner,ws_manager,on_display):
         self.ib=ib
+        fetcher.ib = ib
         self.on_display=on_display
         self.config=config
         self.scanner = scanner
@@ -824,8 +826,8 @@ async def favicon():
     return Response(status_code=204)
 
 @app.get("/admin/add_to_black")
-async def add_to_black(symbol):
-    fetcher.add_blacklist(symbol,"USER SETTING", isUser=True)
+async def add_to_black(mode,symbol):
+    fetcher.add_blacklist(symbol,"USER SETTING", mode)
     return {"status": "ok"}
     
 #############

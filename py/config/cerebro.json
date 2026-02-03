@@ -87,12 +87,12 @@
 	]
 	,"stategies":[
 			{
-				"class" : "GainStrategy",
-				"timeframe" : "10s",
+				"class" : "OrderStrategy",
+				"timeframe" : "1m",
 				"params" :
 				{
-					"eta" : 5,
-					"min_gain" : 2
+					"eta" : 10,
+					"max_symbols" : 1
 				}
 			}
 		],
@@ -102,15 +102,16 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :2,
+				"max_symbols" :5,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
-				"mode" : "sym",
+				"mode" : "live",
 				"mode1" : "live|offline|sym",
-				"debug_symbols" : ["live"],
-				"start_scan" : "keep_last_session",
+				"debug_symbols" : ["AQST"],
+				"start_scan" : "debug",
 				"start_scan1" : "keep_last_session|debug|live",
+				"history_provider" :"ib",
 				"scheduler":[
 					{
 						"name" : "TOP_PERC_GAIN SMALL",
