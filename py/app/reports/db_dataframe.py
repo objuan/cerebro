@@ -43,26 +43,48 @@ class DBDataframe_Symbol:
 ######################################
 
 class DBDataframe_TimeFrame:
-    def __init__(self,config,client ,timeframe):
+    def __init__(self,main_df, timeframe):
         #self.symbols=fetcher.live_symbols()
+        self.main_df=main_df
         self.timeframe = timeframe
-        self.client=client
+        self.client=main_df.client
         self.lastTime = datetime.now()
         self.last_timestamp=None
         self.df=None
         self.last_index_by_symbol={}
         
-        self.TIMEFRAME_UPDATE_SECONDS =config["live_service"]["TIMEFRAME_UPDATE_SECONDS"]  
-        self.TIMEFRAME_LEN_CANDLES =config["live_service"]["TIMEFRAME_LEN_CANDLES"]  
+        self.TIMEFRAME_UPDATE_SECONDS =main_df.config["live_service"]["TIMEFRAME_UPDATE_SECONDS"]  
+        self.TIMEFRAME_LEN_CANDLES =main_df.config["live_service"]["TIMEFRAME_LEN_CANDLES"]  
 
-        self.client.on_symbols_update += self.on_update_symbols
+        self.client.on_symbols_update += self._on_symbols_update
         self.client.on_full_candle_receive += self.mulo_on_candle_receive
 
-        self.on_symbol_added = MyEvent()
+        #self.on_symbol_added = MyEvent()
+        #self.on_symbol_removed = MyEvent()
+
         self.on_row_added = MyEvent()
         self.on_df_last_added = MyEvent()
        #self.update_symbols()
         #self.update()
+
+    async def load_symbols(self, symbols): 
+        async def fetch(symbol):
+            df = await self.client.history_data([symbol],  self.timeframe, limit=600)
+            df["symbol"] = symbol  # utile dopo per filtri
+            return df
+                    
+        tasks = [fetch(s) for s in symbols]
+        dfs = await asyncio.gather(*tasks)
+        df_h = pd.concat(dfs, ignore_index=True)
+
+        #df_h = await self.client.history_data( symbols , self.timeframe , limit= 600 )
+
+        df_h = df_h.drop(columns=["ds_updated_at", "updated_at","source","exchange"], errors="ignore")
+        df_h["datetime"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True)
+        df_h["date"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True).dt.date
+        df_h = df_h.sort_values("timestamp")
+        df_h.fillna(0, inplace=True)
+        return df_h
 
     async def bootstrap(self):
         # load symbols
@@ -72,20 +94,22 @@ class DBDataframe_TimeFrame:
 
         if True:#not self.timeframe in ["1m","5m"]:
             # non LIVE
-            df_h = await self.client.history_data( self.symbols , self.timeframe , limit= 999999 )
+            '''
+            df_h = await self.client.history_data( self.symbols , self.timeframe , limit= 600 )
             df_h = df_h.drop(columns=["ds_updated_at", "updated_at","source","exchange"], errors="ignore")
             df_h["datetime"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True)
             df_h["date"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True).dt.date
             df_h = df_h.sort_values("timestamp")
-            self.df = df_h
-            self.df.fillna(0, inplace=True)
+            '''
+            self.df = await self.load_symbols(self.symbols)# df_h
+            #self.df.fillna(0, inplace=True)
             for symbol in  self.symbols:
                 symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
                 if len(symbol_rows)>0:
                     self.last_index_by_symbol[symbol] = symbol_rows[-1]
 
             logger.info(f"START INDEX {self.last_index_by_symbol}")
-            logger.info(f"\n {self.df}")
+            logger.info(f"BOOT #{len(self.df)}\n{self.df} ")
             self.last_timestamp=datetime.now()
 
         #await self.update()
@@ -126,35 +150,34 @@ class DBDataframe_TimeFrame:
 
         if symbol not in self.last_index_by_symbol:
             # 
-            logger.info(f"SYMBOL BOOT {symbol}")
+            logger.info(f"SKIP BOOT {symbol} {self.timeframe}")
+            '''
+            logger.info(f"SYMBOL BOOT {symbol} {self.timeframe}")
 
-            df_h = await self.client.history_data([symbol] , self.timeframe , limit= 999999 )
-            df_h = df_h.drop(columns=["ds_updated_at", "updated_at","source","exchange"], errors="ignore")
-            df_h.fillna(0, inplace=True)
-            df_h["datetime"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True)
-            df_h["date"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True).dt.date
-            df_h = df_h.sort_values("timestamp")
-            
-
+            df_h = await self.load_symbols([symbol])
+        
             #adfd
             if not self.last_timestamp:
                 self.df = df_h
                 logger.info(f"boot first {symbol}")
                 self.last_timestamp=datetime.now()
             else:
-                logger.info(f"boot new {symbol}")
+                if self.timeframe == "1m":
+                    logger.info(f"boot new {symbol} #{len(df_h)}")
                 #start_len = len(self.df)
                 self.df = pd.concat([self.df, df_h], ignore_index=True)
 
-            symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
-            self.last_index_by_symbol[symbol] = symbol_rows[-1]
+            for symbol in self.symbols:
+                symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
+                self.last_index_by_symbol[symbol] = symbol_rows[-1]
 
-            await self.on_symbol_added(symbol)
+            await self.main_df.on_symbol_added(self,symbol)
             #df.loc[len(df)] = row_data
             #self.last_index_by_symbol[symbol] = self.df.index[-1]
 
-            logger.info(f"SYMBOL BOOT \n{self.df }")
-
+            if self.timeframe == "1m":
+                logger.info(f"SYMBOL BOOT \n{self.df }")
+            '''
             return
         
         last_idx = self.last_index_by_symbol[symbol]
@@ -231,9 +254,47 @@ class DBDataframe_TimeFrame:
         except:
             logger.error("ERROR", exc_info=True)
 
-    async def on_update_symbols(self, symbols,to_add,to_remove):
-        logger.info(f"DB reset symbols {symbols} {self.timeframe}")
+    async def _on_symbols_update(self, symbols,to_add,to_remove):
+        #logger.info(f"DB reset symbols {symbols} {self.timeframe}")
         self.symbols=symbols
+
+        for rem in to_remove:
+            if rem in  self.last_index_by_symbol:
+                if self.timeframe == "1m":
+                    logger.info(f"REMOVE SYMBOL {rem}")
+                del  self.last_index_by_symbol[rem] 
+                self.df = self.df[self.df["symbol"] != rem]
+
+                await self.main_df.on_symbol_removed(self,rem)
+
+        for symbol in to_add:
+            if self.timeframe == "1m":
+                logger.info(f"SYMBOL BOOT {symbol} {self.timeframe}")
+
+            count = len(self.df [self.df ["symbol"] == symbol])
+            if count != 0:
+                    raise Exception(f"Bad db state !!!! {symbol} #{count}")
+            
+            df_h = await self.load_symbols([symbol])
+            if not self.last_timestamp:
+                self.df = df_h
+                if self.timeframe == "1m":
+                    logger.info(f"boot first {symbol}")
+                self.last_timestamp=datetime.now()
+            else:
+                if self.timeframe == "1m":
+                    logger.info(f"boot new {symbol} #{len(df_h)}")
+                self.df = pd.concat([self.df, df_h], ignore_index=True)
+
+        for symbol in symbols:
+            symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
+            self.last_index_by_symbol[symbol] = symbol_rows[-1]
+        
+        if self.timeframe == "1m":
+            logger.info(f"SYMBOL BOOT  {self.last_index_by_symbol} \n{self.df }")
+
+        for symbol in to_add:
+            await self.main_df.on_symbol_added(self,symbol)
         #await self.update()
 
     def dataframe(self,symbol="") -> pd.DataFrame:
@@ -258,6 +319,10 @@ class DBDataframe:
         self.client=client
         self.config=config
         self.map = {}
+
+        self.on_symbol_added = MyEvent()
+        self.on_symbol_removed = MyEvent()
+
         #self.scheduler = Scheduler()
 
         #self.scheduler.schedule_every( self.config["scanner"]["update_time"], self.update_scanner)
@@ -309,7 +374,7 @@ class DBDataframe:
 
     def db_dataframe(self,timeframe)-> DBDataframe_TimeFrame:
         if not timeframe in self.map :
-            self.map[timeframe] = DBDataframe_TimeFrame(self.config,self.client,timeframe)
+            self.map[timeframe] = DBDataframe_TimeFrame(self,timeframe)
         
         return self.map[timeframe]
 

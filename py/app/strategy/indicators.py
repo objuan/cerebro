@@ -45,8 +45,9 @@ class GAIN(Indicator):
         self.timeperiod=timeperiod
 
     def apply(self,dataframe : pd.DataFrame, last_idx=-1):
-        #logger.info(f"GAIN \n{dataframe}")
-     
+        
+       # logger.info(f"GAIN \n{dataframe.tail(30)}")
+
         #dataframe[self.target_col]  =  ((dataframe[self.source_col] - dataframe[self.source_col].shift(self.timeperiod)) / dataframe[self.source_col].shift(self.timeperiod))* 100
         dataframe[self.target_col] = (
             dataframe
@@ -55,6 +56,7 @@ class GAIN(Indicator):
                     lambda s: ((s - s.shift(self.timeperiod)) / s.shift(self.timeperiod)) * 100
                 )
         )
+       # logger.info(f"GAIN AFTER \n{dataframe.tail(30)}")
 
 
 class AVG(Indicator):

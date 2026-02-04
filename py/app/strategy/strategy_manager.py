@@ -26,7 +26,8 @@ class StrategyManager:
         self.db = db
         self.render_page=render_page
         self.client = client
-        self.client.on_symbols_update += self.on_update_symbols
+        self.db.on_symbol_added += self.on_symbol_added
+        self.db.on_symbol_removed += self.on_symbol_removed
                 
         self.strategies = []
         if "stategies" in config:
@@ -48,9 +49,13 @@ class StrategyManager:
 
             pass
 
-    async def on_update_symbols(self, symbols,to_add,to_remove):
+    async def on_symbol_added(self, df : DBDataframe_TimeFrame, symbol):
          for strat in self.strategies:
-            await strat.on_symbols_update(symbols,to_add,to_remove)
+            await strat.on_symbols_update(df,[symbol],[])
+
+    async def on_symbol_removed(self,  df : DBDataframe_TimeFrame, symbol):
+         for strat in self.strategies:
+            await strat.on_symbols_update(df, [], [symbol])
 
     async def bootstrap(self):
 

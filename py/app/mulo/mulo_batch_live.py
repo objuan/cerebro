@@ -830,6 +830,12 @@ async def add_to_black(mode,symbol):
     fetcher.add_blacklist(symbol,"USER SETTING", mode)
     return {"status": "ok"}
     
+@app.get("/chart/align_data")
+async def _align_data(mode,symbol,timeframe):
+    logger.info(f"_align_data {symbol} {timeframe}" )
+    await fetcher._align_data(symbol,timeframe)
+    return {"status": "ok"}
+
 #############
 
 @app.get("/sym/time")

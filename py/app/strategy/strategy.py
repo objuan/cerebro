@@ -79,15 +79,47 @@ class Strategy:
 
     ########
 
-    async def on_symbols_update(self, symbols,to_add,to_remove):
-        logger.info(f"=== {self.__class__} >> on_symbols_update {to_add} \n{to_remove}")
+    async def on_symbols_update(self, df_tf : DBDataframe_TimeFrame, to_add,to_remove):
+        #logger.info(f"=== {self.__class__} >> on_symbols_update {df_tf.timeframe} add {to_add} del {to_remove}")
         
- 
-        for tf, db_df in self.df_map.items():
-            db_df.drop(
-                db_df[db_df["symbol"].isin(to_remove)].index,
-                inplace=True
-            )
+        for s in to_remove:
+            for tf, i_df in self.df_map.items():
+                if tf == df_tf.timeframe:
+                    logger.info(f"DEL {s} FROM \n{df_tf.dataframe(s).tail(10)}")
+
+                    i_df = i_df[i_df["symbol"] != s]
+
+                    self.df_map[tf] = i_df
+                    
+                    count = len(i_df[i_df["symbol"] == s])
+                    if count != 0:
+                        raise Exception(f"Bad db state !!!! {s} #{count}")
+
+                    '''
+                    i_df.drop(
+                        i_df[i_df["symbol"].isin(to_remove)].index,
+                        inplace=True
+                    )
+                    '''
+
+        for s in to_add:
+            for tf, db_df in self.db_df_map.items():
+                if tf == df_tf.timeframe:
+                    #copia i nuovi simboli
+                    #self.df_map[tf] = db_df.dataframe().copy()
+                    #CHECK
+                    df = self.df_map[tf] 
+
+                    logger.info(f"ADDING {tf} ")#\n{df_tf.dataframe(s).tail(20)}" )
+
+                    count = len(df[df["symbol"] == s])
+                    if count != 0:
+                        raise Exception(f"Bad db state !!!! {s} #{count}")
+                    
+                    add_df = df_tf.dataframe(s).copy()
+                   #logger.info(f"BOOT ADD {tf} \n{add_df.tail(10)}" )
+                    df = pd.concat([df, add_df], ignore_index=True)
+                    self.df_map[tf] = df
 
     ########
 
@@ -116,9 +148,9 @@ class Strategy:
         #logger.info(f"rows_to_add \n{rows_to_add}")
 
         if rows_to_add:
-            add_df = pd.DataFrame(rows_to_add)
+            add_df = pd.DataFrame(rows_to_add).copy()
 
-            #logger.info(f"TO ADD \n {add_df.tail(4)}")
+            logger.info(f"TO ADD \n {add_df.tail(4)}")
 
             df_tf = pd.concat([df_tf, add_df], ignore_index=True)
             self.df_map[tf] = df_tf
@@ -128,7 +160,7 @@ class Strategy:
             
             last_rows = df_tf.tail(len(rows_to_add))
         
-            #logger.info(f"ADD FINAL  {tf}\n{df_tf.tail(10)}")
+           # logger.info(f"ADD FINAL\n{last_rows}")
             #self._fill_indicators()
 
             # candele solo per l'evento principale

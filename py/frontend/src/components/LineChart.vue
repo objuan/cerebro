@@ -24,7 +24,7 @@ let resizeObserver;
 let seriesMap={}
 
 function update_data(data) {
-  console.log("update_data", data);
+ // console.log("update_data", data);
 
   const incomingSymbols = new Set(Object.keys(data));
 
@@ -47,7 +47,7 @@ function update_data(data) {
       time: p.timestamp / 1000,
       value: p.value,
     }));
- console.log("formatted", formatted)
+  // console.log("formatted", formatted)
     // se NON esiste → crea
     if (!seriesMap[symbol]) {
       const series = chart.addSeries(LineSeries, {
@@ -59,12 +59,12 @@ function update_data(data) {
       series.setData(formatted);
       seriesMap[symbol] = series;
 
-      console.log("created series", symbol);
+     // console.log("created series", symbol);
     }
     // se esiste → aggiorna
     else {
       seriesMap[symbol].setData(formatted);
-      console.log("updated series", symbol);
+    //  console.log("updated series", symbol);
     }
   });
 

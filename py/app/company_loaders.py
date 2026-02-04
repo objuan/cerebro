@@ -161,7 +161,7 @@ class Yahoo:
             return df
         
     def save_row(self,row):
-            logger.info(f"save {row}")
+            logger.debug(f"save {row}")
             conn = sqlite3.connect(self.db_path)
             c = conn.cursor()
             c.execute("""
@@ -255,10 +255,10 @@ class Financialmodelingprep:
             time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
          
             c_time = self.config["instruments"]["stock_update_days"]
-            logger.info(f"time to update {time_to_update_days}/{c_time}")
+            logger.debug(f"time to update {time_to_update_days}/{c_time}")
             toupdate=time_to_update_days > c_time 
         if toupdate:
-            logger.info(f"get shares from financialmodelingprep.. {symbol}")
+            logger.debug(f"get shares from financialmodelingprep.. {symbol}")
            
             url = "https://financialmodelingprep.com/stable/shares-float"
             async with httpx.AsyncClient(timeout=10) as client:
@@ -268,7 +268,7 @@ class Financialmodelingprep:
           
             #data = [{'symbol': 'NVDA', 'date': '2025-12-27 20:05:05', 'freeFloat': 95.82465488386184, 'floatShares': 23330430000, 'outstandingShares': 24347001331, 'source': 'https://www.sec.gov/Archives/edgar/data/1045810/000104581025000230/nvda-20251026.htm'}]
 
-            logger.info(f"--> {data}")
+            logger.debug(f"--> {data}")
 
             self.upsert_company_data(
                 db_path=DB_FILE,

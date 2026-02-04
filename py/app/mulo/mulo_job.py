@@ -42,7 +42,7 @@ tf_to_ib ={
 tf_to_ib_period ={
     "10s" : '1 D',
     "30s" : '1 D',
-    "1m" : '7 D',
+    "1m" : '3 D',
     "5m" : '7 D',
     "19m" : '7 D',
     "15m" : '7 D',
@@ -50,6 +50,45 @@ tf_to_ib_period ={
     "1h" : '30 D',
     "1d" : '2 M',
 }
+
+def since_to_durationStr(since_unix: int) -> str:
+    delta = datetime.now() - datetime.fromtimestamp(float(since_unix)/1000)
+  
+    '''
+    now = datetime.now(timezone.utc)
+    #since = datetime.fromtimestamp(since_unix, tz=timezone.utc)
+    since = datetime.fromtimestamp(float(since_unix)/1000)
+    delta = now - since
+    '''
+
+    seconds = int(delta.total_seconds())
+
+    # IB vuole la durata "più grande possibile"
+    if seconds < 60:
+        return f"{seconds} S"
+
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} S"  # IB in realtà preferisce sempre secondi sotto 1h
+
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours * 60 * 60} S"
+
+    days = hours // 24
+    if days < 7:
+        return f"{days} D"
+
+    weeks = days // 7
+    if weeks < 4:
+        return f"{weeks} W"
+
+    months = days // 30
+    if months < 12:
+        return f"{months} M"
+
+    years = days // 365
+    return f"{years} Y"
 
 RETENTION_DAYS = 1
 
@@ -152,25 +191,34 @@ class MuloJob:
                 self.update_ts[key] = new_ticker["ts"]
 
             last_update_delta_min = datetime.now() - datetime.fromtimestamp(float(self.update_ts[key])/1000)
-            if tf=="1m" and last_update_delta_min.total_seconds() > 60:
-                await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
-                self.update_ts[key] = new_ticker["ts"]
-            elif tf == "5m" and last_update_delta_min.total_seconds() > 60*5:
-                await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
-                self.update_ts[key] = new_ticker["ts"]
-            #print("last_update_delta_min" , last_update_delta_min)
+            
+            if self.getCurrentZone() == MarketZone.LIVE:
+                if tf=="1m" and last_update_delta_min.total_seconds() > 60:
+                    await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
+                    self.update_ts[key] = new_ticker["ts"]
+                elif tf == "5m" and last_update_delta_min.total_seconds() > 60*5:
+                    await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
+                    self.update_ts[key] = new_ticker["ts"]
+                #print("last_update_delta_min" , last_update_delta_min)
  
-    async def on_update_symbols(self,symbols,liveMode=True):
-        logger.error(f"UPDATE SYMBOLS .. {symbols}")#MAX:{self.max_symbols}")
+    async def on_update_symbols(self,new_symbols,liveMode=True):
+        logger.error(f"UPDATE SYMBOLS .. {new_symbols}")#MAX:{self.max_symbols}")
 
-        self.symbols = symbols
+        set_new = set(new_symbols)
+        set_old = set(self.symbols)
+
+        to_add = list(set_new - set_old)       # presenti in new_symbols ma non prima
+        to_remove = list(set_old - set_new)    # presenti prima ma non più
+        common = list(set_new & set_old)       # presenti in entrambi
+
+        self.symbols = new_symbols
           
         self.sql_symbols = str(self.symbols)[1:-1]
 
         if len(self.symbols) > 0:
             self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
         else:
-            logger.error(f"Empty symbol list !!! {symbols}")
+            logger.error(f"Empty symbol list !!! {new_symbols}")
             return
         #for s in self.symbols:
         #    self.tickers[s] = Ticker(symbol=s)
@@ -185,7 +233,7 @@ class MuloJob:
       
         # startup 
         if liveMode:
-            for symbol in self.symbols:
+            for symbol in to_add:
                 for k,interval in TF_SEC_TO_DESC.items():
                     #if int(k) > 30:
                         await self._align_data(symbol,interval)
@@ -217,6 +265,9 @@ class MuloJob:
                 dt_start = dt_end - timedelta(days=6)
                 #logger.info(f">> Fetching LAST WEEK only for 1m  {symbol} {dt_start} -> {dt_end}")
 
+                logger.info(f"durationStr {since_to_durationStr(since)}")
+                           
+               
                 if self.useHistoryYahoo:
                     
                     df = yf.download(
@@ -239,7 +290,7 @@ class MuloJob:
                     bars =  self.ib.reqHistoricalData(
                         contract,
                         endDateTime=end,
-                        durationStr=tf_to_ib_period[timeframe],      # period back: 2 giorni
+                        durationStr=since_to_durationStr(since),#tf_to_ib_period[timeframe],      # period back: 2 giorni
                         barSizeSetting=tf_to_ib[timeframe], #'1 min', # 1 minuto
                         whatToShow='TRADES',
                         useRTH=True,           # includi orari estesi
@@ -314,7 +365,7 @@ class MuloJob:
 
                 df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
 
-                logger.info(f"\n{df}")
+                #logger.info(f"\n{df}")
 
                 if self.useHistoryYahoo:
                     dateName = "Date" if "Date" in df.columns else "Datetime"
@@ -420,7 +471,7 @@ class MuloJob:
                             #cache_key = f"{symbol}_{timeframe}_{max_dt}"
                             #val = self.cache.getCache(cache_key)
                             #if not val:
-                            logger.debug(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
+                            logger.info(f"LAST UPDATE DELTA {symbol} {timeframe} {last_update_delta_min}")
                             # devo aggiornare ??? 
                             
                             if (timeframe =="1m" and last_update_delta_min.total_seconds()/60 > 1):
@@ -438,7 +489,7 @@ class MuloJob:
                             (datetime.now() - timedelta(seconds=self.TIMEFRAME_LEN_CANDLES[timeframe]))
                             .timestamp()
                             )
-                        logger.debug(f"BEGIN HISTORY {max_dt} ")
+                        logger.info(f"BEGIN HISTORY {max_dt} ")
 
                     #update=True
                     if update:
@@ -448,7 +499,7 @@ class MuloJob:
                         #if not val:
                         if True:
                             #logger.debug(f"MAX.. {max_dt}")
-                            logger.debug(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
+                            logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
 
                             await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000)
                             #self.cache.addCache_str(cache_key,cache_key)

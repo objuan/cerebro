@@ -108,13 +108,13 @@
 				"fetch_enabled" : true,
 				"mode" : "live",
 				"mode1" : "live|offline|sym",
-				"debug_symbols" : ["AQST"],
-				"start_scan" : "debug",
+				"debug_symbols" : ["live"],
+				"start_scan" : "live",
 				"start_scan1" : "keep_last_session|debug|live",
 				"history_provider" :"ib",
 				"scheduler":[
 					{
-						"name" : "TOP_PERC_GAIN SMALL",
+						"name" : "PRE",
 						"update_time" : 30,
 						"live_mode" : "ADD"
 					}

@@ -23,16 +23,26 @@ end = datetime.datetime.now().strftime('%Y%m%d %H:%M:%S')
 
 bars = ib.reqHistoricalData(
     contract3,
-    endDateTime=end,
-    durationStr='2 D',      # period back: 2 giorni
-    barSizeSetting='1 min', # 1 minuto
+    endDateTime='',
+    durationStr='1 D',      # period back: 2 giorni
+    barSizeSetting='10 secs', # 1 minuto
     whatToShow='TRADES',
-    useRTH=False,           # includi orari estesi
-    formatDate=1
+    useRTH=True,           # includi orari estesi
+    formatDate=1,
+    keepUpToDate=True
 )
 
 df = util.df(bars)
 print(df.tail(50))
+
+def onBarUpdate(bars, hasNewBar):
+    if hasNewBar:
+        last_bar = bars[-1]
+        print("Nuova barra:", last_bar.date, last_bar.close)
+
+bars.updateEvent += onBarUpdate
+
+ib.run()
 
 ib.disconnect()
 '''

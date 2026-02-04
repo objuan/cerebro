@@ -51,7 +51,7 @@ class ReportManager:
         return self.shapshot_history[-1]
 
     async def on_symbols_update(self, symbols,to_add,to_remove):
-        logger.info(f"Report reset symbols {symbols}")
+        logger.debug(f"Report reset symbols {symbols}")
         self.symbols=symbols
         self.live_df = self.job.live_symbols()
         logger.debug(f"live_df \n{self.live_df}")
@@ -160,7 +160,7 @@ class ReportManager:
         self.invalidate=False
         try:
             
-            logger.info("TICK")
+            logger.debug("TICK")
 
             await self.scheduler.tick()
 
@@ -232,7 +232,7 @@ class ReportManager:
                 if len ( self.first_open) == 0:
                     self.first_open = self.open_by_symbols(df_1m) 
 
-                    logger.info(f"OPEN \n{self.first_open.to_string(index=False)}")
+                    logger.debug(f"OPEN \n{self.first_open.to_string(index=False)}")
          
                 df = df.merge(  self.first_open[["symbol","first_open"]], on="symbol",    how="left")
             
@@ -314,7 +314,7 @@ class ReportManager:
                 df_new_report["rank_old"] =  df_new_report["rank"] 
                 df_new_report["rank_delta"] = df_new_report["rank"] - df_new_report["rank_old"] 
 
-            logger.info(f"result \n{df_new_report}")
+            logger.debug(f"result \n{df_new_report}")
 
             self.df_report  = df_new_report
         
@@ -330,7 +330,7 @@ class ReportManager:
 
     def add_last_close(self,df)-> pd.DataFrame:
         close = self.close_by_symbols(df) 
-        logger.info(f"CLOSE {close}")
+        logger.debug(f"CLOSE {close}")
         df = df.merge(  close, on="symbol",    how="left")
 
     def open_by_symbols(self,df_1m)-> pd.DataFrame:
@@ -370,7 +370,7 @@ class ReportManager:
                  logger.debug("take yesterday")
                  last_date = datetime.now().date() - timedelta(days=1)
 
-            logger.info(f"Last date {last_date} now { datetime.now().date()} ")
+            logger.debug(f"Last date {last_date} now { datetime.now().date()} ")
             
             last_date = datetime(last_date.year, last_date.month, last_date.day, 23,59,59)
            
@@ -380,7 +380,7 @@ class ReportManager:
             #prev_close = prev_day_before_24(last_date)
             _prev_close = datetime_to_unix_ms(last_date)
 
-            logger.info(f"Last date {last_date} close {_prev_close} ")
+            logger.debug(f"Last date {last_date} close {_prev_close} ")
 
             close_by_symbol = (
                 df_1m[df_1m["timestamp"] < _prev_close]     # 1️⃣ filtro

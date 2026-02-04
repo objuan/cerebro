@@ -432,7 +432,7 @@ function removeIndicator(index) {
     //indicatorList.value.splice(index, 1)
     indicatorList.value = indicatorList.value.filter((_, i) => i !== index);
 
-    console.log("Remove",ind.serie)
+    //console.log("Remove",ind.serie)
 
     if (ind.serie.isComposite)
       {

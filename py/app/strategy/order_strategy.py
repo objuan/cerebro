@@ -28,8 +28,13 @@ class OrderStrategy(Strategy):
        self.addIndicator(self.timeframe,GAIN("gain_5","close",timeperiod=candles_from_seconds(60*5,self.timeframe)))
        self.addIndicator(self.timeframe,GAIN("gain_1h","close",timeperiod=candles_from_seconds(60*60,self.timeframe)))
 
+    async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
+        pass
+        #  logger.debug(f"on_symbol_candle  {symbol} \n {dataframe.tail(10)}" )
+
     async def on_all_candle(self, dataframe: pd.DataFrame, metadata: dict) :
-        logger.info(f"\n{dataframe}")
+        #logger.info(f"\n{dataframe[dataframe['symbol'] == 'CDT'].tail(20)}")
+       # logger.info(f"\n{dataframe.tail(20)}")
         
         df = dataframe.dropna(inplace=False)
         df = df.sort_values(["symbol", "timestamp"])
