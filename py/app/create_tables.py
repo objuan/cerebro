@@ -238,3 +238,14 @@ CREATE TABLE IF NOT EXISTS  black_list (
     last_day TEXT
 );
             """)
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS  news (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol VARCHAR(255),
+    source VARCHAR(255),
+    data TEXT,
+    dt_day TEXT,
+    dt_hh TEXT
+);
+            """)

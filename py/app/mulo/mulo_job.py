@@ -51,8 +51,8 @@ tf_to_ib_period ={
     "1d" : '2 M',
 }
 
-def since_to_durationStr(since_unix: int) -> str:
-    delta = datetime.now() - datetime.fromtimestamp(float(since_unix)/1000)
+def since_to_durationStr(seconds: int) -> str:
+   # delta = datetime.now() - datetime.fromtimestamp(float(since_unix)/1000)
   
     '''
     now = datetime.now(timezone.utc)
@@ -61,7 +61,9 @@ def since_to_durationStr(since_unix: int) -> str:
     delta = now - since
     '''
 
-    seconds = int(delta.total_seconds())
+    logger.info(f"since_to_durationStr << {seconds}")
+
+    #seconds = int(delta.total_seconds())
 
     # IB vuole la durata "più grande possibile"
     if seconds < 60:
@@ -69,11 +71,15 @@ def since_to_durationStr(since_unix: int) -> str:
 
     minutes = seconds // 60
     if minutes < 60:
-        return f"{minutes} S"  # IB in realtà preferisce sempre secondi sotto 1h
+        return f"{seconds} S"  # IB in realtà preferisce sempre secondi sotto 1h
+
+    logger.info(f"mm << {minutes}")
 
     hours = minutes // 60
     if hours < 24:
         return f"{hours * 60 * 60} S"
+
+    logger.info(f"hh << {hours}")
 
     days = hours // 24
     if days < 7:
@@ -264,55 +270,59 @@ class MuloJob:
                 dt_end = datetime.utcnow()
                 dt_start = dt_end - timedelta(days=6)
                 #logger.info(f">> Fetching LAST WEEK only for 1m  {symbol} {dt_start} -> {dt_end}")
-
-                logger.info(f"durationStr {since_to_durationStr(since)}")
-                           
                
-                if self.useHistoryYahoo:
-                    
-                    df = yf.download(
-                        tickers=symbol,
-                        start=dt_start.strftime("%Y-%m-%d"),
-                        interval="1m",
-                        auto_adjust=False,
-                        progress=False,
-                    )
-                else:
-                    contract =  Stock(symbol, 'SMART', 'USD')
 
-                    #if timeframe != "1d":
-                    end = datetime.now(timezone.utc).strftime('%Y%m%d-%H:%M:%S')
-                    #else:
-                    #    end = datetime.now(timezone.utc).strftime('%Y%m%d-00:00:00')
-
-                    logger.info(f">> end {end}")
-
-                    bars =  self.ib.reqHistoricalData(
-                        contract,
-                        endDateTime=end,
-                        durationStr=since_to_durationStr(since),#tf_to_ib_period[timeframe],      # period back: 2 giorni
-                        barSizeSetting=tf_to_ib[timeframe], #'1 min', # 1 minuto
-                        whatToShow='TRADES',
-                        useRTH=True,           # includi orari estesi
-                        formatDate=2 #unixtime
-                    )
-                    df = util.df(bars)
-                    #df["timestamp"] = df["date"] * 1000
-                    #df["Datetime"] = (df["date"].view("int64") // 10**6).astype("int64")
-                    df = df.rename(columns={
-                        "open": "Open",
-                        "high": "High",
-                        "low": "Low",
-                        "close": "Close",
-                        "volume": "Volume",
-                        "date" :"Datetime"
-                    })
-                    #df = df[["Datetime","Open","Close","High","Low","Volume"]]
-                    #df.reset_index(drop=True, inplace=True)
-                    #df.drop(columns=["index"], inplace=True)
-                    #logger.info(f"\n{df.tail(50)}")
+                if update_delta_min.total_seconds() > self.TIMEFRAME_UPDATE_SECONDS[timeframe]:
+                    logger.info(f"durationStr {since_to_durationStr(int(update_delta_min.total_seconds() ))}")
+                            
                 
-                await self.process_data(exchange,symbol, timeframe, cursor, df)
+                    if self.useHistoryYahoo:
+                        
+                        df = yf.download(
+                            tickers=symbol,
+                            start=dt_start.strftime("%Y-%m-%d"),
+                            interval="1m",
+                            auto_adjust=False,
+                            progress=False,
+                        )
+                    else:
+                        contract =  Stock(symbol, 'SMART', 'USD')
+
+                        #if timeframe != "1d":
+                        end = datetime.now(timezone.utc).strftime('%Y%m%d-%H:%M:%S')
+                        #else:
+                        #    end = datetime.now(timezone.utc).strftime('%Y%m%d-00:00:00')
+
+                        logger.info(f">> end {end}")
+
+                        bars =  self.ib.reqHistoricalData(
+                            contract,
+                            endDateTime=end,
+                            durationStr=since_to_durationStr(int(update_delta_min.total_seconds()) ),#tf_to_ib_period[timeframe],      # period back: 2 giorni
+                            barSizeSetting=tf_to_ib[timeframe], #'1 min', # 1 minuto
+                            whatToShow='TRADES',
+                            useRTH=True,           # includi orari estesi
+                            formatDate=2 #unixtime
+                        )
+                        df = util.df(bars)
+
+                        logger.info(f">> #{len(bars)}")
+                        #df["timestamp"] = df["date"] * 1000
+                        #df["Datetime"] = (df["date"].view("int64") // 10**6).astype("int64")
+                        df = df.rename(columns={
+                            "open": "Open",
+                            "high": "High",
+                            "low": "Low",
+                            "close": "Close",
+                            "volume": "Volume",
+                            "date" :"Datetime"
+                        })
+                        #df = df[["Datetime","Open","Close","High","Low","Volume"]]
+                        #df.reset_index(drop=True, inplace=True)
+                        #df.drop(columns=["index"], inplace=True)
+                        #logger.info(f"\n{df.tail(50)}")
+                    
+                    await self.process_data(exchange,symbol, timeframe, cursor, df)
 
             else:
                 

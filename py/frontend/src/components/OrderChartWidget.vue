@@ -21,7 +21,7 @@ let gain_1h=ref(null)
 
 
 function onTickerOrderReceived(msg){
-  console.log("onTickerOrderReceived", msg)
+ // console.log("onTickerOrderReceived", msg)
 
   gain_1.value.update_data(msg.data.gain_1);
   gain_5.value.update_data(msg.data.gain_5);

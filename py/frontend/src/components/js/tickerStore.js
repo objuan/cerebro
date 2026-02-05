@@ -46,5 +46,12 @@ export const tickerStore = reactive({
       symbol,
       ...data
     }))
+  },
+  get_sorted() {
+      let list = this.get_list() || {}
+    
+      return [...list].sort((a, b) =>
+      b.gain-a.gain
+    );
   }
 })

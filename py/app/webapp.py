@@ -18,12 +18,13 @@ import pandas as pd
 import logging
 from logging.handlers import RotatingFileHandler
 from ib_insync import *
+from news_service import NewService
 from utils import convert_json
 from rich.console import Console
 from rich.table import Table
 from rich.live import Live
 #from message_bridge import *
-from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi import FastAPI, HTTPException, Request, WebSocket,Query
 from fastapi.responses import JSONResponse, HTMLResponse
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +42,7 @@ from order_task import OrderTaskManager
 from trade_manager import TradeManager
 #from reports.event_manager import EventManager
 from reports.report_manager import ReportManager
+from deep_translator import GoogleTranslator
 
 from reports.db_dataframe import *
 from props_manager import PropertyManager
@@ -287,7 +289,7 @@ def health():
 async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
     
     try:
-        if not timeframe in ["1m","5m"]:
+        if True:#not timeframe in ["1m","5m"]:
             # live test
             df:pd.DataFrame = await client.ohlc_data(symbol,timeframe,limit)
             df = df.dropna()
@@ -868,6 +870,65 @@ async def get_events():
         logger.error("ERROR", exc_info=True)
         return {"status": "error"}
 
+############################
+
+@app.get("/api/news/get")
+async def get_news(symbol):
+    return JSONResponse(await NewService().find(symbol))
+    
+@app.get("/api/news/current")
+async def get_news_current():
+  for symbol in client.symbols:
+    news = await NewService().find(symbol)
+    if news:
+        await client.send_news(symbol,news)
+
+  return {"status": "ok"}
+
+@app.get("/img-proxy")
+async def img_proxy(WHERE: str = Query(...)):
+    logger.info(f"img_proxy {WHERE}")
+
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Referer": WHERE,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(WHERE, headers=headers)
+
+        content_type = r.headers.get("content-type", "image/jpeg")
+
+        logger.info(f"content_type {r.headers}")
+        return Response(
+            content=r.content,
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=86400"
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@app.post("/api/translate")
+async def translate(payload: dict):
+    #logger.info(f"Translate  {payload}")   
+    try:
+        phrase = payload["phrase"]
+  
+        txt = GoogleTranslator(source='en', target='it').translate(phrase)
+
+        return {"status": "ok", "data" : txt}
+    
+    except :
+        logger.error("ERROR", exc_info=True)
+        return  {"status": "ko"}   
+
+
 ###################################
 # utils
 @app.get("/api/admin/add_to_black")
@@ -941,8 +1002,6 @@ def trade_history(symbol: str):
 
 @app.get("/trade/last")
 def trade_history(symbol: str):
-
-
     return orderManager.getLastTrade(symbol)
 ###############################
 
@@ -1081,6 +1140,8 @@ if __name__ =="__main__":
          
             _server_task = asyncio.create_task(server.serve())
           
+            scheduler = AsyncScheduler()
+
             #_tick_tickers = await live.start_batch()
             async def bootstrap():
                 # start live ?? 
@@ -1100,12 +1161,23 @@ if __name__ =="__main__":
                 await OrderTaskManager.bootstrap()
                 
                 await Balance.bootstrap()
+
+                # news
+                for t in config["news"]["schedule"]:
+                    logger.info(f"Init news time {t['hh']}")
+
+                    async def process_news(hh):
+                        logger.info(f"GET NEWS AT {hh}")
+                        
+                        await client.scan_for_news()
+
+                    scheduler.schedule_at(today_at(t['hh'],0,0),process_news,t['hh'])
+                    #scheduler.schedule_every(10,process_news)
+
                 logger.info("BOOT DONE")
 
             await bootstrap()
             
-            _tick_orders = asyncio.create_task(orderManager.batch())
-
             _tick_tickers = asyncio.create_task(client.batch())
 
             ########
@@ -1114,7 +1186,7 @@ if __name__ =="__main__":
                 while(ancora):
                     try:
                         #logger.info("1 sec")
-                        
+                        await scheduler.tick()
                         
                         if (client.sym_mode):
                             msg = {
@@ -1143,6 +1215,8 @@ if __name__ =="__main__":
                         logger.error("ERROR", exc_info=True)
                     
                     await asyncio.sleep(1)
+
+            _tick_orders = asyncio.create_task(orderManager.batch())
 
             _tick_tick = asyncio.create_task(tick())
             

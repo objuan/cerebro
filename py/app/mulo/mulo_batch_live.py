@@ -943,7 +943,8 @@ if __name__ =="__main__":
     file_handler = RotatingFileHandler(
             "logs/tws_brokerlive.log",
             maxBytes=5_000_000,
-            backupCount=5
+            backupCount=5,
+            encoding="utf-8"
     )
     file_handler.setLevel(logging.DEBUG)
     # Console

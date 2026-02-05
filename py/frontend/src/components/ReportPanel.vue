@@ -19,7 +19,7 @@
           </th>
         </thead>
         
-        <tbody v-if="props.mode=='report'">
+        <tbody >
             <tr
               v-for="row in report_rows"
               :key="row.symbol"
@@ -59,44 +59,7 @@
             </tr>
         </tbody>
 
-         <tbody v-if="props.mode!=='report'">
-            <tr
-              v-for="(row, index) in events"
-              :key="row.symbol || index"
-              class="border-t hover:bg-gray-50 text-sm" :style="eventStyle(row.name)"
-            >
-                <td v-for="col in columns" :key="col.bind" class="px-0 py-0" >
     
-                  <template v-if="col.type === 'chart_link'">
-                    <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(row[col.bind])">
-                      {{ row[col.bind] }}
-                    </a>
-                  </template>
-
-                  <template v-else-if="col.type === 'rank'">
-                    <span v-if="row[col.bind] > 0" class="text-red-600">▼ {{ row[col.bind] }}</span>
-                    <span v-else-if="row[col.bind] < 0" class="text-green-600">▲{{ row[col.bind] }}</span>
-                    <span v-else class="text-gray-400">– {{ row[col.bind] }}</span>
-                  </template>
-
-                  <template v-else-if="col.type === 'str'">
-                       {{ row[col.bind] }}
-                  </template>
-
-                   <template v-else-if="col.type === 'time'">
-                       {{ formatUnixTimeOnly(row[col.bind]) }}
-                  </template>
-
-                  <template v-else>
-                    <span class ="cell" :style="formatStyle(row[col.bind] ,columnsMap[col.bind] )">
-                      {{ formatField(row[col.bind], col) }}
-                    </span>
-                  </template>
-
-                </td>
-
-            </tr>
-        </tbody>
 
       </table>
     </div>
@@ -104,41 +67,19 @@
 </template>
 
 <script setup>
-import { computed,onMounted,onBeforeUnmount,reactive,ref  } from 'vue'
+import { computed,onMounted,onBeforeUnmount,ref  } from 'vue'
 import { eventBus } from "@/components/js/eventBus";
-import { formatValue,interpolateColor ,formatUnixTimeOnly} from "@/components/js/utils";// scaleColor
+import { formatValue,interpolateColor} from "@/components/js/utils";// scaleColor
 import { reportStore as report } from "@/components/js/reportStore";
 
-const  props = defineProps({
-  mode: {
-    type: String,
-    default: 'report'
-  }
+defineProps({
+
 })
 
 //const report = reactive({})
-const events = reactive([])
+
 const sortBy = ref('gain') // 'gain' | 'gap'
 const sortDir = ref('desc') // 'asc' | 'desc'
-
-/*
-const report_rows = computed(() => {
-  const key = sortBy.value
-  const dir = sortDir.value === 'asc' ? 1 : -1
-
-  return Object.entries(report.items)
-    .map(([symbol, data]) => ({
-      symbol,
-      ...data
-    }))
-    .filter(item => item.deleted === false)   // ✅ filtro
-    .sort((a, b) => {
-      const av = a[key] ?? -Infinity
-      const bv = b[key] ?? -Infinity
-      return (av - bv) * dir
-    })
-})
-    */
 
 const report_rows = computed(() => {
   const key = sortBy.value
@@ -162,21 +103,9 @@ const report_rows = computed(() => {
     })
 })
 
-const columns = computed(() => {
-   if (props.mode=="report")
-      return columnsData;
-    else
-      return evt_columnsData;
-});
 
-const columnsMap = computed(() => {
-   if (props.mode=="report")
-      return columnsDataMap;
-    else
-      return ev_columnsDataMap;
-});
 
-const columnsData = [
+const columns = [
    {"title": "Change From Close" ,"bind" : "gain" , "type" :"perc", "decimals": 2,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,  "color_min": "#FFFFFF" , "color_max":"#14A014"   } },
    {"title": "Symbol/News" ,"bind" : "symbol",  "type" :"chart_link" },
    {"title": "Pos" ,"bind" : "rank_delta",  "type" :"rank" },
@@ -188,30 +117,13 @@ const columnsData = [
    {"title": "Gap","bind" : "gap", "type" :"perc" , "decimals": 1,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,   "color_min": "#FFFFFF" , "color_max":"#14A014"    } }
 ]
 
-const evt_columnsData = [
-   {"title": "Time" ,"bind" : "ts",  "type" :"time" },
-   {"title": "Symbol/News" ,"bind" : "symbol",  "type" :"chart_link" },
-   {"title": "Price","decimals": 2 ,"bind" : "last"},
-   {"title": "Volume","bind" : "day_volume", "type" :"volume" },
-   {"title": "Float" ,"bind" : "float","type" :"volume" },
-   {"title": "Rel Vol 1d","bind" : "rel_vol_24", "decimals": 2 },
-   {"title": "Rel Vol 5m","bind" : "rel_vol_5m", "decimals": 2 },
-   {"title": "Gap","bind" : "gap", "type" :"perc" , "decimals": 1,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,   "color_min": "#FFFFFF" , "color_max":"#14A014"    } },
-   {"title": "Change From Close" ,"bind" : "gain" , "type" :"perc", "decimals": 2,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,  "color_min": "#FFFFFF" , "color_max":"#14A014"   } },
-   {"title": "Strategy" ,"bind" : "name",  "type" :"str" }
-]
-
-const columnsDataMap = columnsData.reduce((acc, col) => {
+const columnsMap = columns.reduce((acc, col) => {
   acc[col.bind] = col;
   return acc;
 }, {});
 
-const ev_columnsDataMap = columnsData.reduce((acc, col) => {
-  acc[col.bind] = col;
-  return acc;
-}, {});
 
-console.log("columnsDataMap",columnsDataMap)
+
 
 function smart_fixed(value,decimals){
   if (value)
@@ -309,6 +221,8 @@ function formatStyle(value, colData)
   else
     return ""
 }
+
+/*
 function eventStyle(name){
   console.log("eventStyle",name)
   let s="#ffffff"
@@ -320,7 +234,7 @@ function eventStyle(name){
       backgroundColor:s
     }
 }
-
+*/
 
 function setSort(column) {
   if (sortBy.value === column) {
@@ -346,58 +260,15 @@ function onSymbolClick(symbol) {
 }
 console.log("onSymbolClick",onSymbolClick)
 
-// =================
-/*
-function patchReport(incoming) {
-  for (const [symbol, data] of Object.entries(incoming)) {
-    if (!report[symbol]) {
-      report[symbol] = {}
-    }
-
-    Object.assign(report[symbol], data)
-  }
-}
-
-
-function onReportReceived(data){
-  //console.log("onReportReceived",data)
-  patchReport(data)
-}
-
-function onEventReceived(data){
-  //console.log("onEventReceived",data)
- // events.push(data)
- // 1. Aggiunge il nuovo evento in cima alla lista (indice 0)
-  events.unshift(data);
-  
-  // 2. Se la lista supera i 100 elementi, rimuove l'ultimo (il più vecchio)
-  if (events.length > 100) {
-    events.pop(); 
-    // In alternativa puoi usare: events.splice(100); 
-    // che rimuove tutto ciò che va oltre l'indice 99
-  }
-  
-}
-*/
 
 // =================
 
 onMounted( async () => {
-  /*
-  if (props.mode=="report")
-      eventBus.on("report-received", onReportReceived);
-  else
-      eventBus.on("event-received", onEventReceived);
-*/
+
 });
 
 onBeforeUnmount(() => {
-   /*
-  if (props.mode=="report")
-      eventBus.off("report-received", onReportReceived);
-  else
-      eventBus.off("event-received", onEventReceived);
-    */
+
 });
 
 </script>

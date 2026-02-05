@@ -8,12 +8,12 @@ function update_marker_pos(chart_context,price_marker,price ){
     
     //console.log(chart_context.gfx_canvas.value.width)
 
-    //const timeScale = chart_context.charts.main.timeScale();
+    //const timeScale = chart_context.chart.timeScale();
    // const range = timeScale.getVisibleLogicalRange();
     // ultimo indice logico visibile
   //  const logicalIndex = Math.floor(range.to);
     const x =chart_context.gfx_canvas.value.width-22;// timeScale.logicalToCoordinate(logicalIndex);
-    let y = chart_context.series.main.priceToCoordinate(price); // nel centro
+    let y = chart_context.series.priceToCoordinate(price); // nel centro
 
    // console.log("X,Y", x,y);
 
@@ -79,7 +79,7 @@ function calc_percent(price,base)
 }
 
 function addTradeLine(chart_context,tradeData,price,title, color,guid){
-    const charts = chart_context.charts;
+    const chart = chart_context.chart;
     const series = chart_context.series;
     const drawSeries = chart_context.drawSeries;    
 
@@ -93,7 +93,7 @@ function addTradeLine(chart_context,tradeData,price,title, color,guid){
         return label+"    "
     }
 
-    const line =  createTradingLine(series.main, charts.main, {
+    const line =  createTradingLine(series, chart, {
           price: price,
           title: get_label(),
           color:  color,
@@ -137,7 +137,7 @@ function addTradeLine(chart_context,tradeData,price,title, color,guid){
         //console.log(line);
          drawSeries.push({"line":line,
             "contains": (x,y)=> {
-                const py = series.main.priceToCoordinate(line.price);
+                const py = series.priceToCoordinate(line.price);
                 if (!py) return false;
                 const dist = Math.abs(py - y);
                 return dist < 10; // Tolleranza in pixel
@@ -174,7 +174,7 @@ export function drawHorizontalLine(chart_context,price,guid=null) {
   const currentTimeframe = chart_context.currentTimeframe;
   const drawSeries = chart_context.drawSeries;    
 
-  const line = series.main.createPriceLine({
+  const line = series.createPriceLine({
       price: price,
       color: '#ffcc00',
       lineWidth: 1,
@@ -206,14 +206,14 @@ export function drawHorizontalLine(chart_context,price,guid=null) {
   drawSeries.push({"line":line,
     "contains": (x,y)=> {
         //console.log("line",line.p1,line.p2);  
-        const py = series.main.priceToCoordinate(line.price);
+        const py = series.priceToCoordinate(line.price);
         if (!py) return false;
         const dist = Math.abs(py - y);
        // console.log("dist",x,y,dist);
         return dist < 10; // Tolleranza in pixel
     },
     "delete": (line)=> {
-      series.main.removePriceLine(line);
+      series.removePriceLine(line);
     }}) ;
   //console.log("HLine drawn",drawSeries );
 }
@@ -221,7 +221,7 @@ export function drawHorizontalLine(chart_context,price,guid=null) {
 
 export function drawTrendLine(chart_context,p1, p2,guid=null) {
   //  console.log("drawTrendLine",p1,p2,guid);    
-    const charts = chart_context.charts;
+    const chart = chart_context.chart;
     const series = chart_context.series;
     const currentSymbol = chart_context.currentSymbol;
     const currentTimeframe = chart_context.currentTimeframe;
@@ -229,7 +229,7 @@ export function drawTrendLine(chart_context,p1, p2,guid=null) {
 
     //console.log("drawTrendLine",charts,series,currentSymbol,currentTimeframe,drawSeries); 
 
-  const line = charts.main.addSeries(LineSeries, {
+  const line = chart.addSeries(LineSeries, {
     color: '#00ffff',
     lineWidth: 1,
     lastValueVisible: false,
@@ -270,10 +270,10 @@ if (!guid)
     "contains": (x,y)=> {
        // console.log("contains check",x,y);  
        // console.log("line",line.p1,line.p2);  
-        const x1 = charts.main.timeScale().timeToCoordinate(line.p1.time);
-        const y1 = series.main.priceToCoordinate(line.p1.value);
-        const x2 = charts.main.timeScale().timeToCoordinate(line.p2.time);
-        const y2 = series.main.priceToCoordinate(line.p2.value);
+        const x1 = chart.timeScale().timeToCoordinate(line.p1.time);
+        const y1 = series.priceToCoordinate(line.p1.value);
+        const x2 = chart.timeScale().timeToCoordinate(line.p2.time);
+        const y2 = series.priceToCoordinate(line.p2.value);
 
       //  console.log("line",x1,y1,x2,y2);
 
@@ -291,17 +291,96 @@ if (!guid)
         return dist < 10; // Tolleranza in pixel
     },
     "delete": (line)=> {
-      charts.main.removeSeries(line);
+      chart.removeSeries(line);
   }}) ;
 }
 
 
+export function createVerticalLine(chart) {
+ //console.log("Draw HLine at", price);
+  
+  const vLineSeries = chart.addLineSeries({
+    color: '#FFD700',
+    lineWidth: 1,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
+    });
+
+  return vLineSeries;
+}
+
+function findLastCandleOfEachDay(data) {
+  const lastByDay = {};
+
+  for (const d of data) {
+    const dt = new Date(d.time * 1000);
+
+    // chiave giorno in UTC (coerente con i tuoi dati)
+    const dayKey = dt.getUTCFullYear() + '-' +
+                   String(dt.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                   String(dt.getUTCDate()).padStart(2, '0');
+
+    // sovrascrive sempre → resta l’ultima del giorno
+    lastByDay[dayKey] = d.time;
+  }
+
+  // ritorna la lista dei time ordinati
+  return Object.values(lastByDay).sort((a, b) => a - b);
+}
+
+export function updateVerticalLineData(vLineSeries,candles) {
+     
+    /*
+    function findTimes(data) {
+        return data
+            .filter(d => {
+            const dt = new Date(d.time * 1000); // epoch seconds
+            return dt.getUTCHours() === hh && dt.getUTCMinutes() === mm;
+            })
+            .map(d => d.time);
+        }
+            */
+ //console.log("candles",candles)
+  //const points = findTimes(candles);
+  const points = findLastCandleOfEachDay(candles);
+
+  //console.log("FIND",points)
+  if (!points) return;
+
+  // prezzi estremi per coprire tutto il grafico
+  const prices = candles.flatMap(c => [c.high, c.low]);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+
+  const result = [];
+  if (points.length>=2)
+  {
+    let i = points.length-2;
+    result.push({ time:points[i], value: min });
+    result.push({ time:points[i ], value: max });
+  }
+
+    /*
+ for (let i = 0; i < points.length - 1; i += 2) {
+        // segmento visibile
+        result.push({ time:points[i], value: min });
+        result.push({ time:points[i + 1], value: max });
+
+    }
+        */
+
+
+
+  vLineSeries.setData(result);
+}
+
 
 export function findLineAt(chart_context,time,price){
   
-    const mouseX = chart_context.charts.main.timeScale().timeToCoordinate(time);
+    const mouseX = chart_context.chart.timeScale().timeToCoordinate(time);
     if (mouseX === null) return;
-    const mouseY = chart_context.series.main.priceToCoordinate(price);
+    const mouseY = chart_context.series.priceToCoordinate(price);
 
     //console.log("findLineAt",mouseX,mouseY); 
 
@@ -315,7 +394,7 @@ export function findLineAt(chart_context,time,price){
 
 
 export function clearLine(chart_context,time,price) {
-  if (!chart_context.charts.main) return;
+  if (!chart_context.chart) return;
 
     let line = findLineAt(chart_context,time,price); 
     if (line) {
@@ -329,7 +408,7 @@ export function clearLine(chart_context,time,price) {
 }
 
 function clearLineByGUID(chart_context,guid) {
-   if (!chart_context.charts.main) return;
+   if (!chart_context.chart) return;
    chart_context.drawSeries.forEach( lineObj => {
         if (lineObj["line"].guid === guid) {
              lineObj["delete"](lineObj["line"]);
@@ -340,7 +419,7 @@ function clearLineByGUID(chart_context,guid) {
 }
 
 export function clearDrawings(chart_context,clearDB=false) {
-  if (!chart_context.charts.main) return;
+  if (!chart_context.chart) return;
   chart_context.drawSeries.forEach(s => {
     s["delete"](s["line"]);
   });
@@ -357,7 +436,7 @@ export function getChartCoords(chart_context,e) {
     const y = e.clientY - rect.top;
 
     const time = chart_context.chart.timeScale().coordinateToTime(x);
-    const price = chart_context.series.main.coordinateToPrice(y);
+    const price = chart_context.series.coordinateToPrice(y);
 
     return { x, y, time, price };
 }

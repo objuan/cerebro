@@ -1,4 +1,15 @@
 <template>
+  <div>
+    <div class="filter-bar">
+      <label v-for="src in ['mule','strategy']" :key="src" class="filter-item">
+        <input
+          type="checkbox"
+          :value="src"
+          v-model="allowedSources"
+        />
+        {{ src }}
+      </label>
+    </div>
 
      <div class="d-flex flex-wrap gap-0 justify-content-end align-content-start events-container">
 
@@ -54,6 +65,8 @@
                           <div class="report-item">Rel 5: &nbsp;&nbsp;&nbsp;{{ fullDetails[event.symbol].rel_vol_5m }}</div>
                           <div class="report-item">Rel 24:&nbsp; {{ fullDetails[event.symbol].rel_vol_24 }}</div>
                           
+                          <div class="report-item">News:&nbsp; {{ fullDetails[event.symbol].news }}</div>
+                          
                           
                         </div>
                       </div>
@@ -61,7 +74,7 @@
            </div>
    </div>
     </div>
-  
+  </div>
 </template>
 
 <script setup>
@@ -74,12 +87,17 @@ import { send_get } from '@/components/js/utils';
 import { reportStore as report } from "@/components/js/reportStore";
 import { formatValue} from "@/components/js/utils";// scaleColor
 
+const allowedSources = ref(['mule', 'strategy']);
+
 const fullDetails = {} // key -> result
 
 const sortedEvents = computed(() =>
-  [...store.items].sort((a, b) => b.timestamp - a.timestamp)
+{
+ return [...store.items]
+    .filter(e => allowedSources.value.includes(e.source))
+    .sort((a, b) => b.timestamp - a.timestamp)
+}
 );
-
 
 const openKey = ref(null)
 
@@ -112,6 +130,7 @@ defineProps({
 onMounted( async () => {
   //eventBus.on("ticker-received", onTickerReceived);
     let pdata = await send_get("/api/event/get")
+    //console.log("event ",pdata )
     store.clear()
     pdata.forEach(  (val) =>{
       val.data = JSON.parse(val.data)
@@ -129,7 +148,22 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.filter-bar{
+  display:flex;
+  gap:12px;
+  padding:6px;
+  background:#111;
+  color:white;
+  font-size:13px;
+  border-bottom:2px solid #333;
+}
 
+.filter-item{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+}
 .events-container {
   height: 100%;
   overflow-y: auto;

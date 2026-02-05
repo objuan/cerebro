@@ -92,7 +92,7 @@ function addIndicator(context,ind){
     if (ind.type =="SMA")
     {
       name ="SMA "+ind.params.period
-      serie = applySMA(context.series.main, context.charts.main, { 
+      serie = applySMA(context.series, context.chart, { 
         period: ind.params.period, 
         color: ind.params.color,
       });
@@ -100,7 +100,7 @@ function addIndicator(context,ind){
    if (ind.type =="EMA")
     {
       name ="EMA "+ind.params.period
-      serie = applyEMA(context.series.main, context.charts.main, { 
+      serie = applyEMA(context.series, context.chart, { 
         period: ind.params.period, 
         color: ind.params.color,
       });
@@ -109,7 +109,7 @@ function addIndicator(context,ind){
     if (ind.type =="WMA")
     {
       name ="WMA "+ind.params.period
-      serie = applyWMA(context.series.main, context.charts.main, { 
+      serie = applyWMA(context.series, context.chart, { 
         period: ind.params.period, 
         color: ind.params.color,
       });
@@ -118,7 +118,7 @@ function addIndicator(context,ind){
    if (ind.type =="RSI")
     {
       name ="RSI "+ind.params.period+","+ind.params.overbought+","+ind.params.oversold
-      serie = applyRSI(context.series.main, context.charts.main, { 
+      serie = applyRSI(context.series, context.chart, { 
         period: ind.params.period, 
         color: ind.params.color,
         overbought :  ind.params.overbought, 
@@ -129,7 +129,7 @@ function addIndicator(context,ind){
      if (ind.type =="MACD")
     {
       name ="MACD"
-      serie = applyMACD(context.series.main, context.charts.main, { 
+      serie = applyMACD(context.series, context.chart, { 
         macdColor: ind.params.color,
         signalColor: '#ff9900',
         histUpColor: '#00ff00',
@@ -146,7 +146,7 @@ function addIndicator(context,ind){
      if (ind.type =="VWAP")
     {
         name ="VWAP "
-        serie = applyVWAP(context.series.main, context.charts.main, { 
+        serie = applyVWAP(context.series, context.chart, { 
         period: ind.params.period, 
         color: ind.params.color,
       });

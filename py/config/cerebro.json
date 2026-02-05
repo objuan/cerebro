@@ -38,6 +38,17 @@
 	{
 		"shapshot_time" : 10
 	},
+	"news":
+	{
+		"live_range":{
+			"min" : 8,
+			"max" : 21
+		},
+		"schedule" :[
+			{"hh": 8},
+			{"hh": 10}
+		]
+	},
 	"stategies1":[
 			{
 				"class" : "GainStrategy",

@@ -10,6 +10,7 @@ import time
 import logging
 from typing import List, Dict
 import requests
+from news_service import NewService
 from utils import *
 from message_bridge import *
 from renderpage import RenderPage
@@ -55,8 +56,7 @@ class MuloLiveClient:
      
      
     async def bootstrap(self):
-        
-        
+
         if self.sym_mode:
                 self.sym_start_time =  await self.send_cmd("sym/time")
                 self.sym_time = datetime.fromtimestamp(self.sym_start_time)
@@ -164,6 +164,14 @@ class MuloLiveClient:
     def getCurrentZone(self):
         return self.market.getCurrentZone()
 
+    ##########
+
+    async def scan_for_news(self, symbols=None):
+        if symbols:
+            await NewService().scan(symbols)
+        else:
+            await NewService().scan(self.symbols)
+
     #########
     async def setSymTime(self,time):
         self.sym_start_time = time
@@ -235,10 +243,21 @@ class MuloLiveClient:
         })
 
         for symbol in to_add:
-                await self.send_event("mule",symbol,"NEW  SYMBOL", "New  symbol : "+symbol,"", {"color": "#00b627"})
+            await self.send_event("mule",symbol,"NEW  SYMBOL", "New  symbol : "+symbol,"", {"color": "#00b627"})
+
+        #newss
+        
+        await self.scan_for_news(to_add)
+        
+        for symbol in to_add:
+            
+            news = await NewService().find(symbol)
+            if news:
+                 await self.send_news(symbol,news)
+
 
         for symbol in to_remove:
-                await self.send_event("mule",symbol,"DEL SYMBOL", "Del  symbol : "+symbol,"", {"color": "#ff5084"})
+            await self.send_event("mule",symbol,"DEL SYMBOL", "Del  symbol : "+symbol,"", {"color": "#ff5084"})
 
         logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
 
@@ -412,7 +431,7 @@ class MuloLiveClient:
         try:
             data["small_desc"]= small_desc
             data["full_desc"]= full_desc
-            query = "INSERT INTO events ( type,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
             self.execute(query, (source,symbol, name,  int(time.time() * 1000), json.dumps(data) ))
 
             #logger.info(f"SEND {data}")
@@ -438,6 +457,21 @@ class MuloLiveClient:
                 {
                     "type" : "ticker_order",
                     "timestamp" :  int(time.time() * 1000),
+                    "data" : data
+                }
+            )
+        except:
+            logger.error("SEND ERROR", exc_info=True)
+
+    
+    async def send_news(self,  symbol, data):
+       
+        try:
+            await self.render_page.send(
+                {
+                    "type" : "news",
+                    "timestamp" :  int(time.time() * 1000),
+                    "symbol" : symbol,
                     "data" : data
                 }
             )

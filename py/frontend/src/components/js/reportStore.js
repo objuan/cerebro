@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { newsStore } from "@/components/js/newsStore";
 
 export const reportStore = reactive({
   items: {},
@@ -55,6 +56,9 @@ export const reportStore = reactive({
         
        if (this.items[symbol]) {
          let rep = this.items[symbol]
+
+         let news_rank = newsStore.get_news_rank(symbol);
+
          //console.log("rep",rep)
           return {
             "gap" :  this.gain_map(rep.gap,2,10), // rep.gap > 2, // 2)	Gain > 2% nel trading pre mercato
@@ -62,7 +66,7 @@ export const reportStore = reactive({
             "gain" :  this.gain_map(rep.gain,10,20) , // rep.gain > 10 , 
             "price" : this.value_map(rep.last, 1, 20, 3, 8),//rep.last>=1 &&  rep.last < 20, 
             "float":  this.value_map(rep.float, 1000000, 10000000, 1000000, 10000000), // rep.float < 10000000, 
-            "news" : 0}
+            "news" : news_rank}
        }
        else
        {

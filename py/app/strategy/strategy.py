@@ -75,7 +75,7 @@ class Strategy:
 
         for tf,df in self.df_map.items():
             #df_ = df.loc[df["symbol"] == "HCTI"]
-            logger.info(f"END {tf}\n{df.tail(10)}")
+            logger.debug(f"END {tf}\n{df.tail(10)}")
 
     ########
 

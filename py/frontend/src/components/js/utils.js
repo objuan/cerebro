@@ -172,6 +172,18 @@ export async function send_get(url, params = {}) {
     return await res.json();
 }
 
+// ========================================
+
+
+export async function Translate(phrase)
+{
+    let ret = await send_post("/api/translate",{"phrase": phrase})
+    //console.log(phrase,ret.data);
+    return ret.data;
+}
+
+// ==========================================
+
 export async function saveChartLine(symbol, timeframe, data) {
 
     let res = await fetch("http://localhost:8000/api/chart/save", {

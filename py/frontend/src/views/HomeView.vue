@@ -143,6 +143,7 @@ import EventWidget from '@/components/EventWidget.vue'
 import { eventStore } from "@/components/js/eventStore";
 import { reportStore } from "@/components/js/reportStore";
 import { tickerStore } from "@/components/js/tickerStore";
+import { newsStore } from "@/components/js/newsStore";
 
 
 // --- STATO REATTIVO ---
@@ -359,7 +360,7 @@ const initWebSocket = () => {
             console.log("event",msg);
             eventBus.emit("event-received",msg.data);
             eventStore.push(msg); 
-        }
+         }
           break;
         case "ticker_order":
           {
@@ -371,7 +372,7 @@ const initWebSocket = () => {
         case "events":
           {
             //let d = JSON.parse(msg.data)
-            //console.log("events",msg.data);
+          //  console.log("events",msg.data);
             msg.data.forEach( (v)=>
             {
                 eventBus.emit("event-received",v);
@@ -380,16 +381,12 @@ const initWebSocket = () => {
             //eventBus.emit("event-received",msg.data);
         }
           break;
-        case "del":
+        
+        case "news":
           {
-            /*
-            const target = chart_list[msg.id];
-            if (target) {
-              grid.removeWidget(target.widget_ele);
-              delete chart_list[msg.id];
-            }
-              */
-        }
+          //  console.log("news",msg);
+            newsStore.push(msg["symbol"], msg["data"])
+         }
           break;
       }
   }
@@ -416,25 +413,6 @@ onMounted(() => {
 
   const loadLayout = async () => {
   try {
-      //console.log("LOAD LAYOUT")
-      /*
-      let response = await fetch('http://127.0.0.1:8000/api/layout/select')
-      if (!response.ok) throw new Error('Errore nel caricamento')
-        const data = await response.json();
-        const msgs = JSON.parse(data["data"]);
-
-        //console.log("LOAD LAYOUT OK",msgs)
-        msgs.forEach(msg => {
-            if (msg.widget.type === "chart") {
-             // addCandleWidget(msg.id, msg.widget.symbol, msg.widget.timeframe, msg.widget.plot_config, msg.rect);
-              
-            } 
-            else if (msg.widget.type === "multi_chart") {
-             // addMultiCandleWidget(msg.id, msg.widget.symbol,  msg.widget.plot_config, msg.rect);
-              
-            } 
-        });
-        */
 
         // tutte le  props
         let pdata = await send_get("/api/props/find", {path : ""})
@@ -463,7 +441,9 @@ onMounted(() => {
         
         await send_get("/api/report/get")
         await send_get("/api/event/get")
-      
+        await send_get("/api/news/current")
+
+        
         // positions
         /*
         response = await fetch('http://127.0.0.1:2000/account/positions')

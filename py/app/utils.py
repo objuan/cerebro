@@ -137,6 +137,7 @@ def convert_json(obj):
     return duration_to_seconds(obj)
 
 
+#################################
 
 #################################
 
@@ -188,6 +189,9 @@ class Scheduler:
 
                 self._tasks.remove(task)
 
+def today_at(hour: int, minute: int = 0, second: int = 0) -> datetime:
+    now = datetime.now()
+    return now.replace(hour=hour, minute=minute, second=second, microsecond=0)
 
 class AsyncScheduler:
     def __init__(self):

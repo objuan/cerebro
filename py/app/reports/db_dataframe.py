@@ -108,8 +108,8 @@ class DBDataframe_TimeFrame:
                 if len(symbol_rows)>0:
                     self.last_index_by_symbol[symbol] = symbol_rows[-1]
 
-            logger.info(f"START INDEX {self.last_index_by_symbol}")
-            logger.info(f"BOOT #{len(self.df)}\n{self.df} ")
+           # logger.info(f"START INDEX {self.last_index_by_symbol}")
+           # logger.info(f"BOOT #{len(self.df)}\n{self.df} ")
             self.last_timestamp=datetime.now()
 
         #await self.update()
@@ -288,7 +288,10 @@ class DBDataframe_TimeFrame:
 
         for symbol in symbols:
             symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
-            self.last_index_by_symbol[symbol] = symbol_rows[-1]
+            if len(symbol_rows)>0:
+                self.last_index_by_symbol[symbol] = symbol_rows[-1]
+            else:
+                logger.error(f"!!!! Rows not found {symbol}")
         
         if self.timeframe == "1m":
             logger.info(f"SYMBOL BOOT  {self.last_index_by_symbol} \n{self.df }")

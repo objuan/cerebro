@@ -154,11 +154,12 @@ import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
    LineSeries, applyVolume,setVolumeData,updateVolumeData,
-createInteractiveLineManager } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
+createInteractiveLineManager  } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get,saveProp, send_post } from '@/components/js/utils.js'; // Usa il percorso corretto
-import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker, updateTradeMarker ,setTradeMarker
+import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker,
+   updateTradeMarker ,setTradeMarker,updateVerticalLineData
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
 
@@ -190,26 +191,21 @@ const price_marker_tp= ref(null);
 const price_marker_sl= ref(null);
 const indicatorList = ref([]);
 const profileName = ref("");
-
-/*
-const bgCanvas = ref(null);
-let canvas = null
-let ctx = null
-*/
-
-//const indicators = ["SMA","EMA"]
+let timeLine=null;
 
 const gfx_canvas = ref(null);
 
 const drawMode = ref(null); // null | 'hline' | 'line'
 let drawPoints = [];
 let drawSeries = [];
-//let dragging=false;
-//let lastMouse=null;
 
 // Oggetti Chart e Series (non reattivi per performance)
-let charts = { main: null, volume: null };
-let series = { main: null, volume: null, indicators: {} };
+//let charts = { main: null, volume: null };
+//let series = { main: null, volume: null, indicators: {} };
+let chart = null;
+let series  = null;
+//let indicators = {}
+
 let lastMainCandle=null
 let tradeMarkerData = {}; 
 let taskData = {}
@@ -229,7 +225,7 @@ function context() {
     return {
         currentSymbol,
         currentTimeframe,
-        charts,
+        chart,
         series,
         drawSeries,
         liveStore,
@@ -436,12 +432,12 @@ function removeIndicator(index) {
 
     if (ind.serie.isComposite)
       {
-        charts.main.removeSeries(ind.serie.macd);
-        charts.main.removeSeries(ind.serie.signal);
-        charts.main.removeSeries(ind.serie.histogram);
+        chart.removeSeries(ind.serie.macd);
+        chart.removeSeries(ind.serie.signal);
+        chart.removeSeries(ind.serie.histogram);
       }
     else
-      charts.main.removeSeries(ind.serie)
+      chart.removeSeries(ind.serie)
 }
 function clearIndicators(){
   profileName.value=""
@@ -509,8 +505,8 @@ const handleRefresh = async () => {
 
         //console.info("formattedData ",data)
 
-        series.main.setData(formattedData);
-
+        series.setData(formattedData);
+        updateVerticalLineData(timeLine,formattedData, 21,58)
         // Formatta dati per Volume
         /*
         series.volume.setData(data.map(d => ({
@@ -554,7 +550,7 @@ const handleRefresh = async () => {
         if ( data.length >timeframe_start[currentTimeframe.value])
         {
           try{
-            charts.main.timeScale().setVisibleLogicalRange({
+            chart.timeScale().setVisibleLogicalRange({
               from: data.length - timeframe_start[currentTimeframe.value],
               to: data.length
             });
@@ -563,10 +559,10 @@ const handleRefresh = async () => {
           }
         }
           
-        // charts.main.timeScale().scrollToPosition(0, false);
+        // chart.timeScale().scrollToPosition(0, false);
         nextTick( ()=>
       {
-                setVolumeData(series.main,data.map(d => ({
+                setVolumeData(series,data.map(d => ({
                   time: window.db_localTime ? window.db_localTime(d.t) : d.t,
                   volume: d.bv,
                   color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
@@ -627,7 +623,7 @@ const handleRefresh = async () => {
       }
       //console.log("trade marker",data)
 
-      //DEFAULT_INTERACTION = charts.main.options();
+      //DEFAULT_INTERACTION = chart.options();
 
     
      //console.log("handleRefresh DONE")
@@ -732,7 +728,7 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
 
-  if (charts.main) charts.main.remove();
+  if (chart) chart.remove();
   //if (charts.volume) charts.volume.remove();
 });
 
@@ -770,7 +766,7 @@ function generate5MinBands(from, to) {
 }
 
 function drawBands(ranges) {
-  const timeScale = charts.main.timeScale()
+  const timeScale = chart.timeScale()
 
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.fillStyle = 'rgba(255,80,80,0.90)'
@@ -791,7 +787,7 @@ const buildChart =  () => {
 
   // 1. Main Chart
   try{
-  charts.main = createChart(mainChartRef.value, {
+  chart = createChart(mainChartRef.value, {
     layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
     grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
     crosshair: { 
@@ -803,37 +799,28 @@ const buildChart =  () => {
     timeScale: { timeVisible: true, borderColor: '#485c7b' }
   });
 
-  series.main = charts.main.addSeries(CandlestickSeries, {
+  series = chart.addSeries(CandlestickSeries, {
     upColor: '#4bffb5', downColor: '#ff4976', borderUpColor: '#4bffb5', borderDownColor: '#ff4976',
     wickUpColor: '#838ca1', wickDownColor: '#838ca1',
   });
 
-  // 2. Volume Chart
-  /*
-  charts.volume = createChart(volumeChartRef.value, {
-    height: 100,
-    layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
-    timeScale: { visible: false }, // Nascondi scala tempo sotto
-    rightPriceScale: { borderVisible: false }
+  timeLine =  chart.addSeries(LineSeries, {
+    color: '#FFFFFF',
+    lineWidth: 2,
+    lineStyle:2,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
   });
 
+  // ==============
 
-*/
-
-/*
-  series.volume = charts.main.addSeries(HistogramSeries, {
-    priceFormat: { type: 'volume' },
-    priceScaleId: '',
-    scaleMargins: { top: 0.7, bottom: 0 }
-  });
-  */
-
-  applyVolume(series.main, charts.main, {
+  applyVolume(series, chart, {
       colorUp: '#26a69a',
       colorDown: '#ef5350'
   });
 
-    let panes = charts.main.panes();
+    let panes = chart.panes();
     //panes[0]?.setHeight(0.1);
     panes[1]?.setStretchFactor(0.5);
 
@@ -841,7 +828,7 @@ const buildChart =  () => {
     //console.log("stopLoss",stopLoss );
 
    // Click-to-create: Create lines by clicking on chart
-  manager = createInteractiveLineManager( charts.main,series.main);
+  manager = createInteractiveLineManager( chart,series);
   console.debug(manager);
   // 3. Indicatori Dinamici
   //console.log("plot_config",props.plot_config)
@@ -849,7 +836,7 @@ const buildChart =  () => {
   {
     Object.entries(props.plot_config.main_plot).forEach(([key, config]) => {
       if (config.fun === 'ema') {
-        series.indicators[key] = charts.main.addSeries(LineSeries, {
+        series.indicators[key] = chart.addSeries(LineSeries, {
           color: config.color,
           lineWidth: 1,
           lastValueVisible: false,
@@ -859,54 +846,28 @@ const buildChart =  () => {
     });
   }
 
-  // 4. Sincronizzazione TimeScale
-  //const mainTimeScale = charts.main.timeScale();
-  //const volumeTimeScale = charts.volume.timeScale();
-/*
-  mainTimeScale.subscribeVisibleLogicalRangeChange(range =>
-  { 
-    if (range)
-      volumeTimeScale.setVisibleLogicalRange(range)
-  });
-  volumeTimeScale.subscribeVisibleLogicalRangeChange(range => 
-  {
-    if (range)
-      mainTimeScale.setVisibleLogicalRange(range)
-  });
-*/
-  //charts.main.timeScale().subscribeVisibleTimeRangeChange(updateMarker);
- 
-    /*
-    mainTimeScale.subscribeVisibleTimeRangeChange((range) => {
-      if (!range) return
-
-      const bands = generate5MinBands(range.from, range.to)
-      drawBands(bands)
-    })
-      */
-
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
-  charts.main.subscribeCrosshairMove(param => 
+  chart.subscribeCrosshairMove(param => 
   {
     try{
-      if (!param.time || !param.seriesData.get(series.main)) {
+      if (!param.time || !param.seriesData.get(series)) {
         legendHtml.value = '';
         //legendIndHtml.value = '';
-        charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
+       // charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
         return;
       }
 
-      const data = param.seriesData.get(series.main);
+      const data = param.seriesData.get(series);
       if (!data) return;
 
       // update markers
       /*
-      const timeScale = charts.main.timeScale();
+      const timeScale = chart.timeScale();
       const range = timeScale.getVisibleLogicalRange();
       // ultimo indice logico visibile
       const logicalIndex = Math.floor(range.to);
       const x = timeScale.logicalToCoordinate(logicalIndex);
-      const y = series.main.priceToCoordinate(184.48);
+      const y = series.priceToCoordinate(184.48);
 
       console.log("X,Y", price_marker.value,x,y);
 
@@ -953,7 +914,7 @@ const buildChart =  () => {
   });
 
 
-  charts.main.subscribeClick(param => {
+  chart.subscribeClick(param => {
     
     if (!drawMode.value ) return;
     console.log(param)
@@ -961,8 +922,8 @@ const buildChart =  () => {
       console.log("Click cancelled");
       return;
     }
-    //const candle_price = param.seriesData.get(series.main).close;
-    const price = series.main.coordinateToPrice(param.point.y);
+    //const candle_price = param.seriesData.get(series).close;
+    const price = series.coordinateToPrice(param.point.y);
   
     if (price == null) return;
 
@@ -1008,7 +969,7 @@ const buildChart =  () => {
   // Esponi l'oggetto al genitore (per aggiornamenti WS)
   emit('initialized', { 
     id: props.id, 
-    mainSeries: series.main, 
+    mainSeries: series, 
     //volumeSeries: series.volume,
     refresh: buildChart 
   });
@@ -1035,12 +996,12 @@ const resize =  () => {
     {
       old_size = [ width, height ]
    //   console.log("c resize ",width,height,container);
-    // console.log(charts.main)
+    // console.log(chart)
 
       ///bgCanvas.value.width = width-10
     // bgCanvas.value.height = height-10
 
-      charts.main.resize(width-10,height-10);
+      chart.resize(width-10,height-20);
       //charts.volume.resize(width-10,94);
 
       handleRefresh();
@@ -1060,7 +1021,7 @@ function onTickerReceived(){
       low: msg.low,
       high: msg.high      
     }
-    series.main.update(new_value);
+    series.update(new_value);
   }
     */
 }
@@ -1081,12 +1042,12 @@ function on_candle(c)
   {
     lastMainCandle =new_value;
     
-    updateVolumeData(series.main,{
+    updateVolumeData(series,{
                 time: window.db_localTime(c.ts),
                 volume: c.v
     })
 
-    series.main.update(new_value);
+    series.update(new_value);
     
    
     /*

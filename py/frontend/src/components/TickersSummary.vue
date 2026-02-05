@@ -1,10 +1,42 @@
 <template>
+<div>
+  <div class="sort-bar">
+    <span></span>
+
+    <button
+      :class="{ active: sortBy === 'gain' }"
+      @click="sortBy = 'gain'"
+    >
+      Gain
+    </button>
+
+    <button
+      :class="{ active: sortBy === 'gap' }"
+      @click="sortBy = 'gap'"
+    >
+      Gap
+    </button>
+
+     <button
+      :class="{ active: sortBy === 'rel_vol_5m' }"
+      @click="sortBy = 'rel_vol_5m'"
+    >
+      Vol5
+    </button>
+     <button
+      :class="{ active: sortBy === 'rel_vol_24' }"
+      @click="sortBy = 'rel_vol_24'"
+    >
+      VolD
+    </button>
+  </div>
+
   <header class="py-1 mb-1 border-bottom bg-light">
  
      <div class="d-flex flex-wrap gap-1">
 
       <div
-        v-for="item in tickerList.get_list()"
+        v-for="item in sortedTickers"
         :key="item.symbol"
         class="card ticket-card"
       >
@@ -31,13 +63,37 @@
                 v-for="key in orderedKeys"
                 :key="key"
                 class="cell"
-                :title="key"
+                :title="getRank(key)"
               >
-                <span v-if="isTrue(item.summary[key])">⭐</span>
+              <span v-if="isTrue(item.summary[key])">
+                  <svg
+                    v-if="key === 'news'"
+                    class="icon "
+                    :style="{color:newsColor(item.summary.news-1)}"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M13.5 2s.5 3-2 6-3 4-3 6a5 5 0 0 0 10 0c0-3-2-5-3-6s-2-3-2-6z"
+                      fill="currentColor"
+                    />
+                  </svg>
+
+                  <svg
+                    v-else
+                    class="icon "
+                    :style="{color:priceColor(item.summary[key]) }"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M12 2l3 7 7 .5-5.5 4.5 2 7L12 17l-6.5 4 2-7L2 9.5 9 9z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </span>
               </div>
             </div>
              
-            <div class="report">
+            <div class="report" v-if="item.report">
               <div class="title">{{ item.symbol }}</div>
 
               <div class="row">
@@ -106,6 +162,14 @@
                   {{ item.report.rel_vol_5m.toFixed(1) }}%
                 </div>
               </div>
+
+               <div class="row" v-if="item.summary.news>0" :style="{color:newsColor(item.summary.news-1)}">
+                <div class="label">Last New</div>
+                <div class="value">
+                    {{ item.summary.news-1 }} Day(s)
+                </div>
+              </div>
+
             </div>
 
           </div>
@@ -123,13 +187,15 @@
             </button>
 
             <ul class="dropdown-menu dropdown-menu-end">
-              <li>
+  
+               <li>
                 <a class="dropdown-item"
                   href="#"
-                  @click.prevent="openChart(item.symbol)">
-                  Open
+                  @click.prevent="getNews(item.symbol)">
+                   Get News
                 </a>
               </li>
+               <li><hr class="dropdown-divider"></li>
               <li>
                 <a class="dropdown-item"
                   href="#"
@@ -137,7 +203,7 @@
                    Add to day black list
                 </a>
               </li>
-              <li><hr class="dropdown-divider"></li>
+             
               <li>
                 <a class="dropdown-item text-danger"
                   href="#"
@@ -152,30 +218,56 @@
       </div>
 
     </div>
+    <NewsWidget
+        v-if="showNews"
+        :symbol="selectedSymbol"
+        @close="showNews = false"
+      />
   </header>
+</div>
 </template>
 
 <script setup>
 
-import {   onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
+import {  ref, computed, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
 import { send_get,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { eventBus } from "@/components/js/eventBus";
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { reportStore as report } from "@/components/js/reportStore";
+import NewsWidget from "@/components/NewsWidget.vue";
 
-//const symbol_summary = ref({})
+const showNews = ref(false)
+const selectedSymbol= ref(null)
+const sortBy = ref('gain'); // 'gain' | 'gap'
 
 const orderedKeys = [
   'float', 'gain', 'gap',
   'news', 'price', 'volume'
 ]
 
+const sortedTickers = computed(() => {
+  const list = tickerList.get_sorted();
+
+  return [...list].sort((a, b) => {
+    const av = a.report?.[sortBy.value] ?? 0;
+    const bv = b.report?.[sortBy.value] ?? 0;
+    return bv - av; // decrescente
+  });
+});
+
 const isTrue = (v) => v > 0
 
 defineProps({
 })
+
+const _newsColors = ["#FF0000","#BBBB00","#0000ff"];
+
+const newsColor = (days)=>
+    {
+      return   _newsColors[Math.min(2,days)];
+    }
 
 //const symbolList = ref([]);
 const priceColor = (v) => {
@@ -193,9 +285,19 @@ const priceColor = (v) => {
   return `rgb(${r}, ${g}, ${b})`
 }
 
-function openChart(symbol) {
-  eventBus.emit("chart-select", { symbol, id: "chart_1" });
+function getRank(key){
+  if (key =="news")
+    return "news";
+  else
+    return key;
 }
+
+function getNews(symbol){
+  console.log("selectedSymbol", symbol)
+  selectedSymbol.value = symbol;
+  showNews.value = true;
+}
+
 
 function addToDayBlack(symbol) {
   //console.log("Add to watchlist:", symbol);
@@ -276,6 +378,40 @@ defineExpose({
 
 <style scoped>
 
+.sort-bar{
+  display:flex;
+  align-items:center;
+  gap:2px;
+  padding:2px 2px;
+  font-size:13px;
+  background:#222;
+  color:white;
+  border-bottom:2px solid #333;
+}
+
+.sort-bar button{
+  border:1px solid #555;
+  background:#111;
+  color:#ccc;
+  padding:3px 2px;
+  border-radius:4px;
+  cursor:pointer;
+}
+
+.sort-bar button.active{
+  background:#00e676;
+  color:#000;
+  font-weight:700;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+}
+.star {
+  color: rgb(255, 217, 0);
+}
+
 .star-grid {
   display: grid;
   grid-template-columns: repeat(3, 12px);
@@ -293,7 +429,7 @@ defineExpose({
 }
 
 .ticket-card {
-  min-width: 160px;
+  min-width: 170px;
   max-width: 250px;
 }
 .star-wrapper {
