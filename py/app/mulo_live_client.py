@@ -220,7 +220,10 @@ class MuloLiveClient:
         self.sql_symbols = str(self.symbols)[1:-1]
    
         self.tickers = {}
-        for s in self.symbols:
+
+        _mule_tickers = await self.send_cmd("tickers")
+        
+        for ticker in _mule_tickers:
             ''''
             t = Ticker( contract= Contract(symbol=s))
             t.symbol = s
@@ -228,11 +231,18 @@ class MuloLiveClient:
             t.gain = 0
             self.tickers[s] =t
             '''
-            self.tickers[s] = { "symbol": s, "gain" : 0, "low":0 , "high":0, "last" : 0, "volume": 0, "ts" : 0,
-                                "ask" : 0, "bid":0,"day_volume" : 0,
-                                   "last_close": await self.last_close(s)}
+            last_close=  await self.last_close(ticker["symbol"])
+            gain =  ((ticker["last"] - last_close) / last_close) * 100
 
-        #logger.info(f">> {self.on_symbols_update._handlers}")  
+            self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
+                                "gain" : gain, "low":0 , "high":0, "last" : ticker["last"], 
+                                "volume": 0, "ts" : 0,
+                                "ask" : 0, "bid":0,"day_volume" : ticker["last_volume"],
+                                "last_close": last_close}
+        
+        
+        
+        logger.info(f">> tickers {self.tickers}")  
 
         await self.on_symbols_update(self.symbols,to_add,to_remove)
 
@@ -450,12 +460,12 @@ class MuloLiveClient:
         except:
             logger.error("SEND ERROR", exc_info=True)
 
-    async def send_ticker_order(self,  data):
+    async def send_ticker_rank(self,  data):
        
         try:
             await self.render_page.send(
                 {
-                    "type" : "ticker_order",
+                    "type" : "ticker_rank",
                     "timestamp" :  int(time.time() * 1000),
                     "data" : data
                 }

@@ -74,7 +74,7 @@ class NewService:
         date_str = str(datetime.now().date())
         hh_str = datetime.now().strftime("%H")
 
-        logger.info(f"SCAN {_symbols} {min}-{max}")
+        #logger.info(f"SCAN {_symbols} {min}-{max}")
 
         if (int(hh_str) >= min and int(hh_str)<=max ):
             
@@ -90,7 +90,7 @@ class NewService:
                 if len(df)==0: symbols.append(symbol)
                 else:
                     dt_hh = int(df.iloc[0]["dt_hh"])
-                    logger.info(f"FIND LAST: {symbol} {dt_hh}")
+                    logger.debug(f"FIND LAST: {symbol} {dt_hh}")
                     if (int(hh_str)> dt_hh):
                         symbols.append(symbol)
 

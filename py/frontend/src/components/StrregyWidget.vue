@@ -11,7 +11,7 @@
       </label>
     </div>
 
-     <div class="d-flex flex-wrap gap-0 justify-content-end align-content-start events-container">
+     <div class=" d-flex flex-wrap gap-0 justify-content-end align-content-start events-container">
 
        <div
           v-for="event in sortedEvents"
@@ -79,13 +79,15 @@
 
 <script setup>
 
-import { ref,computed,onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
+import { ref,computed,onMounted, onUnmounted ,onBeforeUnmount,watch } from 'vue';
 
 import { eventBus } from "@/components/js/eventBus";
-import { eventStore as store } from "@/components/js/eventStore";
+import { strategyStore as store } from "@/components/js/strategyStore";
 import { send_get } from '@/components/js/utils';
 import { reportStore as report } from "@/components/js/reportStore";
 import { formatValue} from "@/components/js/utils";// scaleColor
+import { liveStore } from '@/components/js/liveStore.js';
+import {saveProp} from '@/components/js/utils.js'
 
 const allowedSources = ref(['mule', 'strategy']);
 
@@ -136,6 +138,15 @@ onMounted( async () => {
       val.data = JSON.parse(val.data)
       store.push(val)    
     });
+
+    let filter = liveStore.get('event.filter');
+      console.log("allowedSources filter:", filter)
+      
+    if (filter){
+    
+      allowedSources.value = JSON.parse(filter)
+    }
+    
 });
 
 onBeforeUnmount(() => {
@@ -143,6 +154,23 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
 });
+
+/*
+watch(
+  () => liveStore.get('event.filter'),
+  v => {
+      console.log("allowedSources",v)
+    if (v != null) allowedSources.value = v;
+  },
+  { immediate: true }
+);
+*/
+watch(allowedSources, (newVal, ) => {
+  
+  let v = JSON.stringify(newVal)
+  console.log("allowedSources cambiato:", newVal,v)
+  saveProp("event.filter",v)
+}, { deep: true })
 
 
 </script>
@@ -164,8 +192,9 @@ onUnmounted(() => {
   gap:6px;
   cursor:pointer;
 }
+
 .events-container {
-  height: 100%;
+  height: 90vh;
   overflow-y: auto;
   width: 100%;
   margin-right: 2px;

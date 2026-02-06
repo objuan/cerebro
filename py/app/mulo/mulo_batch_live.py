@@ -821,6 +821,20 @@ else:
 async def get_symbols():
     return {"status": "ok" , "data": [ x.symbol for x in live.ordered_tickers()]}
 
+@app.get("/tickers")
+async def get_symbols():
+    return {
+        "status": "ok",
+        "data": [
+            {
+                "symbol": x.symbol,
+                "last": x.last,
+                "last_volume": x.volume,
+            }
+            for x in live.ordered_tickers()
+        ],
+    }
+
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(status_code=204)

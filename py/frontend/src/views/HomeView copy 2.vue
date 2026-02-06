@@ -61,6 +61,9 @@
              <trade-config></trade-config>
         </SidePanel>
 
+        <SidePanel title="Toast" ref ="toastRef" width="400px">
+            <ToastHistory />
+        </SidePanel>
 
       
 
@@ -78,13 +81,15 @@
         </div>
         <div style="flex-grow: 1;"></div>
 
-    
+        <button 
+              @click="toastRef.toggle()"
+               title="Toast">📑 Web Events</button>
     </div>
 
     <main class="main-columns">
       
       
-          <StrregyWidget></StrregyWidget>
+          <EventWidget></EventWidget>
       
           <TickersSummary ref="tickets_summary"></TickersSummary>
         
@@ -102,10 +107,8 @@
           />
         </div>
 
-         <EventHistory />
-
     </main>
-     <EventToast  />
+     <ErrorToast  />
 
   </div>
 </template>
@@ -127,9 +130,9 @@ import OrderChartWidget from '@/components/OrderChartWidget.vue';
 import { send_get,send_post } from '@/components/js/utils';
 import { eventBus } from "@/components/js/eventBus";
 import SidePanel from '@/components/SidePanel.vue';
-import EventToast from '@/components/EventToast.vue'
-import EventHistory from '@/components/EventHistory.vue'
-import StrregyWidget from '@/components/StrregyWidget.vue'
+import ErrorToast from '@/components/ErrorToast.vue'
+import ToastHistory from '@/components/ToastHistory.vue'
+import EventWidget from '@/components/EventWidget.vue'
 import { eventStore } from "@/components/js/strategyStore";
 import { reportStore } from "@/components/js/reportStore";
 import { tickerStore } from "@/components/js/tickerStore";
@@ -143,7 +146,7 @@ const ordersRef = ref(null);
 const reportsRef= ref(null);
 const rankRef= ref(null);
 const tradeRef= ref(null);
-//const toastRef= ref(null);
+const toastRef= ref(null);
 
 const widgetRefs = ref({})
 const tickets_summary = ref(null)
@@ -280,8 +283,8 @@ const initWebSocket = () => {
 
   ws.onmessage = (event) => {
     //console.log(">>",event.data)
-   // try
-   // {
+    try
+    {
       const msg = JSON.parse(event.data);
   
 
@@ -352,10 +355,10 @@ const initWebSocket = () => {
             eventStore.push(msg); 
          }
           break;
-        case "ticker_rank":
+        case "ticker_order":
           {
             //console.log("ticker_order",msg);
-            eventBus.emit("ticker-rank",msg);
+            eventBus.emit("ticker-order",msg);
            
         }
           break;
@@ -380,14 +383,12 @@ const initWebSocket = () => {
           break;
       }
   }
-  /*
   catch(e){
       console.error(e)
       return
     }
 
   };
-  */
 };
 
 // ==================
@@ -587,8 +588,8 @@ onUnmounted(() => {
 }
 .main-columns {
   display: grid;
-   grid-template-columns: 160px 160px 1fr 160px ;
-  gap: 1px;
+   grid-template-columns: 160px 160px 1fr;
+  gap: 1rem;
   flex: 1;
   
   margin-left: 68px;

@@ -46,7 +46,9 @@ class ReportManager:
 
         self.first_open=[]
 
+        await self.tick()
         #self.fill()
+
     def getLastDF(self):
         return self.shapshot_history[-1]
 
@@ -314,7 +316,7 @@ class ReportManager:
                 df_new_report["rank_old"] =  df_new_report["rank"] 
                 df_new_report["rank_delta"] = df_new_report["rank"] - df_new_report["rank_old"] 
 
-            logger.debug(f"result \n{df_new_report}")
+            #logger.info(f"result \n{df_new_report}")
 
             self.df_report  = df_new_report
         

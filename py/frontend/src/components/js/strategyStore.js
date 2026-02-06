@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 
-export const eventStore = reactive({
-  items: [],   // storico ultimi 100
+export const strategyStore = reactive({
+  items: [],   // storico ultimi 200
 
   push(evt) {
     this.items.unshift(evt)

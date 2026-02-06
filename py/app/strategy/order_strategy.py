@@ -89,7 +89,7 @@ class OrderStrategy(Strategy):
         
         #logger.info(f"on_all_candle \n{out}")
 
-        await self.client.send_ticker_order({"gain_1": gain1_dict,"gain_5": gain5_dict,"gain_1h": gain1h_dict})
+        await self.client.send_ticker_rank({"gain_1": gain1_dict,"gain_5": gain5_dict,"gain_1h": gain1h_dict})
 
         '''
         last_rows = (
@@ -151,8 +151,8 @@ class OrderStrategy(Strategy):
         # opzionale: converti defaultdict in dict normale
         out = {k: dict(v) for k, v in out.items()}
 
-        #await self.client.send_ticker_order("GAIN 1m",rank_tf.to_dict(orient="records"))
-        await self.client.send_ticker_order("GAIN 1m",out)
+        #await self.client.send_ticker_rank("GAIN 1m",rank_tf.to_dict(orient="records"))
+        await self.client.send_ticker_rank("GAIN 1m",out)
 
         #logger.info(f"on_all_candle \n{out}")
         '''

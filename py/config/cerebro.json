@@ -42,7 +42,7 @@
 	{
 		"live_range":{
 			"min" : 8,
-			"max" : 21
+			"max" : 10
 		},
 		"schedule" :[
 			{"hh": 8},
@@ -104,6 +104,15 @@
 				{
 					"eta" : 10,
 					"max_symbols" : 1
+				}
+			},
+			{
+				"class" : "GainStrategy",
+				"timeframe" : "5m",
+				"params" :
+				{
+					"eta" : 5,
+					"min_gain" : 2
 				}
 			}
 		],

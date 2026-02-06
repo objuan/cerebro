@@ -26,7 +26,7 @@
 <script setup>
 import { ref,onMounted,onBeforeUnmount } from 'vue'
 import { eventBus } from "@/components/js/eventBus";
-import { toastStore } from "@/components/js/toastStore";
+import { eventStore as store } from "@/components/js/eventStore";
 
 const toasts = ref([])
 
@@ -50,7 +50,7 @@ function addToast(symbol,message, type,subtype) {
   const toast = { id, symbol, message, type,subtype, ts: new Date() }
   toasts.value.push(toast)
 
-  toastStore.push(toast);
+  store.push(toast);
 
   setTimeout(() => remove(id), 6000)
 }

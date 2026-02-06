@@ -32,12 +32,12 @@ function onTickerOrderReceived(msg){
 }
 
 onMounted(  () => {
-  eventBus.on("ticker-order", onTickerOrderReceived);
+  eventBus.on("ticker-rank", onTickerOrderReceived);
 
 });
 
 onBeforeUnmount(() => {
-  eventBus.off("ticker-order", onTickerOrderReceived);
+  eventBus.off("ticker-rank", onTickerOrderReceived);
 });
 
 

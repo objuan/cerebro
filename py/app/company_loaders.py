@@ -175,7 +175,7 @@ class Yahoo:
             conn.close()
 
     async def get_float_list(self,symbols):
-        logger.debug(f"get_float_list {symbols}")
+        #logger.debug(f"get_float_list {symbols}")
         # 2. Chiama la funzione per ogni symbol
         float_dfs = []
         for symbol in symbols:

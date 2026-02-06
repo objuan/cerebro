@@ -30,7 +30,7 @@
 
 <script setup>
 import {  } from 'vue'
-import { toastStore as store } from "@/components/js/toastStore";
+import { eventStore as store } from "@/components/js/eventStore";
 
 const iconMap = {
   error: "⛔",
