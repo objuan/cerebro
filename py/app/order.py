@@ -156,9 +156,12 @@ class OrderManager:
             if self.ws:
                 #data["type"] = "ORDER"
                 ser = json.dumps( self.lastError)
+                await self.send_order_event("ERROR", self.lastError)
+                '''
                 await self.ws.broadcast(
                     {"type": "ERROR", "data":ser }
                 )
+                '''
 
             if errorCode == 110:
                 pass
@@ -259,17 +262,37 @@ class OrderManager:
         if self.ws:
             #data["type"] = "ORDER"
             ser = json.dumps(data)
+            await self.send_order_event("ORDER",
+                 { "trade_id": trade.order.permId, 
+                    "symbol":trade.contract.symbol,
+                    "status" :trade.orderStatus.status,
+                    "event_type":type,  
+                    "timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") ,
+                    "data" : data 
+                   }
+                 )
+            '''
             await self.ws.broadcast(
                 {"type": "ORDER", "trade_id": trade.order.permId, "symbol":trade.contract.symbol,
                  "status" :trade.orderStatus.status,"event_type":type,   "data" : data ,"timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
             )
+            '''
 
             #if action =="BUY":
             #    msg = {"type": "POSITION_TRADE", "data" : {} }
             #    await self.ws.broadcast(msg)
+
+            if action =="BUY" and trade.orderStatus.status =="Filled" and type=="STATUS":
+                msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
+                #await self.ws.broadcast(msg)
+
+                await self.send_order_event("POSITION_TRADE",msg)
+            
             if action =="SELL" and trade.orderStatus.status =="Filled" and type=="STATUS":
-                msg = {"type": "POSITION_TRADE", "data" : self.getLastTrade(trade.contract.symbol).to_dict() }
-                await self.ws.broadcast(msg)
+                msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
+                #await self.ws.broadcast(msg)
+
+                await self.send_order_event("POSITION_TRADE",msg)
 
     async def onNewOrder(self,trade:Trade):
        await self.addOrder(trade, "NEW")
@@ -488,10 +511,22 @@ class OrderManager:
             logger.info(f"ticker {ticker}")
             logger.info(f"ticdataker {data}")
             ser = json.dumps(data)
+
+
+            await self.send_order_event("ORDER",
+                { "trade_id": trade_id, "symbol":symbol,
+                    "status" :"Filled",
+                    "event_type": "STATUS",  
+                    "timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") ,
+                     "data" : data 
+             }  )
+            
+            '''
             await self.ws.broadcast(
                 {"type": "ORDER", "trade_id": trade_id, "symbol":symbol,
                  "status" :"Filled","event_type": "STATUS",   "data" : data ,"timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
             )
+            '''
             if op == "BUY":
                 await Balance.sym_change(symbol,totalQuantity, ticker["last"] )
             else:
@@ -723,6 +758,18 @@ class OrderManager:
     async def batch(self):
         while True:
             await asyncio.sleep(1)
+
+    async def send_order_event(self,type, data):
+       
+        try:
+            #self.client.send_event("order", )
+            logger.info(f"SEND t: {type} data: {data}")
+
+            data["type"] = type
+            await self.ws.broadcast(data)
+            #logger.info(f"SEND DONE")
+        except:
+            logger.error("SEND ERROR", exc_info=True)
 
 #####################################
 

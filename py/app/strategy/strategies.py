@@ -37,8 +37,8 @@ class GainStrategy(Strategy):
             #logger.info(f"FIND {gain} > {self.min_gain}")
             await self.send_event(symbol,
                                   name= f"GAIN_{self.min_gain}",
-                                  small_desc=f"{gain:.4f}>{self.min_gain}",
-                                  full_desc=f"gain {gain:.4f}>{self.min_gain}",
+                                  small_desc=f"{gain:.1f}>{self.min_gain}",
+                                  full_desc=f"gain {gain:.1f}>{self.min_gain}",
                                   data = {"color":"#AAAA00"})
         
 ##############################################

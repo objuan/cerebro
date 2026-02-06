@@ -133,7 +133,7 @@ import SidePanel from '@/components/SidePanel.vue';
 import ErrorToast from '@/components/ErrorToast.vue'
 import ToastHistory from '@/components/ToastHistory.vue'
 import EventWidget from '@/components/EventWidget.vue'
-import { eventStore } from "@/components/js/strategyStore";
+import { eventStore } from "@/components/js/eventStore";
 import { reportStore } from "@/components/js/reportStore";
 import { tickerStore } from "@/components/js/tickerStore";
 import { newsStore } from "@/components/js/newsStore";

@@ -24,6 +24,11 @@ export const formatUnixTimeOnly = (unixTime) => {
   });
 };
 
+export function formatTime(t) {
+  return new Date(t).toLocaleTimeString();
+}
+
+
 export function lerp(a, b, f) {
     return a + (b - a) * f;
 }
@@ -55,12 +60,11 @@ export function scaleColor(value, min, max) {
   }
 }
 
-
 export function formatNumber(value) {
   if (value === null || value === undefined) return '-'
   return new Intl.NumberFormat('en-US').format(value)
 }
-export function formatValue(v) {
+export function formatValue(v,decimals=1) {
     v = parseFloat(v);
     if (isNaN(v)) return v;
 
@@ -70,7 +74,7 @@ export function formatValue(v) {
     if (v >= 1_000) {
         return (v / 1_000).toFixed(1) + ' K';
     }
-    return v.toString();
+    return v.toFixed(decimals).toString();
 }
 
 export function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
@@ -242,4 +246,44 @@ export function mergeDateWithTime(baseUnix, timeStr) {
 
 export function saveProp(path,value){
     send_post('/api/props/save', { path: path, value: value });
+}
+
+// =====================
+
+
+const _newsColors = ["#FF0000","#BBBB00","#0000ff"];
+
+export const newsColor = (days)=>
+    {
+      return   _newsColors[Math.min(2,days)];
+    }
+
+//const symbolList = ref([]);
+export const priceColor = (v) => {
+  // clamp sicurezza
+  v = Math.max(0, Math.min(1, Number(v) || 0))
+
+  // bianco → verde acceso
+  const start = { r: 255, g: 255, b: 255 }   // bianco
+  const end   = { r: 0,   g: 230, b: 118 }   // #00e676
+
+  const r = Math.round(start.r + (end.r - start.r) * v)
+  const g = Math.round(start.g + (end.g - start.g) * v)
+  const b = Math.round(start.b + (end.b - start.b) * v)
+
+  return `rgb(${r}, ${g}, ${b})`
+}
+export const volumeRelColor = (v) => {
+  // clamp sicurezza
+  v = Math.max(0, Math.min(5, Number(v) || 0))
+
+  // bianco → verde acceso
+  const start = { r: 255, g: 255, b: 255 }   // bianco
+  const end   = { r: 0,   g: 230, b: 118 }   // #00e676
+
+  const r = Math.round(start.r + (end.r - start.r) * v)
+  const g = Math.round(start.g + (end.g - start.g) * v)
+  const b = Math.round(start.b + (end.b - start.b) * v)
+
+  return `rgb(${r}, ${g}, ${b})`
 }

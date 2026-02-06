@@ -137,25 +137,28 @@ class NewService:
     
 
     async def get_stock_news(self,symbols, limit=20):
-        """
-        Recupera async le ultime notizie per una lista di simboli.
-        """
-        params = {
-            "api_token": API_TOKEN,
-            "symbols": ",".join(symbols),
-            "filter_entities": "true",
-            "limit": limit
-        }
+        try:
+            """
+            Recupera async le ultime notizie per una lista di simboli.
+            """
+            params = {
+                "api_token": API_TOKEN,
+                "symbols": ",".join(symbols),
+                "filter_entities": "true",
+                "limit": limit
+            }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(BASE_URL, params=params) as response:
-                if response.status != 200:
-                    text = await response.text()
-                    print("Errore API:", response.status, text)
-                    return []
+            async with aiohttp.ClientSession() as session:
+                async with session.get(BASE_URL, params=params) as response:
+                    if response.status != 200:
+                        text = await response.text()
+                        print("Errore API:", response.status, text)
+                        return []
 
-                data = await response.json()
-                return data.get("data", [])
+                    data = await response.json()
+                    return data.get("data", [])
+        except:
+            logger.error(f"Errro", exc_info=True)
             
     def get_df(self,query, params=()):
             conn = sqlite3.connect(DB_FILE)

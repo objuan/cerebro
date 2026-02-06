@@ -1,7 +1,22 @@
 <template>
  
-   <div class="p-0">
-    <div class="overflow-x-auto">
+   <div class="p-0 events-container">
+    <div>
+
+       <MessageWidget
+          v-for="ev in store.items"
+          :key="ev.name"
+          :icon="ev.icon"
+          :symbol = ev.symbol
+          :timestamp = ev.ts
+          :title = ev.subtype
+          :text="ev.summary"
+          :detail="ev.message"
+          :color="ev.color"
+        >
+      </MessageWidget>
+
+      <!--
       <div
         v-for="t in store.items"
         :key="t.id"
@@ -22,7 +37,7 @@
             v-html="t.message"
           />
       </div>
-
+    -->
     </div>
 </div>
 
@@ -31,23 +46,29 @@
 <script setup>
 import {  } from 'vue'
 import { eventStore as store } from "@/components/js/eventStore";
+import MessageWidget from "@/components/MessageWidget.vue";
 
-const iconMap = {
-  error: "⛔",
-  warning: "⚠",
-  info: "ℹ"
-}
-
+/*
 const titleMap = {
   error: "Errore",
   warning: "Attenzione",
   info: "Info"
 }
+  */
 
 </script>
 
 <style scoped>
 
+.events-container {
+  height: 90vh;
+  overflow-y: auto;
+  width: 100%;
+  margin-right: 2px;
+}
+
+
+/*
 .body {
   overflow-y: auto;
   max-height: 60vh;
@@ -108,7 +129,7 @@ const titleMap = {
   opacity: 0.95;
 }
 
-/* TIPI */
+// TIPI 
 
 .toast.error {
   background: #1f2937;
@@ -125,7 +146,7 @@ const titleMap = {
   border-left-color: #3b82f6;
 }
 
-/* Animazioni */
+// Animazioni 
 
 .toast-enter-from,
 .toast-leave-to {
@@ -152,5 +173,5 @@ const titleMap = {
   border-left-color: #3b82f6;
 }
 
-
+*/
 </style>

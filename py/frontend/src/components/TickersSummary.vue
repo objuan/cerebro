@@ -1,5 +1,5 @@
 <template>
-<div>
+<div style="width: 100%">
   <div class="sort-bar">
     <span></span>
 
@@ -232,7 +232,7 @@
 import {  ref, computed, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import { send_get,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_get,formatValue,priceColor,newsColor } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { eventBus } from "@/components/js/eventBus";
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { reportStore as report } from "@/components/js/reportStore";
@@ -262,28 +262,6 @@ const isTrue = (v) => v > 0
 defineProps({
 })
 
-const _newsColors = ["#FF0000","#BBBB00","#0000ff"];
-
-const newsColor = (days)=>
-    {
-      return   _newsColors[Math.min(2,days)];
-    }
-
-//const symbolList = ref([]);
-const priceColor = (v) => {
-  // clamp sicurezza
-  v = Math.max(0, Math.min(1, Number(v) || 0))
-
-  // bianco → verde acceso
-  const start = { r: 255, g: 255, b: 255 }   // bianco
-  const end   = { r: 0,   g: 230, b: 118 }   // #00e676
-
-  const r = Math.round(start.r + (end.r - start.r) * v)
-  const g = Math.round(start.g + (end.g - start.g) * v)
-  const b = Math.round(start.b + (end.b - start.b) * v)
-
-  return `rgb(${r}, ${g}, ${b})`
-}
 
 function getRank(key){
   if (key =="news")
@@ -429,8 +407,8 @@ defineExpose({
 }
 
 .ticket-card {
-  min-width: 170px;
-  max-width: 250px;
+ width: 100%;
+  
 }
 .star-wrapper {
   position: relative;

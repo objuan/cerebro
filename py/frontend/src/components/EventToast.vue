@@ -42,12 +42,12 @@ const titleMap = {
   info: "Info"
 }
 
-function addToast(symbol,message, type,subtype) {
+function addToast(icon, symbol,summary, message, type,subtype,color) {
 
   // console.log("addToast", message,type)
 
   const id = Date.now() + Math.random()
-  const toast = { id, symbol, message, type,subtype, ts: new Date() }
+  const toast = { id, icon, symbol,summary, message, type,subtype, ts: new Date(),color }
   toasts.value.push(toast)
 
   store.push(toast);
@@ -59,6 +59,12 @@ function remove(id) {
   toasts.value = toasts.value.filter(t => t.id !== id)
 }
 
+const STATUS_COLORS = {
+  Filled:    "#b6f5c2",
+  Submitted: "#fff3b0",
+  Cancelled: "#ffb3b3",
+  default:   "#e0e0e0"
+}
 
 function onOrderReceived(msg) {
 
@@ -67,12 +73,18 @@ function onOrderReceived(msg) {
     if (msg.event_type == "STATUS" && ( msg.status === "Filled" || msg.status === "Submitted" ||  msg.status === "Cancelled") )
     {
       let icon = `🧾`;
+      
       if (msg.status =="Filled")  icon = `✔️`;
       if (msg.status =="Submitted")  icon = `⏱`;
       if (msg.status =="Cancelled")  icon = `❌`;
 
-      const  smsg =`${icon}  ${ msg.action } filled:${msg.filled}/${msg.totalQuantity }  at ${msg.lmtPrice} <br> state:${msg.status} `;
-      addToast(msg.symbol, smsg, "info","order")
+      let color = STATUS_COLORS[msg.status]
+
+      const  summary =`${ msg.action } ${msg.filled}/${msg.totalQuantity } ${msg.status} `;
+
+      const  smsg =`${ msg.action } filled:${msg.filled}/${msg.totalQuantity } <br> price: ${msg.lmtPrice} <br> state:${msg.status} `;
+
+      addToast(icon,msg.symbol,summary, smsg, "info","order",color)
     }
 }
 
@@ -83,8 +95,10 @@ function onTaskOrderReceived( msg) {
     msg.data.forEach( (step)=>{
       if (step.step == msg.step){
 
+          const  summary =`${msg.status } ${step.desc} `;
+
           const smsg =`${msg.status}  <br> ${step.desc} (${step.step}) ${ step.side } ${step.quantity } <br>${ step.op } ${ step.price } `;
-          addToast(msg.symbol, smsg, "info","task")
+          addToast("",msg.symbol, summary, smsg, "info","task","#aab3b3" )
       }
     });
     
@@ -114,15 +128,15 @@ onMounted( async () => {
 
   eventBus.on("error-received", (payload) => {
     const msg = "("+payload.errorCode+") " +payload.errorString
-    addToast(payload.symbol,msg, "error","general")
+    addToast( `❌`,payload.symbol,msg, msg, "error","general", "#AA3333")
   })
 
   eventBus.on("warning-received", (payload) => {
-    addToast(payload.symbol,payload, "warning","general")
+    addToast( `⚠`, payload.symbol,payload, payload.symbol,payload, "warning","general","#AA3333")
   })
 
   eventBus.on("info-received", (payload) => {
-    addToast(payload.symbol,payload, "info","general")
+    addToast(`🧾`,payload.symbol,payload,payload.symbol,payload,"info","general","#33AA33")
   })
 
 });

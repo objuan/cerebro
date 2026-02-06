@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from company_loaders import *
 from collections import deque
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -281,6 +282,7 @@ class ReportManager:
             ######### FINAL ###########
 
             df = df.fillna(0)
+            df = df.replace([np.inf, -np.inf], np.nan).fillna(0)
             df_new_report = df.sort_values(by="gain", ascending=False)
             df_new_report["rank"] = range(1, len(df_new_report) + 1)
             

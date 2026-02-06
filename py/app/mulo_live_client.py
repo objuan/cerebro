@@ -253,7 +253,7 @@ class MuloLiveClient:
         })
 
         for symbol in to_add:
-            await self.send_event("mule",symbol,"NEW  SYMBOL", "New  symbol : "+symbol,"", {"color": "#00b627"})
+            await self.send_event("mule",symbol,"NEW  SYMBOL", "","", {"color": "#00b627"})
 
         #newss
         
@@ -267,7 +267,7 @@ class MuloLiveClient:
 
 
         for symbol in to_remove:
-            await self.send_event("mule",symbol,"DEL SYMBOL", "Del  symbol : "+symbol,"", {"color": "#ff5084"})
+            await self.send_event("mule",symbol,"DEL SYMBOL", "","", {"color": "#ff5084"})
 
         logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
 
@@ -436,6 +436,7 @@ class MuloLiveClient:
         
     ################################
 
+ 
     async def send_event(self,source:str,symbol:str, name:str, small_desc:str,  full_desc:str, data):
        
         try:

@@ -3,7 +3,8 @@
     <div class="chart-header">
       <div class="top-row">
          <strong class="text-uppercas symbol">({{number}} )
-          <span class="symbol">{{ currentSymbol }}</span>
+          <span class="symbol">{{ currentSymbol }} </span>
+          <span class="positon">#{{ position }}</span>
         </strong>
           
         <select 
@@ -71,12 +72,12 @@
 
 
 <script setup>
-import { ref, onMounted, onUnmounted,onBeforeUnmount,nextTick } from 'vue';
+import { ref, onMounted, onUnmounted,onBeforeUnmount,nextTick,watch } from 'vue';
 import CandleChartWidget from './CandleChartWidget.vue';
 import { computed } from 'vue';
 import  TradeConsole  from './TradeConsole.vue'
 import { eventBus } from "@/components/js/eventBus";
-import {saveProp} from '@/components/js/utils.js'
+import {saveProp,send_get} from '@/components/js/utils.js'
 //import { liveStore } from '@/components/js/liveStore.js';
 import { staticStore } from '@/components/js/staticStore.js';
 
@@ -101,6 +102,7 @@ const currentLayout= ref("")
 const rows = ref(1)
 const cols = ref(1)
 const cells = ref([])  // contiene i widget attivi
+const position = ref(null);
 
 const emit = defineEmits(['select'])
 function handleSelect() {
@@ -160,7 +162,7 @@ const onChangeSymbols = async () => {
 
    currentLayout.value = staticStore.get( get_layout_key("grid"),"1_1")
   
-   console.log("onChangeSymbols", currentLayout.value);
+   //console.log("onChangeSymbols", currentLayout.value);
 
    for (const id in widgetRefs.value) {
         const comp = widgetRefs.value[id]
@@ -178,6 +180,8 @@ const onChangeSymbols = async () => {
 onMounted( async() => {
  // console.log("onMounted");
     eventBus.on("ticker-received", onTickerReceived);
+    eventBus.on("update-portfolio", onPositionUpdated);
+    eventBus.on("update-position", onPositionUpdated);
 
     let responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
     let datas = await responses.json();
@@ -188,11 +192,19 @@ onMounted( async() => {
     // --------------
     currentLayout.value = staticStore.get(get_layout_key("grid"),"1_1")
     
+    let pos_list = await send_get('/account/positions')
+    pos_list.forEach(  (val) =>{
+          val["type"] = "POSITION"
+          onPositionUpdated(val);
+    });
+    
     onChangeLayouts()
 });
 
 onBeforeUnmount(() => {
   eventBus.off("ticker-received", onTickerReceived);
+   eventBus.off("update-portfolio", onPositionUpdated);
+  eventBus.off("update-position", onPositionUpdated);
 });
 
 const updateAll = async ()=>
@@ -226,18 +238,6 @@ const resize =  () => {
         comp.resize(rect.width, rect.height)
    }
 
-  /*
-    if (currentMode.value?.trim() =="")
-    {
-      //console.log("lll",widgetRefs.value["chart_1"])
-      if (widgetRefs.value["_chart_1"])   widgetRefs.value["_chart_1"].resize();
-      if (widgetRefs.value["_chart_2"])  widgetRefs.value["_chart_2"].resize();
-      if (widgetRefs.value["_chart_3"])  widgetRefs.value["_chart_3"].resize();
-      if (widgetRefs.value["_chart_4"])  widgetRefs.value["_chart_4"].resize();
-    }
-    else
-        if (widgetRefs.value["_chart_all"])   widgetRefs.value["_chart_all"].resize();
-*/
 };
 
 
@@ -259,19 +259,6 @@ function on_candle(msg)
       }
   }
 
-  /*
-  if (currentMode.value  != "" && currentMode.value  == msg ["tf"])
-  {
-        //console.log("MultiCandleChartWidget on_candle",msg) 
-        widgetRefs.value['_chart_all']?.on_candle(msg);  
-  }
-  else{
-      widgetRefs.value['_chart_1']?.on_candle(msg);  
-      widgetRefs.value['_chart_2']?.on_candle(msg);  
-      widgetRefs.value['_chart_3']?.on_candle(msg);  
-      widgetRefs.value['_chart_4']?.on_candle(msg);  
-  }
-      */
 }
 function onTickerReceived(msg)
 {
@@ -289,6 +276,13 @@ function onTickerReceived(msg)
   }
 }
 
+function onPositionUpdated(msg){
+   if (msg.symbol == props.symbol)
+   {
+      position.value = msg.position
+  }
+}
+
 onUnmounted(() => {
  
 });
@@ -299,6 +293,22 @@ defineExpose({
   on_candle,
   setSymbol
 });
+
+watch(
+  () => props.symbol,
+  async () => {
+   // console.log('symbol cambiato:', oldVal, '→', newVal)
+    // qui fai quello che ti serve
+
+      let pos_list = await send_get('/account/positions')
+      pos_list.forEach(  (val) =>{
+            val["type"] = "POSITION"
+            onPositionUpdated(val);
+      });
+
+  }
+)
+
 
 </script>
 
@@ -369,7 +379,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 400px;
+  width: 600px;
 }
 
 .middle-row {
@@ -388,5 +398,9 @@ defineExpose({
   color: yellow;
    font-size: 1.9rem;
 }
-
+.positon{
+  margin-left: 10px;
+    color: rgb(255, 255, 255);
+   font-size: 1.9rem;
+}
 </style>

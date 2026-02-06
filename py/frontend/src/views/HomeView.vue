@@ -84,7 +84,7 @@
     <main class="main-columns">
       
       
-          <StrregyWidget></StrregyWidget>
+          <StrategyWidget></StrategyWidget>
       
           <TickersSummary ref="tickets_summary"></TickersSummary>
         
@@ -129,8 +129,9 @@ import { eventBus } from "@/components/js/eventBus";
 import SidePanel from '@/components/SidePanel.vue';
 import EventToast from '@/components/EventToast.vue'
 import EventHistory from '@/components/EventHistory.vue'
-import StrregyWidget from '@/components/StrregyWidget.vue'
-import { eventStore } from "@/components/js/strategyStore";
+import StrategyWidget from '@/components/StrategyWidget.vue'
+import { eventStore } from "@/components/js/eventStore";
+import { strategyStore } from "@/components/js/strategyStore";
 import { reportStore } from "@/components/js/reportStore";
 import { tickerStore } from "@/components/js/tickerStore";
 import { newsStore } from "@/components/js/newsStore";
@@ -245,13 +246,14 @@ const initWebSocket_mulo = () => {
           break
 
         case "ORDER":
+           console.log("ORDER",msg)
           //#ordersRef.value?.handleMessage(msg);
           dataParsed =
               typeof msg.data === "string"
                 ? JSON.parse(msg.data)
                 : msg.data;
-              dataParsed["timestamp"] = msg["timestamp"]
-              dataParsed["event_type"] = msg["event_type"]
+          dataParsed["timestamp"] = msg["timestamp"]
+          dataParsed["event_type"] = msg["event_type"]
           eventBus.emit("order-received", dataParsed);
           break
         case "TASK_ORDER":
@@ -264,12 +266,9 @@ const initWebSocket_mulo = () => {
         case "ERROR":
           console.log("ERROR",msg)
           //#ordersRef.value?.handleMessage(msg);
-          dataParsed =
-              typeof msg.data === "string"
-                ? JSON.parse(msg.data)
-                : msg.data;
-             
-          eventBus.emit("error-received", dataParsed);
+     
+          msg["color"] = "#FF000"
+          eventBus.emit("error-received", msg);
           break
     }
   }
@@ -348,16 +347,16 @@ const initWebSocket = () => {
         case "event":
           {
             console.log("event",msg);
-            eventBus.emit("event-received",msg.data);
-            eventStore.push(msg); 
+            
+            if (msg.source =="strategy" || msg.source =="mule")
+                strategyStore.push(msg);
+            else 
+            {
+              eventBus.emit("event-received",msg.data);
+              console.log("ERRRR", msg) 
+              eventStore.push(msg);
+            }
          }
-          break;
-        case "ticker_rank":
-          {
-            //console.log("ticker_order",msg);
-            eventBus.emit("ticker-rank",msg);
-           
-        }
           break;
         case "events":
           {
@@ -377,6 +376,14 @@ const initWebSocket = () => {
           //  console.log("news",msg);
             newsStore.push(msg["symbol"], msg["data"])
          }
+          break;
+
+        case "ticker_rank":
+          {
+            //console.log("ticker_order",msg);
+            eventBus.emit("ticker-rank",msg);
+           
+        }
           break;
       }
   }
@@ -411,7 +418,9 @@ onMounted(() => {
         //console.log(pdata)
         pdata.forEach(  (val) =>{
           //  console.log("prop",val.path, val.value)
-            if (val.path.startsWith("chart")  || val.path.startsWith("home") )
+            if (val.path.startsWith("chart")  
+            || val.path.startsWith("home")
+            || val.path.startsWith("event") )
             {
               staticStore.set(val.path, val.value);
             }
@@ -468,6 +477,10 @@ onMounted(() => {
             msg.data= JSON.parse(msg.data)
             eventBus.emit("task-order-received", msg);
         });
+        
+        eventBus.emit("on-start", {});
+
+        console.log("STARTED")
 
     } catch (err) {
         //errore.value = err.message
@@ -587,7 +600,7 @@ onUnmounted(() => {
 }
 .main-columns {
   display: grid;
-   grid-template-columns: 160px 160px 1fr 160px ;
+   grid-template-columns: 160px 190px 1fr 180px ;
   gap: 1px;
   flex: 1;
   

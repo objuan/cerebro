@@ -2,133 +2,101 @@
  
   <div class="card-body p-1">
     <div class="d-flex align-items-center gap-3 w-100">
-      
-      <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
-        TRADE <strong>{{ tradeData.timeframe }}</strong>
-     
-      </div>
+              <table style="max-height:90px;width:100%" border="1">
+          <tr>
+           <td style="width:25%">
+              <div class="d-flex align-items-center gap-1">
+                Quantity
+                <select
+                  v-model="quantity"
+                  class="form-select form-select-sm"
+                  style="width: 80px"
+                >
+                  <option :value="100">100</option>
+                  <option :value="200">200</option>
+                  <option :value="300">300</option>
+                  <option :value="500">500</option>
+                  <option :value="1000">1000</option>
+                </select>
+              </div>
+          </td>
 
-      <div class="d-flex align-items-center gap-1">
-        Quantity
-        <select
-          v-model="quantity"
-          class="form-select form-select-sm"
-          style="width: 80px"
-        >
-          <option :value="100">100</option>
-          <option :value="200">200</option>
-          <option :value="300">300</option>
-          <option :value="500">500</option>
-          <option :value="1000">1000</option>
-        </select>
-      </div>
+          <td style="width:25%">
+                <div class="d-flex align-items-center gap-1">
+                  <button  v-if="tradeMode=='DIRECT'"  class="btn btn-sm btn-success"
+                        @click="send_limit_order()"
+                      >FAST BUY</button>
+
+                  <button  v-if="tradeMode=='DIRECT'" class="btn btn-sm btn-success"
+                        @click="send_buy_at_level()"
+                      >BUY LIMIT</button>
+
+                      
+                  <button v-if="tradeMode=='MARKER'" class="btn btn-sm btn-success"
+                        @click="send_order_bracket()"
+                      >SEND MARKER</button>
+
+
+                  <button class="btn btn-sm btn-danger"
+                        @click="clear_all()"
+                      >SELL ALL</button>
+
+                 
+                
+                </div>
+          </td>
+
+          <td rowspan="2" style="width:50%">
+              <TradeHistoryWidget :symbol="props.symbol"  style="width:100%"></TradeHistoryWidget>
+          </td>
+
+        </tr>
+
+        <tr>
+            <td>
+               <div class="d-flex align-items-center gap-1">
+              <button class="btn btn-sm btn-success"
+                    @click="setMode('DIRECT')">DIRECT</button>
+
+              <button class="btn btn-sm btn-success"
+                    @click="setMode('MARKER')" >MARKER</button>
+              </div>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-1">
+                 <div class="card p-2 d-flex justify-content-between align-items-center">
+                    <div class="w-100" style="color:black" v-html="active_order_task"></div>
+                  </div>
+
+                  <div class="card p-2 d-flex justify-content-between align-items-center ms-auto">
+                    <div class="w-100" style="color:black" v-html="active_order"></div>
+                  </div>
+                </div>
+            </td>
+            
+        </tr>
+      </table>
+
+      <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
+          TRADE <strong>{{ tradeData.timeframe }}</strong>
+        </div>
 
       <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
         Cost <strong>{{ Number(tradeData.total_price_usd).toFixed(1) }}</strong>
         ({{ Number(tradeData.price).toFixed(1) }}x{{ tradeData.quantity }})
       </div>
+
        <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
         Loss <strong>{{ Number(tradeData.loss_usd).toFixed(1) }}</strong>
       </div>
+
       <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
         Gain <strong>{{ Number(tradeData.profit_usd).toFixed(1) }}</strong>
       </div>
-        
-     <div class="ms-auto d-flex align-items-center gap-2">
-       
-      <!--TRADE LAST -->
-      <div v-if="lastTrade" class="position-badge">
-        <b style="color:blue">{{ lastTrade.symbol }}</b>
 
-        <span
-          v-for="(fill, i) in lastTrade.list"
-          :key="i"
-          style="margin-left:8px"
-        >
-          <span :style="{ color: fill.side === 'BUY' ? 'lime' : 'red' }">
-            {{ fill.side }}
-          </span>
-          {{ formatTime(fill.time) }}
-          {{ fill.size }}@{{ fill.price }}
-        </span>
-
-        <span
-          v-if="lastTrade.pnl != null"
-          :style="{ color: lastTrade.pnl >= 0 ? 'lime' : 'red', marginLeft: '8px' }"
-        >
-          | PnL: {{ lastTrade.pnl.toFixed(2) }}
-        </span>
-      </div>
-
-      <div class="position-badge position-main clickable"   @click="toggleTrades">
-        {{symbol}} {{ position }}
-      </div>
-
-      <!-- TRADE ALL TOOLTIP  -->
-      <div v-if="showAll" class="trades-popup">
-        <div
-          v-for="(trade, ti) in tradeList.slice().reverse()"
-          :key="ti"
-          class="trade-block"
-        >
-          <div class="trade-header">
-            {{ trade.symbol }}
-            <span
-              v-if="trade.pnl != null"
-              :style="{ color: trade.pnl >= 0 ? 'lime' : 'red' }"
-            >
-              | PnL: {{ trade.pnl.toFixed(2) }}
-            </span>
-          </div>
-
-          <div
-            v-for="(fill, fi) in trade.list"
-            :key="fi"
-            class="trade-row"
-          >
-            {{ fill.side }}
-            {{ formatTime(fill.time) }}
-            @ {{ fill.price }}
-            x {{ fill.size }}
-          </div>
-
-        </div>
-      </div>
-
-      
-    </div>
-      
-    </div>
-    <div class="d-flex align-items-center gap-1">
-      <button class="btn btn-sm btn-success"
-            @click="send_limit_order()"
-          >FAST BUY</button>
-
-      <button class="btn btn-sm btn-success"
-            @click="send_buy_at_level()"
-          >BUY LIMIT</button>
-
-          
-      <button class="btn btn-sm btn-success"
-            @click="send_order_bracket()"
-          >SEND MARKER</button>
-
-
-      <button class="btn btn-sm btn-danger"
-            @click="clear_all()"
-          >SELL ALL</button>
-
-      <div class="card p-2 d-flex justify-content-between align-items-center">
-        <div class="w-100" style="color:black" v-html="active_order_task"></div>
-      </div>
-
-      <div class="card p-2 d-flex justify-content-between align-items-center ms-auto">
-        <div class="w-100" style="color:black" v-html="active_order"></div>
-      </div>
-     
     </div>
 
-     
+
   </div>
 </template>
 
@@ -137,9 +105,10 @@
 
 import { ref,watch,computed,onMounted,onBeforeUnmount  } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
-import {send_post,send_get} from '@/components/js/utils.js'
+import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
 import {order_limit,clear_all_orders,order_buy_at_level,order_bracket} from "@/components/js/orderManager";
+import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
 
 const props = defineProps({
   symbol: { type: String, required: true },
@@ -149,26 +118,35 @@ const liveData = computed(() => liveStore.state.dataByPath);
 const isCurrent = computed(() => {
   return tradeData.value && tradeData.value.symbol == props.symbol;
 });
+
+const tradeMode = ref("DIRECT");
+
 const tradeData = ref(null);
 const quantity = ref(100);
 const ticker = ref(null);
-const position = ref(null);
+//const position = ref(null);
 
-const tradeList = ref([]);
-const showAll = ref(false)
+//const tradeList = ref([]);
+//const showAll = ref(false)
 
 const active_order = ref("...");
 const active_order_task = ref("...");
-
+/*
 const lastTrade = computed(() => {
   if (tradeList.value.length === 0) return null
   return tradeList.value[tradeList.value.length - 1]
 })
-
+  */
+/*
 function toggleTrades() {
   showAll.value = !showAll.value
 }
+  */
 
+function setMode(mode){
+  tradeMode.value=mode;
+}
+/*
 function formatTime(unixSeconds) {
    const date = new Date(unixSeconds * 1000);
   const hh = String(date.getHours()).padStart(2, '0');
@@ -177,6 +155,7 @@ function formatTime(unixSeconds) {
 
   return `${hh}:${mm}:${ss}`;
 }
+*/
 function send_limit_order(){
   order_limit(props.symbol,quantity.value)
 }
@@ -252,6 +231,7 @@ STEP 2 • SELL 100 @ last < 4.2874 (SL)
   }
 }
 
+/*
 function onOrderReceived(msg) {
   
   if (msg.symbol == props.symbol)
@@ -271,6 +251,7 @@ function onOrderReceived(msg) {
     }
   }
 }
+*/
 function onTickerReceived(_ticker) {
   if (_ticker.symbol == props.symbol)
   {
@@ -278,7 +259,7 @@ function onTickerReceived(_ticker) {
     ticker.value =_ticker
   }
 }
-
+/*
 function onPositionUpdated(msg){
    if (msg.symbol == props.symbol)
    {
@@ -296,35 +277,38 @@ function onTradeUpdated(msg){
   }
       
 }
+*/
 
 onMounted( async () => {
   eventBus.on("task-order-received", onTaskOrderReceived);
-  eventBus.on("order-received", onOrderReceived);
+  //eventBus.on("order-received", onOrderReceived);
   eventBus.on("ticker-received", onTickerReceived);
-  eventBus.on("update-portfolio", onPositionUpdated);
-  eventBus.on("update-position", onPositionUpdated);
-  eventBus.on("trade-position", onTradeUpdated);
-   
+ // eventBus.on("update-portfolio", onPositionUpdated);
+  //eventBus.on("update-position", onPositionUpdated);
+  //eventBus.on("trade-position", onTradeUpdated);
+   /*
   let pos_list = await send_get('/account/positions')
   pos_list.forEach(  (val) =>{
         val["type"] = "POSITION"
         onPositionUpdated(val);
   });
-
+  */
+/*
   let trade_list = await send_get('/trade/history',{'symbol': props.symbol})
   trade_list.forEach(  (t) =>{
      onTradeUpdated(t)
   });
+  */
 
 });
 
 onBeforeUnmount(() => {
   eventBus.off("task-order-received", onTaskOrderReceived);
-  eventBus.off("order-received", onOrderReceived);
+ // eventBus.off("order-received", onOrderReceived);
   eventBus.off("ticker-received", onTickerReceived);
-  eventBus.off("update-portfolio", onPositionUpdated);
-  eventBus.off("update-position", onPositionUpdated);
-  eventBus.off("trade-position", onTradeUpdated);
+ // eventBus.off("update-portfolio", onPositionUpdated);
+ // eventBus.off("update-position", onPositionUpdated);
+ // eventBus.off("trade-position", onTradeUpdated);
 });
 
 // ========================
@@ -333,19 +317,22 @@ watch(
   async () => {
    // console.log('symbol cambiato:', oldVal, '→', newVal)
     // qui fai quello che ti serve
+    /*
     tradeList.value=[]
     let trade_list = await send_get('/trade/history',{'symbol': props.symbol})
     trade_list.forEach(  (t) =>{
       onTradeUpdated(t)
     });
-
+    */
+/*
       let pos_list = await send_get('/account/positions')
       pos_list.forEach(  (val) =>{
             val["type"] = "POSITION"
             onPositionUpdated(val);
       });
-
+*/
   }
+      
 )
 
 // sync STORE → SELECT
