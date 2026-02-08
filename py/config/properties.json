@@ -13,7 +13,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "ESLA",
+      "symbol": "XTKG",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -39,6 +39,6 @@
     }
   },
   "event": {
-    "filter": "[\"mule\",\"strategy\"]"
+    "filter": "[\"strategy\",\"mule\"]"
   }
 }

@@ -42,7 +42,7 @@
 	{
 		"live_range":{
 			"min" : 8,
-			"max" : 10
+			"max" : 23
 		},
 		"schedule" :[
 			{"hh": 8},
@@ -129,7 +129,7 @@
 				"mode" : "live",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["live"],
-				"start_scan" : "live",
+				"start_scan" : "keep_last_session",
 				"start_scan1" : "keep_last_session|debug|live",
 				"history_provider" :"ib",
 				"scheduler":[

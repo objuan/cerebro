@@ -10,8 +10,8 @@ import time
 import logging
 from typing import List, Dict
 import requests
-from utils import *
 from message_bridge import *
+from utils import *
 #from job_cache import JobCache
 #from job import *
 from renderpage import RenderPage
@@ -630,7 +630,7 @@ class MuloJob:
             """)
 
         if len(df)>0:
-            return  float(df.iloc[0][0])
+            return  float(df.iloc[0]["close"])
         else:
             return 0
     #######################

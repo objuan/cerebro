@@ -430,9 +430,9 @@ class MuloLiveClient:
             """)
 
         if len(df)>0:
-            return  float(df.iloc[0][0])
+            return  float(df.iloc[0]["close"])
         else:
-            return 0
+            return 0.01
         
     ################################
 
@@ -530,10 +530,10 @@ class MuloLiveClient:
                     return "{}"
             
             else:
-                logger.error("Errore:", response.status_code)
+                logger.error(f"Errore: { response.status_code}")
                 return None
         else:
-            logger.error("Errore:", response.status_code)
+            logger.error(f"Errore:{ response.status_code}")
             return None
     
 

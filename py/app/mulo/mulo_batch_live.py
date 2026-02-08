@@ -584,10 +584,10 @@ class LiveManager:
                 self.sym_start_time= 0
                 #last_time={}
                 for symbol,ticker in self.tickers.items():
-                    df = self.fetcher.get_df(f"SELECT MIN(timestamp) FROM ib_ohlc_history WHERE timeframe='10s' and symbol='{symbol}'")
-                    #print(df)
-                    if len(df)>0 and df.iloc[0][0]!=None:
-                        ts_start =  int(df.iloc[0][0] )
+                    df = self.fetcher.get_df(f"SELECT MIN(timestamp) as min FROM ib_ohlc_history WHERE timeframe='10s' and symbol='{symbol}'")
+                    print(df)
+                    if len(df)>0 and df.iloc[0]["min"]!=None:
+                        ts_start =  int(df.iloc[0]["min"] )
                         logger.info(f"SYMBOL TICKER BOOT {symbol} from {datetime.fromtimestamp(ts_start/1000)}") 
                         #last_time[symbol] =ts_start
                         self.sym_start_time = max(self.sym_start_time,ts_start)
@@ -598,6 +598,7 @@ class LiveManager:
                     ticker.last_close = await self.fetcher.last_close(symbol,datetime.fromtimestamp(self.sym_start_time/1000))
                     ticker.gain = 0    
                     ticker.volume=0
+                    ticker.last = 0
                     ticker.symbol = symbol
                     ticker.last_tick_time = {}
                     logger.info(f"Start ticker {ticker} last_close{ticker.last_close}")
@@ -646,7 +647,7 @@ class LiveManager:
 
                                     #logger.info(f".. {symbol} {start} interval {interval}   ts {ts}")   
                                     
-                                    logger.info(f"..{ts_check} {symbol} {interval}")
+                                    #logger.info(f"..{ts_check} {symbol} {interval}")
 
                                     #self.conn. df = pd.read_sql_query(query, conn, params=params)
                                     df = pd.read_sql_query(f"SELECT * FROM ib_ohlc_history WHERE  symbol='{symbol}' and timeframe='{TF_SEC_TO_DESC[interval]}'  and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1",
@@ -822,17 +823,22 @@ async def get_symbols():
     return {"status": "ok" , "data": [ x.symbol for x in live.ordered_tickers()]}
 
 @app.get("/tickers")
-async def get_symbols():
-    return {
-        "status": "ok",
-        "data": [
+async def get_tickers():
+    logger.info(f"get_tickers {live.ordered_tickers()}")
+
+    list =  [
             {
                 "symbol": x.symbol,
-                "last": x.last,
-                "last_volume": x.volume,
+                "last": getattr(x, "last", None), 
+                "last_volume": getattr(x, "volume", None),
             }
-            for x in live.ordered_tickers()
-        ],
+            for x in live.ordered_tickers()]
+
+    logger.info(f"list {list}")
+
+    return {
+        "status": "ok",
+        "data":list,
     }
 
 @app.get("/favicon.ico", include_in_schema=False)

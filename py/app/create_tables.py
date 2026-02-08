@@ -242,10 +242,19 @@ CREATE TABLE IF NOT EXISTS  black_list (
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  news (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guid VARCHAR(255),
+    provider VARCHAR(255),
     symbol VARCHAR(255),
     source VARCHAR(255),
+    published_dt DATETIME,
+    published_at INT,
     data TEXT,
+    provider_last_dt DATETIME,
     dt_day TEXT,
     dt_hh TEXT
 );
             """)
+
+cur.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS idx_news_unique
+ON news (provider, symbol, guid);""")
