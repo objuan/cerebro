@@ -4,16 +4,16 @@ import os
 import requests
 import time
 import logging
-from datetime import datetime
 import sqlite3
 from utils import convert_json
 from config import DB_FILE,CONFIG_FILE
 import aiohttp
 import asyncio
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,timezone
 from dateutil import parser
 from zoneinfo import ZoneInfo
+import uuid
 
 LOG_FILE = os.path.join("logs", "news.log")
 
@@ -22,9 +22,10 @@ with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         config = json.load(f)
 config = convert_json(config)
 
+STOCKDATA_KEY = "OBItNcpz38A43dbFxGSE5JmALJ1gDrkFRh1sGgYU"  # Metti qui la tua API key
 FINNHUB_KEY = "d63mkppr01ql6dj0lbk0d63mkppr01ql6dj0lbkg"
-MARKETAUX_KEY = "YOUR_MARKETAUX_KEY"
-ALPHAVANTAGE_KEY = "YOUR_ALPHAVANTAGE_KEY"
+MARKETAUX_KEY = "Pv7vlvoLhKuSt7ySoQkOFwx4DX6oxRFHn8DNUzbb"
+ALPHAVANTAGE_KEY = "DWFYHOZURRTF2IVK"
 BENZINGA_KEY = "YOUR_BENZINGA_KEY"
 
 #############
@@ -35,7 +36,7 @@ def get_df(query, params=()):
         conn.close()
         return df
 
-def normalize_news(provider, guid, source, title, image, url, published_at:int, summary):
+def normalize_news(provider, guid, source, symbol, title, image, url, published_at:int, summary):
     '''
     try:
         dt = parser.parse(published_at)
@@ -47,6 +48,7 @@ def normalize_news(provider, guid, source, title, image, url, published_at:int, 
         "provider": provider,
         "guid": guid,
         "source": source,
+        "symbol": symbol,
         "title": title,
          "image": image,
         "url": url,
@@ -228,7 +230,8 @@ class Finnhub_Provider(NewsProvider):
                     normalize_news(
                         "finnhub",
                         n.get("id"),
-                         n.get("source"),
+                        n.get("source"),
+                        symbol,
                         n.get("headline"),
                         n.get("image"),
                         n.get("url"),
@@ -240,35 +243,12 @@ class Finnhub_Provider(NewsProvider):
 
             return news
 
-class MARKETAUX_Provider(NewsProvider):
-     MARKETAUX_KEY = "YOUR_MARKETAUX_KEY"
-
-     async def get_stock_news(self,symbols, limit=20):
-        url = "https://api.marketaux.com/v1/news/all"
-
-        params = {
-            "symbols": symbols[0],
-            "filter_entities": "true",
-            "api_token": MARKETAUX_Provider.MARKETAUX_KEY,
-        }
-
-        r = requests.get(url, params=params).json()
-        news = []
-
-        for n in r.get("data", []):
-            news.append(
-                normalize_news(
-                    "MarketAux",
-                    n.get("title"),
-                    n.get("url"),
-                    n.get("published_at"),
-                    n.get("description"),
-                )
-            )
-
-        return news
 
 class Alphavantage_Provider(NewsProvider):
+
+    def __init__(self):
+        super().__init__("alphavantage")
+
     async def get_stock_news(self,symbols, limit=20):
         url = "https://www.alphavantage.co/query"
 
@@ -281,16 +261,31 @@ class Alphavantage_Provider(NewsProvider):
         r = requests.get(url, params=params).json()
         news = []
 
+        logger.info(r)
+
         for n in r.get("feed", []):
-            news.append(
-                normalize_news(
-                    "AlphaVantage",
-                    n.get("title"),
-                    n.get("url"),
-                    n.get("time_published"),
-                    n.get("summary"),
+            dt = datetime.strptime(n.get("time_published"), "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+            unix_time = int(dt.timestamp())
+
+            guid = str(uuid.uuid5(uuid.NAMESPACE_DNS, n.get("title")+str(unix_time)))
+
+            for item in n.get("ticker_sentiment", {}):
+                symbol = item["ticker"]
+
+                news.append(
+                    normalize_news(
+                        self.provider,
+                        guid,
+                        n.get("source"),
+                        symbol,
+                        n.get("title"),
+                        n.get("banner_image"),
+                        n.get("url"),
+                        unix_time,#n.get("time_published"), #20260208T145910
+                        n.get("summary"),
+                    )
                 )
-            )
+           
 
         return news
 
@@ -319,25 +314,36 @@ class Benzinga_Provider(NewsProvider):
 
         return news
 
-###########
+##########################################
 
-class StockDataProvider(NewsProvider):
-    API_TOKEN = "OBItNcpz38A43dbFxGSE5JmALJ1gDrkFRh1sGgYU"  # Metti qui la tua API key
-    BASE_URL = "https://api.stockdata.org/v1/news/all"  # endpoint news
-
-    def __init__(self):
-        super().__init__("stockdata")
+class MetaData_Provider(NewsProvider):
+    
+    def __init__(self,provider,API_TOKEN,BASE_URL):
+        super().__init__(provider)
+        self.API_TOKEN = API_TOKEN  
+        self.BASE_URL = BASE_URL  
 
     async def get_stock_news(self,symbols, limit=20):
         try:
             
+            def extract_symbols_from_news(news_dict):
+                        symbols = []
+
+                        entities = news_dict.get("entities", [])
+                        for ent in entities:
+                            symbol = ent.get("symbol")
+                            if symbol:
+                                symbols.append(symbol)
+
+                        return symbols
+              
             #from_unix_time = self.get_scan_begin_at(symbol)
 
             """
             Recupera async le ultime notizie per una lista di simboli.
             """
             params = {
-                "api_token": StockDataProvider.API_TOKEN,
+                "api_token": self.API_TOKEN,
                 "symbols": ",".join(symbols),
                 "filter_entities": "true",
                 "limit": limit
@@ -345,16 +351,56 @@ class StockDataProvider(NewsProvider):
             }
 
             async with aiohttp.ClientSession() as session:
-                async with session.get(StockDataProvider.BASE_URL, params=params) as response:
+                async with session.get(self.BASE_URL, params=params) as response:
                     if response.status != 200:
                         text = await response.text()
                         print("Errore API:", response.status, text)
                         return []
 
-                    data = await response.json()
-                    return data.get("data", [])
+                    r = await response.json()
+                 
+                    news=[]
+                    for n in r.get("data", []):
+
+                        ##logger.info(f"Add new \n{n}")  
+                        
+                        in_symbols = extract_symbols_from_news(n)
+                        logger.info(f"symbols >> {in_symbols}")  
+                 
+                        for symbol in in_symbols:
+                           
+                            dt = datetime.fromisoformat(n.get("published_at").replace("Z", "+00:00"))
+                            unix_time = int(dt.timestamp())
+
+                            news.append(
+                                normalize_news(
+                                    self.provider,
+                                    n.get("uuid"),
+                                    n.get("source"),
+                                    symbol,
+                                    n.get("title"),
+                                    n.get("image_url"),
+                                    n.get("url"),
+                                    unix_time,#,n.get("published_at"),
+                                    n.get("description"),
+                                )
+                            )
+
+                    return news
         except:
             logger.error(f"Errro", exc_info=True)
+
+######### sembrano la stessa cosa 
+
+class StockData_Provider(MetaData_Provider):
+  
+    def __init__(self):
+        super().__init__("stockdata",STOCKDATA_KEY,"https://api.stockdata.org/v1/news/all" )
+
+class MARKETAUX_Provider(MetaData_Provider):
+    def __init__(self):
+        super().__init__("marketaux",MARKETAUX_KEY, "https://api.marketaux.com/v1/news/all" )
+
 
 #############################################################
 
@@ -506,24 +552,6 @@ class NewService:
                 conn.close()
                 '''
     
-####################################################################
-
-def format_and_print_news(news_list):
-    """
-    Stampa le notizie in modo leggibile.
-    """
-    if not news_list:
-        print("Nessuna notizia trovata.")
-        return
-
-    for news in news_list:
-        title = news.get("title")
-        tickers = news.get("tickers", [])
-        pub_time = news.get("published_at")
-        url = news.get("url")
-        print(f"[{pub_time}] {title} — {tickers}")
-        print(f"Link: {url}")
-        print("-" * 70)
 
 ####################################################################
 ####################################################################
@@ -560,8 +588,8 @@ if __name__ == "__main__":
 
     async def main():
         # Lista tickers da scandire
-        #symbols = ["AAPL", "TSLA", "MSFT"]
-        symbols = [ "TSLA"]
+        symbols = ["AAPL", "TSLA", "MSFT"]
+        #symbols = [ "TSLA"]
 
         service = NewService()
 
@@ -572,7 +600,15 @@ if __name__ == "__main__":
         #for n in  await Finnhub_Provider().get_stock_news(symbols):
         #    insert_news(conn,n)
 
-        for n in  await StockDataProvider().get_stock_news(symbols):
+        #for n in  await StockData_Provider().get_stock_news(symbols):
+        #    insert_news(conn,n)
+
+        #for n in  await MARKETAUX_Provider().get_stock_news(symbols):
+        #    insert_news(conn,n)
+
+
+        for n in  await Alphavantage_Provider().get_stock_news(symbols):
+            #print(n)
             insert_news(conn,n)
 
         #await Finnhub_Provider().get_stock_news(["TSLA"])
