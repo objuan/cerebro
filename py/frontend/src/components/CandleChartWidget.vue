@@ -154,15 +154,15 @@ import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
    LineSeries, applyVolume,setVolumeData,updateVolumeData,
-createInteractiveLineManager  } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
+createInteractiveLineManager ,LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get,saveProp, send_post } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker,
-   updateTradeMarker ,setTradeMarker,updateVerticalLineData
+   updateTradeMarker ,setTradeMarker,updateVerticalLineData,findLastCandleOfEachDay,findOpenDate
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
-
+import { tradeStore } from "@/components/js/tradeStore";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -191,7 +191,8 @@ const price_marker_tp= ref(null);
 const price_marker_sl= ref(null);
 const indicatorList = ref([]);
 const profileName = ref("");
-let timeLine=null;
+let timeLine_pre=null;
+let timeLine_open=null;
 
 const gfx_canvas = ref(null);
 
@@ -204,6 +205,7 @@ let drawSeries = [];
 //let series = { main: null, volume: null, indicators: {} };
 let chart = null;
 let series  = null;
+let buy_line = null
 //let indicators = {}
 
 let lastMainCandle=null
@@ -233,11 +235,16 @@ function context() {
     };
 }
 
+const lastTrade = computed(() => {
+  return tradeStore.lastTrade(props.symbol);
+})
+console.log("lastTrade",lastTrade.value)  
+
 const get_layout_key = (subkey)=> { return `chart.${props.number}.${props.grid}.${props.sub_number}.${subkey}`}
 const get_indicator_key = ()=> { return `chart.${props.number}.indicator.${currentTimeframe.value}`}
 
 function onTimeFrameChange(){
-  console.log("onTimeFrameChange")
+ // console.log("onTimeFrameChange")
   
   saveProp(get_layout_key("timeframe"), currentTimeframe.value)
   staticStore.set(get_layout_key("timeframe"), currentTimeframe.value)
@@ -497,7 +504,7 @@ const handleRefresh = async () => {
       console.debug("loading ",currentSymbol.value,currentTimeframe.value)
       
       if (data && data.length > 0) {
-        // Formatta dati per Candlestick
+
         const formattedData = data.map(d => ({
           time: window.db_localTime ? window.db_localTime(d.t) : d.t,
           open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
@@ -506,15 +513,12 @@ const handleRefresh = async () => {
         //console.info("formattedData ",data)
 
         series.setData(formattedData);
-        updateVerticalLineData(timeLine,formattedData, 21,58)
-        // Formatta dati per Volume
-        /*
-        series.volume.setData(data.map(d => ({
-          time: window.db_localTime ? window.db_localTime(d.t) : d.t,
-          value: d.bv,
-          color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
-        })));
-        */
+
+        // OPEN DATE
+
+        updateVerticalLineData(timeLine_pre,formattedData,findLastCandleOfEachDay(formattedData))
+      updateVerticalLineData(timeLine_open,formattedData,findOpenDate(formattedData))
+
 
         lastMainCandle = formattedData[formattedData.length - 1];
 
@@ -619,6 +623,29 @@ const handleRefresh = async () => {
           }
           else
             clearIndicators()
+
+          // LAST TRADE
+          console.log("buy_line",buy_line)  
+          if (buy_line!=null)
+          {
+            series.removePriceLine(buy_line);
+            //chart.removePriceLine(buy_line);
+            buy_line=null
+          }
+          if(lastTrade.value != null  && lastTrade.value.isOpen)
+          {
+            
+              buy_line = series.createPriceLine({
+                    price: lastTrade.value.list[0].price  ,
+                    color: '#00ff00',
+                    lineWidth: 1,
+                    lineStyle: LineStyle.SparseDotted, // oppure Dashed
+                    axisLabelVisible: true,
+                    title: 'BUY'
+                  });
+              console.log("buy_line ADD",buy_line)  
+          }
+          
           
       }
       //console.log("trade marker",data)
@@ -626,7 +653,7 @@ const handleRefresh = async () => {
       //DEFAULT_INTERACTION = chart.options();
 
     
-     //console.log("handleRefresh DONE")
+     console.log("handleRefresh DONE")
     }
     else
         console.log("empty ");
@@ -688,6 +715,15 @@ function onTaskOrderReceived(order){
   }
 }
 
+function onTradeLastUpdated(msg){
+  
+ if (msg && msg.symbol === props.symbol)
+  {
+    //console.log("onTradeLastUpdated ",props.symbol,msg) 
+     handleRefresh();
+     // tradeStore.push(msg)
+  }   
+}
 
 
 // --- INIZIALIZZAZIONE ---
@@ -700,6 +736,7 @@ onMounted(  () => {
 
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
+  eventBus.on("trade-last-changed", onTradeLastUpdated);
 
   fetch("http://127.0.0.1:8000/api/chart/indicator/list")
   .then(res => res.json())
@@ -719,11 +756,14 @@ onMounted(  () => {
   buildChart();
  // handleRefresh();
   resize()
+
+  onTradeLastUpdated(lastTrade.value  )
 });
 
 onBeforeUnmount(() => {
   eventBus.off("order-received", onOrderReceived);
   eventBus.off("task-order-received", onTaskOrderReceived);
+  eventBus.off("trade-last-changed", onTradeLastUpdated);
 });
 
 onUnmounted(() => {
@@ -731,7 +771,6 @@ onUnmounted(() => {
   if (chart) chart.remove();
   //if (charts.volume) charts.volume.remove();
 });
-
 
 function watchPriceScale() {
     if (gfx_canvas.value)
@@ -747,40 +786,8 @@ function watchPriceScale() {
   }
 
 watchPriceScale();
-/*
-function generate5MinBands(from, to) {
-  const FIVE_MIN = 5 * 60
-  const ranges = []
-  let t = Math.floor(from / FIVE_MIN) * FIVE_MIN
-  let toggle = false
 
-  while (t < to) {
-    if (toggle) {
-      ranges.push({ from: t, to: t + FIVE_MIN })
-    }
-    toggle = !toggle
-    t += FIVE_MIN
-  }
 
-  return ranges
-}
-
-function drawBands(ranges) {
-  const timeScale = chart.timeScale()
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.fillStyle = 'rgba(255,80,80,0.90)'
-
-  for (const r of ranges) {
-    const x1 = timeScale.timeToCoordinate(r.from)
-    const x2 = timeScale.timeToCoordinate(r.to)
-
-    if (x1 && x2) {
-      ctx.fillRect(x1, 0, x2 - x1, canvas.height)
-    }
-  }
-}
-*/
 /* buildChart
 */
 const buildChart =  () => {
@@ -804,8 +811,16 @@ const buildChart =  () => {
     wickUpColor: '#838ca1', wickDownColor: '#838ca1',
   });
 
-  timeLine =  chart.addSeries(LineSeries, {
+  timeLine_pre =  chart.addSeries(LineSeries, {
     color: '#FFFFFF',
+    lineWidth: 2,
+    lineStyle:2,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
+  });
+  timeLine_open =  chart.addSeries(LineSeries, {
+    color: '#FFFF00',
     lineWidth: 2,
     lineStyle:2,
     priceLineVisible: false,
@@ -995,14 +1010,8 @@ const resize =  () => {
     if (old_size[0] != width || old_size[1] != height )
     {
       old_size = [ width, height ]
-   //   console.log("c resize ",width,height,container);
-    // console.log(chart)
-
-      ///bgCanvas.value.width = width-10
-    // bgCanvas.value.height = height-10
 
       chart.resize(width-10,height-20);
-      //charts.volume.resize(width-10,94);
 
       handleRefresh();
     }
@@ -1010,20 +1019,7 @@ const resize =  () => {
 
 
 function onTickerReceived(){
-  /*
-  console.log("onTickerReceived", msg)
-  if (lastMainCandle !=null)
-  {
-    const new_value = {
-      time: lastMainCandle.time,
-      open : msg.open,
-      close : msg.last,
-      low: msg.low,
-      high: msg.high      
-    }
-    series.update(new_value);
-  }
-    */
+
 }
 
 function on_candle(c)
@@ -1048,16 +1044,7 @@ function on_candle(c)
     })
 
     series.update(new_value);
-    
-   
-    /*
-    series.volume.update({
-                time: window.db_localTime(c.ts),
-                value: c.v,
-                color: c.c >= c.o ? '#4bffb5aa' : '#ff4976aa'
-    });  
-    */
-    
+  
 
   }
   else

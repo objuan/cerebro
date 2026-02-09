@@ -36,7 +36,7 @@
 
             <!-- MAIN NEWS -->
             <div class="main-news">
-              <img :src="proxyImage(news.image_url)" class="main-image" />
+              <img :src="proxyImage(news.image)" class="main-image" />
 
               <div class="content">
 
@@ -50,13 +50,13 @@
                     target="_other"
                     :title="news.url"
                   >
-                   [{{ news.days_passed }}] {{ t(news.title) }}
+                   ({{ news.days_passed }}) {{ t(news.title) }}
                   </a>
                 </h5>
 
-                 <p class="desc">{{ t(news.description) }}</p>
+                 <p class="desc">{{ t(news.summary) }}</p>
 
-                <p class="snippet">{{ t(news.snippet) }}</p>
+  
               </div>
             </div>
 
@@ -124,8 +124,8 @@ function proxyImage(url){
   return `http://localhost:8000/img-proxy?WHERE=${encodeURIComponent(url)}`
 }
 
-function  formatDate(dateStr) {
-    return new Date(dateStr).toLocaleString();
+function  formatDate(unixSeconds) {
+     return new Date(unixSeconds * 1000).toLocaleString();
 }
     
 

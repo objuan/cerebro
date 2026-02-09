@@ -30,6 +30,7 @@ class MuloLiveClient:
     def __init__(self,db_file, config, propManager):
         self.db_file = db_file
         self.ready=False
+        self.newService=None
         self.render_page=None
         self.propManager=propManager
         self.config=config
@@ -165,13 +166,13 @@ class MuloLiveClient:
         return self.market.getCurrentZone()
 
     ##########
-
+    '''
     async def scan_for_news(self, symbols=None):
         if symbols:
-            await NewService().scan(symbols)
+            await self.newService.scan(symbols)
         else:
-            await NewService().scan(self.symbols)
-
+            await self.newService.scan(self.symbols)
+    '''
     #########
     async def setSymTime(self,time):
         self.sym_start_time = time
@@ -253,21 +254,24 @@ class MuloLiveClient:
         })
 
         for symbol in to_add:
-            await self.send_event("mule",symbol,"NEW  SYMBOL", "","", {"color": "#00b627"})
+            await self.send_event("mule",symbol,"NEW ", "","", {"color": "#00b627"})
 
         #newss
         
-        await self.scan_for_news(to_add)
+        #await self.scan_for_news(to_add)
         
+        await self.newService.on_symbols_update(self.symbols,to_add,to_remove)   
+        '''
         for symbol in to_add:
             
             news = await NewService().find(symbol)
             if news:
                  await self.send_news(symbol,news)
+        '''
 
 
         for symbol in to_remove:
-            await self.send_event("mule",symbol,"DEL SYMBOL", "","", {"color": "#ff5084"})
+            await self.send_event("mule",symbol,"DEL", "","", {"color": "#ff5084"})
 
         logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
 

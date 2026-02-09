@@ -50,7 +50,7 @@ def normalize_news(provider, guid, source, symbol, title, image, url, published_
         "source": source,
         "symbol": symbol,
         "title": title,
-         "image": image,
+        "image": image,
         "url": url,
         "published_at": published_at,
         "summary": summary,
@@ -64,80 +64,96 @@ def insert_news(conn, news):
     # Convertiamo il dict in JSON per il campo "data"
     data_json = json.dumps(news, ensure_ascii=False)
 
-    #logger.info(f"INSERT NEWS {news}")
-
-    # Parsing date per i campi derivati
-    try:
-        #dt = parser.parse(news["published_at"])
-        # 1) La interpretiamo come UTC
-       # dt_utc = datetime.fromisoformat(news["published_at"]).replace(tzinfo=ZoneInfo("UTC"))
-        dt_utc = datetime.fromtimestamp(news["published_at"], tz=ZoneInfo("UTC"))
-
-        # 2) La convertiamo in ora locale italiana
-        dt_local = dt_utc.astimezone(ZoneInfo("Europe/Rome"))
-
-        published_at_sql = dt_local.strftime("%Y-%m-%d %H:%M:%S")
-        #published_at_sql = dt.strftime("%Y-%m-%d %H:%M:%S")
-       
-       # dt_day = dt.strftime("%Y-%m-%d")
-       # dt_hh = dt.strftime("%H")
-        dt_day = str(datetime.now().date())
-        dt_hh = datetime.now().strftime("%H")
- 
-    except Exception:
-        dt_day = None
-        dt_hh = None
-        published_at_sql = None
-
-    # provider_last_dt = data più recente ricevuta dal provider
-    #provider_last_dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    provider_last_dt = datetime.now(ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d %H:%M:%S")
-
-    cur = conn.cursor()
-    cur.execute("""
-    INSERT INTO news (
-        provider,
-        guid,
-        symbol,
-        source,
-        published_at,
-        published_dt,
-        data,
-        provider_last_dt,
-        dt_day,
-        dt_hh
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-
-    ON CONFLICT(provider, symbol, guid)
-    DO UPDATE SET
-        source = excluded.source,
-        published_at = excluded.published_at,
-        published_dt = excluded.published_dt,
-        data = excluded.data,
-        provider_last_dt = excluded.provider_last_dt,
-        dt_day = excluded.dt_day,
-        dt_hh = excluded.dt_hh
-    """, (
+    df = get_df("SELECT * FROM news WHERE provider = ? AND guid = ? AND symbol = ?", (   
         news["provider"],
         news["guid"],
         news["symbol"],
-        news["source"],
-        news["published_at"],
-        published_at_sql,
-        data_json,
-        provider_last_dt,
-        dt_day,
-        dt_hh
     ))
 
-    conn.commit()
+    if len(df) == 0: 
+        # cross provider check: se non esiste già una news con lo stesso URL per lo stesso simbolo, allora la inserisco 
+        df = get_df("SELECT * FROM news WHERE  symbol = ? and url == ?", (   
+                news["symbol"],
+                news["url"],
+            ))
+                
+        if len(df) == 0: 
+            logger.info(f"INSERT NEWS {news}")
+
+            # Parsing date per i campi derivati
+            try:
+                #dt = parser.parse(news["published_at"])
+                # 1) La interpretiamo come UTC
+            # dt_utc = datetime.fromisoformat(news["published_at"]).replace(tzinfo=ZoneInfo("UTC"))
+                dt_utc = datetime.fromtimestamp(news["published_at"], tz=ZoneInfo("UTC"))
+
+                # 2) La convertiamo in ora locale italiana
+                dt_local = dt_utc.astimezone(ZoneInfo("Europe/Rome"))
+
+                published_at_sql = dt_local.strftime("%Y-%m-%d %H:%M:%S")
+                #published_at_sql = dt.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # dt_day = dt.strftime("%Y-%m-%d")
+            # dt_hh = dt.strftime("%H")
+                dt_day = str(datetime.now().date())
+                dt_hh = datetime.now().strftime("%H")
+        
+            except Exception:
+                dt_day = None
+                dt_hh = None
+                published_at_sql = None
+
+            # provider_last_dt = data più recente ricevuta dal provider
+            #provider_last_dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            provider_last_dt = datetime.now(ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d %H:%M:%S")
+
+            cur = conn.cursor()
+            cur.execute("""
+            INSERT INTO news (
+                provider,
+                guid,
+                symbol,
+                source,
+                published_at,
+                published_dt,
+                url,
+                data,
+                provider_last_dt,
+                dt_day,
+                dt_hh
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+            """, (
+                news["provider"],
+                news["guid"],
+                news["symbol"],
+                news["source"],
+                news["published_at"],
+                published_at_sql,
+                news["url"],
+                data_json,
+                provider_last_dt,
+                dt_day,
+                dt_hh
+            ))
+
+            conn.commit()
+
+            return True
+        else:
+            #logger.info(f"NEWS ALREADY EXISTS {news['guid']} {news['symbol']} {news['published_at']}")
+            return False
+    else:
+        #logger.info(f"NEWS ALREADY EXISTS {news['guid']} {news['symbol']} {news['published_at']}")
+        return False
 
 ###########################################
 
 class NewsProvider:
 
-    def __init__(self,provider):
+    def __init__(self,provider,isDateFilter):
         self.provider= provider
+        self.isDateFilter=isDateFilter
        
     def getLast(self,symbol):
         df = get_df("""
@@ -183,6 +199,7 @@ class NewsProvider:
         list = []
         for symbol in symbols:
             from_unix_time = self.get_scan_begin_at(symbol)
+            from_unix_time = from_unix_time + 60*60 # tolgo 1 ora per sicurezza
 
             news = await self.get_stock_symbol_news(symbol,from_unix_time)
             list.extend(
@@ -198,12 +215,13 @@ class NewsProvider:
         pass
 
 ######################################
-
+# filtro per DATA
 class Finnhub_Provider(NewsProvider):
       #https://finnhub.io/dashboard
     
     def __init__(self):
-        super().__init__("finnhub")
+        super().__init__("finnhub",True)
+        
 
     async def get_stock_symbol_news(self,symbol,from_unix_time:int):
             dt_utc = datetime.fromtimestamp(from_unix_time, tz=ZoneInfo("UTC"))
@@ -212,7 +230,7 @@ class Finnhub_Provider(NewsProvider):
             today = datetime.utcnow().date()
             #week_ago = today - timedelta(days=1)
 
-            logger.info(f"get_stock_symbol_news {symbol} after {dt_utc}")
+            logger.info(f">> finnhub {symbol} after {dt_utc}")
 
             params = {
                 "symbol": symbol,
@@ -247,16 +265,23 @@ class Finnhub_Provider(NewsProvider):
 class Alphavantage_Provider(NewsProvider):
 
     def __init__(self):
-        super().__init__("alphavantage")
+        super().__init__("alphavantage",False)
 
-    async def get_stock_news(self,symbols, limit=20):
+    async def get_stock_symbol_news(self,symbol, from_unix_time:int):
+    #async def get_stock_news(self,symbols, limit=20):
         url = "https://www.alphavantage.co/query"
+
+        dt = datetime.fromtimestamp(from_unix_time, tz=timezone.utc)
+        formatted = dt.strftime("%Y%m%dT%H%M")
 
         params = {
             "function": "NEWS_SENTIMENT",
-            "tickers": symbols,
+            "tickers": symbol,
             "apikey": ALPHAVANTAGE_KEY,
+            "time_from": formatted
         }
+
+        logger.info(f"Alphavantage_Provider get_stock_symbol_news {symbol} from {formatted}")
 
         r = requests.get(url, params=params).json()
         news = []
@@ -319,13 +344,19 @@ class Benzinga_Provider(NewsProvider):
 class MetaData_Provider(NewsProvider):
     
     def __init__(self,provider,API_TOKEN,BASE_URL):
-        super().__init__(provider)
+        super().__init__(provider,False)
         self.API_TOKEN = API_TOKEN  
         self.BASE_URL = BASE_URL  
 
-    async def get_stock_news(self,symbols, limit=20):
+    #async def get_stock_news(self,symbols, limit=20):
+    async def get_stock_symbol_news(self,symbol, from_unix_time:int):
         try:
             
+            dt = datetime.fromtimestamp(from_unix_time, tz=timezone.utc)
+            formatted = dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+            logger.info(f"MetaData_Provider get_stock_symbol_news {symbol} from {formatted}")
+
             def extract_symbols_from_news(news_dict):
                         symbols = []
 
@@ -344,10 +375,10 @@ class MetaData_Provider(NewsProvider):
             """
             params = {
                 "api_token": self.API_TOKEN,
-                "symbols": ",".join(symbols),
+                "symbols": symbol,#",".join(symbols),
                 "filter_entities": "true",
-                "limit": limit
-                #"published_after" :  #2026-02-08T11:10:48 
+                "limit": 50,
+                "published_after" : formatted #2026-02-08T11:10:48 
             }
 
             async with aiohttp.ClientSession() as session:
@@ -406,20 +437,48 @@ class MARKETAUX_Provider(MetaData_Provider):
 
 class NewService:
 
-    def __init__(self):
+    def __init__(self,config):
 
-        self.providers= [
+        self.config=config
+
+        self.providers1= [
              Finnhub_Provider(),
         ]
 
-        self.providers1 = [
+        self.providers = [
             Finnhub_Provider(),
-#            StockDataProvider(),
+            StockData_Provider(),
           #  Benzinga_Provider(),
-          #  Alphavantage_Provider(),
-          #  MARKETAUX_Provider()
+            Alphavantage_Provider(),
+            MARKETAUX_Provider()
         ]
+
+    async def bootstrap(self):
         pass
+        '''
+        for t in config["news"]["schedule"]:
+                    logger.info(f"Init news time {t['hh']}")
+
+                    async def process_news(hh):
+                        logger.info(f"GET NEWS AT {hh}")
+                        
+                        await client.scan_for_news()
+
+        scheduler.schedule_at(today_at(t['hh'],0,0),process_news,t['hh'])
+                    #scheduler.schedule_every(10,process_news)
+        '''
+    
+    async def tick(self):
+        pass
+
+    async def on_symbols_update(self,symbols, to_add, to_remove):
+        logger.info(f"NEWS on_symbols_update {symbols} to_add {to_add} to_remove {to_remove}")      
+
+        self.symbols = symbols
+        await self.scan(to_add)
+        pass
+
+    #######################
 
     async def testScan(self,symbols):
         for provider in self.providers:
@@ -427,11 +486,11 @@ class NewService:
             logger.info(f"news_items {provider.__class__} {news_items}")
 
     async def find(self,symbol):
-        df = self.get_df("""
-            SELECT symbol, dt_day, dt_hh, data
+        df = get_df("""
+            SELECT symbol, published_at, data
             FROM news
             WHERE symbol = ?
-            ORDER BY dt_day DESC, dt_hh DESC
+            ORDER BY published_at DESC
             LIMIT 5
         """, (symbol,))
 
@@ -447,7 +506,8 @@ class NewService:
                     if result["Symbol"] is None:
                         result["Symbol"] = row["symbol"]
 
-                    dt = f"{row['dt_day']} {row['dt_hh']}"
+                    #dt = f"{row['dt_day']} {row['dt_hh']}"
+                    dt = row["published_at"]  
 
                     result["items"].append({
                         "date": dt,
@@ -460,7 +520,8 @@ class NewService:
         else:
             return None
 
-    async def scan(self,_symbols):
+    ###
+    async def scan(self,symbols):
        
 
         min = config["news"]["live_range"]["min"]
@@ -477,81 +538,25 @@ class NewService:
 
         if (int(hh_str) >= min and int(hh_str)<=max ):
             
-            logger.info(f"NEW SCAN {_symbols}")
-
-            symbols=[]
-            for symbol in _symbols:
-                df = self.get_df(f"""
-                        SELECT dt_hh from news where symbol= ? and dt_day = ? 
-                                order by dt_hh desc
-                    """,(symbol,date_str))
-
-                if len(df)==0: 
-                    symbols.append(symbol)
-                else:
-                    dt_hh = int(df.iloc[0]["dt_hh"])
-                    logger.debug(f"FIND LAST: {symbol} {dt_hh}")
-                    if (int(hh_str)> dt_hh):
-                        symbols.append(symbol)
+            logger.info(f"NEW SCAN {symbols}")
 
             if len(symbols)>0:
                 logger.info(f"SCAN FOR NEWS: {symbols}")
 
-                all_news = []
-                seen_urls = set()
+                conn = sqlite3.connect(DB_FILE, isolation_level=None)
+                #seen_urls = set()
 
                 for provider in self.providers:
                     try:
                         news_list =  await provider.get_stock_news(symbols, limit=30)
                         for n in news_list:
-                            if n["url"] and n["url"] not in seen_urls:
-                                seen_urls.add(n["url"])
-                                all_news.append(n)
+                            insert_news(conn,n)
                     except Exception as e:
-                        logger.error(f"{provider.__name__} error on {symbol}:", e)
+                        logger.error(f"{provider.provider} error ",exc_info=True)
 
-                #news_items= [{"uuid": "45d11b0e-4905-465e-a377-c339fa881c6b", "title": "Asia-Pacific markets mostly fall, tracking Wall Street losses after a tech-led pullback", "description": "Asia-Pacific markets mostly fell, tracking Wall Street losses as a sell-off in U.S. technology stocks weighed on sentiment.", "keywords": "Salesforce Inc, ServiceNow Inc, NVIDIA Corp, Apple Inc, Meta Platforms Inc, Microsoft Corp, NASDAQ Composite, Dow Jones Industrial Average, S&P 500 Index, Hang Seng Index, S&P/ASX 200, Nikkei 225 Index, Osaka, Chicago, Japan, Narendra Modi, India, Donald Trump, United States, business news", "snippet": "Hong Kong Hang Seng index futures were at 26,590, lower than the benchmark's last close of 26,834.77.\n\nShares of Nintendo fell 8% , despite maintaining its full...", "url": "https://www.cnbc.com/2026/02/04/asia-markets-today-wednesday-wall-street-tech-selloff-futures-lower-ai-software-hang-seng-nikkei-kospi.html", "image_url": "https://image.cnbcfm.com/api/v1/image/108223387-1762730856669-gettyimages-2196909643-13102024_tokyo_053.jpeg?v=1762731043&w=1920&h=1080", "language": "en", "published_at": "2026-02-04T00:29:57.000000Z", "source": "cnbc.com", "relevance_score": "null", "entities": [{"symbol": "AAPL", "name": "Apple Inc.", "exchange": "null", "exchange_long": "null", "country": "us", "type": "equity", "industry": "Technology", "match_score": 11.329395, "sentiment_score": 0.6168, "highlights": [{"highlight": "Most tech shares were in the red, includ[+298 characters]", "sentiment": 0.6168, "highlighted_in": "main_text"}]}], "similar": []}]
-                   # Ordina per data
-                all_news = [n for n in all_news if n["published_at"]]
-                all_news.sort(key=lambda x: x["published_at"], reverse=True)
-
-                '''
-                conn = sqlite3.connect(DB_FILE, isolation_level=None)
-                cur = conn.cursor()
-                find_symbols=[]
-                for news in news_items:
-
-                    def extract_symbols_from_news(news_dict):
-                        symbols = []
-
-                        entities = news_dict.get("entities", [])
-                        for ent in entities:
-                            symbol = ent.get("symbol")
-                            if symbol:
-                                symbols.append(symbol)
-
-                        return symbols
-                    
-                    logger.info(f"Add new \n{news}")  
-                    in_symbols = extract_symbols_from_news(news)
-                    logger.info(f"symbols >> {in_symbols}")  
-
-                    for s in in_symbols:
-                        find_symbols.append(s)
-                        cur.execute(
-                            "INSERT INTO news (symbol, source, data, dt_day, dt_hh) VALUES (?,?, ?, ?, ?)",
-                            (s, "stockdata", json.dumps(news), date_str,hh_str),
-                        )
-                
-                for s in symbols:
-                    if not s in find_symbols:
-                        cur.execute(
-                            "INSERT INTO news (symbol, source, data, dt_day, dt_hh) VALUES (?,?, ?, ?, ?)",
-                            (s, "stockdata","", date_str,hh_str),
-                        )
                 conn.close()
-                '''
-    
+ 
+
 
 ####################################################################
 ####################################################################
@@ -588,8 +593,8 @@ if __name__ == "__main__":
 
     async def main():
         # Lista tickers da scandire
-        symbols = ["AAPL", "TSLA", "MSFT"]
-        #symbols = [ "TSLA"]
+        #symbols = ["AAPL", "TSLA", "MSFT"]
+        symbols = [ "TSLA"]
 
         service = NewService()
 
@@ -598,18 +603,20 @@ if __name__ == "__main__":
         conn = sqlite3.connect(DB_FILE, isolation_level=None)
         
         #for n in  await Finnhub_Provider().get_stock_news(symbols):
+        #    insert_news(conn,n)#
+
+        #for n in  await Alphavantage_Provider().get_stock_news(symbols):
+        #    #print(n)
         #    insert_news(conn,n)
 
-        #for n in  await StockData_Provider().get_stock_news(symbols):
-        #    insert_news(conn,n)
+        for n in  await MARKETAUX_Provider().get_stock_news(symbols):
+            insert_news(conn,n)
 
         #for n in  await MARKETAUX_Provider().get_stock_news(symbols):
         #    insert_news(conn,n)
 
 
-        for n in  await Alphavantage_Provider().get_stock_news(symbols):
-            #print(n)
-            insert_news(conn,n)
+    
 
         #await Finnhub_Provider().get_stock_news(["TSLA"])
 

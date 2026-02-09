@@ -248,6 +248,7 @@ CREATE TABLE IF NOT EXISTS  news (
     source VARCHAR(255),
     published_dt DATETIME,
     published_at INT,
+    url TEXT,
     data TEXT,
     provider_last_dt DATETIME,
     dt_day TEXT,

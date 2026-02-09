@@ -310,7 +310,7 @@ export function createVerticalLine(chart) {
   return vLineSeries;
 }
 
-function findLastCandleOfEachDay(data) {
+export function findLastCandleOfEachDay(data) {
   const lastByDay = {};
 
   for (const d of data) {
@@ -326,10 +326,33 @@ function findLastCandleOfEachDay(data) {
   }
 
   // ritorna la lista dei time ordinati
-  return Object.values(lastByDay).sort((a, b) => a - b);
+  let points =  Object.values(lastByDay).sort((a, b) => a - b);
+  if (points.length>=2)
+    return points[points.length-2]; // penultima candela di ogni giorno
+    else
+        return null
 }
 
-export function updateVerticalLineData(vLineSeries,candles) {
+export function findOpenDate(data) {
+   // console.log("findOpenDate",data)    
+  const targetMinutes = 15 * 60 + 30; // 15:30 UTC
+
+  for (let i = data.length - 1; i >= 0; i--) {
+    const d = data[i];
+    const dt = new Date(d.time * 1000);
+    const minutes = dt.getUTCHours() * 60 + dt.getUTCMinutes();
+
+    if (minutes < targetMinutes) {
+        // console.log("find",d)    
+
+      return d.time; // prima candela (dal fondo) prima delle 15:30
+    }
+  }
+  return null;
+
+}
+
+export function updateVerticalLineData(vLineSeries,candles, point_time) {
      
     /*
     function findTimes(data) {
@@ -343,10 +366,10 @@ export function updateVerticalLineData(vLineSeries,candles) {
             */
  //console.log("candles",candles)
   //const points = findTimes(candles);
-  const points = findLastCandleOfEachDay(candles);
+  //const points = findLastCandleOfEachDay(candles);
 
   //console.log("FIND",points)
-  if (!points) return;
+  if (!point_time) return;
 
   // prezzi estremi per coprire tutto il grafico
   const prices = candles.flatMap(c => [c.high, c.low]);
@@ -354,12 +377,18 @@ export function updateVerticalLineData(vLineSeries,candles) {
   const max = Math.max(...prices);
 
   const result = [];
+
+    result.push({ time:point_time, value: min });
+    result.push({ time:point_time+0.01, value: max });
+
+  /*
   if (points.length>=2)
   {
     let i = points.length-2;
     result.push({ time:points[i], value: min });
-    result.push({ time:points[i ], value: max });
+    result.push({ time:points[i ]+1, value: max });
   }
+    */
 
     /*
  for (let i = 0; i < points.length - 1; i += 2) {

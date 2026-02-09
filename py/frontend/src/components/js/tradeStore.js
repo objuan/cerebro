@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 import { tickerStore as tickerList} from '@/components/js/tickerStore.js'
+import { eventBus } from "@/components/js/eventBus";
 
 export const tradeStore = reactive({
   items: {},
@@ -13,6 +14,8 @@ export const tradeStore = reactive({
       }
 
       this.items[data.symbol].push(data)
+      data.isOpen = this.isOpen(data)  
+      eventBus.emit("trade-last-changed",data)
       //Object.assign(this.items[data.symbol], data)
     
   },
@@ -27,7 +30,12 @@ export const tradeStore = reactive({
     else
       return []
   },
-
+  lastTrade(symbol) {
+    //if (tradeList.value.length === 0) return null
+    const trades = this.get_trades(symbol)
+    if (!trades || trades.length === 0) return null
+    return trades[0]
+  },
   del(symbol) {
     if (this.items[symbol]) {
       delete this.items[symbol]
@@ -40,7 +48,10 @@ export const tradeStore = reactive({
       ...data
     }))
   },
-  
+  isOpen(trade){
+    if (!trade) return false
+        return !trade.list.some(fill => fill.side === 'SELL')
+  },
   computeGain(trade)
   { // console.log("computeGain",trade) 
 

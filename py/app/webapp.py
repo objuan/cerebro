@@ -132,6 +132,9 @@ client = MuloLiveClient(DB_FILE,config,propManager)
 
 orderManager = OrderManager(config,client)
 
+newService = NewService(config)
+client.newService=newService
+
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -874,12 +877,12 @@ async def get_events():
 
 @app.get("/api/news/get")
 async def get_news(symbol):
-    return JSONResponse(await NewService().find(symbol))
+    return JSONResponse(await newService.find(symbol))
     
 @app.get("/api/news/current")
 async def get_news_current():
   for symbol in client.symbols:
-    news = await NewService().find(symbol)
+    news = await newService.find(symbol)
     if news:
         await client.send_news(symbol,news)
 
@@ -1162,17 +1165,7 @@ if __name__ =="__main__":
                 
                 await Balance.bootstrap()
 
-                # news
-                for t in config["news"]["schedule"]:
-                    logger.info(f"Init news time {t['hh']}")
-
-                    async def process_news(hh):
-                        logger.info(f"GET NEWS AT {hh}")
-                        
-                        await client.scan_for_news()
-
-                    scheduler.schedule_at(today_at(t['hh'],0,0),process_news,t['hh'])
-                    #scheduler.schedule_every(10,process_news)
+                await newService.bootstrap()
 
                 logger.info("BOOT DONE")
 
@@ -1206,6 +1199,7 @@ if __name__ =="__main__":
 
                         await report.tick()
                             
+                        await newService.tick()
                         #await event_manager.tick(render_page)
                         
                         #await layout.tick(render_page)

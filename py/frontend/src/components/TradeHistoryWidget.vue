@@ -16,7 +16,7 @@
               </button>
           </td>
           <td  style="width:50%">
-            <table v-if="tradeIsOpen(lastTrade)" style="width:100%">
+            <table v-if="lastTrade && lastTrade.isOpen" style="width:100%">
                <tr>
                   <td>BUY AT</td>
                   <td>{{lastSummary?.avgPrice.toFixed(2)}} $ </td>
@@ -96,12 +96,8 @@ function toggleHistory() {
   showHistory.value = !showHistory.value
 }
 
-
 const lastTrade = computed(() => {
-  //if (tradeList.value.length === 0) return null
-  const trades = tradeStore.get_trades(props.symbol)
-  if (!trades || trades.length === 0) return null
-  return trades[0]
+  return tradeStore.lastTrade(props.symbol);
 })
 
 const lastPrice = computed(() => {
@@ -118,29 +114,16 @@ const lastSummary = computed(() => {
   else
       return null
 });
+
 /*
-const lastGain = computed(() => {
-  if (tradeStore.computeGain(lastTrade.value))
-    return tradeStore.computeGain(lastTrade.value).gain
-  else
-      return 0
-});
-
-const lastPnl = computed(() => {
-   if (tradeStore.computeGain(lastTrade.value))
-    return tradeStore.computeGain(lastTrade.value).pnl
-  else
-      return 0
-});
-*/
-
 function tradeIsOpen(trade){
   if (!trade) return false
       return !trade.list.some(fill => fill.side === 'SELL')
 }
+      */
 
 function onTradeUpdated(msg){
-  console.log("onTradeUpdated ",props.symbol,msg)
+  //console.log("onTradeUpdated ",props.symbol,msg)
   
  if (msg.symbol === props.symbol)
   {
@@ -163,7 +146,7 @@ watch(
   () => props.symbol,
   async () => {
     tradeList.value=[]
-    tradeStore.clear()
+    tradeStore.del(props.symbol)
     let trade_list = await send_get('/trade/history',{'symbol': props.symbol})
     trade_list.forEach(  (t) =>{
       onTradeUpdated(t)
@@ -172,6 +155,7 @@ watch(
   } ,{ immediate: true }
       
 )
+
 
 </script>
 

@@ -3,8 +3,8 @@
 export const newsStore = {
   items: {},
 
-  daysFromNowCalendar(isoDate) {
-    const d1 = new Date(isoDate);
+  daysFromNowCalendar(unixSeconds) {
+    const d1 = new Date(unixSeconds * 1000);
     const d2 = new Date();
 
     d1.setHours(0,0,0,0);
@@ -21,7 +21,7 @@ export const newsStore = {
     data.items.forEach( (i)=>
     {
       const exists = this.items[symbol].some(
-        n => n.uuid === i.data.uuid
+        n => n.guid === i.data.guid
       );
       if (!exists) 
       {
@@ -45,6 +45,8 @@ export const newsStore = {
   },
 
   get_news(symbol){
+    //console.log("get_news",symbol,this.items); 
+
     const list = this.items[symbol] || [];
 
     return [...list].sort((a, b) =>

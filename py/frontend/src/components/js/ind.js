@@ -16732,6 +16732,8 @@ function applyVWAP(series, chart, options = {}) {
     }, 0);
 
     const cache = volumeCache.get(series);
+
+    
     /*
     for (const d of data) {
         if ('time' in d && 'volume' in d) {
@@ -16749,6 +16751,7 @@ function applyVWAP(series, chart, options = {}) {
             return [];
         }
 
+     
         let cumulativeTPV = 0; // Typical Price * Volume
         let cumulativeVolume = 0;
         let currentDay = null;
@@ -16791,9 +16794,10 @@ function applyVWAP(series, chart, options = {}) {
             if (cumulativeVolume === 0) {
                 continue;
             }
-
+         
             const vwap = cumulativeTPV / cumulativeVolume;
-
+            if (isNaN(vwap) || !isFinite(vwap)) 
+                continue;
             //if (d.time) {
                 results.push({
                     time: d.time,

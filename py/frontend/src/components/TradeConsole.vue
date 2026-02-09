@@ -2,64 +2,58 @@
  
   <div class="card-body p-1">
     <div class="d-flex align-items-center gap-3 w-100">
-              <table style="max-height:90px;width:100%" border="1">
+       <table style="max-height:90px;width:100%;border:solid 1px" >
           <tr>
-           <td style="width:25%">
-              <div class="d-flex align-items-center gap-1">
-                Quantity
-                <select
-                  v-model="quantity"
-                  class="form-select form-select-sm"
-                  style="width: 80px"
-                >
-                  <option :value="100">100</option>
-                  <option :value="200">200</option>
-                  <option :value="300">300</option>
-                  <option :value="500">500</option>
-                  <option :value="1000">1000</option>
-                </select>
-              </div>
-          </td>
-
-          <td style="width:25%">
+            <td style="width:25%">
                 <div class="d-flex align-items-center gap-1">
-                  <button  v-if="tradeMode=='DIRECT'"  class="btn btn-sm btn-success"
-                        @click="send_limit_order()"
-                      >FAST BUY</button>
-
-                  <button  v-if="tradeMode=='DIRECT'" class="btn btn-sm btn-success"
-                        @click="send_buy_at_level()"
-                      >BUY LIMIT</button>
-
-                      
-                  <button v-if="tradeMode=='MARKER'" class="btn btn-sm btn-success"
-                        @click="send_order_bracket()"
-                      >SEND MARKER</button>
-
-
-                  <button class="btn btn-sm btn-danger"
-                        @click="clear_all()"
-                      >SELL ALL</button>
-
-                 
-                
+                  Quantity
+                  <select
+                    v-model="quantity"
+                    class="form-select form-select-sm"
+                    style="width: 80px"
+                  >
+                    <option :value="100">100</option>
+                    <option :value="200">200</option>
+                    <option :value="300">300</option>
+                    <option :value="500">500</option>
+                    <option :value="1000">1000</option>
+                  </select>
                 </div>
-          </td>
+            </td>
 
-          <td rowspan="2" style="width:50%">
-              <TradeHistoryWidget :symbol="props.symbol"  style="width:100%"></TradeHistoryWidget>
-          </td>
+            <td style="width:25%">
+                  <div class="d-flex align-items-center gap-1">
+                    <button  v-if="tradeMode=='DIRECT'"  class="btn btn-sm btn-success"
+                          @click="send_limit_order()"
+                        >FAST BUY</button>
+
+                    <button v-if="tradeMode=='MARKER'" class="btn btn-sm btn-success"
+                          @click="send_order_bracket()"
+                        >SEND MARKER</button>
+
+
+                    <button class="btn btn-sm btn-danger"
+                          @click="clear_all()"
+                        >SELL ALL</button>
+                  </div>
+            </td>
+
+            <td rowspan="2" style="width:50%">
+                <TradeHistoryWidget :symbol="props.symbol"  style="width:100%"></TradeHistoryWidget>
+            </td>
 
         </tr>
 
         <tr>
             <td>
                <div class="d-flex align-items-center gap-1">
-              <button class="btn btn-sm btn-success"
-                    @click="setMode('DIRECT')">DIRECT</button>
+                  <button class="btn btn-sm "
+                      :class="tradeMode === 'DIRECT' ? 'btn-success active-mode' : 'btn-outline-success'"
+                        @click="setMode('DIRECT')">DIRECT</button>
 
-              <button class="btn btn-sm btn-success"
-                    @click="setMode('MARKER')" >MARKER</button>
+                  <button class="btn btn-sm "
+                        :class="tradeMode === 'MARKER' ? 'btn-success active-mode' : 'btn-outline-success'"
+                        @click="setMode('MARKER')" >MARKER</button>
               </div>
             </td>
             <td>
@@ -107,7 +101,7 @@ import { ref,watch,computed,onMounted,onBeforeUnmount  } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
 import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
-import {order_limit,clear_all_orders,order_buy_at_level,order_bracket} from "@/components/js/orderManager";
+import {order_limit,clear_all_orders,order_bracket} from "@/components/js/orderManager";
 import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
 
 const props = defineProps({
@@ -146,23 +140,16 @@ function toggleTrades() {
 function setMode(mode){
   tradeMode.value=mode;
 }
-/*
-function formatTime(unixSeconds) {
-   const date = new Date(unixSeconds * 1000);
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  const ss = String(date.getSeconds()).padStart(2, '0');
 
-  return `${hh}:${mm}:${ss}`;
-}
-*/
 function send_limit_order(){
   order_limit(props.symbol,quantity.value)
 }
 
+/*
 function send_buy_at_level(){
   order_buy_at_level(props.symbol,quantity.value,ticker.value.last )
 }
+*/
 function send_order_bracket(){
   order_bracket(props.symbol,tradeData.value.timeframe,quantity.value,ticker.value.last )
 }
