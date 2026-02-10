@@ -171,7 +171,7 @@ table td {
 }
 
 .history-btn {
-  margin-left: 10px;
+  margin-left: 50%;
   cursor: pointer;
   background: #1e293b;
   color: white;

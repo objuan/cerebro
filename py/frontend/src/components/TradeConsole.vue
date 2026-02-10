@@ -1,10 +1,10 @@
 <template>
  
   <div class="card-body p-1">
-    <div class="d-flex align-items-center gap-3 w-100">
-       <table style="max-height:90px;width:100%;border:solid 1px" >
-          <tr>
-            <td style="width:25%">
+    <div class="trade-grid">
+      <!-- left-->
+       <div class="col-2rows">
+          <div class="row r1">
                 <div class="d-flex align-items-center gap-1">
                   Quantity
                   <select
@@ -19,34 +19,9 @@
                     <option :value="1000">1000</option>
                   </select>
                 </div>
-            </td>
-
-            <td style="width:25%">
-                  <div class="d-flex align-items-center gap-1">
-                    <button  v-if="tradeMode=='DIRECT'"  class="btn btn-sm btn-success"
-                          @click="send_limit_order()"
-                        >FAST BUY</button>
-
-                    <button v-if="tradeMode=='MARKER'" class="btn btn-sm btn-success"
-                          @click="send_order_bracket()"
-                        >SEND MARKER</button>
-
-
-                    <button class="btn btn-sm btn-danger"
-                          @click="clear_all()"
-                        >SELL ALL</button>
-                  </div>
-            </td>
-
-            <td rowspan="2" style="width:50%">
-                <TradeHistoryWidget :symbol="props.symbol"  style="width:100%"></TradeHistoryWidget>
-            </td>
-
-        </tr>
-
-        <tr>
-            <td>
-               <div class="d-flex align-items-center gap-1">
+          </div>
+         <div class="row r2">
+            <div class="d-flex align-items-center gap-1">
                   <button class="btn btn-sm "
                       :class="tradeMode === 'DIRECT' ? 'btn-success active-mode' : 'btn-outline-success'"
                         @click="setMode('DIRECT')">DIRECT</button>
@@ -55,39 +30,81 @@
                         :class="tradeMode === 'MARKER' ? 'btn-success active-mode' : 'btn-outline-success'"
                         @click="setMode('MARKER')" >MARKER</button>
               </div>
-            </td>
-            <td>
-              <div class="d-flex align-items-center gap-1">
-                 <div class="card p-2 d-flex justify-content-between align-items-center">
-                    <div class="w-100" style="color:black" v-html="active_order_task"></div>
+          </div>
+          
+      </div>  
+      <!-- mid-->
+        <div class="col-2rows">
+           <div class="row r1">
+                  <div class="d-flex align-items-center gap-1" v-if="tradeMode=='DIRECT'">
+                    <button    class="btn btn-sm btn-success"
+                          @click="send_limit_order()"
+                        >BUY</button>
+
+                        <div>
+                          Buy <strong>{{ quantity }}</strong> at 
+                          <strong>{{ ticker?.last.toFixed(2) }}</strong> 
+                            = ${{ (quantity * ticker?.last).toFixed(1) }}     
+                     
+                        </div>
                   </div>
-
-                  <div class="card p-2 d-flex justify-content-between align-items-center ms-auto">
-                    <div class="w-100" style="color:black" v-html="active_order"></div>
+                  <div class="d-flex align-items-center gap-1" v-if="tradeMode=='MARKER' && isCurrent">
+                    <table class="trade-info-panel" >
+                        <tr>
+                          <td> 
+                            <button  class="btn btn-sm btn-success"
+                                @click="send_order_bracket()"
+                              >SEND  {{ tradeData.timeframe }} </button>
+                          </td>
+                          <td>
+                            <table style="width:100%;height:40px">
+                              <tr>
+                                 
+                                  <td colspan="2">
+                                    BUY <strong style="color:yellow">{{ Number(tradeData.total_price_usd).toFixed(2) }} $</strong>
+                                      ({{ Number(tradeData.price).toFixed(2) }}x{{ tradeData.quantity }})
+                                  </td>
+                                 
+                              </tr>
+                              <tr>
+                                 <td style="color:lime;width: 50%;">
+                                    GAIN <strong>{{ Number(tradeData.profit_usd).toFixed(1) }}</strong>
+                                </td>
+                                <td style="color:red;width: 50%;">
+                                    LOSS <strong>{{ Number(tradeData.loss_usd).toFixed(1) }} $</strong>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            {{ tradeData.timeframe }}
+                          </td>
+                        </tr>
+                    </table>
+                    
+                 
                   </div>
-                </div>
-            </td>
-            
-        </tr>
-      </table>
+            </div>
+            <div class="row r2">
+                <div>
+                     <div class="d-flex align-items-center gap-1">
+                      <div class="card p-2 d-flex justify-content-between align-items-center">
+                          <div class="w-100" style="color:black" v-html="active_order_task"></div>
+                        </div>
+                      </div>
+                  </div>
+              </div>
+      </div>  
 
-      <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
-          TRADE <strong>{{ tradeData.timeframe }}</strong>
-        </div>
+     <!-- sell-->
 
-      <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
-        Cost <strong>{{ Number(tradeData.total_price_usd).toFixed(1) }}</strong>
-        ({{ Number(tradeData.price).toFixed(1) }}x{{ tradeData.quantity }})
-      </div>
+     <button class="btn btn-sm btn-danger" @click="clear_all()"  >SELL ALL</button>
 
-       <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
-        Loss <strong>{{ Number(tradeData.loss_usd).toFixed(1) }}</strong>
-      </div>
-
-      <div  v-if="isCurrent" class="d-flex align-items-center gap-1">
-        Gain <strong>{{ Number(tradeData.profit_usd).toFixed(1) }}</strong>
-      </div>
-
+      <!-- right-->
+      <TradeHistoryWidget :symbol="props.symbol"  style="width:100%"></TradeHistoryWidget>
+          
     </div>
 
 
@@ -123,7 +140,7 @@ const ticker = ref(null);
 //const tradeList = ref([]);
 //const showAll = ref(false)
 
-const active_order = ref("...");
+//const active_order = ref("...");
 const active_order_task = ref("...");
 /*
 const lastTrade = computed(() => {
@@ -187,12 +204,12 @@ function onTaskOrderReceived(order){
 
       active_order_task.value =`
         <div class="trade-main" title="
-    
   ${sum}
     ">
     ${selected}
     </div>
       `
+      
   }
     /*
     const aa =`
@@ -371,6 +388,38 @@ watch(quantity,  async (newValue, oldValue) => {
 </script>
 
 <style scoped>
+.trade-info-panel{
+  width: 100%;
+  height: 40px;
+  font-family: monospace;
+  font-size: 13px;
+  border:#e2e8f0 1px solid;
+}
+table td:first-child {
+  text-align: left;
+  padding-right: 10px;
+}
+
+table td {
+  text-align: right;
+}
+
+.trade-grid {
+  display: grid;
+  grid-template-columns: 160px calc(50% - 240px) 80px 50%;
+  gap: 2px;
+  width: 100%;
+  align-items: start;
+  height: 80px;
+}
+/* Le colonne left e mid diventano "trasparenti" alla grid padre */
+.col-2rows {
+  height: 80px;
+}
+
+/* Posizioniamo le righe nella grid principale */
+.r1 { grid-row: 1; height: 40px; }
+.r2 { grid-row: 2;height: 40px; }
 
 .clickable {
   cursor: pointer;
