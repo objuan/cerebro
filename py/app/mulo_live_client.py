@@ -196,84 +196,90 @@ class MuloLiveClient:
     async def _on_update_symbols(self):
         logger.info(f"LIVE >> UPDATE SYMBOLS ..")#MAX:{self.max_symbols}")
 
-        new_symbols = await self.send_cmd("symbols")
+        try:
+            new_symbols = await self.send_cmd("symbols")
+            _mule_tickers = await self.send_cmd("tickers")
 
-        set_new = set(new_symbols)
-        set_old = set(self.symbols)
-
-        to_add = list(set_new - set_old)       # presenti in new_symbols ma non prima
-        to_remove = list(set_old - set_new)    # presenti prima ma non più
-        common = list(set_new & set_old)       # presenti in entrambi
-
-        self.symbols = new_symbols
-
-        logger.info(f"<< {self.symbols} ADD {to_add} DEL {to_remove}")
+            #new_symbols = [ t["symbol"] for t in _mule_tickers] 
         
-        if len(self.symbols) > 0:
-            self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
-            self.fundamentals_map = (
-            self.df_fundamentals
-                .set_index("symbol")
-                .to_dict(orient="index")
-)
-        #logger.debug(f"Fundamentals \n{self.df_fundamentals}")
-                                              
-        self.sql_symbols = str(self.symbols)[1:-1]
-   
-        self.tickers = {}
+            set_new = set(new_symbols)
+            set_old = set(self.symbols)
 
-        _mule_tickers = await self.send_cmd("tickers")
-        
-        for ticker in _mule_tickers:
-            ''''
-            t = Ticker( contract= Contract(symbol=s))
-            t.symbol = s
-            t.last_close = await self.last_close(s)
-            t.gain = 0
-            self.tickers[s] =t
-            '''
-            last_close=  await self.last_close(ticker["symbol"])
-            gain =  ((ticker["last"] - last_close) / last_close) * 100
+            to_add = list(set_new - set_old)       # presenti in new_symbols ma non prima
+            to_remove = list(set_old - set_new)    # presenti prima ma non più
+            common = list(set_new & set_old)       # presenti in entrambi
 
-            self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
-                                "gain" : gain, "low":0 , "high":0, "last" : ticker["last"], 
-                                "volume": 0, "ts" : 0,
-                                "ask" : 0, "bid":0,"day_volume" : ticker["last_volume"],
-                                "last_close": last_close}
-        
-        
-        
-        logger.info(f">> tickers {self.tickers}")  
+            self.symbols = new_symbols
 
-        await self.on_symbols_update(self.symbols,to_add,to_remove)
-
-        await self.render_page.send({
-            "type" :"symbols",
-            "add" : to_add,
-            "del" : to_remove
-        })
-
-        for symbol in to_add:
-            await self.send_event("mule",symbol,"NEW ", "","", {"color": "#00b627"})
-
-        #newss
-        
-        #await self.scan_for_news(to_add)
-        
-        await self.newService.on_symbols_update(self.symbols,to_add,to_remove)   
-        '''
-        for symbol in to_add:
+            logger.info(f"<< {self.symbols} ADD {to_add} DEL {to_remove}")
             
-            news = await NewService().find(symbol)
-            if news:
-                 await self.send_news(symbol,news)
-        '''
+            if len(self.symbols) > 0:
+                self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
+                self.fundamentals_map = (
+                self.df_fundamentals
+                    .set_index("symbol")
+                    .to_dict(orient="index")
+    )
+            #logger.debug(f"Fundamentals \n{self.df_fundamentals}")
+                                                
+            self.sql_symbols = str(self.symbols)[1:-1]
+    
+            self.tickers = {}
+
+            for ticker in _mule_tickers:
+                ''''
+                t = Ticker( contract= Contract(symbol=s))
+                t.symbol = s
+                t.last_close = await self.last_close(s)
+                t.gain = 0
+                self.tickers[s] =t
+                '''
+                last_close=  await self.last_close(ticker["symbol"])
+                gain =  ((ticker["last"] - last_close) / last_close) * 100
+
+                self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
+                                    "gain" : gain, "low":0 , "high":0, "last" : ticker["last"], 
+                                    "volume": 0, "ts" : 0,
+                                    "ask" : 0, "bid":0,"day_volume" : ticker["last_volume"],
+                                    "last_close": last_close}
+            
+            
+            
+            logger.info(f">> tickers {self.tickers}")  
+
+            await self.on_symbols_update(self.symbols,to_add,to_remove)
+
+            await self.render_page.send({
+                "type" :"symbols",
+                "add" : to_add,
+                "del" : to_remove
+            })
+
+            for symbol in to_add:
+                await self.send_event("mule",symbol,"NEW ", "","", {"color": "#00b627"})
+
+            #newss
+            
+            #await self.scan_for_news(to_add)
+            
+            await self.newService.on_symbols_update(self.symbols,to_add,to_remove)   
+            '''
+            for symbol in to_add:
+                
+                news = await NewService().find(symbol)
+                if news:
+                    await self.send_news(symbol,news)
+            '''
 
 
-        for symbol in to_remove:
-            await self.send_event("mule",symbol,"DEL", "","", {"color": "#ff5084"})
+            for symbol in to_remove:
+                await self.send_event("mule",symbol,"DEL", "","", {"color": "#ff5084"})
 
-        logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
+            logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
+            
+        except Exception as e:
+            logger.error(f"Errore in _on_update_symbols", exc_info=True)    
+
 
     #######################
 

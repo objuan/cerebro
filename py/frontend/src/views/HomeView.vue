@@ -263,6 +263,16 @@ const initWebSocket_mulo = () => {
           //msg.data= JSON.parse(msg.data)
           eventBus.emit("task-order-received", msg.data);
           break
+
+        case "TASK_ORDER_MSG":
+         
+          //console.log("TASK_ORDER_MSG",msg)
+          //.value?.handleMessage(msg);
+          //msg.data= JSON.parse(msg.data)
+          msg.data.msg = msg.msg
+          eventBus.emit("task-order-msg-received", msg.data);
+          break
+
         case "ERROR":
           console.log("ERROR",msg)
           //#ordersRef.value?.handleMessage(msg);
@@ -279,11 +289,9 @@ const initWebSocket = () => {
 
   ws.onmessage = (event) => {
     //console.log(">>",event.data)
-   // try
-   // {
+    try
+    {
       const msg = JSON.parse(event.data);
-  
-
 
       if (msg.path) {
         // Aggiornando liveData[path], Vue notifica tutti i componenti in ascolto
@@ -386,15 +394,18 @@ const initWebSocket = () => {
         }
           break;
       }
+      
   }
-  /*
+ 
+   
   catch(e){
       console.error(e)
+      console.error("Error parsing WebSocket message:", event);  
       return
     }
 
   };
-  */
+
 };
 
 // ==================
@@ -420,9 +431,10 @@ onMounted(() => {
           //  console.log("prop",val.path, val.value)
             if (val.path.startsWith("chart")  
             || val.path.startsWith("home")
+          || val.path.startsWith("symbols")
             || val.path.startsWith("event") )
             {
-              staticStore.set(val.path, val.value);
+              staticStore.load(val.path, val.value);
             }
             else
             {

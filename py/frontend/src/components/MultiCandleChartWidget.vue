@@ -77,7 +77,7 @@ import CandleChartWidget from './CandleChartWidget.vue';
 import { computed } from 'vue';
 import  TradeConsole  from './TradeConsole.vue'
 import { eventBus } from "@/components/js/eventBus";
-import {saveProp,send_get} from '@/components/js/utils.js'
+import {send_get} from '@/components/js/utils.js' // saveProp
 //import { liveStore } from '@/components/js/liveStore.js';
 import { staticStore } from '@/components/js/staticStore.js';
 
@@ -151,7 +151,8 @@ const onChangeLayouts = async () => {
     
   cells.value = newCells
   
-  saveProp(get_layout_key("grid"),grid.value );
+  staticStore.set(get_layout_key("grid"),grid.value);
+  //saveProp(get_layout_key("grid"),grid.value );
 
   nextTick(resize)
 };
@@ -172,8 +173,8 @@ const onChangeSymbols = async () => {
         comp.setSymbol(currentSymbol.value);
         
    }
-
-    saveProp( get_layout_key("symbol"), currentSymbol.value );
+    staticStore.set(get_layout_key("symbol"), currentSymbol.value); 
+    //saveProp( get_layout_key("symbol"), currentSymbol.value );
 };
 
 // --- INIZIALIZZAZIONE ---
@@ -360,7 +361,7 @@ watch(
   /*align-self: flex-end;*/
 }
 .trade_console{
-  height: 90px;
+  height: 100px;
   border: #0077ff solid    ;
   border-width: 1;
 }

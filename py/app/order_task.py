@@ -99,6 +99,14 @@ class OrderTaskManager:
                 {"type": "TASK_ORDER", "data" : order}
             )
 
+    async def send_taskinfo(order,message):
+         if OrderTaskManager.ws:
+            #data["type"] = "ORDER"
+            await OrderTaskManager.ws.broadcast(
+                {"type": "TASK_ORDER_MSG", "data" : order,"msg":message }
+            )
+
+
     ############
 
  
@@ -380,7 +388,10 @@ class OrderTaskManager:
                                                 del order["trade"]
 
                                             OrderTaskManager.task_orders.remove(order)
-                                            
+                                else:
+                                    await OrderTaskManager.send_taskinfo(order,"Valid")
+                                    # notify to client
+                                    # logger.info(f"NOT TRIGGERED {rule['desc']} {ticker['last']} {rule['price']}" )           
 
                             
         except:

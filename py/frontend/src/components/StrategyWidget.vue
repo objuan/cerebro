@@ -37,7 +37,7 @@ import { strategyStore as store } from "@/components/js/strategyStore";
 import { send_get } from '@/components/js/utils';
 //import { formatValue} from "@/components/js/utils";// scaleColor
 import { staticStore } from '@/components/js/staticStore.js';
-import {saveProp} from '@/components/js/utils.js'
+//import {saveProp} from '@/components/js/utils.js'
 import MessageWidget from "@/components/MessageWidget.vue";
 
 const allowedSources = ref(['mule', 'strategy']);
@@ -94,8 +94,10 @@ watch(
 watch(allowedSources, (newVal, ) => {
   
   let v = JSON.stringify(newVal)
-  console.log("allowedSources cambiato:", newVal,v)
-  saveProp("event.filter",v)
+ // console.log("allowedSources cambiato:", newVal,v)
+
+  staticStore.set('event.filter',v)
+  //saveProp("event.filter",v)
 }, { deep: true })
 
 

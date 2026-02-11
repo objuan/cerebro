@@ -163,12 +163,16 @@ function addIndicator(context,ind){
 
   //console.log("add serie",serie)
   //context.charts.main.removeSeries(serie)
-  return {"type" : ind.type.toUpperCase() ,"name":name,"serie":  serie, "params" : 
-  {
-      "color" : ind.params.color,  
-      "period" : ind.params.period, "overbought" : ind.params.overbought, "oversold" : ind.params.oversold, 
-     }
-  };
+  return {"type" : ind.type.toUpperCase() ,
+          "name":name,
+          "serie":  serie, 
+          "refresh": serie.refresh,
+          "params" : 
+              {
+                "color" : ind.params.color,  
+                "period" : ind.params.period, "overbought" : ind.params.overbought, "oversold" : ind.params.oversold, 
+              }
+          };
   
 }
 

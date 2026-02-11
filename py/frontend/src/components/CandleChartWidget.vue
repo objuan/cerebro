@@ -108,19 +108,19 @@
 
         <!-- TRADE BAR -->
         <div class="trade_bar">
-            <button   class="btn btn-sm btn-outline-warning ms-2"   title="Set Trade"
+            <button   class="btn btn-sm btn-outline-success ms-1"   title="Set Trade"
               @click="setDrawMode('trade_marker')" 
               @pointerdown.stop
               @pointerup.stop
               @mousedown.stop
               @mouseup.stop
               @click.stop>
-              +
+              ⚑
             </button>
 
-            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Trade"
+            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Marker Trade"
               @click="setDrawMode('trade_delete')">
-              ✕
+              ❌
             </button>
 
         </div>
@@ -153,13 +153,14 @@ import { staticStore } from '@/components/js/staticStore.js';
 import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
-   LineSeries, applyVolume,setVolumeData,updateVolumeData,
+   LineSeries, applyVolume,setVolumeData,updateVolumeData,getVolume,
 createInteractiveLineManager ,LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 import { eventBus } from "@/components/js/eventBus";
-import { send_delete,send_get,saveProp, send_post } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker,
-   updateTradeMarker ,setTradeMarker,updateVerticalLineData,findLastCandleOfEachDay,findOpenDate
+   updateTradeMarker ,setTradeMarker,updateVerticalLineData,
+   findLastCandleOfEachDay,findOpenDate
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
 import { tradeStore } from "@/components/js/tradeStore";
@@ -238,7 +239,7 @@ function context() {
 const lastTrade = computed(() => {
   return tradeStore.lastTrade(props.symbol);
 })
-console.log("lastTrade",lastTrade.value)  
+//console.log("lastTrade",lastTrade.value)  
 
 const get_layout_key = (subkey)=> { return `chart.${props.number}.${props.grid}.${props.sub_number}.${subkey}`}
 const get_indicator_key = ()=> { return `chart.${props.number}.indicator.${currentTimeframe.value}`}
@@ -246,7 +247,7 @@ const get_indicator_key = ()=> { return `chart.${props.number}.indicator.${curre
 function onTimeFrameChange(){
  // console.log("onTimeFrameChange")
   
-  saveProp(get_layout_key("timeframe"), currentTimeframe.value)
+  //saveProp(get_layout_key("timeframe"), currentTimeframe.value)
   staticStore.set(get_layout_key("timeframe"), currentTimeframe.value)
   //profileName=""
   let ind_profile = staticStore.get(get_indicator_key(),null)
@@ -339,69 +340,29 @@ function updateIndicatorColor(ind) {
 
 async function loadIndicators(profileName)
 {
-  /*
-  let list = await send_get("/api/chart/indicator/list")
-  list.forEach(line => {
-      line.data = JSON.parse(line.data);
-  });
-  if (!list.length) {
-    alert("Nessun set di indicatori salvato.");
-    return;
-  }
-    */
 
  // console.log("loadIndicators",profileName)
 
   let index=null;
-  /*
-  if (profileName==null)
+  
+    
+  for(let idx = 0;idx < profile_indicatorList.length;idx++)
   {
-      // Crea elenco numerato
-      const optionsText = list
-        .map((l, i) => `${i + 1}) ${l.name}`)
-        .join("\n");
-
-      const choice = prompt(
-        "Scegli quale set caricare:\n\n" + optionsText
-      );
-
-      if (!choice) return;
-
-      index = parseInt(choice, 10) - 1;
-
-      if (isNaN(index) || index < 0 || index >= list.length) {
-        alert("Scelta non valida");
-        return;
-      }
-
-    }
-    else*/
-    {
-       for(let idx = 0;idx < profile_indicatorList.length;idx++)
-       {
           if (profile_indicatorList[idx].name ==profileName )
               index = idx
-       }
+  }
  
       //console.log("FIND ",index)
-    }
-  
+    
     clearIndicators()
 
     if (index!=null)
     {
-      
-
       const selected = profile_indicatorList[index];
 
      // console.log("Load Profile:", selected.name, selected.data);
 
-      //let key = get_layout_key(`indicator.${selected.name}`)
-
       getIndicators(selected)
-      // QUI assegni gli indicatori
-      // es:
-      // this.indicatorList = selected.data
     }
 
   //  console.log("loadIndicators","DONE")
@@ -566,9 +527,10 @@ const handleRefresh = async () => {
         // chart.timeScale().scrollToPosition(0, false);
         nextTick( ()=>
       {
-                setVolumeData(series,data.map(d => ({
+                setVolumeData(series,data.map(d => (
+                {
                   time: window.db_localTime ? window.db_localTime(d.t) : d.t,
-                  volume: d.bv,
+                  volume: Math.max(0,d.bv),
                   color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
                 })));
       } );
@@ -580,10 +542,10 @@ const handleRefresh = async () => {
             tradeMarkerData = _trade_marker_data.data;
             updateTradeMarker(context(),tradeMarkerData)
 
-            liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+            liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
                 
         }
- 
+        //console.log("_task_datas",_task_datas)
         // TRADE MARKER
         if (_task_datas!=null){
 
@@ -593,7 +555,7 @@ const handleRefresh = async () => {
               const next_step_idx = task.step;
               const data = JSON.parse(task.data)
 
-              //console.log("..",next_step_idx,data)
+            //  console.log("..",next_step_idx,data)
 
               // prendo i passi prima
               data.forEach( (step)=>
@@ -625,7 +587,7 @@ const handleRefresh = async () => {
             clearIndicators()
 
           // LAST TRADE
-          console.log("buy_line",buy_line)  
+          //console.log("buy_line",buy_line)  
           if (buy_line!=null)
           {
             series.removePriceLine(buy_line);
@@ -643,7 +605,7 @@ const handleRefresh = async () => {
                     axisLabelVisible: true,
                     title: 'BUY'
                   });
-              console.log("buy_line ADD",buy_line)  
+            //  console.log("buy_line ADD",buy_line)  
           }
           
           
@@ -653,7 +615,7 @@ const handleRefresh = async () => {
       //DEFAULT_INTERACTION = chart.options();
 
     
-     console.log("handleRefresh DONE")
+     //console.log("handleRefresh DONE")
     }
     else
         console.log("empty ");
@@ -675,8 +637,11 @@ async function setDrawMode(mode) {
      let ret = await send_delete("/api/trade/marker/delete", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value}); 
      console.log("trade delete",ret)  
 
+     liveStore.set('trade.tradeData.'+currentSymbol.value, null);
+
      tradeMarkerData = {};
      updateTradeMarker(context(),tradeMarkerData)
+     handleRefresh ();
      return;
   }
 
@@ -898,16 +863,17 @@ const buildChart =  () => {
       //charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
       //const bar = series.volume.data().find(x => x.time === param.time);
       //const vol = bar?.value;
-      const vol =0;
-      
+      const volData = getVolume(series)  
+      const timeKey = typeof data.time === 'string' ? data.time : String(data.time);
+      const vol = volData.get(timeKey);
 
       //console.log("MOVE ",vol)
 
       // Update Legend
       let color = data.close >= data.open ? '#4bffb5' : '#ff4976';  
-      let lbl = `<span style="color:${color}"> C: <strong>${data.close.toFixed(3)}</strong> O: <strong>${data.open.toFixed(3)}</strong> `;
-      lbl += `L: <strong>${data.low.toFixed(3)}</strong> H: <strong>${data.high.toFixed(3)}</strong>`;
-      lbl += ` V: <strong>${vol}</strong></span>`;
+      let lbl = `<span style="color:${color}"> C: <strong>${data.close.toFixed(4)}</strong> O: <strong>${data.open.toFixed(4)}</strong> `;
+      lbl += `L: <strong>${data.low.toFixed(4)}</strong> H: <strong>${data.high.toFixed(4)}</strong>`;
+      lbl += ` V: <strong>${formatValue(vol)}</strong></span>`;
       legendHtml.value = lbl;
 
       lbl=""
@@ -966,10 +932,20 @@ const buildChart =  () => {
     }
      if (drawMode.value === 'trade_marker') {
         //tradeData.price = price;
-        tradeMarkerData.price = price;  
-        tradeMarkerData.type="bracket"
-        setTradeMarker(context(),tradeMarkerData)
+        
+        if (lastTrade.value != null)
+        {
+          tradeMarkerData.price = tradeStore.buyPrice(lastTrade.value); 
+          tradeMarkerData.type="tp_sl"
+        }
+        else
+        {
+          tradeMarkerData.price = price;  
+          tradeMarkerData.type="bracket"
+        }
 
+        setTradeMarker(context(),tradeMarkerData)
+        
         drawMode.value = null;
 
     }
@@ -1022,12 +998,14 @@ function onTickerReceived(){
 
 }
 
+let last_time = null;
+
 function on_candle(c)
 {
   //
   if (c.tf !== currentTimeframe.value) return;  
 
-  // console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
+  //console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
 
   const new_value = {
     time: window.db_localTime(c.ts),
@@ -1044,8 +1022,21 @@ function on_candle(c)
     })
 
     series.update(new_value);
-  
 
+    // series
+    if (last_time != c.ts)
+    {
+      last_time = c.ts
+     
+    
+      indicatorList.value.forEach((ind) => {
+        if (ind.refresh != null)   
+            ind.refresh ()
+          //console.log("update ind",ind.name,ind.refresh)
+        
+      }); 
+    }
+      
   }
   else
   {
@@ -1184,9 +1175,12 @@ defineExpose({
   padding: 3px;
 }
 .trade_bar{
+  border: solid 1px white;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.752);
   position:absolute;
-  bottom:145px;
-  left:100px;
+  bottom:45px;
+  left:1px;
   z-index: 20 !important;
   font-weight: 300;
   font-size: medium;

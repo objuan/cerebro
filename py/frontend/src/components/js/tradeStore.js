@@ -52,6 +52,14 @@ export const tradeStore = reactive({
     if (!trade) return false
         return !trade.list.some(fill => fill.side === 'SELL')
   },
+  buyPrice(trade){
+    if (!trade) return null
+    const buyPrices = trade.list
+      .filter(f => f.side === 'BUY')
+      .map(f => f.price)  
+      return buyPrices[0] || null 
+  },
+  
   computeGain(trade)
   { // console.log("computeGain",trade) 
 

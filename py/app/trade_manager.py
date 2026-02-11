@@ -139,7 +139,9 @@ class TradeManager:
         
         order =None
         if data["type"] =="bracket":
-             order = await self.add_order_bracket(symbol, timeframe,data["price"])
+             order = await self.add_order_bracket(symbol, timeframe,data["price"],"bracket")
+        if data["type"] =="tp_sl":
+             order = await self.add_sl_tp(symbol, timeframe,data["price"])
         if order:     
             self.client.execute("""
                 INSERT INTO trade_marker (symbol, timeframe,  data)
@@ -151,7 +153,28 @@ class TradeManager:
             ))
         return order
     
-    async def  add_order_bracket(self,symbol, timeframe,price)-> TradeOrder:
+    async def  add_sl_tp(self,symbol, timeframe,price)-> TradeOrder:
+        #TODO
+        stop_loss = price - price * self.props.get("trade.rr")
+       
+        take_profit = price + ( price -stop_loss ) * self.props.get("trade.rr")
+
+        #gger.info(f"min {min_l} max {max_h}")
+ 
+        order = TradeOrder({
+             "symbol" : symbol,
+             "timeframe" : timeframe,
+             "type" : "sl_tp",
+             "price" : price,
+             "stop_loss" : stop_loss,
+             "take_profit" : take_profit,
+             "quantity" : 100
+        })
+        self.fill_computed(order)
+        return order
+         #return await self.add_order_bracket(symbol, timeframe,price,"sl_tp")    
+    
+    async def  add_order_bracket(self,symbol, timeframe,price,stype)-> TradeOrder:
         last_candles_count = 10
         
         df_last_data = await self.client.ohlc_data(symbol,timeframe)
@@ -171,13 +194,12 @@ class TradeManager:
 
         take_profit = price + ( price -stop_loss ) * self.props.get("trade.rr")
 
-
         logger.info(f"min {min_l} max {max_h}")
 
         order = TradeOrder({
              "symbol" : symbol,
              "timeframe" : timeframe,
-             "type" : "bracket",
+             "type" : stype,
              "price" : price,
              "stop_loss" : stop_loss,
              "take_profit" : take_profit,

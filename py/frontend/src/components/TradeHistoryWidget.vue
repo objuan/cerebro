@@ -4,9 +4,9 @@
 
       <table class="trade-table">
         <tr>
-          <td  style="width:50%">
-              <div v-if="lastTrade"  >
-                <TradeWidget :trade="lastTrade"></TradeWidget>
+          <td  style="width:50%;height:100%">
+              <div v-if="lastTrade" style="height:100%">
+                <TradeWidget :trade="lastTrade"  style="height:100%"></TradeWidget>
               </div>
           </td>
           <td>
@@ -15,8 +15,8 @@
                     📜
               </button>
           </td>
-          <td  style="width:50%">
-            <table v-if="lastTrade && lastTrade.isOpen" style="width:100%">
+          <td  style="width:50%;height:100%">
+            <table v-if="lastTrade && lastTrade.isOpen" style="width:100%;height:100%">
                <tr>
                   <td>BUY AT</td>
                   <td>{{lastSummary?.avgPrice.toFixed(2)}} $ </td>
@@ -183,6 +183,7 @@ table td {
 .history-anchor {
   position: relative;   /* ← QUESTO è il trucco */
   display: inline-block;
+  height:100%;
 }
 
 .history-popup {
@@ -213,6 +214,8 @@ table td {
 
 .trade-table{
   width: 100%;
+  height:100%;
+   background: #0b1220;
   font-family: monospace;
    font-size: 13px;
 }

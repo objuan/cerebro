@@ -45,7 +45,7 @@ function formatValue(v) {
     if (isNaN(v)) return v;
 
     if (v >= 1_000_000) {
-        return (v / 1_000_000).toFixed(1) + ' M';
+        return (v / 1_000_000).toFixed(2) + ' M';
     }
     if (v >= 1_000) {
         return (v / 1_000).toFixed(1) + ' K';

@@ -481,7 +481,6 @@ async def save_chart_marker(payload: dict):
         timeframe = payload["timeframe"]
         data = payload["data"]
 
-        timeframe = payload["timeframe"]
         order = await tradeManager.add_order(symbol,timeframe,data)
 
         if order:
@@ -806,6 +805,12 @@ async def get_task_orders(start: Optional[str] = None,
 async def get_task_symbol_orders(symbol:str, 
                                 start: Optional[str] = None,
                           onlyReady: bool = False):
+    
+    all = await get_task_orders(start,onlyReady)  
+    if (all["status"] == "ok"): 
+        data = [ x for x in all["data"] if x["symbol"] == symbol]
+        return {"status": "ok", "data": data}   
+    '''
     if not start:
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         start = today_start.isoformat().replace("T"," ")
@@ -845,7 +850,7 @@ async def get_task_symbol_orders(symbol:str,
     except Exception as e:
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": str(e)}
-    
+    '''
 ###################
 
 

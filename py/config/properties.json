@@ -13,7 +13,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "UOKA",
+      "symbol": "QNCX",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -36,9 +36,32 @@
           "timeframe": "1d"
         }
       }
+    },
+    "2": {
+      "grid": "1_1",
+      "symbol": "ABP",
+      "indicator": {
+        "1m": "aa"
+      }
     }
   },
   "event": {
     "filter": "[\"strategy\"]"
+  },
+  "symbols": {
+    "undefined": {
+      "quantity": 200
+    },
+    "QNCX": {
+      "quantity": 100,
+      "mode": "MARKER"
+    },
+    "ABP": {
+      "quantity": 100,
+      "mode": "MARKER"
+    },
+    "CRDO": {
+      "mode": "DIRECT"
+    }
   }
 }

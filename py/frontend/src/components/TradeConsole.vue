@@ -1,6 +1,6 @@
 <template>
  
-  <div class="card-body p-1">
+  <div class="trade-root">
     <div class="trade-grid">
       <!-- left-->
        <div class="col-2rows">
@@ -16,7 +16,10 @@
                     <option :value="200">200</option>
                     <option :value="300">300</option>
                     <option :value="500">500</option>
+                    <option :value="700">700</option>
                     <option :value="1000">1000</option>
+                    <option :value="1500">1500</option>
+                    <option :value="2000">2000</option>
                   </select>
                 </div>
           </div>
@@ -77,24 +80,23 @@
                             </table>
                           </td>
                         </tr>
-                        <tr>
-                          <td>
-                            {{ tradeData.timeframe }}
-                          </td>
-                        </tr>
+      
                     </table>
                     
                  
                   </div>
             </div>
             <div class="row r2">
-                <div>
-                     <div class="d-flex align-items-center gap-1">
-                      <div class="card p-2 d-flex justify-content-between align-items-center">
-                          <div class="w-100" style="color:black" v-html="active_order_task"></div>
-                        </div>
+                <div v-if="isCurrent">
+                      <div class="me-2" style="position: absolute;">
+                       <i v-if="isUpdating" class="spinner-border spinner-border-sm text-primary rotating"></i>
                       </div>
-                  </div>
+
+                      <div class="active-task card p-1 d-flex justify-content-between align-items-center">
+                          <div  v-html="active_order_task"></div>
+                      </div>
+                 </div>
+                
               </div>
       </div>  
 
@@ -116,14 +118,18 @@
 
 import { ref,watch,computed,onMounted,onBeforeUnmount  } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
+import { staticStore } from '@/components/js/staticStore.js';
 import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
 import {order_limit,clear_all_orders,order_bracket} from "@/components/js/orderManager";
 import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
 
+
 const props = defineProps({
   symbol: { type: String, required: true },
 });
+
+const get_key = (subkey)=> { return `symbols.${props.symbol}.${subkey}`}
 
 const liveData = computed(() => liveStore.state.dataByPath);
 const isCurrent = computed(() => {
@@ -133,8 +139,11 @@ const isCurrent = computed(() => {
 const tradeMode = ref("DIRECT");
 
 const tradeData = ref(null);
-const quantity = ref(100);
+const quantity = ref(0);
 const ticker = ref(null);
+
+const isUpdating = ref(false)
+let updateTimer = null
 //const position = ref(null);
 
 //const tradeList = ref([]);
@@ -156,6 +165,7 @@ function toggleTrades() {
 
 function setMode(mode){
   tradeMode.value=mode;
+   staticStore.set(get_key("mode"),mode );  
 }
 
 function send_limit_order(){
@@ -189,51 +199,58 @@ function onTaskOrderReceived(order){
       order.data.forEach( (step)=>{
         if (step.step == order.step){
           console.log("selected ",step );
+          let col ="red";
+          if (step.desc == "TP") col="green";  
+
+          if (selected.length>0) selected+=`<br>` 
           selected+= `
-          <span class="badge step">${step.step}</span>
+          <span class="step">(${step.step})</span>
+            <span style="color:${col}">${step.desc}</span>
+           
             <span class="side sell">${step.side}</span>
             <span class="qty">${step.quantity}</span>
             <span class="cond">
-              ${step.op}<b>${step.price.toFixed(6)}</b>
+              ${step.op}<b>${step.price.toFixed(4)}</b>
             </span>
-            <span class="tag tp">${step.desc}</span>
+         
           `;
         }
-        sum += `(${step.step}) ${step.side} ${step.quantity} @ ${step.op}${step.price.toFixed(6)} \n`
+        sum += `(${step.step}) ${step.side} ${step.quantity} @ ${step.op}${step.price.toFixed(4)} \n`
       });
 
-      active_order_task.value =`
-        <div class="trade-main" title="
-  ${sum}
-    ">
-    ${selected}
-    </div>
-      `
+      active_order_task.value =`<div class="trade-main" title="
+          ${sum}
+            ">
+            ${selected}
+            </div>
+         `
       
   }
-    /*
-    const aa =`
-     <div class="trade-main" title="
-STEP 1 • BUY 100 @ last > 4.7160 (MARKER) [filled]
 
-STEP 2 • SELL 100 @ last > 5.5430 (TP)
-STEP 2 • SELL 100 @ last < 4.2874 (SL)
-  ">
-    <span class="badge step">STEP 2</span>
-
-    <span class="side sell">SELL</span>
-    <span class="qty">100</span>
-
-    <span class="cond">
-      last &gt; <b>5.5430</b>
-    </span>
-
-    <span class="tag tp">TP</span>
-  </div>
-  `;
-  */
   }
 }
+
+function triggerUpdateIcon() {
+  isUpdating.value = true
+ 
+  // reset timer se arrivano molti eventi ravvicinati
+  if (updateTimer) clearTimeout(updateTimer)
+
+  updateTimer = setTimeout(() => {
+    isUpdating.value = false
+  }, 1000) // durata visibilità icona
+  
+}
+
+function onTaskOrderMsgReceived(order){
+  if (order.symbol == props.symbol)
+  {
+    triggerUpdateIcon();
+    //console.log("TradeConsole → task ordine msg:", order,updateTimer);
+   
+      
+  }
+} 
 
 /*
 function onOrderReceived(msg) {
@@ -287,22 +304,14 @@ onMounted( async () => {
   eventBus.on("task-order-received", onTaskOrderReceived);
   //eventBus.on("order-received", onOrderReceived);
   eventBus.on("ticker-received", onTickerReceived);
- // eventBus.on("update-portfolio", onPositionUpdated);
-  //eventBus.on("update-position", onPositionUpdated);
-  //eventBus.on("trade-position", onTradeUpdated);
-   /*
-  let pos_list = await send_get('/account/positions')
-  pos_list.forEach(  (val) =>{
-        val["type"] = "POSITION"
-        onPositionUpdated(val);
+  eventBus.on("task-order-msg-received", onTaskOrderMsgReceived);
+
+  eventBus.on("on-start", ()=>{
+    //console.log("TradeConsole on-start", props.symbol,quantity.value );
+    quantity.value = staticStore.get(get_key("quantity"),100);  
+    tradeMode.value = staticStore.get(get_key("mode"),"DIRECT");  
+    
   });
-  */
-/*
-  let trade_list = await send_get('/trade/history',{'symbol': props.symbol})
-  trade_list.forEach(  (t) =>{
-     onTradeUpdated(t)
-  });
-  */
 
 });
 
@@ -310,34 +319,15 @@ onBeforeUnmount(() => {
   eventBus.off("task-order-received", onTaskOrderReceived);
  // eventBus.off("order-received", onOrderReceived);
   eventBus.off("ticker-received", onTickerReceived);
+
+  eventBus.off("task-order-msg-received", onTaskOrderMsgReceived);
+
  // eventBus.off("update-portfolio", onPositionUpdated);
  // eventBus.off("update-position", onPositionUpdated);
  // eventBus.off("trade-position", onTradeUpdated);
 });
 
 // ========================
-watch(
-  () => props.symbol,
-  async () => {
-   // console.log('symbol cambiato:', oldVal, '→', newVal)
-    // qui fai quello che ti serve
-    /*
-    tradeList.value=[]
-    let trade_list = await send_get('/trade/history',{'symbol': props.symbol})
-    trade_list.forEach(  (t) =>{
-      onTradeUpdated(t)
-    });
-    */
-/*
-      let pos_list = await send_get('/account/positions')
-      pos_list.forEach(  (val) =>{
-            val["type"] = "POSITION"
-            onPositionUpdated(val);
-      });
-*/
-  }
-      
-)
 
 // sync STORE → SELECT
 
@@ -347,7 +337,10 @@ watch(
     return liveData.value['trade.tradeData.'+props.symbol];
   } ,
   v => {
-    if (v != null) tradeData.value = v;
+    //console.log("TradeConsole watch tradeData", props.symbol, v); 
+
+    //if (v != null) 
+        tradeData.value = v;
   },
   { immediate: true }
 );
@@ -368,6 +361,11 @@ watch(quantity,  async (newValue, oldValue) => {
   if (oldValue && oldValue!= newValue)
   {
      console.log("quantity",newValue, oldValue)
+
+     staticStore.set(get_key("quantity"),quantity.value );  
+
+    if (tradeData.value == null) return;
+
      tradeData.value.quantity = newValue
      let ret = await send_post("/api/trade/marker/update",
      {
@@ -388,9 +386,31 @@ watch(quantity,  async (newValue, oldValue) => {
 </script>
 
 <style scoped>
+
+.rotating {
+  z-index: 100;
+  left:2;
+  top:10;
+  position: absolute;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.active-task{
+  color:black;
+  font-family: monospace;
+  font-size: 13px;
+}
+.trade-root{
+  height: 100%  ;
+}
 .trade-info-panel{
   width: 100%;
-  height: 40px;
+  height: 50%;
   font-family: monospace;
   font-size: 13px;
   border:#e2e8f0 1px solid;
@@ -410,16 +430,16 @@ table td {
   gap: 2px;
   width: 100%;
   align-items: start;
-  height: 80px;
+  height: 100%;
 }
 /* Le colonne left e mid diventano "trasparenti" alla grid padre */
 .col-2rows {
-  height: 80px;
+  height: 100%;
 }
 
 /* Posizioniamo le righe nella grid principale */
-.r1 { grid-row: 1; height: 40px; }
-.r2 { grid-row: 2;height: 40px; }
+.r1 { grid-row: 1; height: 50%; }
+.r2 { grid-row: 2;height: 50%; }
 
 .clickable {
   cursor: pointer;

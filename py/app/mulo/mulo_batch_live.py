@@ -383,7 +383,7 @@ class LiveManager:
                 else:
                     ts = ticker.time.timestamp()
 
-                Ticker
+                
                 # Update history
                 if symbol not in self.ticker_history:
                     self.ticker_history[symbol] = {}
@@ -398,7 +398,14 @@ class LiveManager:
                 #if symbol =="USAR":
                 #    logger.info(f" onTicker{ticker.volume}")
 
-                ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
+                volume = ticker.volume
+                volume = max(0,0 if math.isnan(volume) else volume)
+
+                if ticker.last_close>0:
+                    ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
+                else:
+                    ticker.gain=0
+                    
                 hls=None
                 if not math.isnan(ticker.gain):
 
@@ -434,7 +441,7 @@ class LiveManager:
                             if candle is not None:  # se esisteva, va inviata
                                 #logger.info("send")
                                 # send
-                                v = ticker.volume - candle["last_volume"]
+                                v = volume - candle["last_volume"]
                                 
                                 data = {
                                     "m": "full",
@@ -449,7 +456,7 @@ class LiveManager:
                                     "dts": start_time,
                                     "bid": ticker.bid,
                                     "ask": ticker.ask,
-                                    "day_v": ticker.volume if use_yahoo else ticker.volume * 100
+                                    "day_v": volume if use_yahoo else volume * 100
                                 }
 
                                 #logger.info(f"add {data} \n{ticker}")
@@ -467,7 +474,7 @@ class LiveManager:
                                 "low": ticker.last,
                                 "close": ticker.last,
                                 "volume": 0,
-                                "last_volume": ticker.volume
+                                "last_volume": volume
                             }
 
                             history[interval] = candle
@@ -481,7 +488,7 @@ class LiveManager:
                                 candle["low"] = min(candle["low"], ticker.last)
 
                                 #vol_diff = ticker.volume - candle["last_volume"]
-                                candle["volume"]  = ticker.volume - candle["last_volume"] 
+                                candle["volume"]  = max(0,volume - candle["last_volume"])
                                 candle["close"] = ticker.last
 
                                 data = {
@@ -497,7 +504,7 @@ class LiveManager:
                                         "dts": start_time,
                                         "bid": ticker.bid,
                                         "ask": ticker.ask,
-                                        "day_v": ticker.volume if use_yahoo else ticker.volume * 100
+                                        "day_v": volume if use_yahoo else volume * 100
                                     }
 
                             

@@ -191,6 +191,14 @@
                <li>
                 <a class="dropdown-item"
                   href="#"
+                  @click.prevent="getSymbolInfos(item.symbol)">
+                   Get Company Info
+                </a>
+              </li>
+
+               <li>
+                <a class="dropdown-item"
+                  href="#"
                   @click.prevent="getNews(item.symbol)">
                    Get News
                 </a>
@@ -269,6 +277,12 @@ function getRank(key){
   else
     return key;
 }
+function getSymbolInfos(symbol){
+  console.log("getSymbolInfos", symbol)
+  const url = `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`;
+    window.open(url, "_blank");
+}
+
 
 function getNews(symbol){
   console.log("selectedSymbol", symbol)

@@ -122,7 +122,7 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :5,
+				"max_symbols" :10,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,

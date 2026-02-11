@@ -15275,7 +15275,8 @@ function applySMA(series, chart, options = {}) {
         }
     };
     // Subscribe to data changes
-    series.subscribeDataChanged(updateSMA);
+    //series.subscribeDataChanged(updateSMA);
+    smaSeries.refresh = updateSMA   
     // Initial calculation
     updateSMA();
     return smaSeries;
@@ -15361,7 +15362,9 @@ function applyEMA(series, chart, options = {}) {
         }
     };
     // Subscribe to data changes
-    series.subscribeDataChanged(updateEMA);
+    //series.subscribeDataChanged(updateEMA);
+    emaSeries.refresh = updateEMA
+
     // Initial calculation
     updateEMA();
     return emaSeries;
@@ -15680,20 +15683,24 @@ function applyMACD(series, chart, options = {}) {
     }, 2);
     // Calculate EMA
     const calculateEMA = (prices, period) => {
-        const ema = [];
-        const multiplier = 2 / (period + 1);
-        // Initial SMA
-        let sum = 0;
-        for (let i = 0; i < period; i++) {
-            sum += prices[i];
-        }
-        ema.push(sum / period);
-        // Calculate EMA
-        for (let i = period; i < prices.length; i++) {
-            ema.push((prices[i] - ema[ema.length - 1]) * multiplier + ema[ema.length - 1]);
-        }
-        return ema;
-    };
+    const ema = new Array(prices.length).fill(null);
+    const k = 2 / (period + 1);
+
+    // primo valore: SMA
+    let sum = 0;
+    for (let i = 0; i < period; i++) {
+        sum += prices[i];
+    }
+
+    ema[period - 1] = sum / period;
+
+    // EMA vera
+    for (let i = period; i < prices.length; i++) {
+        ema[i] = prices[i] * k + ema[i - 1] * (1 - k);
+    }
+
+    return ema;
+};
     // Calculate MACD
     const calculateMACD = (data) => {
         if (!data || data.length < slowPeriod + signalPeriod) {
@@ -15961,6 +15968,14 @@ function applyATR(series, chart, options = {}) {
 
 // Internal cache for volume data
 const volumeCache = new Map();
+
+function getVolume(series){
+     if (volumeCache.has(series)) 
+        return volumeCache.get(series); 
+    else
+        return
+}
+
 /**
  * Apply Volume indicator to a series
  * IMPORTANT: Use setVolumeData() to update volume when setting chart data
@@ -16746,7 +16761,7 @@ function applyVWAP(series, chart, options = {}) {
     // Function to calculate VWAP
     const calculateVWAP = (data) => {
 
-        //console.log("calculateVWAP", data,cache)
+       // console.log("calculateVWAP")//, data,cache)
         if (!data || data.length === 0) {
             return [];
         }
@@ -16754,10 +16769,11 @@ function applyVWAP(series, chart, options = {}) {
      
         let cumulativeTPV = 0; // Typical Price * Volume
         let cumulativeVolume = 0;
-        let currentDay = null;
+        //let currentDay = null;
 
         const results = [];
-
+        let i=0;
+        let passed1530 = false;
         for (const d of data) {
             // Assicurati che sia una candela con volume
             if (
@@ -16770,14 +16786,31 @@ function applyVWAP(series, chart, options = {}) {
             }
              // ===== ricava il giorno dal timestamp =====
             const date = new Date(d.time * 1000);
+            
+            const hours = date.getUTCHours();
+            const minutes = date.getUTCMinutes();
+            // minuti totali della giornata
+            const totalMinutes = hours * 60 + minutes;
+
+            // 15:30 = 930 minuti
+            const isAfter1530 = totalMinutes >= 930;
+
             const dayKey = date.toISOString().slice(0, 10); // YYYY-MM-DD
             // ===== reset VWAP a cambio giorno =====
-            if (currentDay !== dayKey) {
+           //if (currentDay !== dayKey) {
+           if (isAfter1530 && !passed1530) {
                         cumulativeTPV = 0;
                         cumulativeVolume = 0;
-                        currentDay = dayKey;
+                        //currentDay = dayKey;
+                         passed1530 = true;
+                        i=0;
+            }
+            // Se torni prima di 15:30 (giorno dopo), riabilita il reset
+            if (!isAfter1530) {
+                passed1530 = false;
             }
 
+            i=i+1;   
 
             const timeKey = typeof d.time === 'string' ? d.time : String(d.time);
 
@@ -16787,6 +16820,8 @@ function applyVWAP(series, chart, options = {}) {
 
             //console.log("vol", volume)
             const typicalPrice = (d.high + d.low + d.close) / 3;
+
+            //console.log("vol", volume, i,dayKey)
 
             cumulativeTPV += typicalPrice * volume;
             cumulativeVolume += volume;
@@ -16828,11 +16863,12 @@ function applyVWAP(series, chart, options = {}) {
     };
 
     // Subscribe to data changes
-    series.subscribeDataChanged(updateVWAP);
+    //series.subscribeDataChanged(updateVWAP);
 
     // Initial calculation
     updateVWAP();
 
+    vwapSeries.refresh = updateVWAP
     return vwapSeries;
 }
-export { applyVWAP , updateVolumeData ,areaSeries as AreaSeries, barSeries as BarSeries, baselineSeries as BaselineSeries, candlestickSeries as CandlestickSeries, ColorType, CrosshairMode, DraggablePriceLine, histogramSeries as HistogramSeries, InteractiveLineManager, LastPriceAnimationMode, lineSeries as LineSeries, LineStyle, LineType, MismatchDirection, PriceLineSource, PriceScaleMode, TickMarkType, TrackingModeExitMode, applyATR, applyBollingerBands, applyEMA, applyMACD, applyOBV, applyRSI, applySMA, applyStochastic, applyVolume, applyWMA, createChart, createChartEx, createImageWatermark, createInteractiveLineManager, createOptionsChart, createSeriesMarkers, createTextWatermark, createTradingLine, createUpDownMarkers, createYieldCurveChart, customSeriesDefaultOptions, defaultHorzScaleBehavior, isBusinessDay, isUTCTimestamp, setOBVVolumeData, setVolumeData, version };
+export { getVolume,applyVWAP , updateVolumeData ,areaSeries as AreaSeries, barSeries as BarSeries, baselineSeries as BaselineSeries, candlestickSeries as CandlestickSeries, ColorType, CrosshairMode, DraggablePriceLine, histogramSeries as HistogramSeries, InteractiveLineManager, LastPriceAnimationMode, lineSeries as LineSeries, LineStyle, LineType, MismatchDirection, PriceLineSource, PriceScaleMode, TickMarkType, TrackingModeExitMode, applyATR, applyBollingerBands, applyEMA, applyMACD, applyOBV, applyRSI, applySMA, applyStochastic, applyVolume, applyWMA, createChart, createChartEx, createImageWatermark, createInteractiveLineManager, createOptionsChart, createSeriesMarkers, createTextWatermark, createTradingLine, createUpDownMarkers, createYieldCurveChart, customSeriesDefaultOptions, defaultHorzScaleBehavior, isBusinessDay, isUTCTimestamp, setOBVVolumeData, setVolumeData, version };

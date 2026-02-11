@@ -67,7 +67,7 @@ export async function setTradeMarker(chart_context,tradeData) {
     console.log("Trade marker set", ret);
     if (ret.status === "ok") {
         tradeData = ret.data
-        chart_context.liveStore.updatePathData('trade.tradeData.'+chart_context.currentSymbol.value, tradeData);
+        chart_context.liveStore.set('trade.tradeData.'+chart_context.currentSymbol.value, tradeData);
 
         updateTradeMarker(chart_context,tradeData); 
     }
@@ -157,7 +157,7 @@ export function updateTradeMarker(chart_context,tradeData) {
     if (tradeData.take_profit)
         addTradeLine(chart_context,tradeData,tradeData.take_profit,"TP","#01ff2b","TRADE_TAKE_PROFIT" )
    
-    if (tradeData.price)
+    if (tradeData.price && tradeData.type =="bracket" )
         addTradeLine(chart_context,tradeData,tradeData.price,"BUY","#2b07ce","TRADE_MARKER" )
 
     if (tradeData.stop_loss)
@@ -341,11 +341,12 @@ export function findOpenDate(data) {
     const d = data[i];
     const dt = new Date(d.time * 1000);
     const minutes = dt.getUTCHours() * 60 + dt.getUTCMinutes();
-
     if (minutes < targetMinutes) {
-        // console.log("find",d)    
-
-      return d.time; // prima candela (dal fondo) prima delle 15:30
+       //  console.log("ii",i,data.length)    
+        if (i > data.length-2 )
+            return null;
+        else
+            return d.time; // prima candela (dal fondo) prima delle 15:30
     }
   }
   return null;
@@ -368,7 +369,7 @@ export function updateVerticalLineData(vLineSeries,candles, point_time) {
   //const points = findTimes(candles);
   //const points = findLastCandleOfEachDay(candles);
 
-  //console.log("FIND",points)
+  //console.log("FIND",point_time)
   if (!point_time) return;
 
   // prezzi estremi per coprire tutto il grafico
