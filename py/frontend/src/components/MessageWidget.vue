@@ -1,10 +1,12 @@
 <template>
-  <div class="event" :style="{ '--event-bg': props.color || '#ccc' }">
+  <div  class="event"
+    :style="{ '--event-bg': props.color || '#ccc' }">
   
     <!-- HEADER -->
+  
     <div class="event-header">
               <div style="max-width: 18px;"> {{ props.icon }}</div>
-              <div class="time">
+              <div :class="['time', { 'new-bar': isNew }]">
                 {{ getDate() }}
               </div>
               <div class="title">{{ props.title }}</div>
@@ -85,7 +87,7 @@ import { formatValue,priceColor,newsColor,volumeRelColor} from "@/components/js/
 import { eventBus } from "@/components/js/eventBus";
 
 let reportDetails = null // key -> result
-
+const isNew = ref(true)
 const open = ref(false)
 
 function getDate(){
@@ -132,7 +134,9 @@ const props = defineProps({
 });
 
 onMounted( async () => {
- 
+ setTimeout(() => {
+    isNew.value = false
+  }, 60_000) // 1 minuto
 });
 
 onBeforeUnmount(() => {
@@ -145,6 +149,24 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+/* Barra superiore lampeggiante */
+.new-bar {
+  
+  background: linear-gradient(90deg, transparent, #00ffea, transparent);
+  animation: alert-blink 2.0s ease-in-out infinite alternate;
+}
+
+@keyframes alert-blink {
+   from {
+    opacity: 0.9;
+    transform: translateX(0%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(30%);  /* (100 / 30) - 1 ≈ quanto serve per arrivare a destra */
+  }
+}
 
 .event {
   width: 100%;

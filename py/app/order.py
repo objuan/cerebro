@@ -188,7 +188,7 @@ class OrderManager:
             symbol = row.symbol
             side = row.side
             data = json.loads(row.data)
-            logger.info(f"row {data}")
+            #logger.info(f"row {data}")
             price = data["avgFillPrice"]
             size = data["totalQuantity"]
 
@@ -196,7 +196,7 @@ class OrderManager:
             dt = datetime.fromisoformat(time)
             unix_time = dt.timestamp()
 
-            logger.info(f"unix_time {unix_time}")
+            #logger.info(f"unix_time {unix_time}")
           
             if side == "BUY":
                 if current is None:

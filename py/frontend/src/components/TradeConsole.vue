@@ -39,7 +39,7 @@
       <!-- mid-->
         <div class="col-2rows">
            <div class="row r1">
-                  <div class="d-flex align-items-center gap-1" v-if="tradeMode=='DIRECT'">
+                  <div class="d-flex align-items-center gap-0" v-if="tradeMode=='DIRECT'">
                     <button    class="btn btn-sm btn-success"
                           @click="send_limit_order()"
                         >BUY</button>
@@ -56,8 +56,8 @@
                         <tr>
                           <td> 
                             <button  class="btn btn-sm btn-success"
-                                @click="send_order_bracket()"
-                              >SEND  {{ tradeData.timeframe }} </button>
+                                @click="send_order_marker()"
+                              >SEND {{ tradeData.type }} {{ tradeData.timeframe }} </button>
                           </td>
                           <td>
                             <table style="width:100%;height:40px">
@@ -87,12 +87,17 @@
                   </div>
             </div>
             <div class="row r2">
-                <div v-if="isCurrent">
-                      <div class="me-2" style="position: absolute;">
-                       <i v-if="isUpdating" class="spinner-border spinner-border-sm text-primary rotating"></i>
+                <div v-if="isCurrent" style="position: relative">
+                      <div class="me-2" style="position: absolute; left:55px">
+                        <i v-if="isUpdating" class="spinner-border spinner-border-sm text-primary rotating"></i>
                       </div>
-
-                      <div class="active-task card p-1 d-flex justify-content-between align-items-center">
+                      <div class="me-2" style="position: absolute;left:6px">
+                            <button  class="task-cancel-button btn btn-sm btn-outline-danger ms-1"  title="Delete Marker Trade"
+                                  @click="cancelTaskOrder()">
+                                  ❌
+                                </button>
+                      </div>
+                      <div class="active-task  p-1 d-flex justify-content-between align-items-center">
                           <div  v-html="active_order_task"></div>
                       </div>
                  </div>
@@ -121,17 +126,22 @@ import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il p
 import { staticStore } from '@/components/js/staticStore.js';
 import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
-import {order_limit,clear_all_orders,order_bracket} from "@/components/js/orderManager";
+import {order_limit,clear_all_orders,order_bracket,order_tp_sl} from "@/components/js/orderManager";
 import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
 
+//events
+const emit = defineEmits(['cancel-task-order']);
 
+// props
 const props = defineProps({
   symbol: { type: String, required: true },
 });
 
+// 
 const get_key = (subkey)=> { return `symbols.${props.symbol}.${subkey}`}
 
 const liveData = computed(() => liveStore.state.dataByPath);
+
 const isCurrent = computed(() => {
   return tradeData.value && tradeData.value.symbol == props.symbol;
 });
@@ -150,7 +160,7 @@ let updateTimer = null
 //const showAll = ref(false)
 
 //const active_order = ref("...");
-const active_order_task = ref("...");
+const active_order_task = ref("");
 /*
 const lastTrade = computed(() => {
   if (tradeList.value.length === 0) return null
@@ -172,25 +182,39 @@ function send_limit_order(){
   order_limit(props.symbol,quantity.value)
 }
 
+
 /*
 function send_buy_at_level(){
   order_buy_at_level(props.symbol,quantity.value,ticker.value.last )
 }
 */
-function send_order_bracket(){
-  order_bracket(props.symbol,tradeData.value.timeframe,quantity.value,ticker.value.last )
+
+function send_order_marker(){
+
+  console.log("send_order_marker", tradeData.value);  
+
+  if (tradeData.value.type == "tp_sl") 
+    order_tp_sl(props.symbol,tradeData.value.timeframe,tradeData.value.take_profit, tradeData.value.stop_loss )
+  else
+    order_bracket(props.symbol,tradeData.value.timeframe,quantity.value,ticker.value.last )
 }
+
 
 function clear_all(){
   clear_all_orders(props.symbol);
 }
+
+async function cancelTaskOrder(){
+   emit('cancel-task-order',tradeData.value.timeframe ) 
+
+} 
 
 function onTaskOrderReceived(order){
   if (order.symbol == props.symbol)
   {
     console.log("TradeConsole → task ordine:", order);
     // [{"step": 1, "side": "BUY", "op": "last >", "price": 4.716045518354935, "quantity": 100.0, "desc": "MARKER", "state": "filled", "trigger_price": 4.7595}, {"step": 2, "side": "SELL", "op": "last >", "price": 5.542954152014922, "quantity": 100.0, "desc": "TP"}, {"step": 2, "side": "SELL", "op": "last <", "price": 4.287409154718572, "quantity": 100.0, "desc": "SL"}]
-    active_order_task.value='...'
+    active_order_task.value=''
 
     if (order.status == "READY" || order.status == "STEP" )
     {
@@ -337,7 +361,7 @@ watch(
     return liveData.value['trade.tradeData.'+props.symbol];
   } ,
   v => {
-    //console.log("TradeConsole watch tradeData", props.symbol, v); 
+    console.log("TradeConsole watch tradeData", props.symbol, v); 
 
     //if (v != null) 
         tradeData.value = v;
@@ -389,11 +413,18 @@ watch(quantity,  async (newValue, oldValue) => {
 
 .rotating {
   z-index: 100;
-  left:2;
-  top:10;
+  /*left:2;
+  top:10;*/
   position: absolute;
   animation: spin 0.8s linear infinite;
 }
+.task-cancel-button {
+  z-index: 90;
+  
+  
+  position: absolute;
+}
+
 
 @keyframes spin {
   from { transform: rotate(0deg); }
@@ -401,9 +432,12 @@ watch(quantity,  async (newValue, oldValue) => {
 }
 
 .active-task{
-  color:black;
+  color:rgb(255, 255, 255);
   font-family: monospace;
   font-size: 13px;
+  margin-left: 42px;
+  border : solid #d9ff00 1px;
+  height: 100%;
 }
 .trade-root{
   height: 100%  ;

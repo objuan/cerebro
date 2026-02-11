@@ -312,6 +312,26 @@ class MuloLiveClient:
     def get_fundamentals_dict(self, symbol) -> dict:
         return self.fundamentals_map.get(symbol, {})
 
+    def is_in_white_list(self,symbol):
+        df = self.get_df(f"""
+                SELECT * from  watch_list
+                WHERE symbol='{symbol} and type="day_watch" '
+            """)
+        if (len(df)>0):
+            #2026-02-11 11:57:47
+            sdate =  str(df.loc[0, "ds_timestamp"])
+            dt = datetime.strptime(sdate, "%Y-%m-%d %H:%M:%S")
+            date = str(dt.date())
+
+            date_str = str(datetime.now().date())
+
+            logger.info("WATCH : "+symbol+ " "+ date +"=="+ date_str)
+            
+            return (date_str == date)
+                    
+        else:
+            return False
+        
     ###############
 
     async def ohlc_data(self,symbol: str, timeframe: str, limit: int = 1000)-> pd.DataFrame:

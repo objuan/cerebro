@@ -1,11 +1,9 @@
 {
   "trade": {
     "rr": 2,
-    "trade_risk": 0.01,
-    "day_risk": 0.1
-  },
-  "balance": {
-    "USD": 1000
+    "trade_risk": 0.1,
+    "day_risk": 0.1,
+    "day_balance_USD": 500
   },
   "home": {
     "grid": "1_1"
@@ -13,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "QNCX",
+      "symbol": "QVCGP",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -62,6 +60,16 @@
     },
     "CRDO": {
       "mode": "DIRECT"
+    },
+    "MWYN": {
+      "mode": "DIRECT"
+    },
+    "RENX": {
+      "mode": "DIRECT"
+    },
+    "QVCGP": {
+      "mode": "DIRECT",
+      "quantity": 100
     }
   }
 }

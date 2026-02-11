@@ -1,6 +1,9 @@
 <template>
     <div>
-
+      <div>
+        <p>USD {{ format(cash_usd) }} </p>
+        <p>EUR {{ format(cash_eur)   }}</p>
+      </div>
       <table v-if="rows.length">
         <thead>
           <tr>
@@ -30,6 +33,7 @@
 import { reactive, computed, onMounted,onBeforeUnmount } from "vue";
 import { eventBus } from "@/components/js/eventBus";
 import { send_get } from "@/components/js/utils";
+import { liveStore } from '@/components/js/liveStore.js';
 
 const portfolio = reactive({});
 
@@ -72,6 +76,9 @@ defineExpose({
 });
 
 const rows = computed(() => Object.values(portfolio));
+
+const cash_usd = computed(() => liveStore.get("account.cash_usd") || 0);  
+const cash_eur = computed(() => liveStore.get("account.cash_eur") || 0);  
 
 function format(value) {
   if (value == null) return "-";

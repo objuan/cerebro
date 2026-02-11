@@ -119,7 +119,7 @@
             </button>
 
             <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Marker Trade"
-              @click="setDrawMode('trade_delete')">
+              @click="delete_marker_trade()">
               ❌
             </button>
 
@@ -610,11 +610,6 @@ const handleRefresh = async () => {
           
           
       }
-      //console.log("trade marker",data)
-
-      //DEFAULT_INTERACTION = chart.options();
-
-    
      //console.log("handleRefresh DONE")
     }
     else
@@ -624,16 +619,7 @@ const handleRefresh = async () => {
   }
 };
 
-
-// UI LINKS
-
-async function setDrawMode(mode) {
-  if (mode === 'delete_all') {
-    clearDrawings(context(),true);
-    return;
-  }
-  if (mode === 'trade_delete') {
-
+async function delete_marker_trade(){
      let ret = await send_delete("/api/trade/marker/delete", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value}); 
      console.log("trade delete",ret)  
 
@@ -642,7 +628,13 @@ async function setDrawMode(mode) {
      tradeMarkerData = {};
      updateTradeMarker(context(),tradeMarkerData)
      handleRefresh ();
-     return;
+}
+// UI LINKS
+
+async function setDrawMode(mode) {
+  if (mode === 'delete_all') {
+    clearDrawings(context(),true);
+    return;
   }
 
   drawMode.value = mode;
@@ -840,29 +832,6 @@ const buildChart =  () => {
       const data = param.seriesData.get(series);
       if (!data) return;
 
-      // update markers
-      /*
-      const timeScale = chart.timeScale();
-      const range = timeScale.getVisibleLogicalRange();
-      // ultimo indice logico visibile
-      const logicalIndex = Math.floor(range.to);
-      const x = timeScale.logicalToCoordinate(logicalIndex);
-      const y = series.priceToCoordinate(184.48);
-
-      console.log("X,Y", price_marker.value,x,y);
-
-      price_marker.value.style.top = `${y - price_marker.value.offsetHeight / 2}px`;
-      price_marker.value.style.left = `${x}px`; // asse sinistro
-      */
-      //updateMarker();
-      
-      //lastMouse = data;
-
-      // VOLUUME LINK
-      
-      //charts.volume.setCrosshairPosition(data.value || data.close, param.time, series.volume);
-      //const bar = series.volume.data().find(x => x.time === param.time);
-      //const vol = bar?.value;
       const volData = getVolume(series)  
       const timeKey = typeof data.time === 'string' ? data.time : String(data.time);
       const vol = volData.get(timeKey);
@@ -931,9 +900,10 @@ const buildChart =  () => {
       }
     }
      if (drawMode.value === 'trade_marker') {
-        //tradeData.price = price;
         
-        if (lastTrade.value != null)
+      //  console.log("Set trade marker at",  price,);  
+
+        if (lastTrade.value != null  && lastTrade.value.isOpen)
         {
           tradeMarkerData.price = tradeStore.buyPrice(lastTrade.value); 
           tradeMarkerData.type="tp_sl"
@@ -954,9 +924,7 @@ const buildChart =  () => {
 
   //
   // Caricamento Iniziale
-  //buildChart();
-  //handleSymbols();
-    
+
   // Esponi l'oggetto al genitore (per aggiornamenti WS)
   emit('initialized', { 
     id: props.id, 
@@ -1050,7 +1018,8 @@ defineExpose({
   resize,
   setSymbol,
   on_candle,
-  onTickerReceived
+  onTickerReceived,
+  delete_marker_trade
 
 });
 

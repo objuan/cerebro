@@ -151,7 +151,7 @@ onBeforeUnmount(() => {
 .toast-container {
   position: fixed;
   top: 20px;
-  right: 20px;
+  right: 2px;
   z-index: 99999;
   display: flex;
   flex-direction: column;
@@ -162,9 +162,8 @@ onBeforeUnmount(() => {
 .toast {
    display: block;
   pointer-events: auto;
-  min-width: 300px;
-  max-width: 420px;
-  padding: 14px 16px;
+  width:200px;
+  padding: 2px 2px;
   border-radius: 10px;
   color: #fff;
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);

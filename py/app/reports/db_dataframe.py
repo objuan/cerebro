@@ -294,7 +294,7 @@ class DBDataframe_TimeFrame:
                 logger.error(f"!!!! Rows not found {symbol}")
         
         if self.timeframe == "1m":
-            logger.info(f"SYMBOL BOOT  {self.last_index_by_symbol} \n{self.df }")
+            logger.info(f"SYMBOL BOOT  {self.last_index_by_symbol} \n{self.df.tail(2) }")
 
         for symbol in to_add:
             await self.main_df.on_symbol_added(self,symbol)

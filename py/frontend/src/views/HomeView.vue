@@ -295,7 +295,7 @@ const initWebSocket = () => {
 
       if (msg.path) {
         // Aggiornando liveData[path], Vue notifica tutti i componenti in ascolto
-          liveStore.updatePathData(msg.path, msg.data);
+          liveStore.set(msg.path, msg.data);
       }
 
       switch (msg.type) {
@@ -340,7 +340,7 @@ const initWebSocket = () => {
         case "props":
           {
             console.log("WS props",msg);          
-            liveStore.updatePathData(msg.path, msg.value);
+            liveStore.set(msg.path, msg.value);
           } 
           break
         case "report":

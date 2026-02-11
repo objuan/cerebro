@@ -150,7 +150,7 @@ class Strategy:
         if rows_to_add:
             add_df = pd.DataFrame(rows_to_add).copy()
 
-            logger.info(f"TO ADD \n {add_df.tail(4)}")
+            #logger.info(f"TO ADD \n {add_df.tail(4)}")
 
             df_tf = pd.concat([df_tf, add_df], ignore_index=True)
             self.df_map[tf] = df_tf

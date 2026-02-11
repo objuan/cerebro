@@ -634,7 +634,36 @@ class MuloJob:
         else:
             return 0
     #######################
+    def get_day_white_list(self):
+        dt_day = str(datetime.now().date())
+        sql = f"""
+                SELECT symbol from  watch_list
+                WHERE name="day_watch" and dt_day='{dt_day}' 
+        """
+        #print(sql)
+        df = self.get_df(sql)
+        return df["symbol"].dropna().unique().tolist()
+    
+    def is_in_white_list(self,symbol):
+        df = self.get_df(f"""
+                SELECT * from  watch_list
+                WHERE symbol='{symbol}' and name='day_watch'
+            """)
+        if (len(df)>0):
+            #2026-02-11 11:57:47
+            sdate =  str(df.loc[0, "ds_timestamp"])
+            dt = datetime.strptime(sdate, "%Y-%m-%d %H:%M:%S")
+            date = str(dt.date())
 
+            date_str = str(datetime.now().date())
+
+            logger.info("WATCH : "+symbol+ " "+ date +"=="+ date_str)
+            
+            return (date_str == date)
+                    
+        else:
+            return False
+        
     def is_in_blacklist(self,symbol):
         df = self.get_df(f"""
                 SELECT * from  black_list
@@ -652,6 +681,33 @@ class MuloJob:
         else:
             return False
         
+    def add_watch(self,name,type,symbol):
+        logger.info(f"ADD TO WATCH {name} {type} {symbol}") 
+
+        dt_day = str(datetime.now().date())
+
+        df = self.get_df(f"""
+                SELECT * from  watch_list
+                WHERE symbol='{symbol}' and name='{name}' 
+            """)
+        if len(df) == 0:
+            self.cur_exe.execute("""
+                        INSERT INTO watch_list (
+                            name,type,symbol,dt_day
+                        )
+                        VALUES (?, ?, ? ,?)
+                    """, (
+                        name,
+                        type,
+                        symbol,
+                        dt_day
+                    ))
+        else:
+            self.cur_exe.execute("""
+                UPDATE watch_list set type=? dt_day = ? where symbol = ? and name= ? """, (type,dt_day,symbol,name    ))
+        
+        self.conn_exe.commit()
+
     def add_blacklist(self,symbol, errorDesc, user_mode=None ):
         df = self.get_df(f"""
                 SELECT * from  black_list

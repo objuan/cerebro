@@ -192,13 +192,16 @@ class LiveManager:
 
         if len(self.tickers) > self.max_symbols:
              o_tickers = self.ordered_tickers()
+
              #logger.info(f"..{o_tickers}")
              to_remove = o_tickers[self.max_symbols:]
+             
              #symbols = [x.contract.symbol for x in to_remove]
              symbols = [
                 x.contract.symbol
                 for x in to_remove
-                if (datetime.now() - x.start_time).total_seconds() > 60
+                if ((datetime.now() - x.start_time).total_seconds() > 60
+                and not self.fetcher.is_in_white_list(x.contract.symbol))
             ]
 
              logger.info(f"REMOVE LAST symbols {symbols}")
@@ -215,18 +218,29 @@ class LiveManager:
 
     async def updateLive(self,df_symbols):#, range_min=None,range_max=None):
 
-        logger.info(f"updateLive {df_symbols}")
+        logger.info(f"updateLive \n{df_symbols.tail(3)}")
 
         # filter on blacklist
         mask = df_symbols["symbol"].apply(lambda s: not fetcher.is_in_blacklist(s))
         df_symbols = df_symbols[mask]
 
-        logger.info(f"updateLive BLACKED {df_symbols}")
+        logger.info(f"updateLive BLACKED #{len(df_symbols)}")
 
         # cut
         if self.max_symbols != None:
              df_symbols= df_symbols [:self.max_symbols]
 
+        #add white list 
+        white = self.fetcher.get_day_white_list()    
+        for symbol in white:
+            contract = Stock(symbol, "SMART", 'USD')
+            self.ib.qualifyContracts(contract)
+
+            logger.info(f"ADD WATCH {symbol} {contract}")
+            
+            df_symbols.loc[len(df_symbols)] = [symbol, contract.conId,contract.primaryExchange]
+
+        
         logger.info(f"PROCESS  {df_symbols}")
         logger.info(f"ACTUAL {self.actual_df}")
 
@@ -857,6 +871,11 @@ async def add_to_black(mode,symbol):
     fetcher.add_blacklist(symbol,"USER SETTING", mode)
     return {"status": "ok"}
     
+@app.get("/admin/add_to_watch")
+async def add_to_watch(name,type,symbol):
+   fetcher.add_watch(name,type,symbol)
+   return {"status": "ok"}
+
 @app.get("/chart/align_data")
 async def _align_data(mode,symbol,timeframe):
     logger.info(f"_align_data {symbol} {timeframe}" )

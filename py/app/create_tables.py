@@ -239,6 +239,18 @@ CREATE TABLE IF NOT EXISTS  black_list (
 );
             """)
 
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS  watch_list (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(255),
+    type VARCHAR(255),
+    symbol VARCHAR(255),
+    dt_day TEXT,
+    ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+            """)
+
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  news (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

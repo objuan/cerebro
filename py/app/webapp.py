@@ -156,6 +156,7 @@ client.render_page=render_page
 
 
 tradeManager.on_trade_changed+= OrderTaskManager.on_update_trade
+tradeManager.on_trade_deleted+= OrderTaskManager.on_delete_trade
 
 #layout = Layout(client,db,config)
 #layout.read(DEF_LAYOUT)
@@ -526,7 +527,8 @@ def read_chart_lines(symbol: str, timeframe: str):
         return JSONResponse(df.iloc[0].to_dict())
 
 @app.delete("/api/trade/marker/delete")
-def delete_trade_marker(payload: dict  ):
+async def delete_trade_marker(payload: dict  ):
+
     try:
         symbol = payload["symbol"]
         timeframe = payload["timeframe"]
@@ -536,8 +538,8 @@ def delete_trade_marker(payload: dict  ):
             detail=f"Campo mancante: {e.args[0]}"
         )
 
-    client.execute("DELETE FROM trade_marker WHERE symbol=? AND timeframe=?",
-            (symbol, timeframe))
+    await tradeManager.delete_order(symbol,timeframe)
+
     return {"status": "ok" }
 
 #################
@@ -659,6 +661,18 @@ async def do_bracket(symbol:str,timeframe:str):
             pass
             #orderManager.buy_at_level(symbol, qty,price)
             
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+   
+@app.get("/order/tp_sl")
+async def do_tp_sl(symbol:str,timeframe:str):
+    try:
+        logger.info(f"do_tp_sl {symbol} {timeframe} ")
+       
+        await OrderTaskManager.tp_sl(symbol,timeframe)
+       
         return {"status": "ok" }
     except:
         logger.error("ERROR", exc_info=True)
@@ -944,6 +958,10 @@ async def add_to_black(mode,symbol):
     await client.send_cmd("/admin/add_to_black", {"mode": mode, "symbol": symbol})
     return {"status": "ok"}
     
+@app.get("/api/admin/add_to_watch")
+async def add_to_watch(name,type,symbol):
+    await client.send_cmd("/admin/add_to_watch", {"name": name,"type":type, "symbol": symbol})
+    return {"status": "ok"}
     
 #######################
 
@@ -974,6 +992,7 @@ async def account_summary():
 @app.get("/account/values")
 async def account_values():
     try:
+        '''
         values  = ib.accountValues()
 
         cash_usd = next(
@@ -981,7 +1000,13 @@ async def account_values():
             for v in values
             if v.tag == "CashBalance" and v.currency == "USD"
         )
-        return cash_usd
+        cash_eur = next(
+            float(v.value)
+            for v in values
+            if v.tag == "CashBalance" and v.currency == "EUR"
+        )
+        '''
+        return {"USD" : Balance.cash_usd , "EUR": Balance.cash_eur} 
 
     except Exception as e:
         logger.error("ERROR", exc_info=True)
@@ -1095,11 +1120,12 @@ if __name__ =="__main__":
     util.startLoop()   # 🔑 IMPORTANTISSIMO
 
     async def main():
+        global ib
         ancora=True
 
 
         if run_mode!= "sym":
-        
+            
             ib = IB()
             util.patchAsyncio()
             #ib.connect('127.0.0.1', config["general"]["ib_port"], clientId=config["general"]["ib_client"])
@@ -1128,7 +1154,7 @@ if __name__ =="__main__":
             await orderManager.bootstrap(ib,ws_manager_orders)
             # Subscribe to news bulletins
             ib.reqNewsBulletins(allMessages=True)
-            Balance(config,ib)
+            Balance(config,ib,props=propManager )
 
         else:
             #orderManager.ws = ws_manager_orders

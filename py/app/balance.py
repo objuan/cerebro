@@ -173,28 +173,50 @@ class Balance:
     ws :WSManager = None
     positionMap : dict[str,Position]
 
-    def __init__(self,config,ib):
+    def __init__(self,config,ib,props):
+        Balance.props=props
         Balance.ib=ib
         Balance.positionMap={}
         Balance.run_mode = config["live_service"].get("mode","sym") 
-
+        Balance.cash_usd=0
+        Balance.cash_eur=0
+       
         if ib:
             Balance.ib.updatePortfolioEvent  += Balance.onUpdatePortfolio
             Balance.ib.positionEvent   += Balance.onPositionEvent 
-            #OrderManager.ib.accountValueEvent    += OrderManager.onAccountValueEvent  
             Balance.ib.accountSummaryEvent     += Balance.onAccountSummaryEvent   
+            Balance.ib.accountValueEvent     += Balance.onAccountValueEvent 
+            
+            
+            #d = {v.tag: v.value for v in values}
+            #logger.info(f"accountValues: {values}") 
 
     async def bootstrap():
         
         if  Balance.run_mode  != "sym":
-            positions  = Balance.ib.positions()
+            for value in Balance.ib.accountValues():    
+                    #logger.info(f"accountValues: {v}") 
+                    if value.tag == "CashBalance" and value.currency == "USD":
+                        Balance.cash_usd = float(value.value)
+                    
+                    if value.tag == "CashBalance" and value.currency == "EUR":
+                        Balance.cash_eur = float(value.value)
 
+            positions  = Balance.ib.positions()
+            logger.info(f"positions: {positions}")  
             #list = []
             for p in positions:
-                Balance.update(p.contract.symbol,{"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
+                await Balance.update(p.contract.symbol,{"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
                 #list.append({"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
 
-        pass 
+            def get_cash_usd ():
+                return Balance.cash_usd 
+            Balance.props.add_computed("account.cash_usd", get_cash_usd)
+
+            def get_cash_eur ():
+                return Balance.cash_eur
+            Balance.props.add_computed("account.cash_eur", get_cash_eur)
+         
     
     def to_dict():
         return  [ v.to_dict() for k,v in Balance.positionMap.items()]
@@ -263,8 +285,18 @@ class Balance:
             ser = json.dumps(msg)
             await Balance.ws.broadcast(msg)
 
-    async def onAccountValueEvent(value : AccountValue):
-        logger.info(f"onAccountValueEvent: {value}")
-
     async def onAccountSummaryEvent(value : AccountValue):
         logger.info(f"onAccountSummaryEvent: {value}")
+
+    async def onAccountValueEvent(value : AccountValue):
+        #logger.info(f"onAccountValueEvent: {value.tag}")
+        #TODO
+        if value.tag == "CashBalance" and value.currency == "USD":
+            Balance.cash_usd = float(value.value)
+            if Balance.ws:
+                await Balance.ws.broadcast({"type":"props", "path": "account.cash_usd", "value":Balance.cash_usd } )
+        
+        if value.tag == "CashBalance" and value.currency == "EUR":
+            Balance.cash_eur = float(value.value)
+            if Balance.ws:
+                await Balance.ws.broadcast({"type":"props", "path": "account.cash_eur", "value":Balance.cash_eur } )

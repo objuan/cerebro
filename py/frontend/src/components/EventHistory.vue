@@ -1,70 +1,151 @@
 <template>
- 
-   <div class="p-0 events-container">
-    <div>
+  <div>
+    <div class="filter-bar">
 
-       <MessageWidget
-          v-for="ev in store.items"
-          :key="ev.name"
-          :icon="ev.icon"
-          :symbol = ev.symbol
-          :timestamp = ev.ts
-          :title = ev.subtype
-          :text="ev.summary"
-          :detail="ev.message"
-          :color="ev.color"
-        >
-      </MessageWidget>
+      <div class="filter-popup-wrapper">
+          <button class="btn btn-sm btn-dark" @click="open = !open">
+            Filters ⚙️
+          </button>
 
-      <!--
-      <div
-        v-for="t in store.items"
-        :key="t.id"
-        class="toast"
-        :class="t.type"
-      >
-         <div :class="['header', t.subtype]">
-          <div class="time">
-            {{ new Date(t.ts).toLocaleTimeString() }}
+          <div v-if="open" class="filter-popup">
+            <label
+              v-for="src in ['order','trade']"
+              :key="src"
+              class="popup-item"
+            >
+              <input
+                type="checkbox"
+                :value="src"
+                v-model="allowedSources"
+              />
+              {{ src }}
+            </label>
           </div>
-          <span class="icon">{{ iconMap[t.type] }}</span>
-          <span class="title">{{ titleMap[t.type] }}</span>
-           <span class="title ms-auto" style="color:yellow"> {{ t.symbol}}</span>
         </div>
-   
-         <div
-            class="msg"
-            v-html="t.message"
-          />
-      </div>
-    -->
+
+      <button  class="btn tiny-btn btn-danger ms-0"  title="Delete Marker Trade"
+              @click="clear()">
+              x
+            </button>
+    </div>
+
+    <div class="p-0 items-container">
+        <div>
+
+          <MessageWidget
+              v-for="ev in store.items"
+              :key="ev.name"
+              :icon="ev.icon"
+              :symbol = ev.symbol
+              :timestamp = ev.ts
+              :title = ev.subtype
+              :text="ev.summary"
+              :detail="ev.message"
+              :color="ev.color"
+            >
+          </MessageWidget>
+
+
+        </div>
     </div>
 </div>
-
 </template>
 
 <script setup>
-import {  } from 'vue'
+import {  ref } from 'vue'
 import { eventStore as store } from "@/components/js/eventStore";
 import MessageWidget from "@/components/MessageWidget.vue";
 
-/*
-const titleMap = {
-  error: "Errore",
-  warning: "Attenzione",
-  info: "Info"
+const open = ref(false)
+const allowedSources = ref(['order','trade']);
+
+function clear() {
+  store.clear();
 }
-  */
 
 </script>
 
 <style scoped>
+.popup-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  color: white;
+  cursor: pointer;
+}
 
-.events-container {
-  height: 90vh;
+.tiny-btn {
+  padding: 0 1px;
+  font-size: 10px;
+  line-height: 1;
+  min-width: 20px;
+  height: 20px;
+}
+
+
+.filter-bar{
+  display:flex;
+  gap:12px;
+  padding:1px;
+  background:#111;
+  color:white;
+  font-size:13px;
+  border-bottom:2px solid #333;
+}
+
+.filter-item{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+}
+.filter-popup-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.filter-popup {
+  position: absolute;
+  top: 110%;
+  right: 100;
+  background: #1b1b1b;
+  border: 1px solid #444;
+  padding: 8px 10px;
+  border-radius: 6px;
+  z-index: 1000;
+  min-width: 140px;
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+
+.items-container {
+   height: calc(100vh - 130px); 
   overflow-y: auto;
+  overflow-x: hidden;   /* ❌ niente scroll orizzontale */
   width: 100%;
   margin-right: 2px;
+}
+.items-container::-webkit-scrollbar {
+  width: 6px;              /* sottile */
+}
+
+.items-container::-webkit-scrollbar-track {
+  background: #111;
+}
+
+.items-container::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.items-container::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+.items-container {
+  scrollbar-width: thin;
+  scrollbar-color: #555 #111;
 }
 
 

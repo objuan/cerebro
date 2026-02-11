@@ -43,7 +43,7 @@
     </div>
 
     <div class="trade_console p-0">
-        <TradeConsole :symbol=currentSymbol  ></TradeConsole> 
+        <TradeConsole :symbol=currentSymbol @cancel-task-order="onCancelTaskOrder"  ></TradeConsole> 
     </div>
 
   
@@ -176,6 +176,19 @@ const onChangeSymbols = async () => {
     staticStore.set(get_layout_key("symbol"), currentSymbol.value); 
     //saveProp( get_layout_key("symbol"), currentSymbol.value );
 };
+
+function onCancelTaskOrder(timeframe){
+  console.log("MultiCandleChartWidget onCancelTaskOrder",timeframe)
+  for (const id in widgetRefs.value) {
+        const comp = widgetRefs.value[id]
+        const el = comp?.$el
+        if (!el) continue
+
+        if (comp.$props.timeframe === timeframe) {
+            comp.delete_marker_trade(timeframe);
+        }
+   }
+} 
 
 // --- INIZIALIZZAZIONE ---
 onMounted( async() => {

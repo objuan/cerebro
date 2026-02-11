@@ -6,8 +6,19 @@ export async function order_bracket(symbol, timeframe,qty, price){
     send_get("/order/bracket", {
         "symbol" : symbol,
         "timeframe" : timeframe,
-        "qty": qty,
-        "price" : price
+       // "qty": qty,
+      //  "price" : price
+    })
+}
+
+export async function order_tp_sl(symbol, timeframe, tp,sl){
+    console.log("order_tp_sl", symbol,timeframe, tp,sl)
+
+    send_get("/order/tp_sl", {
+        "symbol" : symbol,
+        "timeframe" : timeframe,
+       // "tp" : tp,
+       // "sl" : sl
     })
 }
 

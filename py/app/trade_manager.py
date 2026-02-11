@@ -77,24 +77,25 @@ class TradeManager:
         self.client=client
 
         self.on_trade_changed = MyEvent()
+        self.on_trade_deleted = MyEvent()
 
-        props.add_computed("trade.risk_per_trade", self.risk_per_trade)
+        props.add_computed("trade.loss_per_trade", self.loss_per_trade)
         props.add_computed("trade.max_day_loss", self.max_day_loss)
 
-    def risk_per_trade(self):
-            capital = self.props.get("balance.USD")
+    def loss_per_trade(self):
+            capital = self.props.get("trade.day_balance_USD")
             trade_risk = self.props.get("trade.trade_risk")
             return capital * trade_risk
 
     def max_day_loss(self):
-            capital = self.props.get("balance.USD")
+            capital = self.props.get("trade.day_balance_USD")
             day_risk = self.props.get("trade.day_risk")
             return capital * day_risk
 
     async def on_property_changed(self,prop_name,value,renderPage):
          logger.info(f"trade prop change {prop_name}")
 
-         if prop_name == "trade.risk_per_trade":
+         if prop_name == "trade.loss_per_trade":
             df  = self.client.get_df("SELECT * FROM trade_marker")
             logger.info(f"df {df}")
             for row in df.to_dict(orient="records"):
@@ -136,12 +137,13 @@ class TradeManager:
         self.client.execute("DELETE FROM trade_marker WHERE symbol=? ",
             (symbol,))
         
-        
+        logger.info(f"add_order {symbol} {timeframe} {data}")   
+
         order =None
         if data["type"] =="bracket":
              order = await self.add_order_bracket(symbol, timeframe,data["price"],"bracket")
         if data["type"] =="tp_sl":
-             order = await self.add_sl_tp(symbol, timeframe,data["price"])
+             order = await self.add_tp_sl(symbol, timeframe,data["price"])
         if order:     
             self.client.execute("""
                 INSERT INTO trade_marker (symbol, timeframe,  data)
@@ -153,9 +155,19 @@ class TradeManager:
             ))
         return order
     
-    async def  add_sl_tp(self,symbol, timeframe,price)-> TradeOrder:
+    ###
+    async def  add_tp_sl(self,symbol, timeframe,price)-> TradeOrder:
         #TODO
-        stop_loss = price - price * self.props.get("trade.rr")
+        quantity = self.props.get("symbols."+symbol+".quantity",100)  
+
+        logger.info(f"add_sl_tp {symbol} {timeframe} {price} {quantity}")       
+
+        loss_per_trade = self.loss_per_trade()
+
+        price_for_action_diff = loss_per_trade / quantity
+
+
+        stop_loss = price - price_for_action_diff
        
         take_profit = price + ( price -stop_loss ) * self.props.get("trade.rr")
 
@@ -164,7 +176,7 @@ class TradeManager:
         order = TradeOrder({
              "symbol" : symbol,
              "timeframe" : timeframe,
-             "type" : "sl_tp",
+             "type" : "tp_sl",
              "price" : price,
              "stop_loss" : stop_loss,
              "take_profit" : take_profit,
@@ -173,7 +185,8 @@ class TradeManager:
         self.fill_computed(order)
         return order
          #return await self.add_order_bracket(symbol, timeframe,price,"sl_tp")    
-    
+    ###
+
     async def  add_order_bracket(self,symbol, timeframe,price,stype)-> TradeOrder:
         last_candles_count = 10
         
@@ -208,16 +221,15 @@ class TradeManager:
         self.fill_computed(order)
         return order
 
-    
-    '''
-    def RR(self, stop_loss):
-       
-        #Risk / Reward (RR) 
-        #2:1 → rischi 10€ per guadagnarne 20€
-        
-        return self.props("trade.profit_target") / stop_loss
-    '''
-    
+    async def delete_order(self,symbol,timeframe):    
+         
+        await self.on_trade_deleted(symbol,timeframe)
+         
+        self.client.execute("DELETE FROM trade_marker WHERE symbol=? AND timeframe=?",
+            (symbol, timeframe))
+
+###############################
+#     
 
 if __name__ =="__main__":
 

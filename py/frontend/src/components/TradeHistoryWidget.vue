@@ -184,6 +184,7 @@ table td {
   position: relative;   /* ← QUESTO è il trucco */
   display: inline-block;
   height:100%;
+  margin-right: 10px;
 }
 
 .history-popup {
@@ -213,7 +214,7 @@ table td {
 }
 
 .trade-table{
-  width: 100%;
+  width: 99%;
   height:100%;
    background: #0b1220;
   font-family: monospace;

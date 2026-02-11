@@ -33,7 +33,7 @@
 
   <header class="py-1 mb-1 border-bottom bg-light">
  
-     <div class="d-flex flex-wrap gap-1">
+     <div class="d-flex flex-wrap gap-1 items-container">
 
       <div
         v-for="item in sortedTickers"
@@ -204,6 +204,14 @@
                 </a>
               </li>
                <li><hr class="dropdown-divider"></li>
+                <li>
+                <a class="dropdown-item"
+                  href="#"
+                  @click.prevent="addToDayWatch(item.symbol)">
+                   Add to day watch list
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
               <li>
                 <a class="dropdown-item"
                   href="#"
@@ -290,6 +298,10 @@ function getNews(symbol){
   showNews.value = true;
 }
 
+function addToDayWatch(symbol) {
+  //console.log("Add to watchlist:", symbol);
+   send_get("/api/admin/add_to_watch", {"name": "day_watch", "type":"day", "symbol": symbol})
+}
 
 function addToDayBlack(symbol) {
   //console.log("Add to watchlist:", symbol);
@@ -369,6 +381,34 @@ defineExpose({
 </script>
 
 <style scoped>
+
+.items-container {
+   height: calc(100vh - 130px); 
+  overflow-y: auto;
+  overflow-x: hidden;   /* ❌ niente scroll orizzontale */
+  width: 100%;
+  margin-right: 2px;
+}
+.items-container::-webkit-scrollbar {
+  width: 6px;              /* sottile */
+}
+
+.items-container::-webkit-scrollbar-track {
+  background: #111;
+}
+
+.items-container::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.items-container::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+.items-container {
+  scrollbar-width: thin;
+  scrollbar-color: #555 #111;
+}
 
 .sort-bar{
   display:flex;

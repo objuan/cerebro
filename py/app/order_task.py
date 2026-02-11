@@ -66,7 +66,8 @@ class OrderTaskManager:
 
         logger.info(f"ORDER BOOT DONE {OrderTaskManager.task_orders}")   
 
-  
+   ######
+
     async  def on_update_trade(trade_order : TradeOrder):
         #logger.info(f"on_update_trade {trade_order} {OrderTaskManager.task_orders}")
 
@@ -79,8 +80,19 @@ class OrderTaskManager:
 
             actions = existing_order["data"]
             step = existing_order["step"]
-            
+
             rules = [x for x in actions if x["step"] == step]
+            for rule in rules:
+                logger.info(f"CHECK RULE {rule} for {trade_order.symbol} at step {step}")
+                if rule["desc"] == "TP":    
+                     rule["price"] = trade_order.take_profit
+                if rule["desc"] == "SL":    
+                     rule["price"] = trade_order.stop_loss
+                if rule["desc"] == "MARKER":    
+                     rule["price"] = trade_order.price
+
+            await OrderTaskManager.send_task_order(existing_order)
+            '''
             if step ==1:
                 rules[0]["price"] = trade_order.price
                 await OrderTaskManager.send_task_order(existing_order)
@@ -88,8 +100,25 @@ class OrderTaskManager:
                 rules[0]["price"] = trade_order.take_profit
                 rules[1]["price"] = trade_order.stop_loss
                 await OrderTaskManager.send_task_order(existing_order)
+        '''
+    ######
 
-           
+    async def on_delete_trade(symbol,timeframe):  
+        logger.info(f"on_delete_trade {symbol} {timeframe} {OrderTaskManager.task_orders}")
+
+        if any(order["symbol"] == symbol  for order in OrderTaskManager.task_orders):
+            existing_order = next(
+                (order for order in OrderTaskManager.task_orders if order["symbol"]  == symbol ),
+                None
+            )
+            if existing_order:
+                logger.info(f"on_delete_trade ABORT {symbol} existing_order {existing_order}")
+                
+                OrderTaskManager.do_task_order_abort(existing_order)
+                #OrderTaskManager.task_orders.remove(existing_order)
+
+    
+
     ##############
 
     async def send_task_order(order):
@@ -206,7 +235,49 @@ class OrderTaskManager:
             return data
     
     ################################
+    async def tp_sl(symbol,timeframe):
+        df = pd.read_sql_query(f"""
+            SELECT  symbol, timeframe,  data
+            FROM trade_marker
+            WHERE symbol = '{symbol}' AND timeframe = '{timeframe}'
+        """, conn)
+        if (len(df) == 0):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Trade marker not found: {symbol}  {timeframe}"
+        )
 
+        data = json.loads(df.iloc[0]["data"])
+        logger.info(f"ADD bracket {data}")
+
+        price = data["price"]
+        quantity = data["quantity"]
+        stop_loss = data["stop_loss"]
+        take_profit = data["take_profit"]
+
+        logger.info(f"ADD bracket p:{price} q:{quantity} sl:{stop_loss} tp:{take_profit}")
+
+        actions = [
+            {
+                "step" : 1,
+                "side" : "SELL",
+                "op" : "last >",
+                "price" : take_profit,
+                "quantity" : quantity,
+                "desc" : "TP"
+            },
+            {
+                "step" : 1,
+                "side" : "SELL",
+                "op" : "last <",
+                "price" : stop_loss,
+                "quantity" : quantity,
+                "desc" : "SL"
+            }
+        ]
+
+        task = await OrderTaskManager.create_task(symbol, actions)
+       
     async def bracket(symbol,timeframe):
         df = pd.read_sql_query(f"""
             SELECT  symbol, timeframe,  data
