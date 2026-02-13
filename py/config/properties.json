@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "QVCGP",
+      "symbol": "NVCR",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -44,7 +44,9 @@
     }
   },
   "event": {
-    "filter": "[\"strategy\"]"
+    "filter": "[\"strategy\"]",
+    "filter_strategy": "[\"strategy\"]",
+    "filter_events": "[\"trade\",\"order\",\"task-order\"]"
   },
   "symbols": {
     "undefined": {
@@ -69,6 +71,13 @@
     },
     "QVCGP": {
       "mode": "DIRECT",
+      "quantity": 100
+    },
+    "WORX": {
+      "mode": "DIRECT"
+    },
+    "NVCR": {
+      "mode": "MARKER",
       "quantity": 100
     }
   }

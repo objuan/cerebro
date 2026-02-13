@@ -48,11 +48,15 @@ class WSManager:
 
 class RenderPage:
 
-    def __init__(self, ws: WSManager):
+    def __init__(self, ws: WSManager, ws_orders: WSManager):
         self.ws=ws
+        self.ws_orders=ws_orders    
         #self.connected=True
         pass
     
     async def send(self,msg):
          await self.ws.broadcast(msg)
+
+    async def sendOrder(self,msg):
+         await self.ws_orders.broadcast(msg)
 

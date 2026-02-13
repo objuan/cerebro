@@ -42,12 +42,12 @@ const titleMap = {
   info: "Info"
 }
 
-function addToast(icon, symbol,summary, message, type,subtype,color) {
+function addToast(source,icon, symbol,summary, message, type,subtype,color) {
 
   // console.log("addToast", message,type)
 
   const id = Date.now() + Math.random()
-  const toast = { id, icon, symbol,summary, message, type,subtype, ts: new Date(),color }
+  const toast = { source,id, icon, symbol,summary, message, type,subtype, ts: new Date(),color }
   toasts.value.push(toast)
 
   store.push(toast);
@@ -68,10 +68,11 @@ const STATUS_COLORS = {
 
 function onOrderReceived(msg) {
 
-    //console.log(msg)
     
     if (msg.event_type == "STATUS" && ( msg.status === "Filled" || msg.status === "Submitted" ||  msg.status === "Cancelled") )
-    {
+    {  
+      //console.log(msg)
+  
       let icon = `🧾`;
       
       if (msg.status =="Filled")  icon = `✔️`;
@@ -84,7 +85,7 @@ function onOrderReceived(msg) {
 
       const  smsg =`${ msg.action } filled:${msg.filled}/${msg.totalQuantity } <br> price: ${msg.lmtPrice} <br> state:${msg.status} `;
 
-      addToast(icon,msg.symbol,summary, smsg, "info","order",color)
+      addToast("order",icon,msg.symbol,summary, smsg, "info","order",color)
     }
 }
 
@@ -98,7 +99,7 @@ function onTaskOrderReceived( msg) {
           const  summary =`${msg.status } ${step.desc} `;
 
           const smsg =`${msg.status}  <br> ${step.desc} (${step.step}) ${ step.side } ${step.quantity } <br>${ step.op } ${ step.price } `;
-          addToast("",msg.symbol, summary, smsg, "info","task","#aab3b3" )
+          addToast("task-order","",msg.symbol, summary, smsg, "info","task","#aab3b3" )
       }
     });
     
@@ -128,15 +129,15 @@ onMounted( async () => {
 
   eventBus.on("error-received", (payload) => {
     const msg = "("+payload.errorCode+") " +payload.errorString
-    addToast( `❌`,payload.symbol,msg, msg, "error","general", "#AA3333")
+    addToast("error", `❌`,payload.symbol,msg, msg, "error","general", "#AA3333")
   })
 
   eventBus.on("warning-received", (payload) => {
-    addToast( `⚠`, payload.symbol,payload, payload.symbol,payload, "warning","general","#AA3333")
+    addToast("error", `⚠`, payload.symbol,payload, payload.symbol,payload, "warning","general","#AA3333")
   })
 
   eventBus.on("info-received", (payload) => {
-    addToast(`🧾`,payload.symbol,payload,payload.symbol,payload,"info","general","#33AA33")
+    addToast("error",`🧾`,payload.symbol,payload,payload.symbol,payload,"info","general","#33AA33")
   })
 
 });

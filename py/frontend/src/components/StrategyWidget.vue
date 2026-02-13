@@ -78,7 +78,7 @@ function clear(){
 }
 
 async function onStart(){
-    let pdata = await send_get("/api/event/get")
+    let pdata = await send_get("/api/strategy/get",{"limit":50, "types": allowedSources.value.join(",")})
     //console.log("event ",pdata )
     store.clear()
     pdata.forEach(  (val) =>{
@@ -86,7 +86,7 @@ async function onStart(){
       store.push(val)    
     });
 
-   let filter = staticStore.get('event.filter');
+   let filter = staticStore.get('event.filter_strategy');
     //console.log("allowedSources filter:", filter)
       
     if (filter){
@@ -99,6 +99,7 @@ onMounted( async () => {
 });
 
 onBeforeUnmount(() => {
+  eventBus.off("on-start", onStart)
 });
 
 onUnmounted(() => {
@@ -119,7 +120,7 @@ watch(allowedSources, (newVal, ) => {
   let v = JSON.stringify(newVal)
  // console.log("allowedSources cambiato:", newVal,v)
 
-  staticStore.set('event.filter',v)
+  staticStore.set('event.filter_strategy',v)
   //saveProp("event.filter",v)
 }, { deep: true })
 

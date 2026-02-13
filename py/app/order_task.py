@@ -28,12 +28,13 @@ logging.getLogger("ib_insync").setLevel(logging.WARNING)
 class OrderTaskManager:
 
     ib=None
-    ws :WSManager = None
+    #ws :WSManager = None
     task_orders = []
 
-    def __init__(self,config,orderManager):
+    def __init__(self,config,client,orderManager):
         OrderTaskManager.orderManager=orderManager
-        # Assegna gli event handlers
+        OrderTaskManager.client=client  
+   
 
     async def bootstrap():
         logger.info("ORDER BOOT")
@@ -91,7 +92,7 @@ class OrderTaskManager:
                 if rule["desc"] == "MARKER":    
                      rule["price"] = trade_order.price
 
-            await OrderTaskManager.send_task_order(existing_order)
+            await OrderTaskManager.client.send_task_order(existing_order)
             '''
             if step ==1:
                 rules[0]["price"] = trade_order.price
@@ -120,11 +121,11 @@ class OrderTaskManager:
     
 
     ##############
-
+    '''
     async def send_task_order(order):
          if OrderTaskManager.ws:
             #data["type"] = "ORDER"
-            await OrderTaskManager.ws.broadcast(
+            await OrderTaskManager.client.broadcast(
                 {"type": "TASK_ORDER", "data" : order}
             )
 
@@ -135,6 +136,7 @@ class OrderTaskManager:
                 {"type": "TASK_ORDER_MSG", "data" : order,"msg":message }
             )
 
+    '''
 
     ############
 
@@ -216,7 +218,7 @@ class OrderTaskManager:
         conn.commit()
 
         logger.info(f">>> {order}")
-        await OrderTaskManager.send_task_order(order)
+        await OrderTaskManager.client.send_task_order(order)
 
 
     ##############################
@@ -353,7 +355,7 @@ class OrderTaskManager:
             order = OrderTaskManager.get_task_order(row)
 
         OrderTaskManager.task_orders.append(order)
-        await OrderTaskManager.send_task_order(order)
+        await OrderTaskManager.client.send_task_order(order)
         #logger.info(f"TASK << {order}")
         return order
     
@@ -460,7 +462,7 @@ class OrderTaskManager:
 
                                             OrderTaskManager.task_orders.remove(order)
                                 else:
-                                    await OrderTaskManager.send_taskinfo(order,"Valid")
+                                    await OrderTaskManager.client.send_taskinfo(order,"Valid")
                                     # notify to client
                                     # logger.info(f"NOT TRIGGERED {rule['desc']} {ticker['last']} {rule['price']}" )           
 

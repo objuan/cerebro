@@ -130,7 +130,7 @@ def get_trades(symbol = None,onlyActive = False):
 class OrderManager:
 
     ib=None
-    ws :WSManager = None
+    #ws :WSManager = None
     task_orders = []
 
     tick_cache = {}
@@ -145,19 +145,21 @@ class OrderManager:
 
         # Assegna gli event handlers
 
-    async def bootstrap(self,ib,ws):
+    async def bootstrap(self,ib):
         OrderManager.ib = ib
-        self.ws=ws
+    
         async def onError( reqId, errorCode, errorString, contract):
             logger.error(f"errorCode {errorCode} {errorString} {contract}")
 
             self.lastError = {"reqId" : reqId, "errorCode": errorCode, "errorString": errorString} 
 
-            if self.ws:
+            #if  self.client..ws:
+           
                 #data["type"] = "ORDER"
-                ser = json.dumps( self.lastError)
-                await self.send_order_event("ERROR", self.lastError)
-                '''
+            #ser = json.dumps( self.lastError)
+            await self.client.send_error_event(self.lastError )
+
+            '''     
                 await self.ws.broadcast(
                     {"type": "ERROR", "data":ser }
                 )
@@ -214,12 +216,22 @@ class OrderManager:
 
     def getTradeHistory(self,symbol)-> List[PositionTrade]:
         
-        df = self.client.get_df(f"""
-                select distinct symbol,side,data from ib_orders 
-                WHERE SYMBOL = '{symbol}' AND status = 'Filled' AND event_type = 'STATUS'
-                order by id desc 
-                LIMIT 10
-                """)
+        if symbol:
+            df = self.client.get_df(f"""
+                    select distinct symbol,side,data from ib_orders 
+                    WHERE SYMBOL = '{symbol}' AND status = 'Filled' AND event_type = 'STATUS'
+                    order by id desc 
+                    LIMIT 10
+                    """)
+        else:
+            df = self.client.get_df(f"""
+                 SELECT DISTINCT symbol, side, data
+                    FROM ib_orders
+                    WHERE status = 'Filled'
+                    AND event_type = 'STATUS'
+                    AND timestamp >= datetime('now', 'start of day')
+                    ORDER BY id DESC;
+                    """)
         
         trades = self.rebuild_trades(df)
         
@@ -259,10 +271,10 @@ class OrderManager:
                     VALUES (?, ?, ?, ?, ?,?)''',
                 (trade.order.permId, trade.contract.symbol,action, trade.orderStatus.status,type,ser))
         
-        if self.ws:
+        #if self.ws:
             #data["type"] = "ORDER"
-            ser = json.dumps(data)
-            await self.send_order_event("ORDER",
+        ser = json.dumps(data)
+        await self.client.send_order_event("ORDER",
                  { "trade_id": trade.order.permId, 
                     "symbol":trade.contract.symbol,
                     "status" :trade.orderStatus.status,
@@ -271,7 +283,7 @@ class OrderManager:
                     "data" : data 
                    }
                  )
-            '''
+        '''
             await self.ws.broadcast(
                 {"type": "ORDER", "trade_id": trade.order.permId, "symbol":trade.contract.symbol,
                  "status" :trade.orderStatus.status,"event_type":type,   "data" : data ,"timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
@@ -282,17 +294,17 @@ class OrderManager:
             #    msg = {"type": "POSITION_TRADE", "data" : {} }
             #    await self.ws.broadcast(msg)
 
-            if action =="BUY" and trade.orderStatus.status =="Filled" and type=="STATUS":
+        if action =="BUY" and trade.orderStatus.status =="Filled" and type=="STATUS":
                 msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
                 #await self.ws.broadcast(msg)
 
-                await self.send_order_event("POSITION_TRADE",msg)
+                await self.client.send_order_event("POSITION_TRADE",msg)
             
-            if action =="SELL" and trade.orderStatus.status =="Filled" and type=="STATUS":
+        if action =="SELL" and trade.orderStatus.status =="Filled" and type=="STATUS":
                 msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
                 #await self.ws.broadcast(msg)
 
-                await self.send_order_event("POSITION_TRADE",msg)
+                await self.client.send_order_event("POSITION_TRADE",msg)
 
     async def onNewOrder(self,trade:Trade):
        await self.addOrder(trade, "NEW")
@@ -469,7 +481,7 @@ class OrderManager:
     async def _smart_limit_sym(self,symbol,op, totalQuantity,ticker):
         logger.info(f"SMART SYM {op} LIMIT ORDER {symbol} q:{totalQuantity}")
       
-        if self.ws:
+        if True:#self.ws:
             #data["type"] = "ORDER"
             trade_id = 614261832
             
@@ -513,7 +525,7 @@ class OrderManager:
             ser = json.dumps(data)
 
 
-            await self.send_order_event("ORDER",
+            await self.client.send_order_event("ORDER",
                 { "trade_id": trade_id, "symbol":symbol,
                     "status" :"Filled",
                     "event_type": "STATUS",  
@@ -758,7 +770,7 @@ class OrderManager:
     async def batch(self):
         while True:
             await asyncio.sleep(1)
-
+    '''
     async def send_order_event(self,type, data):
        
         try:
@@ -770,7 +782,7 @@ class OrderManager:
             #logger.info(f"SEND DONE")
         except:
             logger.error("SEND ERROR", exc_info=True)
-
+    '''
 #####################################
 
 

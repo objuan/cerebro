@@ -4,17 +4,43 @@ import { eventBus } from "@/components/js/eventBus";
 
 export const tradeStore = reactive({
   items: {},
+  day_PNL: 0,
+  win: 0,
+  loss: 0,
+  total: 0,
 
   push(data) {
 
-      // console.log("incoming",data)
-      if (!this.items[data.symbol]) {
-        // crea oggetto reattivo per il symbol
-        this.items[data.symbol] = []
+    const symbol = data.symbol;
+    const newTime = data.list?.[0]?.time;
+    data.pos = newTime;
+    data.isOpen = this._isOpen(data)  
+
+     if (!this.items[symbol]) {
+        this.items[symbol] = [];
       }
 
-      this.items[data.symbol].push(data)
-      data.isOpen = this.isOpen(data)  
+      if (newTime) {
+        const index = this.items[symbol].findIndex(
+          item => item.list?.[0]?.time === newTime
+        );
+
+        if (index !== -1) {
+          // aggiorna il vecchio mantenendo eventuali campi non presenti nel nuovo
+          this.items[symbol][index] = {
+            ...this.items[symbol][index],
+            ...data
+          };
+        } else {
+          this.items[symbol].push(data);
+        }
+      }
+      
+
+      //console.log("trade",data)     
+
+      this._day_pnl()
+      
       eventBus.emit("trade-last-changed",data)
       //Object.assign(this.items[data.symbol], data)
     
@@ -29,6 +55,12 @@ export const tradeStore = reactive({
         return this.items[symbol].slice().reverse()
     else
       return []
+  },
+  get_all_trades() {
+  return Object.values(this.items)          // prende tutti gli array
+    .flat()                                 // li unisce in uno solo
+    .slice()                                // copia di sicurezza
+    .sort((a, b) => b.pos -a.pos);         // ordina per pos crescente
   },
   lastTrade(symbol) {
     //if (tradeList.value.length === 0) return null
@@ -48,9 +80,29 @@ export const tradeStore = reactive({
       ...data
     }))
   },
-  isOpen(trade){
+   _day_pnl(){
+    this.day_PNL=0;
+    this.win=0;
+    this.loss=0;
+    this.total=0; 
+    this.get_all_trades().forEach( (trade) => {  
+       if (!trade.isOpen){
+        //if (!trade.isOpen)
+         // console.log("trade",trade.value) 
+          this.day_PNL = this.day_PNL +trade.pnl
+          this.total = this.total +1  
+          if (trade.pnl >= 0) {
+            this.win = this.win +1
+          } else {
+            this.loss = this.loss +1
+          } 
+       } 
+    })
+
+  },
+  _isOpen(trade){
     if (!trade) return false
-        return !trade.list.some(fill => fill.side === 'SELL')
+    return !trade.list.some(fill => fill.side === 'SELL')
   },
   buyPrice(trade){
     if (!trade) return null

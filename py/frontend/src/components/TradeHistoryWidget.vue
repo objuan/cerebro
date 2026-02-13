@@ -78,7 +78,7 @@
 <script setup>
 
 import { ref,onMounted,onBeforeUnmount,computed,watch  } from 'vue';
-import {send_get} from '@/components/js/utils.js'
+//import {send_get} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
 import { tickerStore as tickerList} from '@/components/js/tickerStore.js'
 import { tradeStore } from "@/components/js/tradeStore";
@@ -88,7 +88,7 @@ const props = defineProps({
   symbol: { type: String, required: true },
 });
 
-const tradeList = ref([]);
+//const tradeList = ref([]);
 
 const showHistory = ref(false)
 
@@ -122,16 +122,16 @@ function tradeIsOpen(trade){
 }
       */
 
-function onTradeUpdated(msg){
+function onTradeUpdated(){
   //console.log("onTradeUpdated ",props.symbol,msg)
-  
+  /*
  if (msg.symbol === props.symbol)
   {
     // console.log("...",msg.data)
      // tradeList.value.push(msg)
       tradeStore.push(msg)
   }
-      
+      */
 }
 
 onMounted( async () => {
@@ -145,13 +145,14 @@ onBeforeUnmount(() => {
 watch(
   () => props.symbol,
   async () => {
+    /*
     tradeList.value=[]
-    tradeStore.del(props.symbol)
+    //tradeStore.del(props.symbol)
     let trade_list = await send_get('/trade/history',{'symbol': props.symbol})
     trade_list.forEach(  (t) =>{
       onTradeUpdated(t)
     });
-
+*/
   } ,{ immediate: true }
       
 )

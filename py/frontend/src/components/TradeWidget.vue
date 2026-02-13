@@ -1,7 +1,12 @@
 <template>
         <div  class="trade-block" >
           <div class="trade-header">
-            <span v-if="tradeIsOpen(props.trade)"  style="color:orange">Open</span>
+            <span v-if="props.full_mode">
+              <strong>{{ props.trade.symbol }} </strong>
+            </span>
+            <span v-if="tradeIsOpen(props.trade)"  style="color:orange">
+              Open
+            </span>
             <span
               v-else
               :style="{ color: trade.pnl >= 0 ? 'lime' : 'red' }"
@@ -33,6 +38,7 @@ import {formatTime} from '@/components/js/utils.js'
 
 const props = defineProps({
   trade: {  required: true },
+  full_mode: { type: Boolean, default: false } 
 });
 
 //const trade = ref(props.trade);

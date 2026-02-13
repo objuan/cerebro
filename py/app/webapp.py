@@ -124,7 +124,7 @@ market = ms.getMarket("AUTO")
 ws_manager = WSManager()
 ws_manager_orders = WSManager()
 
-OrderTaskManager.ws = ws_manager_orders
+#OrderTaskManager.ws = ws_manager_orders
 Balance.ws = ws_manager_orders
 propManager = PropertyManager()
 
@@ -142,13 +142,13 @@ if sys.platform == 'win32':
 ib=None
 
 
-OrderTaskManager(config,orderManager=orderManager)
+OrderTaskManager(config,client=client, orderManager=orderManager)
 
 db = DBDataframe(config,client)
 report = ReportManager(config,client,db)
 #event_manager = EventManager(config,report)
 tradeManager = TradeManager(config,client,propManager)
-render_page = RenderPage(ws_manager)
+render_page = RenderPage(ws_manager,ws_manager_orders)
 #event_manager.render_page=render_page
 report.render_page=render_page
 strategy = StrategyManager(config,db,client,render_page)
@@ -875,15 +875,54 @@ async def get_report():
     return {"status": "ok"}
 
 @app.get("/api/event/get")
-async def get_events():
+async def get_events(limit, types:str    ):
     
     try:
         # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
-        query = """
-        SELECT * FROM events 
-        ORDER BY id DESC limit 10
+        types_list = types.split(',')
+
+        query = f"""
+            SELECT name as  type,data FROM events 
+            WHERE source IN ({','.join('?' for _ in types_list)})
+            ORDER BY id DESC
+            LIMIT ?
         """
-        df = client.get_df(query)
+
+        params = types_list + [limit]
+
+        df = client.get_df(query, params)
+        for _, row in df.iterrows():
+            d = json.loads(row["data"])
+            d["type"] = row["type"] 
+                           
+            logger.info(f"event {row['type']} {d}")   
+            await render_page.sendOrder(d)
+
+        return {"status": "ok"}
+        #return JSONResponse(df.to_dict(orient="records"))
+    
+    
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error"}
+
+@app.get("/api/strategy/get")
+async def get_strategy(limit, types:str    ):
+    
+    try:
+        # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
+        types_list = types.split(',')
+
+        query = f"""
+            SELECT * FROM events 
+            WHERE source IN ({','.join('?' for _ in types_list)})
+            ORDER BY id DESC
+            LIMIT ?
+        """
+
+        params = types_list + [limit]
+
+        df = client.get_df(query, params)
 
         return JSONResponse(df.to_dict(orient="records"))
     
@@ -891,7 +930,7 @@ async def get_events():
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error"}
-
+    
 ############################
 
 @app.get("/api/news/get")
@@ -1036,6 +1075,17 @@ def trade_history(symbol: str):
 @app.get("/trade/last")
 def trade_history(symbol: str):
     return orderManager.getLastTrade(symbol)
+
+@app.get("/trade/history/day")
+def trade_history():
+
+    list = []
+    trades = orderManager.getTradeHistory(None)
+    for trade in trades:
+        #logger.info(f"trade {trade.to_dict()}")
+        list.append(trade.to_dict())
+
+    return list
 ###############################
 
 @app.get("/monitor/open")
@@ -1151,14 +1201,14 @@ if __name__ =="__main__":
 
             #orderManager.ib = ib
             #orderManager.ws = ws_manager_orders
-            await orderManager.bootstrap(ib,ws_manager_orders)
+            await orderManager.bootstrap(ib)#,ws_manager_orders)
             # Subscribe to news bulletins
             ib.reqNewsBulletins(allMessages=True)
             Balance(config,ib,props=propManager )
 
         else:
             #orderManager.ws = ws_manager_orders
-            await orderManager.bootstrap(None,ws_manager_orders)
+            await orderManager.bootstrap(None)#,ws_manager_orders)
             Balance(config,None)
 
         try:

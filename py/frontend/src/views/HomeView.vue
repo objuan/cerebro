@@ -30,7 +30,11 @@
 
           <button class="sidebar-btn"
               @click="tradeRef.toggle()"
-               title="Trade">📑 Trade</button>
+               title="Trade">📑 Trades</button>
+
+          <button class="sidebar-btn"
+              @click="tradeConfigRef.toggle()"
+               title="Trade">📑 Trade Config</button>
 
         </aside>
 
@@ -56,8 +60,13 @@
          <SidePanel title="Ranks" ref ="rankRef" width="600px">
             <OrderChartWidget  ></OrderChartWidget>
          </SidePanel>
+          
+         <SidePanel title="Day Trade" ref ="tradeRef" width="400px">
+             <TradeSideSummary></TradeSideSummary>
+        </SidePanel>
 
-         <SidePanel title="Trade" ref ="tradeRef" width="800px">
+
+         <SidePanel title="Trade Config" ref ="tradeConfigRef" width="800px">
              <trade-config></trade-config>
         </SidePanel>
 
@@ -130,6 +139,7 @@ import SidePanel from '@/components/SidePanel.vue';
 import EventToast from '@/components/EventToast.vue'
 import EventHistory from '@/components/EventHistory.vue'
 import StrategyWidget from '@/components/StrategyWidget.vue'
+import TradeSideSummary from '@/components/TradeSideSummary.vue'
 import { eventStore } from "@/components/js/eventStore";
 import { strategyStore } from "@/components/js/strategyStore";
 import { reportStore } from "@/components/js/reportStore";
@@ -144,6 +154,7 @@ const ordersRef = ref(null);
 const reportsRef= ref(null);
 const rankRef= ref(null);
 const tradeRef= ref(null);
+const tradeConfigRef= ref(null);
 //const toastRef= ref(null);
 
 const widgetRefs = ref({})
@@ -246,21 +257,31 @@ const initWebSocket_mulo = () => {
           break
 
         case "ORDER":
-           console.log("ORDER",msg)
+          
           //#ordersRef.value?.handleMessage(msg);
+          
           dataParsed =
               typeof msg.data === "string"
                 ? JSON.parse(msg.data)
                 : msg.data;
+          dataParsed["source"] = "order"  
           dataParsed["timestamp"] = msg["timestamp"]
           dataParsed["event_type"] = msg["event_type"]
+          
+          
+          //console.log("ORDER",dataParsed)
+
           eventBus.emit("order-received", dataParsed);
           break
         case "TASK_ORDER":
          
-          console.log("TASK_ORDER",msg)
+          
           //.value?.handleMessage(msg);
           //msg.data= JSON.parse(msg.data)
+          msg.data["source"] = "task-order"  
+
+          console.log("TASK_ORDER",msg)
+
           eventBus.emit("task-order-received", msg.data);
           break
 
@@ -270,6 +291,7 @@ const initWebSocket_mulo = () => {
           //.value?.handleMessage(msg);
           //msg.data= JSON.parse(msg.data)
           msg.data.msg = msg.msg
+          //msg.data["source"] = "task-order"  
           eventBus.emit("task-order-msg-received", msg.data);
           break
 
@@ -277,8 +299,9 @@ const initWebSocket_mulo = () => {
           console.log("ERROR",msg)
           //#ordersRef.value?.handleMessage(msg);
      
-          msg["color"] = "#FF000"
-          eventBus.emit("error-received", msg);
+          msg.data["source"] = "error"  
+          msg.data["color"] = "#FF000"
+          eventBus.emit("error-received", msg.data);
           break
     }
   }
@@ -361,7 +384,7 @@ const initWebSocket = () => {
             else 
             {
               eventBus.emit("event-received",msg.data);
-              console.log("ERRRR", msg) 
+              console.log(">>>", msg) 
               eventStore.push(msg);
             }
          }
@@ -453,7 +476,7 @@ onMounted(() => {
         }
         
         await send_get("/api/report/get")
-        await send_get("/api/event/get")
+        //await send_get("/api/event/get")
         await send_get("/api/news/current")
 
         

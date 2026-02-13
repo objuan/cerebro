@@ -466,7 +466,63 @@ class MuloLiveClient:
         
     ################################
 
+    async def send_error_event(self, data):
+        logger.error(f"ERROR EVENT {data}")
+  
+  
+  
+        query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+        self.execute(query, ("error","", "error",  int(time.time() * 1000), json.dumps(data) ))
+
+
+        await self.render_page.sendOrder(
+             {"type": "ERROR", "data":data }
+        )
+
+    async def send_order_event(self,type, data):
+       
+        try:
+            #self.client.send_event("order", )
+            logger.info(f"SEND t: {type} data: {data}")
+
+            data["type"] = type
+
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            self.execute(query, ("order",data["symbol"], type,  int(time.time() * 1000), json.dumps(data) ))
+
+            await self.render_page.sendOrder(data)
+            '''
+            await self.render_page.sendOrder(
+                {"type": type, "data" : data}
+            )
+            '''
+
+            #logger.info(f"SEND DONE")
+        except:
+            logger.error("SEND ERROR", exc_info=True)
+
  
+    async def send_task_order(self,order):
+
+        query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+        self.execute(query, ("task-order",order["symbol"], "TASK_ORDER",  int(time.time() * 1000), json.dumps(order) ))
+
+
+        await self.render_page.sendOrder(
+                {"type": "TASK_ORDER", "data" : order}
+            )
+
+    async def send_taskinfo(self,order,message):
+         
+         #query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+         #order["message"]=message   
+         #self.execute(query, ("task-order",order["symbol"], "TASK_ORDER_MSG",  int(time.time() * 1000), json.dumps(order) ))
+
+         await self.render_page.sendOrder(
+                {"type": "TASK_ORDER_MSG", "data" : order,"msg":message }
+            )
+
+
     async def send_event(self,source:str,symbol:str, name:str, small_desc:str,  full_desc:str, data):
        
         try:

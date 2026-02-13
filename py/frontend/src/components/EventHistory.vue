@@ -9,7 +9,7 @@
 
           <div v-if="open" class="filter-popup">
             <label
-              v-for="src in ['order','trade']"
+              v-for="src in ['order','task-order','error']"
               :key="src"
               class="popup-item"
             >
@@ -33,7 +33,7 @@
         <div>
 
           <MessageWidget
-              v-for="ev in store.items"
+              v-for="ev in sortedEvents"
               :key="ev.name"
               :icon="ev.icon"
               :symbol = ev.symbol
@@ -52,16 +52,67 @@
 </template>
 
 <script setup>
-import {  ref } from 'vue'
+import {  ref,onMounted,onBeforeUnmount,watch,computed } from 'vue'
 import { eventStore as store } from "@/components/js/eventStore";
 import MessageWidget from "@/components/MessageWidget.vue";
+import { send_get } from '@/components/js/utils';
+import { staticStore } from '@/components/js/staticStore.js';
+import { eventBus } from "@/components/js/eventBus";
 
 const open = ref(false)
-const allowedSources = ref(['order','trade']);
+const allowedSources = ref(['order','task-order','error']);
+
+const sortedEvents = computed(() =>
+{
+
+ return [...store.items]
+    .filter(e => allowedSources.value.includes(e.source))
+    .sort((a, b) => b.timestamp - a.timestamp)
+    
+}
+);
+
 
 function clear() {
   store.clear();
 }
+
+async function onStart(){
+     let filter = staticStore.get('event.filter_events');
+    //console.log("allowedSources filter:", filter)
+      
+    if (filter){
+    
+      allowedSources.value = JSON.parse(filter)
+    }
+
+    await send_get("/api/event/get",{"limit":50, "types":  ['order','task-order','error']})
+    //console.log("event ",pdata )
+    /*
+    store.clear()
+    pdata.forEach(  (val) =>{
+      val.data = JSON.parse(val.data)
+      store.push(val)    
+    });
+*/
+
+}
+onMounted( async () => {
+    eventBus.on("on-start", onStart)
+});
+
+onBeforeUnmount(() => {
+  eventBus.off("on-start", onStart)
+});
+
+watch(allowedSources, (newVal, ) => {
+  
+  let v = JSON.stringify(newVal)
+ // console.log("allowedSources cambiato:", newVal,v)
+
+  staticStore.set('event.filter_events',v)
+  //saveProp("event.filter",v)
+}, { deep: true })
 
 </script>
 

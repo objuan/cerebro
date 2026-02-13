@@ -4,6 +4,13 @@
       <h1 class="h3 mb-0 text-primary">
         <i class="bi bi-cpu-fill me-2"></i> {{ title }}
       </h1>
+      
+       <div>
+       DAY PNL  <strong>{{ tradeStore.day_PNL.toFixed(2) }} $</strong> 
+        (# {{ tradeStore.total }} )
+      </div>
+      <div>WIN/LOSS <strong>{{ tradeStore.win  }}/{{ tradeStore.loss  }}</strong></div>
+
       <span>
         Ultimo aggiornamento:
          {{ liveData['root.clock'] ? formatUnixDate(liveData['root.clock']) : '...' }}
@@ -63,6 +70,7 @@
 import { computed,ref,onMounted,watch } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
 import { formatUnixDate ,formatForTimeInput,mergeDateWithTime, send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { tradeStore } from "@/components/js/tradeStore";
 
 const selectedSymTime = ref(null);
 const symSpeed = ref(null)
