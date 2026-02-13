@@ -15,9 +15,7 @@
           <span class="title ms-auto" style="color:yellow"> {{ t.symbol}}</span>
         </div>
    
-         <div class="msg"
-            v-html="t.message"
-          />
+         <div class="msg"   v-html="t.message"   />
       </div>
     </transition-group>
   </Teleport>
@@ -42,17 +40,25 @@ const titleMap = {
   info: "Info"
 }
 
-function addToast(source,icon, symbol,summary, message, type,subtype,color) {
+function addToast(ts,source,icon, symbol,summary, message, type,subtype,color) {
 
-  // console.log("addToast", message,type)
+   console.log("addToast", source,ts,message,type)
+  const  dt = new Date(ts)
+  const diffSeconds = (Date.now() - dt.getTime()) / 1000
+  //console.log("diffSeconds",dt, diffSeconds,source)
 
   const id = Date.now() + Math.random()
-  const toast = { source,id, icon, symbol,summary, message, type,subtype, ts: new Date(),color }
-  toasts.value.push(toast)
+  const toast = { ts, source,id, icon, symbol,summary, message, type,subtype, color }
 
   store.push(toast);
 
-  setTimeout(() => remove(id), 6000)
+  if (diffSeconds < 10)
+  {
+    // check time
+    toasts.value.push(toast)
+
+    setTimeout(() => remove(id), 6000)
+  }
 }
 
 function remove(id) {
@@ -68,10 +74,9 @@ const STATUS_COLORS = {
 
 function onOrderReceived(msg) {
 
-    
     if (msg.event_type == "STATUS" && ( msg.status === "Filled" || msg.status === "Submitted" ||  msg.status === "Cancelled") )
     {  
-      //console.log(msg)
+      //console.log("onOrderReceived",msg)
   
       let icon = `🧾`;
       
@@ -85,13 +90,13 @@ function onOrderReceived(msg) {
 
       const  smsg =`${ msg.action } filled:${msg.filled}/${msg.totalQuantity } <br> price: ${msg.lmtPrice} <br> state:${msg.status} `;
 
-      addToast("order",icon,msg.symbol,summary, smsg, "info","order",color)
+      addToast(msg.ts, "order",icon,msg.symbol,summary, smsg, "info","order",color)
     }
 }
 
 function onTaskOrderReceived( msg) {
   try {
-   // console.log("onTaskOrderReceived",msg);
+    console.log("onTaskOrderReceived",msg);
 
     msg.data.forEach( (step)=>{
       if (step.step == msg.step){
@@ -99,21 +104,10 @@ function onTaskOrderReceived( msg) {
           const  summary =`${msg.status } ${step.desc} `;
 
           const smsg =`${msg.status}  <br> ${step.desc} (${step.step}) ${ step.side } ${step.quantity } <br>${ step.op } ${ step.price } `;
-          addToast("task-order","",msg.symbol, summary, smsg, "info","task","#aab3b3" )
+          addToast(msg.ts,"task-order","",msg.symbol, summary, smsg, "info","task","#aab3b3" )
       }
     });
-    
-    /*
-      <td>{{ o.timestamp }}</td>
-                <td>{{ o.symbol }}</td>
-                <td>{{ o.action }}</td>
-                <td>{{ o.totalQuantity }}</td>
-                <td>{{ format(o.lmtPrice) }}</td>
-                <td :class="statusClass(o.status)">
-                  {{ o.status }}
-                </td>
-    */
-   
+       
   } catch (e) {
     console.error("Orders parse error", e);
   }
@@ -129,15 +123,17 @@ onMounted( async () => {
 
   eventBus.on("error-received", (payload) => {
     const msg = "("+payload.errorCode+") " +payload.errorString
-    addToast("error", `❌`,payload.symbol,msg, msg, "error","general", "#AA3333")
+    addToast(payload.ts,"error", `❌`,payload.symbol,msg, msg, "error","general", "#AA3333")
   })
 
   eventBus.on("warning-received", (payload) => {
-    addToast("error", `⚠`, payload.symbol,payload, payload.symbol,payload, "warning","general","#AA3333")
+      const msg = "("+payload.errorCode+") " +payload.errorString
+    addToast(payload.ts,"warn", `⚠`, payload.symbol,msg,msg, "warning","general","#AA3333")
   })
 
-  eventBus.on("info-received", (payload) => {
-    addToast("error",`🧾`,payload.symbol,payload,payload.symbol,payload,"info","general","#33AA33")
+  eventBus.on("message-received", (payload) => {
+      const msg = "("+payload.errorCode+") " +payload.errorString
+    addToast(payload.ts,"message",`🧾`,payload.symbol,msg,msg,"info","general","#888888")
   })
 
 });

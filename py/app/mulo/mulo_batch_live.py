@@ -143,7 +143,7 @@ class LiveManager:
                     self.tickers[contract.symbol].cancelled = False
 
                 return  # ignorato
-            if errorCode ==10168:
+            elif errorCode ==10168:
                 logger.error(f"{errorCode} reqId={reqId}: {errorString} {contract}")
                 '''
                 Error 10168, reqId 4: Requested market data is not subscribed. Delayed market data is not enabled., contract: Stock(conId=822082077, symbol='TCGL', exchange='SMART', primaryExchange='AMEX', currency='USD', localSymbol='TCGL', tradingClass='TCGL')
@@ -160,6 +160,8 @@ class LiveManager:
                 symbol = part.split()[0]
                 logger.error(f"DISCARD {symbol} 10089")    
                 self.fetcher.add_blacklist(symbol,f"{10089} {errorString}")
+            elif errorCode == 2104:
+                logger.warning(f"reqId={reqId}: {errorString}")
             else:
                 logger.error(f"{errorCode} reqId={reqId}: {errorString}")
         if ib:
@@ -317,6 +319,7 @@ class LiveManager:
           
                 market_data = self.ib.reqMktData(contract, "", False, False, [])#, reqId=reqId)
                 market_data.gain = 0
+                market_data.last = 0
                 market_data.start_time = datetime.now()
                 market_data.last_close = await self.fetcher.last_close(symbol)
                 market_data.symbol = symbol
@@ -396,6 +399,9 @@ class LiveManager:
                     ts = ticker.time#_time.time()
                 else:
                     ts = ticker.time.timestamp()
+
+                if math.isnan(ticker.last ):
+                    return
 
                 
                 # Update history
@@ -875,6 +881,11 @@ async def add_to_black(mode,symbol):
 async def add_to_watch(name,type,symbol):
    fetcher.add_watch(name,type,symbol)
    return {"status": "ok"}
+
+@app.get("/admin/scan")
+async def admin_scan(profile_name):
+    await live.scanData(profile_name)
+    return {"status": "ok"}
 
 @app.get("/chart/align_data")
 async def _align_data(mode,symbol,timeframe):

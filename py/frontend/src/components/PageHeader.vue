@@ -1,6 +1,8 @@
 <template>
   <header class="py-1 mb-1 border-bottom bg-light">
     <div class=" d-flex align-items-center justify-content-between">
+
+
       <h1 class="h3 mb-0 text-primary">
         <i class="bi bi-cpu-fill me-2"></i> {{ title }}
       </h1>
@@ -104,6 +106,8 @@ const symStatus = computed(() => {
   else
       return { label: 'Live', color: 'bg-success' };
 })
+
+
 
 function onSetSymTime() {
   if (!selectedSymTime.value) return;

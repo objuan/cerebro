@@ -173,7 +173,14 @@ const onChangeSymbols = async () => {
         comp.setSymbol(currentSymbol.value);
         
    }
-    staticStore.set(get_layout_key("symbol"), currentSymbol.value); 
+  staticStore.set(get_layout_key("symbol"), currentSymbol.value); 
+
+   let pos_list = await send_get('/account/positions')
+    pos_list.forEach(  (val) =>{
+          val["type"] = "POSITION"
+          onPositionUpdated(val);
+    });
+    
     //saveProp( get_layout_key("symbol"), currentSymbol.value );
 };
 
@@ -291,6 +298,7 @@ function onTickerReceived(msg)
 }
 
 function onPositionUpdated(msg){
+  //console.log("onPositionUpdated", msg)
    if (msg.symbol == props.symbol)
    {
       position.value = msg.position

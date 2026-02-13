@@ -620,6 +620,7 @@ async def get_news(symbol, start: Optional[str] = None):
     #logger.info(data)
     return {"status": "ok" , "data": list}
 
+
 ####################
 # no nsi ferma ?????
 @app.get("/order/limit")
@@ -882,8 +883,10 @@ async def get_events(limit, types:str    ):
         types_list = types.split(',')
 
         query = f"""
-            SELECT name as  type,data FROM events 
+            SELECT source,name as  type,data, timestamp FROM events 
             WHERE source IN ({','.join('?' for _ in types_list)})
+            AND ds_timestamp >= datetime('now', 'start of day')
+         
             ORDER BY id DESC
             LIMIT ?
         """
@@ -894,6 +897,7 @@ async def get_events(limit, types:str    ):
         for _, row in df.iterrows():
             d = json.loads(row["data"])
             d["type"] = row["type"] 
+           
                            
             logger.info(f"event {row['type']} {d}")   
             await render_page.sendOrder(d)
@@ -916,6 +920,7 @@ async def get_strategy(limit, types:str    ):
         query = f"""
             SELECT * FROM events 
             WHERE source IN ({','.join('?' for _ in types_list)})
+            AND ds_timestamp >= datetime('now', 'start of day')
             ORDER BY id DESC
             LIMIT ?
         """
@@ -932,6 +937,15 @@ async def get_strategy(limit, types:str    ):
         return {"status": "error"}
     
 ############################
+@app.get("/api/news/update")
+async def get_news(symbol):
+    await newService.scan([symbol],force=True)
+
+    news = await newService.find(symbol)
+    if news:
+        await client.send_news(symbol,news)
+
+    return {"status": "ok" }
 
 @app.get("/api/news/get")
 async def get_news(symbol):
@@ -1001,7 +1015,18 @@ async def add_to_black(mode,symbol):
 async def add_to_watch(name,type,symbol):
     await client.send_cmd("/admin/add_to_watch", {"name": name,"type":type, "symbol": symbol})
     return {"status": "ok"}
-    
+
+@app.get("/api/admin/scan")
+async def admin_scan(profile_name):
+    await client.send_cmd("/admin/scan",{"profile_name":profile_name})
+    return {"status": "ok"}
+   
+@app.get("/api/admin/scan/profiles")
+async def admin_scan():
+    profiles = config["live_service"]["profiles"]
+    return JSONResponse(profiles)
+   
+
 #######################
 
 @app.get("/account/summary")

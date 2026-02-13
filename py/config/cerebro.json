@@ -135,7 +135,7 @@
 				"scheduler":[
 					{
 						"name" : "PRE",
-						"update_time" : 30,
+						"update_time" : 600,
 						"live_mode" : "ADD"
 					}
 				],
@@ -181,10 +181,9 @@
 						"type": "TOP_PERC_GAIN",
 						"filter": 
 						{
-							"abovePrice": 1,
-							"belowPrice": 10000,
+							"abovePrice": 0.5,
+							"belowPrice": 10,
 							"aboveVolume": 10,
-							"usdVolumeBelow": 10,
 							"marketCapAbove" : 1000
 						}
 					},
@@ -198,7 +197,6 @@
 							"abovePrice": 1,
 							"belowPrice": 10000,
 							"aboveVolume": 10,
-							"usdVolumeBelow": 10,
 							"marketCapAbove" : 1000
 						}
 					}

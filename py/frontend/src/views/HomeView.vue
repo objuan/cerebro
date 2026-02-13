@@ -1,7 +1,50 @@
 <template>
   <div class="home">
 
-    <PageHeader title="Cerebro V0.1"/>
+   <!-- Bottone menu contestuale -->
+          <div class="dropdown top-menu">
+            <button
+              class="btn btn-sm btn-light border-0"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              @click.stop
+            >
+              ⋮
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end">
+               <li>  <a class="dropdown-item"
+                  href="#"
+                  @click.prevent="forceScan()">
+                   Force Scan
+                </a>  </li>
+
+               <li><a class="dropdown-item" href="#"
+                  @click.prevent="setGrid(1,1)">
+                   Grid 1x1
+                </a></li>
+                <li><a class="dropdown-item" href="#"
+                  @click.prevent="setGrid(2,1)">
+                   Grid 2x1
+                </a></li>
+                <li><a class="dropdown-item" href="#"
+                  @click.prevent="setGrid(1,2)">
+                   Grid 1x2
+                </a></li>
+                <li><a class="dropdown-item" href="#"
+                  @click.prevent="setGrid(1,3)">
+                   Grid 1x3
+                </a></li>
+                <li><a class="dropdown-item" href="#"
+                  @click.prevent="setGrid(3,2)">
+                   Grid 3x2
+                </a></li>
+
+            </ul>
+          </div>
+
+    <PageHeader title="Cerebro V0.1" style="margin-left: 30px;margin-right: 30px;"/>
  
     <div class="layout">
         <!-- Sidebar -->
@@ -35,6 +78,10 @@
           <button class="sidebar-btn"
               @click="tradeConfigRef.toggle()"
                title="Trade">📑 Trade Config</button>
+
+          <button class="sidebar-btn"
+              @click="scanRef.toggle()"
+               title="Scan">📑 Scaner</button>
 
         </aside>
 
@@ -71,23 +118,11 @@
         </SidePanel>
 
 
-      
+        <SidePanel title="Scan Panel" ref ="scanRef" width="800px">
+             <ScanPanel></ScanPanel>
+        </SidePanel>
 
-    </div>
 
-    <div class="sub-bar">
-        <div class="layout-buttons">
-          <button @click="setGrid(1,1)">1×1</button>
-          <button @click="setGrid(1,2)">1×2</button>
-          <button @click="setGrid(2,1)">2×1</button>
-          <button @click="setGrid(2,2)">2×2</button>
-          <button @click="setGrid(3,2)">3×2</button>
-          <button @click="setGrid(1,3)">1×3</button>
-
-        </div>
-        <div style="flex-grow: 1;"></div>
-
-    
     </div>
 
     <main class="main-columns">
@@ -135,6 +170,7 @@ import MultiCandleChartWidget from '@/components/MultiCandleChartWidget.vue';
 import OrderChartWidget from '@/components/OrderChartWidget.vue';
 import { send_get,send_post } from '@/components/js/utils';
 import { eventBus } from "@/components/js/eventBus";
+import ScanPanel from '@/components/ScanPanel.vue';
 import SidePanel from '@/components/SidePanel.vue';
 import EventToast from '@/components/EventToast.vue'
 import EventHistory from '@/components/EventHistory.vue'
@@ -155,6 +191,7 @@ const reportsRef= ref(null);
 const rankRef= ref(null);
 const tradeRef= ref(null);
 const tradeConfigRef= ref(null);
+const scanRef = ref(null);
 //const toastRef= ref(null);
 
 const widgetRefs = ref({})
@@ -231,7 +268,10 @@ function onChartSelect(data){
   }
 }
 
-
+// UTILS
+function forceScan(){
+  send_get("/api/admin/scan")
+}
 // =============================================
 
 const initWebSocket_mulo = () => {
@@ -266,9 +306,9 @@ const initWebSocket_mulo = () => {
                 : msg.data;
           dataParsed["source"] = "order"  
           dataParsed["timestamp"] = msg["timestamp"]
+          dataParsed["ts"] = msg["ts"]
           dataParsed["event_type"] = msg["event_type"]
-          
-          
+
           //console.log("ORDER",dataParsed)
 
           eventBus.emit("order-received", dataParsed);
@@ -279,7 +319,8 @@ const initWebSocket_mulo = () => {
           //.value?.handleMessage(msg);
           //msg.data= JSON.parse(msg.data)
           msg.data["source"] = "task-order"  
-
+          //msg.data["ts"] = msg["ts"]
+          msg.data["ts"] = msg.data["timestamp"]*1000
           console.log("TASK_ORDER",msg)
 
           eventBus.emit("task-order-received", msg.data);
@@ -296,12 +337,31 @@ const initWebSocket_mulo = () => {
           break
 
         case "ERROR":
-          console.log("ERROR",msg)
+          
           //#ordersRef.value?.handleMessage(msg);
      
-          msg.data["source"] = "error"  
-          msg.data["color"] = "#FF000"
-          eventBus.emit("error-received", msg.data);
+          dataParsed = msg
+         
+          dataParsed["source"] = "error"  
+          dataParsed["color"] = "#FF000"
+        
+          //console.log("ERROR",msg)
+
+          eventBus.emit("error-received",dataParsed);
+          break
+
+        case "MESSAGE":
+          
+          //#ordersRef.value?.handleMessage(msg);
+     
+          dataParsed = msg
+         
+          dataParsed["source"] = "message"  
+          dataParsed["color"] = "#FF000"
+        
+          console.log("MESSAGE",msg)
+
+          eventBus.emit("message-received",dataParsed);
           break
     }
   }
@@ -355,7 +415,7 @@ const initWebSocket = () => {
           break;
         case "ticker":
           {
-            //console.log("WS TICKER",msg.data);
+           // console.log("WS TICKER",msg.data);
             tickerStore.push(msg.data)
             eventBus.emit("ticker-received", msg.data);
           } 
@@ -476,6 +536,7 @@ onMounted(() => {
         }
         
         await send_get("/api/report/get")
+        await send_get("/api/event/get",{"limit":50, "types":  ['order','error','message']})
         //await send_get("/api/event/get")
         await send_get("/api/news/current")
 
@@ -510,6 +571,7 @@ onMounted(() => {
         order_list = await send_get('/order/task/list?onlyReady=true')
         order_list.data.forEach(  (msg) =>{
             msg.data= JSON.parse(msg.data)
+            msg["ts"] = msg["timestamp"]*1000
             eventBus.emit("task-order-received", msg);
         });
         
@@ -561,7 +623,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-
+.top-menu{
+  position:absolute;
+}
 .sub-bar{
   padding-left: 250px;
   padding-right: 10px;

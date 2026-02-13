@@ -18,7 +18,7 @@ export const tickerStore = reactive({
 
   push(data) {
 
-      // console.log("incoming",data)
+    //  console.log("incoming",data)
       if (!this.items[data.symbol]) {
         // crea oggetto reattivo per il symbol
         this.items[data.symbol] = {}

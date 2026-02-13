@@ -955,7 +955,7 @@ const resize =  () => {
     {
       old_size = [ width, height ]
 
-      chart.resize(width-10,height-20);
+      chart.resize(width-10,height-40);
 
       handleRefresh();
     }

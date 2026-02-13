@@ -57,9 +57,22 @@ def normalize_news(provider, guid, source, symbol, title, image, url, published_
     }
 
 
+exclude_titles = ["""What's going on in today's pre-market session""",
+                  """Technology Stocks Moving In""",
+                  """Top stock movements in today's session""",
+                  """These stocks are gapping in today""",
+                  """Top movers in Tuesday""",
+                  """Here are the top movers in""",
+                  """Industrials Stocks Moving In"""]
 
 def insert_news(conn, news):
     #news = normalize_news(provider, source, title, image, url, published_at, summary)
+
+    # tolgo quelle che no nservono
+    title = news["title"]
+    if any(excluded in title for excluded in exclude_titles):
+        logger.warning(f"SKIP {news}")
+        return
 
     # Convertiamo il dict in JSON per il campo "data"
     data_json = json.dumps(news, ensure_ascii=False)
@@ -521,7 +534,7 @@ class NewService:
             return None
 
     ###
-    async def scan(self,symbols):
+    async def scan(self,symbols,force=False):
        
 
         min = config["news"]["live_range"]["min"]
@@ -536,7 +549,7 @@ class NewService:
 
         #logger.info(f"SCAN {_symbols} {min}-{max}")
 
-        if (int(hh_str) >= min and int(hh_str)<=max ):
+        if (force or (int(hh_str) >= min and int(hh_str)<=max )):
             
             logger.info(f"NEW SCAN {symbols}")
 

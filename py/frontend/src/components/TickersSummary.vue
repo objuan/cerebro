@@ -47,6 +47,7 @@
                 <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item.symbol)">
                       {{ item.symbol }}
                     </a>
+
             </div>
 
           <div
@@ -95,7 +96,10 @@
              
             <div class="report" v-if="item.report">
               <div class="title">{{ item.symbol }}</div>
-
+                <div class="row">
+                    <div class="label">From Last</div>
+                    <div class="value">{{ secondsFrom(item.ts)  }}</div>
+              </div>
               <div class="row">
                 <div class="label">Rank</div>
                 <div class="value">{{ item.report.rank }}</div>
@@ -203,6 +207,14 @@
                    Get News
                 </a>
               </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item"
+                  href="#"
+                   @click.prevent="updateNews(item.symbol)">
+                   Update  News
+                </a>
+              </li>
                <li><hr class="dropdown-divider"></li>
                 <li>
                 <a class="dropdown-item"
@@ -257,6 +269,8 @@ import NewsWidget from "@/components/NewsWidget.vue";
 const showNews = ref(false)
 const selectedSymbol= ref(null)
 const sortBy = ref('gain'); // 'gain' | 'gap'
+const now = ref(Date.now())
+let timer = null
 
 const orderedKeys = [
   'float', 'gain', 'gap',
@@ -291,7 +305,9 @@ function getSymbolInfos(symbol){
     window.open(url, "_blank");
 }
 
-
+async function updateNews(symbol){
+    await send_get("/api/news/update", {"symbol": symbol})
+}
 function getNews(symbol){
   console.log("selectedSymbol", symbol)
   selectedSymbol.value = symbol;
@@ -324,6 +340,19 @@ function onTickerReceived() {
   //updateSymbol(ticker);
 }
 
+function secondsFrom(ts) {
+  if (!ts) return ''
+
+  // se ts è in secondi unix → moltiplica per 1000
+  const timestamp = ts < 1e12 ? ts * 1000 : ts
+
+  const diff = Math.floor((now.value - timestamp) / 1000)
+
+  if (diff < 60) return `${diff}s`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  return `${Math.floor(diff / 3600)}h`
+}
+
 function onReportReceived(data){
   //console.log("onReportReceived",data)
    for (const [symbol, ] of Object.entries(data)) {
@@ -340,6 +369,11 @@ function onReportReceived(data){
 onMounted( async () => {
   eventBus.on("ticker-received", onTickerReceived);
  eventBus.on("report-received", onReportReceived);
+
+  timer = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+
   /*
   let data = await send_get("/api/symbols")
   //console.log("Symbols ",data.symbols)
@@ -353,6 +387,7 @@ onMounted( async () => {
 onBeforeUnmount(() => {
   eventBus.off("ticker-received", onTickerReceived);
    eventBus.off("report-received", onReportReceived);
+    clearInterval(timer)
 });
 
 onUnmounted(() => {
@@ -383,7 +418,7 @@ defineExpose({
 <style scoped>
 
 .items-container {
-   height: calc(100vh - 130px); 
+   height: calc(100vh - 90px); 
   overflow-y: auto;
   overflow-x: hidden;   /* ❌ niente scroll orizzontale */
   width: 100%;
@@ -474,7 +509,7 @@ defineExpose({
   position: absolute;
   /* bottom: 120%;          sopra la grid */
   top: 120%;              /* 👈 sotto la grid */
-  left: 100%;
+  left: -30%;
   transform: translateX(-50%);
   
   background: #111;

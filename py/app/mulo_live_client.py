@@ -470,14 +470,25 @@ class MuloLiveClient:
         logger.error(f"ERROR EVENT {data}")
   
   
-  
+        data["type"] = "ERROR"
+        data["ts"] =int(time.time() * 1000)
+        
         query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
-        self.execute(query, ("error","", "error",  int(time.time() * 1000), json.dumps(data) ))
+        self.execute(query, ("error","", "ERROR",  int(time.time() * 1000), json.dumps(data) ))
 
+        await self.render_page.sendOrder(data)
 
-        await self.render_page.sendOrder(
-             {"type": "ERROR", "data":data }
-        )
+    async def send_message_event(self, data):
+        logger.error(f"MESSAGE EVENT {data}")
+  
+  
+        data["type"] = "MESSAGE"
+        data["ts"] =int(time.time() * 1000)
+        
+        query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+        self.execute(query, ("message","", "MESSAGE",  int(time.time() * 1000), json.dumps(data) ))
+
+        await self.render_page.sendOrder(data)
 
     async def send_order_event(self,type, data):
        
@@ -486,6 +497,7 @@ class MuloLiveClient:
             logger.info(f"SEND t: {type} data: {data}")
 
             data["type"] = type
+            data["ts"] =int(time.time() * 1000)
 
             query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
             self.execute(query, ("order",data["symbol"], type,  int(time.time() * 1000), json.dumps(data) ))
@@ -504,6 +516,7 @@ class MuloLiveClient:
  
     async def send_task_order(self,order):
 
+        order["ts"] =int(time.time() * 1000)
         query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
         self.execute(query, ("task-order",order["symbol"], "TASK_ORDER",  int(time.time() * 1000), json.dumps(order) ))
 
@@ -517,6 +530,7 @@ class MuloLiveClient:
          #query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
          #order["message"]=message   
          #self.execute(query, ("task-order",order["symbol"], "TASK_ORDER_MSG",  int(time.time() * 1000), json.dumps(order) ))
+         order["ts"] =int(time.time() * 1000)
 
          await self.render_page.sendOrder(
                 {"type": "TASK_ORDER_MSG", "data" : order,"msg":message }

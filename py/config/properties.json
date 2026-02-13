@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "NVCR",
+      "symbol": "CRSR",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -46,7 +46,7 @@
   "event": {
     "filter": "[\"strategy\"]",
     "filter_strategy": "[\"strategy\"]",
-    "filter_events": "[\"trade\",\"order\",\"task-order\"]"
+    "filter_events": "[\"trade\",\"error\",\"order\",\"task-order\",\"message\"]"
   },
   "symbols": {
     "undefined": {
@@ -79,6 +79,9 @@
     "NVCR": {
       "mode": "MARKER",
       "quantity": 100
+    },
+    "JDZG": {
+      "mode": "MARKER"
     }
   }
 }

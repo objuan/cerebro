@@ -79,7 +79,7 @@
 
 <script setup>
 
-import { ref,onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
+import { ref,onMounted, onUnmounted ,onBeforeUnmount,watch } from 'vue';
 
 //import { send_get } from '@/components/js/utils';
 import { reportStore as report } from "@/components/js/reportStore";
@@ -103,7 +103,7 @@ function toggle() {
   open.value = !open.value
   if (open.value  && reportDetails==null)
   {
-     console.log("fullDetails")
+   //  console.log("fullDetails")
 
     reportDetails = report.get_report(props.symbol)
     if (reportDetails)
@@ -133,10 +133,24 @@ const props = defineProps({
   detail: { type: String, required: false },
 });
 
-onMounted( async () => {
- setTimeout(() => {
+const checkNew = () => {
+  const dt = new Date(props.timestamp)
+  const diffSeconds = (Date.now() - dt.getTime()) / 1000
+
+  //console.log("diffSeconds", dt, diffSeconds, props.title)
+
+  if (diffSeconds < 10) {
+    isNew.value = true
+    setTimeout(() => {
+      isNew.value = false
+    }, 60_000)
+  } else {
     isNew.value = false
-  }, 60_000) // 1 minuto
+  }
+}
+
+onMounted( async () => {
+   checkNew();
 });
 
 onBeforeUnmount(() => {
@@ -145,6 +159,9 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
 });
 
+watch(() => props.timestamp, () => {
+  checkNew()
+})
 
 </script>
 

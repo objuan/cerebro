@@ -151,13 +151,18 @@ class OrderManager:
         async def onError( reqId, errorCode, errorString, contract):
             logger.error(f"errorCode {errorCode} {errorString} {contract}")
 
+            
             self.lastError = {"reqId" : reqId, "errorCode": errorCode, "errorString": errorString} 
 
             #if  self.client..ws:
            
                 #data["type"] = "ORDER"
             #ser = json.dumps( self.lastError)
-            await self.client.send_error_event(self.lastError )
+
+            if errorCode in [2104, 2105, 2106]:
+                await self.client.send_message_event(self.lastError )
+            else:
+                await self.client.send_error_event(self.lastError )
 
             '''     
                 await self.ws.broadcast(

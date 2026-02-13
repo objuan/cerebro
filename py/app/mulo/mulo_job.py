@@ -73,13 +73,13 @@ def since_to_durationStr(seconds: int) -> str:
     if minutes < 60:
         return f"{seconds} S"  # IB in realtà preferisce sempre secondi sotto 1h
 
-    logger.info(f"mm << {minutes}")
+    #logger.info(f"mm << {minutes}")
 
     hours = minutes // 60
     if hours < 24:
         return f"{hours * 60 * 60} S"
 
-    logger.info(f"hh << {hours}")
+    #logger.info(f"hh << {hours}")
 
     days = hours // 24
     if days < 7:

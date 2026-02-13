@@ -184,7 +184,7 @@ watch(allowedSources, (newVal, ) => {
 
 
 .items-container {
-   height: calc(100vh - 130px); 
+   height: calc(100vh - 90px); 
   overflow-y: auto;
   overflow-x: hidden;   /* ❌ niente scroll orizzontale */
   width: 100%;
