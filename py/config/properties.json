@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "CRSR",
+      "symbol": "ATOM",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -82,6 +82,9 @@
     },
     "JDZG": {
       "mode": "MARKER"
+    },
+    "CRSR": {
+      "mode": "DIRECT"
     }
   }
 }

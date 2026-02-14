@@ -437,7 +437,7 @@ const initWebSocket = () => {
           break;
         case "event":
           {
-            console.log("event",msg);
+           // console.log("event",msg);
             
             if (msg.source =="strategy" || msg.source =="mule")
                 strategyStore.push(msg);

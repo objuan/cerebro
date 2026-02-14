@@ -490,6 +490,30 @@ class MuloLiveClient:
 
         await self.render_page.sendOrder(data)
 
+    async def send_trade_event(self,type, data):
+       
+        try:
+            #self.client.send_event("order", )
+            logger.info(f"SEND t: {type} data: {data}")
+
+            data["type"] = type
+            data["ts"] =int(time.time() * 1000)
+
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            self.execute(query, ("order",data['data']['symbol'], type,  int(time.time() * 1000), json.dumps(data) ))
+
+            await self.render_page.sendOrder(data)
+            '''
+            await self.render_page.sendOrder(
+                {"type": type, "data" : data}
+            )
+            '''
+
+            #logger.info(f"SEND DONE")
+        except:
+            logger.error(f"{data}")
+            logger.error("SEND ERROR", exc_info=True)
+
     async def send_order_event(self,type, data):
        
         try:
@@ -511,6 +535,7 @@ class MuloLiveClient:
 
             #logger.info(f"SEND DONE")
         except:
+            logger.error(f"{data}")
             logger.error("SEND ERROR", exc_info=True)
 
  

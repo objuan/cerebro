@@ -296,20 +296,20 @@ class OrderManager:
             '''
 
             #if action =="BUY":
-            #    msg = {"type": "POSITION_TRADE", "data" : {} }
+            #    msg = {"type": "<", "data" : {} }
             #    await self.ws.broadcast(msg)
 
         if action =="BUY" and trade.orderStatus.status =="Filled" and type=="STATUS":
                 msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
                 #await self.ws.broadcast(msg)
 
-                await self.client.send_order_event("POSITION_TRADE",msg)
+                await self.client.send_trade_event("POSITION_TRADE",msg)
             
         if action =="SELL" and trade.orderStatus.status =="Filled" and type=="STATUS":
                 msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
                 #await self.ws.broadcast(msg)
 
-                await self.client.send_order_event("POSITION_TRADE",msg)
+                await self.client.send_trade_event("POSITION_TRADE",msg)
 
     async def onNewOrder(self,trade:Trade):
        await self.addOrder(trade, "NEW")

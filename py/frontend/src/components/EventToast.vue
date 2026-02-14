@@ -42,7 +42,7 @@ const titleMap = {
 
 function addToast(ts,source,icon, symbol,summary, message, type,subtype,color) {
 
-   console.log("addToast", source,ts,message,type)
+//   console.log("addToast", source,ts,message,type)
   const  dt = new Date(ts)
   const diffSeconds = (Date.now() - dt.getTime()) / 1000
   //console.log("diffSeconds",dt, diffSeconds,source)
