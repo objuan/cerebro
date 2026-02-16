@@ -609,15 +609,21 @@ class LiveManager:
     async def sym_tick_tickers(self):
                 #boot
                 self.sym_start_time= 0
-                #last_time={}
-                for symbol,ticker in self.tickers.items():
-                    df = self.fetcher.get_df(f"SELECT MIN(timestamp) as min FROM ib_ohlc_history WHERE timeframe='10s' and symbol='{symbol}'")
-                    print(df)
-                    if len(df)>0 and df.iloc[0]["min"]!=None:
-                        ts_start =  int(df.iloc[0]["min"] )
-                        logger.info(f"SYMBOL TICKER BOOT {symbol} from {datetime.fromtimestamp(ts_start/1000)}") 
-                        #last_time[symbol] =ts_start
-                        self.sym_start_time = max(self.sym_start_time,ts_start)
+
+                if config["live_service"]["start_sym_time"]:
+                    dt  =  datetime.strptime(config["live_service"]["start_sym_time"], "%Y-%m-%d %H:%M:%S")
+                    self.sym_start_time =  int(dt.timestamp())*1000
+                    pass
+                else:
+                    #last_time={}
+                    for symbol,ticker in self.tickers.items():
+                        df = self.fetcher.get_df(f"SELECT MIN(timestamp) as min FROM ib_ohlc_history WHERE timeframe='10s' and symbol='{symbol}'")
+                        print(df)
+                        if len(df)>0 and df.iloc[0]["min"]!=None:
+                            ts_start =  int(df.iloc[0]["min"] )
+                            logger.info(f"SYMBOL TICKER BOOT {symbol} from {datetime.fromtimestamp(ts_start/1000)}") 
+                            #last_time[symbol] =ts_start
+                            self.sym_start_time = max(self.sym_start_time,ts_start)
 
                 logger.info(f"SYM TIME  BEGIN AT  {datetime.fromtimestamp(self.sym_start_time/1000).strftime('%Y-%m-%d %H:%M:%S')}") 
 
@@ -841,7 +847,7 @@ if run_mode!= "sym":
 
 else:
         #OrderManager(config,None)
-        Balance(config,None)
+        #Balance(config,None)
         scanner = Scanner(None,config,ms)
         live = LiveManager(None,config,fetcher,scanner,ws_manager,None)
 

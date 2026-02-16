@@ -36,6 +36,7 @@ class MuloLiveClient:
         self.config=config
         self.symbols=[]
         self.tickers = {}
+        self.ib_loop=None
         self.symbol_to_exchange_map={}
 
         self.market = MarketService(config).getMarket("AUTO")
@@ -377,7 +378,7 @@ class MuloLiveClient:
             sql_symbols = str(symbols)[1:-1]
             conn = sqlite3.connect(self.db_file)
 
-            logger.info(f"SYM BOOT TIME {self.sym_start_time}")
+            #logger.info(f"SYM BOOT TIME {self.sym_start_time}")
 
             query = f"""
                     SELECT *
@@ -387,7 +388,7 @@ class MuloLiveClient:
                     ORDER BY timestamp DESC
                     LIMIT {limit}"""
                     
-            print("since",query)
+            #print("since",query)
             df = pd.read_sql_query(query, conn)
             df = df.iloc[::-1].reset_index(drop=True)
             conn.close()    
@@ -428,6 +429,34 @@ class MuloLiveClient:
     async def _align_data(self, symbol, timeframe):
         await self.send_cmd("/chart/align_data",symbol,timeframe)
      
+    def back_data(self,symbols: List[str], timeframe: str, since : int, to: int ):
+
+        if len(symbols) == 0:
+            logger.error("symbol empty !!!")
+            return None
+
+        
+        sql_symbols = str(symbols)[1:-1]
+        conn = sqlite3.connect(self.db_file)
+
+        #logger.info(f"SYM BOOT TIME {self.sym_start_time}")
+
+        query = f"""
+                    SELECT *
+                    FROM ib_ohlc_history
+                    WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
+                    and timestamp>= {since}
+                    and timestamp<= {to}
+                    ORDER BY timestamp DESC"""
+                    
+        #print("query",query)
+
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()    
+        return df 
+
+     
     #######################
     
     async def last_close(self,symbol: str)-> float:
@@ -467,26 +496,30 @@ class MuloLiveClient:
     ################################
 
     async def send_error_event(self, data):
+        
+
         logger.error(f"ERROR EVENT {data}")
   
   
         data["type"] = "ERROR"
         data["ts"] =int(time.time() * 1000)
-        
-        query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
-        self.execute(query, ("error","", "ERROR",  int(time.time() * 1000), json.dumps(data) ))
+
+        if not self.sym_mode: 
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            self.execute(query, ("error","", "ERROR",  int(time.time() * 1000), json.dumps(data) ))
 
         await self.render_page.sendOrder(data)
 
     async def send_message_event(self, data):
+        
         logger.error(f"MESSAGE EVENT {data}")
   
   
         data["type"] = "MESSAGE"
         data["ts"] =int(time.time() * 1000)
-        
-        query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
-        self.execute(query, ("message","", "MESSAGE",  int(time.time() * 1000), json.dumps(data) ))
+        if not self.sym_mode: 
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            self.execute(query, ("message","", "MESSAGE",  int(time.time() * 1000), json.dumps(data) ))
 
         await self.render_page.sendOrder(data)
 
@@ -499,8 +532,9 @@ class MuloLiveClient:
             data["type"] = type
             data["ts"] =int(time.time() * 1000)
 
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
-            self.execute(query, ("order",data['data']['symbol'], type,  int(time.time() * 1000), json.dumps(data) ))
+            if not self.sym_mode: 
+                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+                self.execute(query, ("order",data['data']['symbol'], type,  int(time.time() * 1000), json.dumps(data) ))
 
             await self.render_page.sendOrder(data)
             '''
@@ -523,8 +557,9 @@ class MuloLiveClient:
             data["type"] = type
             data["ts"] =int(time.time() * 1000)
 
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
-            self.execute(query, ("order",data["symbol"], type,  int(time.time() * 1000), json.dumps(data) ))
+            if not self.sym_mode: 
+                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+                self.execute(query, ("order",data["symbol"], type,  int(time.time() * 1000), json.dumps(data) ))
 
             await self.render_page.sendOrder(data)
             '''
@@ -540,10 +575,12 @@ class MuloLiveClient:
 
  
     async def send_task_order(self,order):
-
+        if self.sym_mode: return
         order["ts"] =int(time.time() * 1000)
-        query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
-        self.execute(query, ("task-order",order["symbol"], "TASK_ORDER",  int(time.time() * 1000), json.dumps(order) ))
+
+        if not self.sym_mode: 
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            self.execute(query, ("task-order",order["symbol"], "TASK_ORDER",  int(time.time() * 1000), json.dumps(order) ))
 
 
         await self.render_page.sendOrder(
@@ -551,7 +588,7 @@ class MuloLiveClient:
             )
 
     async def send_taskinfo(self,order,message):
-         
+         if self.sym_mode: return
          #query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
          #order["message"]=message   
          #self.execute(query, ("task-order",order["symbol"], "TASK_ORDER_MSG",  int(time.time() * 1000), json.dumps(order) ))
@@ -567,8 +604,10 @@ class MuloLiveClient:
         try:
             data["small_desc"]= small_desc
             data["full_desc"]= full_desc
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
-            self.execute(query, (source,symbol, name,  int(time.time() * 1000), json.dumps(data) ))
+
+            if not self.sym_mode: 
+                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+                self.execute(query, (source,symbol, name,  int(time.time() * 1000), json.dumps(data) ))
 
             #logger.info(f"SEND {data}")
 

@@ -14,11 +14,11 @@
             </button>
 
             <ul class="dropdown-menu dropdown-menu-end">
-               <li>  <a class="dropdown-item"
-                  href="#"
-                  @click.prevent="forceScan()">
-                   Force Scan
-                </a>  </li>
+               <li>  
+                <button @click="$router.push('/backtest')">
+                  Vai al Backtest
+                </button>
+                </li>
 
                <li><a class="dropdown-item" href="#"
                   @click.prevent="setGrid(1,1)">
@@ -268,10 +268,7 @@ function onChartSelect(data){
   }
 }
 
-// UTILS
-function forceScan(){
-  send_get("/api/admin/scan")
-}
+
 // =============================================
 
 const initWebSocket_mulo = () => {

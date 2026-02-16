@@ -47,7 +47,7 @@ from deep_translator import GoogleTranslator
 from reports.db_dataframe import *
 from props_manager import PropertyManager
 from mulo_live_client import MuloLiveClient
-from strategy.strategy_manager import StrategyManager
+from bot.strategy_manager import StrategyManager
 
 print(" STAT FROM ",os.getcwd())
 
@@ -1196,9 +1196,11 @@ if __name__ =="__main__":
 
     async def main():
         global ib
+   
         ancora=True
 
-
+        client.ib_loop = asyncio.get_event_loop()   # NON get_running_loop
+        
         if run_mode!= "sym":
             
             ib = IB()
@@ -1234,7 +1236,7 @@ if __name__ =="__main__":
         else:
             #orderManager.ws = ws_manager_orders
             await orderManager.bootstrap(None)#,ws_manager_orders)
-            Balance(config,None)
+            Balance(config,None,props=propManager)
 
         try:
         

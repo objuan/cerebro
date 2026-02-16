@@ -2,8 +2,8 @@ from typing import Dict
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from strategy.indicators import *
-from strategy.strategy import Strategy
+from bot.indicators import *
+from bot.strategy import Strategy
 from company_loaders import *
 
 from collections import defaultdict

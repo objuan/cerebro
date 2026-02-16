@@ -4,7 +4,11 @@
 
 
       <h1 class="h3 mb-0 text-primary">
-        <i class="bi bi-cpu-fill me-2"></i> {{ title }}
+        <router-link to="/">
+    {{ title }}
+    </router-link>
+
+    
       </h1>
       
        <div>

@@ -2,10 +2,10 @@ from typing import Dict
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from strategy.indicators import Indicator
+from bot.indicators import Indicator
 from company_loaders import *
 from collections import deque
-
+from utils import SECONDS_TO_TIMEFRAME
 logger = logging.getLogger(__name__)
 
 from report import *
@@ -53,13 +53,20 @@ class Strategy:
     async def on_start(self):
         pass
 
+    def dispose(self):
+        logger.info(f"Dispose {self}")
+
+        for tf, db_df in self.db_df_map.items():
+            db_df.on_df_last_added-= self._on_df_last_added
+
+        pass
+
     async def bootstrap(self):
 
         logger.info(f"bootstrap {self.__class__} tf:{self.timeframe }")
 
         await self.on_start()
 
-     
         self._populate_dataframes()
 
         self.df_map= {}

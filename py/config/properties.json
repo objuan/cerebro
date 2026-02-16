@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "ATOM",
+      "symbol": "XTKG",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -20,7 +20,7 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "1m"
+          "timeframe": "10s"
         }
       },
       "2_2": {

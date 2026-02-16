@@ -98,6 +98,7 @@
 	]
 	,"stategies":[
 			{
+				 "module": "order_strategy",
 				"class" : "OrderStrategy",
 				"timeframe" : "1m",
 				"params" :
@@ -107,8 +108,9 @@
 				}
 			},
 			{
+			   "module": "gain_strategy",
 				"class" : "GainStrategy",
-				"timeframe" : "5m",
+				"timeframe" : "10s",
 				"params" :
 				{
 					"eta" : 5,
@@ -122,16 +124,19 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :20,
+				"max_symbols" :1,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
-				"mode" : "live",
+				"mode" : "sym",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["live"],
-				"start_scan" : "live",
+				"start_scan" : "keep_last_session",
 				"start_scan1" : "keep_last_session|debug|live",
+				"start_sym_time" : "2026-02-13 10:00:00",
 				"history_provider" :"ib",
+				"root_folder"  :"app",
+				"strategy_folder"  :"strategies",
 				"scheduler":[
 					{
 						"name" : "PRE",
