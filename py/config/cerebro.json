@@ -50,53 +50,78 @@
 		]
 	},
 	"stategies1":[
+				{
+				 "module": "order_strategy",
+				"class" : "OrderStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+					"eta" : 10,
+					"max_symbols" : 1
+				}
+			},
 			{
+			   "module": "gain_strategy",
 				"class" : "GainStrategy",
-				"timeframe" : "5m",
+				"timeframe" : "1m",
 				"params" :
 				{
 					"eta" : 5,
-					"min_gain" : 0.1
+					"min_gain" : 5
 				}
 			},
 			{
+				   "module": "strategies",
 				"class" : "LowFlowStrategy",
-				"timeframe" : "10s",
+				"timeframe" : "1m",
 				"params" :
 				{
 					"eta" : 5,
-					"min_gain" : 0.1,
+					"min_gain" : 0.25,
 					"avg_5m_eta" : 50,
-					"min_rel_vol_5m" : 0
+					"min_rel_vol_5m" : 1.5
 				}
 			},
 			{
+				   "module": "strategies",
 				"class" : "MidFloatStrategy",
-				"timeframe" : "10s",
+				"timeframe" : "1m",
 				"params" :
 				{
 					"_MF_MAX_PRICE" :  "Prezzo ancora sotto il 20%",
 					"max_price" : 20,
-					"min_float" : 5000001,
+					"min_float" : 5000000,
 					"max_float" : 20000000,
 					"_MF_MIN_REL_VOL" : "Volume molto alto (High Rel Vol)",
-					"min_rel_vol_5m" : 0.1,
+					"min_rel_vol_5m" : 2.5,
 					"avg_5m_eta" : 50
 				}
-			},{
+			},
+			{
+				   "module": "strategies",
 				"class" : "MomoStrategy",
-				"timeframe" : "10s",
+				"timeframe" : "1m",
 				"params" :
 				{
 					"-MOMO_MIN_REL_VOL_24": "# Molto volume nelle ultime 24h",
-					"min_gain" : 0.1,
+					"min_gain" : 0.35,
 					"eta_gain" : 10,
-					"min_rel_vol_24" : 1,
-					"avg_1d_eta" : 10
+					"min_rel_vol_24" : 1.8,
+					"avg_1d_eta" : 20
 				}
 			}
 	]
 	,"stategies":[
+		{
+			   "module": "trade_strategy",
+				"class" : "TradeStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+					"eta" : 5,
+					"min_gain" : 5
+				}
+			},
 			{
 				 "module": "order_strategy",
 				"class" : "OrderStrategy",
@@ -110,11 +135,51 @@
 			{
 			   "module": "gain_strategy",
 				"class" : "GainStrategy",
-				"timeframe" : "10s",
+				"timeframe" : "1m",
 				"params" :
 				{
 					"eta" : 5,
-					"min_gain" : 2
+					"min_gain" : 5
+				}
+			},
+			{
+				   "module": "strategies",
+				"class" : "LowFlowStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+					"eta" : 5,
+					"min_gain" : 0.25,
+					"avg_5m_eta" : 50,
+					"min_rel_vol_5m" : 1.5
+				}
+			},
+			{
+				   "module": "strategies",
+				"class" : "MidFloatStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+					"_MF_MAX_PRICE" :  "Prezzo ancora sotto il 20%",
+					"max_price" : 20,
+					"min_float" : 5000000,
+					"max_float" : 20000000,
+					"_MF_MIN_REL_VOL" : "Volume molto alto (High Rel Vol)",
+					"min_rel_vol_5m" : 2.5,
+					"avg_5m_eta" : 50
+				}
+			},
+			{
+				   "module": "strategies",
+				"class" : "MomoStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+					"-MOMO_MIN_REL_VOL_24": "# Molto volume nelle ultime 24h",
+					"min_gain" : 0.35,
+					"eta_gain" : 10,
+					"min_rel_vol_24" : 1.8,
+					"avg_1d_eta" : 20
 				}
 			}
 		],
@@ -124,14 +189,14 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :1,
+				"max_symbols" :10,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
-				"mode" : "sym",
+				"mode" : "live",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["live"],
-				"start_scan" : "keep_last_session",
+				"start_scan" : "live",
 				"start_scan1" : "keep_last_session|debug|live",
 				"start_sym_time" : "2026-02-13 10:00:00",
 				"history_provider" :"ib",

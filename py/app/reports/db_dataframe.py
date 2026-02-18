@@ -181,7 +181,16 @@ class DBDataframe_TimeFrame:
             return
         
         last_idx = self.last_index_by_symbol[symbol]
-        last_ts = int(self.df.at[last_idx, "timestamp"])
+        try:
+            last_ts = int(self.df.at[last_idx, "timestamp"])
+        except:
+            logger.warning("bad last index")
+            
+            symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
+            self.last_index_by_symbol[symbol] = symbol_rows[-1]
+
+            last_ts = int(self.df.at[last_idx, "timestamp"])
+
 
         # ---- CASO NORMALE ----
         if ts > last_ts:

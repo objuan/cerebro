@@ -16,8 +16,10 @@ from reports.report_manager import ReportManager
 
 
 class Indicator:
-    pass
-
+    
+    def get_render_data(self,dataframe):
+        return None
+        
 class SMA(Indicator):
 
     client : None
@@ -76,6 +78,24 @@ class AVG(Indicator):
                 .transform(lambda s: s.rolling(self.timeperiod, min_periods=self.timeperiod).mean())
         )
         
+class WVAP(Indicator):
+    def __init__(self,target_col, timeperiod:int):
+        self.target_col=target_col
+        self.timeperiod=timeperiod
+
+    def apply(self,dataframe : pd.DataFrame, last_idx=-1):
+        
+       # logger.info(f"GAIN \n{dataframe.tail(30)}")
+
+        #dataframe[self.target_col]  =  ((dataframe[self.source_col] - dataframe[self.source_col].shift(self.timeperiod)) / dataframe[self.source_col].shift(self.timeperiod))* 100
+        dataframe[self.target_col] = (
+            dataframe
+                .groupby("symbol")[self.source_col]
+                .transform(
+                    lambda s: ((s - s.shift(self.timeperiod)) / s.shift(self.timeperiod)) * 100
+                )
+        )
+       # logger.info(f"GAIN AFTER \n{dataframe.tail(30)}")
 
 class FLOAT(Indicator):
     def __init__(self,target_col):

@@ -16,6 +16,7 @@ export const tradeStore = reactive({
     data.pos = newTime;
     data.isOpen = this._isOpen(data)  
 
+    // console.log("tradeStore", data)
      if (!this.items[symbol]) {
         this.items[symbol] = [];
       }

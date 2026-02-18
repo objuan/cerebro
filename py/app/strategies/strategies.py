@@ -2,8 +2,8 @@ from typing import Dict
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from strategy.indicators import *
-from strategy.strategy import Strategy
+from bot.indicators import *
+from bot.strategy import Strategy
 from company_loaders import *
 from collections import deque
 
@@ -15,32 +15,9 @@ from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
 
-from strategy.order_strategy import *
+from strategies.order_strategy import *
 
-class GainStrategy(Strategy):
 
-    async def on_start(self):
-        self.eta= self.params["eta"]
-        self.min_gain= self.params["min_gain"]
-        pass
-
-    def populate_indicators(self) :
-        self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=self.eta))
-
-    async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
-     
-        logger.debug(f"on_symbol_candle  {symbol} \n {dataframe.tail(2)}" )
-
-        gain = dataframe.iloc[-1]["gain"]
-
-        if (gain > self.min_gain):
-            #logger.info(f"FIND {gain} > {self.min_gain}")
-            await self.send_event(symbol,
-                                  name= f"GAIN_{self.min_gain}",
-                                  small_desc=f"{gain:.1f}>{self.min_gain}",
-                                  full_desc=f"gain {gain:.1f}>{self.min_gain}",
-                                  data = {"color":"#AAAA00"})
-        
 ##############################################
 
 class LowFlowStrategy(Strategy):
@@ -99,15 +76,19 @@ class MidFloatStrategy(Strategy):
     async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict):
 
         df_5m = self.df(self.avg_df,symbol)
-        logger.info(f"on_symbol_candle \n{df_5m}")
+        #logger.info(f"on_symbol_candle \n{df_5m}")
       
 
         avg_base_volume = df_5m.iloc[-1]["avg_base_volume"]
         volume_5m = df_5m.iloc[-1]["base_volume"]
         rel_vol_5m=volume_5m / avg_base_volume
         current_float= df_5m.iloc[-1]["float"]
+        current_price = dataframe.iloc[-1]["close"]
 
-        logger.info(f"{avg_base_volume} {volume_5m} {rel_vol_5m} {current_float}")
+        if current_price > self.max_price:
+            return
+
+        #logger.info(f"{avg_base_volume} {volume_5m} {rel_vol_5m} {current_float}")
 
         if self.min_float <= current_float <=self.max_float:
             if ( rel_vol_5m >= self.min_rel_vol_5m):
@@ -118,7 +99,22 @@ class MidFloatStrategy(Strategy):
                                       data={"color":"#FF71B3"})
         
 class MomoStrategy(Strategy):
+    '''
+        Tipo	    Gain (10m)	    Rel Vol 24h
+        Early momo	≥ 0.25%	        ≥ 1.5
+        Strong momo	≥ 0.4%	        ≥ 2.0
+        Parabolic	≥ 0.8%	        ≥ 3.0
 
+    PREMARKET
+    Nel premarket i movimenti sono più ampi.
+0.2–0.3% è solo rumore.
+0.8–1.5% in 15 minuti = vero momentum.
+     "min_gain": 0.8,
+    "eta_gain": 15,
+    "min_rel_vol_24": 2.5,
+    "avg_1d_eta": 30
+
+    '''
     async def on_start(self):
         self.rank_map=None
         self.rank_map_old=None
@@ -191,20 +187,22 @@ class MomoStrategy(Strategy):
         avg_base_volume = df_1d.iloc[-1]["avg_base_volume"]
         volume_1d = df_1d.iloc[-1]["base_volume"]
         rel_vol_1d=volume_1d / avg_base_volume
+        delta = self.diff[symbol]["delta"]
 
         logger.debug(f"g:{gain:.2} {volume_1d}/{avg_base_volume} =_> {rel_vol_1d} ")
 
-        if rel_vol_1d <=self.min_rel_vol_24:
-            if gain >= self.min_gain:
-                #logger.info(f"FIND {gain} > {self.min_gain} v:{rel_vol_5m}")
-                if (self.diff[symbol]["delta"]>0):
-                    await self.send_event(symbol,name=f"MOMO",
-                                          small_desc=f"p:{self.diff[symbol]['new_pos']} v:({rel_vol_1d:.1})",
-                                          full_desc=f"pos:{self.diff[symbol]['new_pos']} v:({rel_vol_1d:.1}>{self.min_rel_vol_24:.1})",
-                                          data = {"color":"#8AFFAD"})
-                elif (self.diff[symbol]["is_new"]):
-                    await self.send_event(symbol,name=f"MOMO",
-                                          small_desc=f"p:NEW v:({rel_vol_1d:.1})",
-                                          full_desc=f"pos:NEW v:({rel_vol_1d:.1}>{self.min_rel_vol_24:.1})",
-                                          data = {"color":"#757776"})
-        
+        if delta and delta >= 3: #Questo evita micro-movimenti di ranking.
+            if rel_vol_1d >= self.min_rel_vol_24:
+                if gain >= self.min_gain:
+                    #logger.info(f"FIND {gain} > {self.min_gain} v:{rel_vol_5m}")
+                    if (self.diff[symbol]["delta"]>0):
+                        await self.send_event(symbol,name=f"MOMO",
+                                            small_desc=f"p:{self.diff[symbol]['new_pos']} v:({rel_vol_1d:.1})",
+                                            full_desc=f"pos:{self.diff[symbol]['new_pos']} v:({rel_vol_1d:.1}>{self.min_rel_vol_24:.1})",
+                                            data = {"color":"#8AFFAD"})
+                    elif (self.diff[symbol]["is_new"]):
+                        await self.send_event(symbol,name=f"MOMO",
+                                            small_desc=f"p:NEW v:({rel_vol_1d:.1})",
+                                            full_desc=f"pos:NEW v:({rel_vol_1d:.1}>{self.min_rel_vol_24:.1})",
+                                            data = {"color":"#757776"})
+            

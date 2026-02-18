@@ -87,7 +87,8 @@ class ReportManager:
             full_dict = {
                 symbol: {
                     col: self.py_value(self.df_report.loc[symbol, col])
-                    for col in ["rank","rank_delta","gain","last", "day_volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
+                    for col in ["rank","rank_delta","gain","last", "day_volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m",
+                                "gap","avg_base_volume_1d","avg_base_volume_5m","volume_5m"]
                 }
                 for symbol in self.df_report.index
             }
@@ -98,55 +99,53 @@ class ReportManager:
                     "data": full_dict
             })
             
-    def make_diff1(self, current, old):
-        cols = ["rank","rank_delta","gain","last", "day_volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m","gap"]
 
-        #logger.info(f"current \n{current}")
-        #logger.info(f"old \n{old}")
-
-        change_mask = old[cols].ne(current[cols])
-
-            #logger.info(f"change_mask \n{change_mask}")
-                
-        changed_dict = {
-                    symbol: {
-                        col: self.py_value(current.loc[symbol, col].item())
-                        for col in cols
-                        if change_mask.loc[symbol, col]
-                    }
-                    for symbol in change_mask.index
-                    if change_mask.loc[symbol].any()
-                }
-        return changed_dict
-    
+        
     def make_diff(self, current: pd.DataFrame, old: pd.DataFrame):
+
         cols = [
             "rank","rank_delta","gain","last","day_volume",
             "avg_base_volume_1d","float","rel_vol_24",
-            "rel_vol_5m","gap"
+            "rel_vol_5m","gap","avg_base_volume_5m","volume_5m"
         ]
 
-        # allinea gli indici (union)
+        # 🔹 rimuove eventuali duplicati di index (fondamentale)
+        current = current[~current.index.duplicated(keep="last")]
+        old = old[~old.index.duplicated(keep="last")]
+
+        # allinea indici
         all_symbols = current.index.union(old.index)
 
         current_aligned = current.reindex(all_symbols)
         old_aligned = old.reindex(all_symbols)
 
-        # confronto (NaN != valore → True, perfetto per nuovi symbol)
         change_mask = old_aligned[cols].ne(current_aligned[cols])
 
         changed_dict = {}
 
         for symbol in all_symbols:
+
+            if symbol not in change_mask.index:
+                continue
+
             row_mask = change_mask.loc[symbol]
 
+            # Se per qualche motivo è DataFrame, prendiamo ultima riga
+            if isinstance(row_mask, pd.DataFrame):
+                row_mask = row_mask.iloc[-1]
+
             if row_mask.any():
-                # se symbol nuovo (old tutto NaN) → tutte le colonne True
-                changed_cols = {
-                    col: self.py_value(current_aligned.loc[symbol, col])
-                    for col in cols
-                    if row_mask[col] and pd.notna(current_aligned.loc[symbol, col])
-                }
+
+                changed_cols = {}
+
+                for col in cols:
+
+                    mask_value = row_mask[col]
+
+                    if bool(mask_value) and pd.notna(current_aligned.at[symbol, col]):
+                        changed_cols[col] = self.py_value(
+                            current_aligned.at[symbol, col]
+                        )
 
                 if changed_cols:
                     changed_dict[symbol] = changed_cols
@@ -191,6 +190,9 @@ class ReportManager:
                         )
 
             #print(df_5m)
+            #logger.info(f"mean_base_volume_5m \n{mean_base_volume_5m }")
+
+            #logger.info(f"mean_base_volume_5m \n{df_5m[df_5m['symbol']=='ERNA'].tail(100) }")
             #########
 
             #           
@@ -262,14 +264,24 @@ class ReportManager:
             df = df.merge(  mean_base_volume_5m, on="symbol",    how="left")
 
             #df['base_volume_5m'] = df_1m.tail(5)['base_volume'].sum()
-            df['volume_5m'] = (
-                  df_1m#.sort_values('timestamp')
-                .groupby('symbol')['base_volume']
-                .transform(lambda x: x.tail(5).sum())
-            )
+  
+            df_5m_last = (
+                df_5m[["symbol", "base_volume"]]
+                .groupby("symbol")
+                .nth(-1)
+                .reset_index()
+                .rename(columns={"base_volume": "volume_5m"})
+            ) 
+
+            df = df.merge(  df_5m_last[["symbol","volume_5m"]], on="symbol",    how="left")
+                             
+            #logger.info(f"volume_5m \n{df_5m_last }")
+            #logger.info(f"df['avg_base_volume_5m'] \n{df['avg_base_volume_5m'] }")
 
             df['rel_vol_24'] = (df['day_volume'] / df['avg_base_volume_1d'])  * 100
             df['rel_vol_5m'] = ((df['volume_5m'] / df['avg_base_volume_5m']) ) * 100
+
+            #logger.info(f" df['rel_vol_5m'] \n{ df['rel_vol_5m'] }")
 
             #float
 
@@ -308,7 +320,7 @@ class ReportManager:
                 changed_dict = self.make_diff(df_new_report,self.df_report)
 
                 if len(changed_dict)>0:
-                    #logger.info(f"changed_dict {changed_dict}")
+                    #logger.info(f"changed_dict \n{changed_dict}")
 
                     await self.render_page.send({
                         "type" : "report",
@@ -318,7 +330,7 @@ class ReportManager:
                 df_new_report["rank_old"] =  df_new_report["rank"] 
                 df_new_report["rank_delta"] = df_new_report["rank"] - df_new_report["rank_old"] 
 
-            #logger.info(f"result \n{df_new_report}")
+            #logger.info(f"result \n{df_new_report.tail(10)}")
 
             self.df_report  = df_new_report
         

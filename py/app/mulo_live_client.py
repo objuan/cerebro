@@ -236,7 +236,9 @@ class MuloLiveClient:
                 self.tickers[s] =t
                 '''
                 last_close=  await self.last_close(ticker["symbol"])
+                if (last_close == 0): last_close = 0.000001
                 gain =  ((ticker["last"] - last_close) / last_close) * 100
+              
 
                 self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
                                     "gain" : gain, "low":0 , "high":0, "last" : ticker["last"], 
@@ -429,6 +431,9 @@ class MuloLiveClient:
     async def _align_data(self, symbol, timeframe):
         await self.send_cmd("/chart/align_data",symbol,timeframe)
      
+
+    #######################
+
     def back_data(self,symbols: List[str], timeframe: str, since : int, to: int ):
 
         if len(symbols) == 0:
@@ -456,7 +461,54 @@ class MuloLiveClient:
         conn.close()    
         return df 
 
-     
+      
+    def back_symbols(self,timeframe:str, since : int, to: int ):
+        
+        conn = sqlite3.connect(self.db_file)
+
+        query = f"""
+                   SELECT 
+    symbol,
+    MIN(timestamp) AS min_timestamp,
+    MAX(timestamp) AS max_timestamp
+FROM ib_ohlc_history
+WHERE timeframe = '{timeframe}'
+  AND timestamp >= {since}
+  AND timestamp <= {to}
+GROUP BY symbol;
+"""
+                    
+        #print("query",query)
+
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()    
+        return df 
+    
+    def back_profiles(self):
+        
+        conn = sqlite3.connect(self.db_file)
+        query = f""" SELECT * from back_profile"""
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()    
+        return df 
+    
+    def save_profile(self,name,data):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO back_profile (name, data)
+            VALUES (?, ?)
+            ON CONFLICT(name)
+            DO UPDATE SET data = excluded.data
+        """
+
+        cursor.execute(query, (name, json.dumps(data)))
+        conn.commit()
+        conn.close()
+    
     #######################
     
     async def last_close(self,symbol: str)-> float:
@@ -581,7 +633,6 @@ class MuloLiveClient:
         if not self.sym_mode: 
             query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
             self.execute(query, ("task-order",order["symbol"], "TASK_ORDER",  int(time.time() * 1000), json.dumps(order) ))
-
 
         await self.render_page.sendOrder(
                 {"type": "TASK_ORDER", "data" : order}

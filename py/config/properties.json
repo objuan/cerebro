@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "XTKG",
+      "symbol": "OLB",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -20,7 +20,7 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "10s"
+          "timeframe": "1m"
         }
       },
       "2_2": {
@@ -37,9 +37,14 @@
     },
     "2": {
       "grid": "1_1",
-      "symbol": "ABP",
+      "symbol": "OBAI",
       "indicator": {
         "1m": "aa"
+      },
+      "1_1": {
+        "1": {
+          "timeframe": "1m"
+        }
       }
     }
   },
@@ -85,6 +90,18 @@
     },
     "CRSR": {
       "mode": "DIRECT"
+    }
+  },
+  "back": {
+    "history": {
+      "date": "2026-02-13",
+      "last": "aaa"
+    },
+    "undefined": {
+      "grid": "1_1"
+    },
+    "1": {
+      "grid": "1_1"
     }
   }
 }

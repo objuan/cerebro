@@ -306,23 +306,29 @@ class MuloJob:
                         )
                         df = util.df(bars)
 
-                        logger.info(f">> #{len(bars)}")
-                        #df["timestamp"] = df["date"] * 1000
-                        #df["Datetime"] = (df["date"].view("int64") // 10**6).astype("int64")
-                        df = df.rename(columns={
-                            "open": "Open",
-                            "high": "High",
-                            "low": "Low",
-                            "close": "Close",
-                            "volume": "Volume",
-                            "date" :"Datetime"
-                        })
-                        #df = df[["Datetime","Open","Close","High","Low","Volume"]]
-                        #df.reset_index(drop=True, inplace=True)
-                        #df.drop(columns=["index"], inplace=True)
-                        #logger.info(f"\n{df.tail(50)}")
+                        try:
+                            logger.info(f">> #{len(bars)}")
+                            #df["timestamp"] = df["date"] * 1000
+                            #df["Datetime"] = (df["date"].view("int64") // 10**6).astype("int64")
+                            df = df.rename(columns={
+                                "open": "Open",
+                                "high": "High",
+                                "low": "Low",
+                                "close": "Close",
+                                "volume": "Volume",
+                                "date" :"Datetime"
+                            })
+                            #df = df[["Datetime","Open","Close","High","Low","Volume"]]
+                            #df.reset_index(drop=True, inplace=True)
+                            #df.drop(columns=["index"], inplace=True)
+                            #logger.info(f"\n{df.tail(50)}")
+
+                            await self.process_data(exchange,symbol, timeframe, cursor, df)
+                            
+                        except:
+                            logger.error("ERROR", exc_info=True)
                     
-                    await self.process_data(exchange,symbol, timeframe, cursor, df)
+                        #await self.process_data(exchange,symbol, timeframe, cursor, df)
 
             else:
                 

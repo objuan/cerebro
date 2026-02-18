@@ -271,3 +271,17 @@ CREATE TABLE IF NOT EXISTS  news (
 cur.execute("""
 CREATE UNIQUE INDEX IF NOT EXISTS idx_news_unique
 ON news (provider, symbol, guid);""")
+
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS  back_profile (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(255),
+    data TEXT
+);
+""")
+
+
+cur.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS idx_back_profile
+ON back_profile (name);""")

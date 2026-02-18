@@ -100,7 +100,7 @@
             <OrdersWidget/>
         </SidePanel>
 
-        <SidePanel title="GAP" ref ="reportsRef" width="800px">
+        <SidePanel title="GAP" ref ="reportsRef" width="900px">
             <ReportPanel ></ReportPanel>
         </SidePanel>
 
@@ -181,6 +181,7 @@ import { strategyStore } from "@/components/js/strategyStore";
 import { reportStore } from "@/components/js/reportStore";
 import { tickerStore } from "@/components/js/tickerStore";
 import { newsStore } from "@/components/js/newsStore";
+import { initProps } from "@/components/js/common";
 
 
 // --- STATO REATTIVO ---
@@ -287,6 +288,7 @@ const initWebSocket_mulo = () => {
           //portfolioRef.value?.handleMessage(msg);
           eventBus.emit("update-position", msg);
           break
+
         case "POSITION_TRADE":
           //console.log("POSITION_TRADE",msg)
           //portfolioRef.value?.handleMessage(msg);
@@ -425,7 +427,7 @@ const initWebSocket = () => {
           break
         case "report":
           {
-          // console.log("Report\\\\",msg.data);
+           //console.log("Report",msg.data);
             
             reportStore.push( msg.data)
             eventBus.emit("report-received", msg.data);
@@ -493,7 +495,7 @@ const initWebSocket = () => {
 
 // --- LIFECYCLE ---
 
-onMounted(() => {
+onMounted( async () => {
 
   //console.log("main onMounted")
 
@@ -501,10 +503,12 @@ onMounted(() => {
 
   initWebSocket_mulo();
 
-  const loadLayout = async () => {
   try {
 
         // tutte le  props
+
+        await initProps();
+        /*
         let pdata = await send_get("/api/props/find", {path : ""})
         //console.log(pdata)
         pdata.forEach(  (val) =>{
@@ -519,10 +523,9 @@ onMounted(() => {
             else
             {
               liveStore.set(val.path, val.value);
-            }
-
-            
+            } 
         });
+        */
 
         let grid = staticStore.get("home.grid","")
         if (grid!="")
@@ -582,28 +585,7 @@ onMounted(() => {
     } finally {
         //caricamento.value = false
     }
-  }
-
-  loadLayout();
-  /*
-  function saveLayout() {
-    
-    //console.log(save)
-    fetch(`http://127.0.0.1:8000/api/layout/save`,
-    {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json'},
-      body:  JSON.stringify(save)
-    }).then(response => {
-          if (!response.ok) {
-              throw new Error(`Errore HTTP! Stato: ${response.status}`);
-          }
-      });
-   
-    //localStorage.setItem("grid-layout", JSON.stringify(layout));
-  }
-     */
-
+  
   eventBus.on("chart-select", onChartSelect);
     
 });

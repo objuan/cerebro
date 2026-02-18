@@ -48,6 +48,7 @@ from reports.db_dataframe import *
 from props_manager import PropertyManager
 from mulo_live_client import MuloLiveClient
 from bot.strategy_manager import StrategyManager
+from bot.backtest_manager import BacktestManager,BacktestIn
 
 print(" STAT FROM ",os.getcwd())
 
@@ -83,7 +84,7 @@ file_handler = RotatingFileHandler(
         backupCount=5,
         encoding="utf-8"
 )
-file_handler.setLevel(logging.DEBUG)
+file_handler.setLevel(logging.INFO)
 
 # Console
 console_handler = logging.StreamHandler()
@@ -154,6 +155,17 @@ report.render_page=render_page
 strategy = StrategyManager(config,db,client,render_page)
 client.render_page=render_page
 
+back_manager = BacktestManager(client,render_page)
+
+in_data = {
+            "badgetUSD": 100,
+            "symbols": ["ATOM","CRSR"],
+            "dt_from": "2026-02-13 16:00:00",
+            "dt_to": "2026-02-13 18:00:00",
+            "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+        }
+
+backData =  BacktestIn(in_data)
 
 tradeManager.on_trade_changed+= OrderTaskManager.on_update_trade
 tradeManager.on_trade_deleted+= OrderTaskManager.on_delete_trade
@@ -803,7 +815,7 @@ async def get_task_orders(start: Optional[str] = None,
         cur.execute(query, (start,))
         rows = cur.fetchall()
 
-        logger.info(f"get task orders {start}")
+        logger.info(f"get task orders {start} {onlyReady}")
         
         # Ottieni i nomi delle colonne
         columns = [desc[0] for desc in cur.description]
@@ -887,7 +899,7 @@ async def get_events(limit, types:str    ):
             WHERE source IN ({','.join('?' for _ in types_list)})
             AND ds_timestamp >= datetime('now', 'start of day')
          
-            ORDER BY id DESC
+            ORDER BY id --DESC
             LIMIT ?
         """
 
@@ -899,7 +911,7 @@ async def get_events(limit, types:str    ):
             d["type"] = row["type"] 
            
                            
-            logger.info(f"event {row['type']} {d}")   
+            #logger.info(f"event {row['type']} {d}")   
             await render_page.sendOrder(d)
 
         return {"status": "ok"}
@@ -1149,6 +1161,97 @@ async def set_sym_speed(value:float):
     await  client.setSymSpeed(value)
     return {"status": "ok"}
 
+####################
+
+@app.get("/back/ohlc_chart")
+async def back_ohlc_chart(symbol: str, timeframe: str):
+    
+    try:
+            df1 = back_manager.db.full_dataframe(timeframe, symbol)
+            #logger.debug(f"{symbol} {timeframe} {df1}")
+            df_co = (
+                df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
+                .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
+                .copy().fillna(0)
+            )
+            #logger.info(f"NAN {df_co.isna().any().any()}")
+
+            #logger.info(df_co.to_dict(orient="records"))
+            return JSONResponse(df_co.to_dict(orient="records"))
+    except:
+        logger.error("Error", exc_info=True)
+        return HTMLResponse("error", 500)
+    
+@app.get("/back/profiles")
+async def back_get_profiles():
+    df = client.back_profiles(  )
+    return JSONResponse(df.to_dict(orient="records"))
+
+@app.get("/back/profile/select")
+async def back_select_profile(name):
+    df = client.back_profiles(  )
+    sdata = df[df["name"]== name].iloc[0]["data"]
+    logger.info(f"SELECT DATA { sdata}")
+    data = json.loads(sdata)
+
+    date_obj = datetime.strptime(data["date"], "%Y-%m-%d")
+     # inizio giorno
+    start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+    # fine giorno
+    end_of_day = datetime.combine(date_obj.date(), datetime.max.time())
+    unix_min = int(start_of_day.timestamp())*1000
+    unix_max = int(end_of_day.timestamp())*1000
+    
+    backData.symbols = [ x["symbol"] for  x in data["symbols"]]
+
+    backData.dt_from = start_of_day.strftime("%Y-%m-%d %H:%M:%S")
+    backData.dt_to =end_of_day.strftime("%Y-%m-%d %H:%M:%S")
+
+    await back_manager.load(backData)
+
+    return {"status": "ok"}
+
+@app.post("/back/profile/save")
+async def back_save_profile(payload: dict):
+    #logger.info(f"Translate  {payload}")   
+    try:
+        name = payload["name"]
+        data = payload["data"]
+
+        client.save_profile(name,data)
+
+        return {"status": "ok"}
+    
+    except :
+        logger.error("ERROR", exc_info=True)
+        return  {"status": "ko"}   
+
+
+@app.get("/back/symbols")
+async def back_get_symbols(date:str):
+    try:
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        # inizio giorno
+        start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+        # fine giorno
+        end_of_day = datetime.combine(date_obj.date(), datetime.max.time())
+        unix_min = int(start_of_day.timestamp())*1000
+        unix_max = int(end_of_day.timestamp())*1000
+
+        logger.info(f"{unix_min} {unix_max}")
+
+        df = client.back_symbols("1m",unix_min, unix_max)
+        
+        return JSONResponse(df.to_dict(orient="records"))
+    except:
+        logger.error("ERRRO",exc_info=True)
+        return {"status": "ko"}
+    
+@app.get("/live/strategy/indicators")
+async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Optional[str] = None,since: Optional[int] = None):
+    all = strategy.live_indicators(symbol,timeframe,since)
+    return JSONResponse(all)
+    
 ########
 
 @app.websocket("/ws/live")

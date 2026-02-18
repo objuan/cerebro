@@ -40,6 +40,7 @@ class Strategy:
             self.indicators[tf] = []
         self.indicators[tf].append(ind)
         ind.client = self.client
+        return ind
 
     def _fill_indicators(self,timeframe, allMode,df=None):
         for tf, inds in self.indicators.items():
@@ -48,8 +49,12 @@ class Strategy:
                     if allMode:
                         ind.apply(self.df(tf))    
                     else:
+
                         ind.apply(df)
-        
+
+    def live_indicators(self,symbol,timeframe,since):
+        return None
+
     async def on_start(self):
         pass
 

@@ -49,8 +49,18 @@ intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
 #intervals = [10]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
+LOG_FILE="logs/tws_brokerlive.log"
+
 use_yahoo=False
 use_display = False
+
+if False:
+    if os.path.exists(LOG_FILE):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        archived = os.path.join(LOG_DIR, f"app_{timestamp}.log")
+        shutil.move(LOG_FILE, archived)
+else:
+    os.remove(LOG_FILE)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -139,7 +149,7 @@ class LiveManager:
 
                 logger.warning(f"LIVE cancelled (reqId={reqId} {errorString} c:{contract})")
                 
-                if contract:
+                if contract and contract.symbol in self.tickers:
                     self.tickers[contract.symbol].cancelled = False
 
                 return  # ignorato
@@ -694,12 +704,12 @@ class LiveManager:
                                         if row['day_volume'] is None:
                                             day_volume = 0
                                         else:
-                                            day_volume = int(row['day_volume'])
+                                            day_volume = max(0,int(row['day_volume']))
 
                                         if row['base_volume'] is None:
                                             base_volume = 0
                                         else:
-                                            base_volume = int(row['base_volume'])
+                                            base_volume = max(0,int(row['base_volume']))
 
                                         if interval == 10:
                                             ticker.last = float(row.get("close") or 0)
@@ -1004,7 +1014,7 @@ if __name__ =="__main__":
   
     # Console
     file_handler = RotatingFileHandler(
-            "logs/tws_brokerlive.log",
+            LOG_FILE,
             maxBytes=5_000_000,
             backupCount=5,
             encoding="utf-8"

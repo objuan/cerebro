@@ -16,7 +16,12 @@
     >
       Gap
     </button>
-
+ <button
+      :class="{ active: sortBy === 'day_volume' }"
+      @click="sortBy = 'day_volume'"
+    >
+      V
+    </button>
      <button
       :class="{ active: sortBy === 'rel_vol_5m' }"
       @click="sortBy = 'rel_vol_5m'"
@@ -40,23 +45,39 @@
         :key="item.symbol"
         class="card ticket-card"
       >
-        <div class="card-body p-2 d-flex justify-content-between align-items-center">
+        <div class="card-body p-0 d-flex justify-content-between align-items-center">
           
-         
-            <div class="fw-bold">
-                <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item.symbol)">
-                      {{ item.symbol }}
-                    </a>
+            <table style="width: 100%; height: 100%;">
+              <tr style="height : 60%">
+                <td>
+                   <div class="fw-bold">
+                        <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item.symbol)">
+                              {{ item.symbol }} 
+                            </a>
 
-            </div>
+                    </div>
+                </td>
+                <td>
+                  <div
+                      class="fw-bold ms-1"
+                      :class="item.gain >= 0 ? 'text-success' : 'text-danger'"
+                    >
+                      {{ Number(item.gain).toFixed(1) }}%
+                    </div>
+                </td>
+              </tr>
+            <tr style="height : 40%">
+              <td class="volume">
+                  {{ formatValue(item.report?.day_volume) }}
+              </td>
+              <td class="volume" :style="{ color: item.report?.rel_vol_5m>0 ? 'green' : 'red' }">
+                  {{item.report?.rel_vol_5m.toFixed(1)}}%
+              </td>
+            </tr>
+        
 
-          <div
-            class="fw-bold ms-1"
-            :class="item.gain >= 0 ? 'text-success' : 'text-danger'"
-          >
-            {{ Number(item.gain).toFixed(1) }}%
-          </div>
-          
+     
+          </table>
            <!-- STARS-->
           <div class="star-wrapper" v-if="item.summary">
             <div class="star-grid">
@@ -416,13 +437,23 @@ defineExpose({
 </script>
 
 <style scoped>
-
+.volume{
+  top: 0px;
+ font-family: monospace; 
+ font-size: 13px;
+}
 .items-container {
    height: calc(100vh - 90px); 
   overflow-y: auto;
   overflow-x: hidden;   /* ❌ niente scroll orizzontale */
   width: 100%;
   margin-right: 2px;
+
+  
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;  /* 🔥 allinea in alto */
+  align-items: stretch;         /* opzionale */
 }
 .items-container::-webkit-scrollbar {
   width: 6px;              /* sottile */
@@ -497,7 +528,7 @@ defineExpose({
 
 .ticket-card {
  width: 100%;
-  
+  max-height:50px
 }
 .star-wrapper {
   position: relative;
@@ -509,8 +540,9 @@ defineExpose({
   position: absolute;
   /* bottom: 120%;          sopra la grid */
   top: 120%;              /* 👈 sotto la grid */
-  left: -30%;
+  left: -35px;
   transform: translateX(-50%);
+  z-index: 100;
   
   background: #111;
   color: #eee;

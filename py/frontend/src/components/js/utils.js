@@ -23,6 +23,10 @@ export const formatUnixTimeOnly = (unixTime) => {
     hour12: false // Forza il formato 24 ore
   });
 };
+export function getToday() {
+  const today = new Date()
+  return today.toISOString().split('T')[0]
+}
 
 export function formatTime(t) {
   return new Date(t).toLocaleTimeString();

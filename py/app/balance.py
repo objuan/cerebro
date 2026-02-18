@@ -122,33 +122,6 @@ class Position:
             old_position = self.position
             self.position = value
 
-            '''
-            logger.info(f"{old_position} -> {value} ")
-            # OPEN TRADE: 0 -> >0
-            if old_position == 0 and value > 0:
-                #self.current_trade = PositionTrade(
-                #    self.symbol
-                #)
-                #self.current_trade.appendBuy( entry_price=self.marketPrice,entry_size=value)
-             
-                if Balance.ws:
-                    msg = {"type": "POSITION_TRADE", "data" : self.current_trade.to_dict() }
-                    await Balance.ws.broadcast(msg)
-
-               
-            # CLOSE TRADE: >0 -> 0
-            elif old_position > 0 and value == 0 and self.current_trade:
-                pass
-                #self.current_trade.appendSell(self.marketPrice)
-                #self.trades.append(self.current_trade)
-              
-                if Balance.ws:
-                    msg = {"type": "POSITION_TRADE", "data" : self.current_trade.to_dict() }
-                    await Balance.ws.broadcast(msg)
-            
-                #self.current_trade = None
-            '''
-
         elif name == "avgCost":
             self.avgCost = value
 

@@ -194,6 +194,7 @@ const indicatorList = ref([]);
 const profileName = ref("");
 let timeLine_pre=null;
 let timeLine_open=null;
+const strategy_index_map = {}
 
 const gfx_canvas = ref(null);
 
@@ -422,6 +423,83 @@ function linkClearIndicators(){
     send_post('/api/props/save', { path: get_indicator_key(), "value": "" });
     clearIndicators();
 }
+
+// ================
+
+async function updateStrategyIndicators(since=null){
+  //console.log("updateStrategyIndicators",since)
+  //if (Object.keys(strategy_index_map).length==0)
+  {
+    let strat_response =null;
+    if (since==null)
+      strat_response = await send_get(`/live/strategy/indicators`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value  });
+    else
+      strat_response = await send_get(`/live/strategy/indicators`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value , "since": since });
+
+    // console.log("task strat_response",strat_response)
+      strat_response.forEach( (strat) =>
+      {
+         // console.log("task strat_response",strat)
+          const strat_name = strat.strategy
+
+          if(!strategy_index_map[strat_name])
+              strategy_index_map[strat_name] = {}
+
+          let storage = strategy_index_map[strat_name] 
+
+          strat.list.forEach( (data) =>
+          {
+            const name = data.name;
+            //console.log("name",name,storage[name])
+            if(!storage[name])
+            {
+                storage[name] = data
+                // creo indice
+                let line =  chart.addSeries(LineSeries, {
+                    color: data.color,
+                    lineWidth: 1,
+                    lineStyle:0,
+                    priceLineVisible: false,
+                    lastValueVisible: false,
+                    crosshairMarkerVisible: false,
+                  });
+                  data.line = line
+
+                const formattedData = data.data.map(d => ({
+                    time: window.db_localTime ? window.db_localTime(d.time) : d.time,
+                    value: d.value
+                  }));
+                  //console.log("formattedData",formattedData)
+                  line.setData(formattedData);
+            }
+            else
+            {
+                if (data.data.length>0)
+                {
+                 
+                      const formattedData = data.data.map(d => ({
+                      time: window.db_localTime ? window.db_localTime(d.time) : d.time,
+                      value: d.value
+                    }));
+
+                       console.log("UPDATE",formattedData)
+
+                    //storage[name].line.update("UPDATE",formattedData);
+                }
+            }
+            
+            
+            
+              console.log("data",strat_name,data)
+          })
+
+          //console.log("strategy_index_map",strategy_index_map)
+      })
+    }
+
+    
+
+}
 //  ---------
 /*
  --- LOGICA REFRESH DATI ---
@@ -446,6 +524,9 @@ const handleRefresh = async () => {
           line.data = JSON.parse(line.data)
       })  
 
+        // STETEGY
+        await updateStrategyIndicators()
+   
       // TASK LIST
 
       const task_response = await send_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
@@ -477,8 +558,8 @@ const handleRefresh = async () => {
 
         // OPEN DATE
 
-        updateVerticalLineData(timeLine_pre,formattedData,findLastCandleOfEachDay(formattedData))
-      updateVerticalLineData(timeLine_open,formattedData,findOpenDate(formattedData))
+       updateVerticalLineData(timeLine_pre,formattedData,findLastCandleOfEachDay(formattedData))
+       updateVerticalLineData(timeLine_open,formattedData,findOpenDate(formattedData))
 
 
         lastMainCandle = formattedData[formattedData.length - 1];
@@ -494,6 +575,7 @@ const handleRefresh = async () => {
           });
         }
 
+     
         // gestione lieen user
         clearDrawings( context() );
         ind_response.forEach( line =>
@@ -533,6 +615,14 @@ const handleRefresh = async () => {
                   volume: Math.max(0,d.bv),
                   color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
                 })));
+
+                indicatorList.value.forEach((ind) => {
+                  if (ind.refresh != null)   
+                      ind.refresh ()
+                    //console.log("update ind",ind.name,ind.refresh)
+                
+                }); 
+
       } );
  
 
@@ -651,7 +741,7 @@ const handleSymbols = async () => {
 const setSymbol = async (symbol) => {
   console.log("setSymbol")
   currentSymbol.value= symbol
-  handleRefresh();
+  await handleRefresh();
 };
 
 // =========================
@@ -1004,7 +1094,8 @@ function on_candle(c)
         
       }); 
     }
-      
+   // console.log(c)
+    updateStrategyIndicators(c.ts- 1000*100);
   }
   else
   {

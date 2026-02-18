@@ -1,8 +1,9 @@
 <template>
-  <div class="p-0">
+  <div class="p-0" style="font-size: 12px;">
     
     <div class="overflow-x-auto">
-      <table class="min-w-full border rounded-xl overflow-hidden shadow-sm">
+      <table class="min-w-full border rounded-xl overflow-hidden shadow-sm"
+      style="width: 100%;">
         <thead class="bg-gray-100 text-sm">
           
           <th 
@@ -104,7 +105,7 @@ const report_rows = computed(() => {
 })
 
 
-
+// last_close     last       gain      ask     bid  day_volume             ts        gap  ...  avg_base_volume_5m  volume_5m   rel_vol_24    rel_vol_5m      float  rank  rank_old  rank_delta
 const columns = [
    {"title": "Change From Close" ,"bind" : "gain" , "type" :"perc", "decimals": 2,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,  "color_min": "#FFFFFF" , "color_max":"#14A014"   } },
    {"title": "Symbol/News" ,"bind" : "symbol",  "type" :"chart_link" },
@@ -114,7 +115,11 @@ const columns = [
    {"title": "Float" ,"bind" : "float","type" :"volume","color_scale":{ "low": 0 ,"low_color": "#0000FF", "mid":20000000 , "mid_color": "#00FF00" , "hi":30000000, "hi_color":"#FFFFFF"    } },
    {"title": "Rel Vol 1d","bind" : "rel_vol_24", "decimals": 2 },
    {"title": "Rel Vol 5m","bind" : "rel_vol_5m", "decimals": 2 },
-   {"title": "Gap","bind" : "gap", "type" :"perc" , "decimals": 1,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,   "color_min": "#FFFFFF" , "color_max":"#14A014"    } }
+   {"title": "Gap","bind" : "gap", "type" :"perc" , "decimals": 1,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,   "color_min": "#FFFFFF" , "color_max":"#14A014"    }} ,
+   {"title": "Vol 5m","bind" : "volume_5m", "type" :"volume"  } ,
+   {"title": "Avg 5m","bind" : "avg_base_volume_5m", "type" :"volume"  } ,
+   {"title": "Avg 1d","bind" : "avg_base_volume_1d", "type" :"volume"  } 
+  
 ]
 
 const columnsMap = columns.reduce((acc, col) => {

@@ -55,15 +55,15 @@ from reports.report_manager import ReportManager
 class BacktestIn:
     badgetUSD : int
     symbols: List[str]
-    dt_from : int
-    dt_to: int
+    dt_from : str
+    dt_to: str
     strategy : List[ Dict]
 
     def __init__(self, data: Dict[str, Any]):
         self.badgetUSD: int = data.get("badgetUSD", 0)
         self.symbols: List[str] = data.get("symbols", [])
-        self.dt_from: int = data.get("dt_from", 0)
-        self.dt_to: int = data.get("dt_to", 0)
+        self.dt_from: str = data.get("dt_from", 0)
+        self.dt_to: str = data.get("dt_to", 0)
         self.strategy: List[Dict] = data.get("strategy", [])
 
     def to_dict(self) -> Dict[str, Any]:
@@ -130,6 +130,14 @@ class Back_DBDataframe_TimeFrame:
 
         logger.info(f"START FROM {self.timeframe} { begin_time}")
  
+    def full_dataframe(self,symbol="") -> pd.DataFrame:
+        #logger.info(f"{self.tim} {self.last_timestamp} {self.df}")
+        if symbol=="":
+            return self.all_df
+        else:
+            cp =  self.all_df.copy()
+            return cp[cp["symbol"]== symbol]
+        
     def dataframe(self,symbol="") -> pd.DataFrame:
         #logger.info(f"{self.tim} {self.last_timestamp} {self.df}")
         if symbol=="":
@@ -169,6 +177,9 @@ class Back_DatabaseManager:
             self.map[timeframe] = Back_DBDataframe_TimeFrame(self,timeframe,self.inData) 
         # min max
         return self.map[timeframe]
+    
+    def full_dataframe(self,timeframe,symbol="")-> pd.DataFrame:
+        return self.db_dataframe(timeframe).full_dataframe(symbol)
 
     def dataframe(self,timeframe,symbol="")-> pd.DataFrame:
         return self.db_dataframe(timeframe).dataframe(symbol)
@@ -219,9 +230,13 @@ class BacktestManager:
 
         await strategy.bootstrap()
 
-    async def start(self, inData:BacktestIn,strat_def):
+    async def load(self, inData:BacktestIn):
+        self.inData=inData
         self.db = Back_DatabaseManager(self,inData)
-        for s in inData.strategy:
+       
+    async def start(self, strat_def):
+        #self.db = Back_DatabaseManager(self,inData)
+        for s in self.inData.strategy:
             await self.loadStrategy(s["module"], s["class"],strat_def)
 
         self.db.begin()
@@ -273,7 +288,9 @@ if __name__ =="__main__":
         }
         strat_def = convert_json(strat_def)
 
-        await manager.start(backtest,strat_def)
+        await manager.load(backtest)
+
+        await manager.start(strat_def)
 
         pass
 

@@ -89,10 +89,12 @@ class StrategyManager:
 
         self.strategies = []
 
+
+    async def bootstrap(self):
         self.load_strategies()
-
         self.start_watcher()
-
+        for strat in self.strategies:
+            await strat["instance"].bootstrap()
 
     def start_watcher(self):
         root = self.config["live_service"]["root_folder"]
@@ -214,11 +216,13 @@ class StrategyManager:
          for strat in self.strategies:
             await strat["instance"].on_symbols_update(df, [], [symbol])
 
-    async def bootstrap(self):
-
+    def live_indicators(self,symbol,timeframe,since):
+        list = []
         for strat in self.strategies:
-            await strat["instance"].bootstrap()
-
+            i = strat["instance"].live_indicators(symbol,timeframe,since)
+            if i:
+                list.append(i)
+        return list
 ############################################
 
 
