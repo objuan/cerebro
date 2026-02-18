@@ -115,7 +115,7 @@
 		{
 			   "module": "trade_strategy",
 				"class" : "TradeStrategy",
-				"timeframe" : "1m",
+				"timeframe" : "10s",
 				"params" :
 				{
 					"eta" : 5,

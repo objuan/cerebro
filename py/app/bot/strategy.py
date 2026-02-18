@@ -26,6 +26,8 @@ class Strategy:
         self.indicators={}
         self.db_df_map={}
         self.df_map={}
+        self.trade_index=None
+        self.trade_dataframe = None
         
     def load(self,strat_def):
         #strat.handler = find_method_local(EventManager,code)
@@ -88,6 +90,19 @@ class Strategy:
         for tf,df in self.df_map.items():
             #df_ = df.loc[df["symbol"] == "HCTI"]
             logger.debug(f"END {tf}\n{df.tail(10)}")
+
+        # trade
+        for symbol, group in self.df_map[self.timeframe].groupby("symbol"):
+            #logger.info(f"{symbol} {group.index.tolist()}")
+            self.trade_dataframe = group
+
+            for idx in group.index:
+                try:
+                    self.trade_index= idx
+                    self.trade_symbol_at(symbol, group,idx,{})
+                except:
+                    logger.error(f"trade_symbol_at  {symbol} index {idx}" , exc_info=True)
+                   
 
     ########
 
@@ -184,8 +199,11 @@ class Strategy:
                 await self.on_all_candle( self.df_map[self.timeframe],{})
 
                 for symbol, group in self.df_map[self.timeframe].groupby("symbol"):
+                    self.trade_dataframe = group
                     if symbol in symbols:
                         await self.on_symbol_candle(symbol, group,{})
+                        self.trade_index= group.index.max()
+                        self.trade_symbol_at(symbol, group,group.index.max(),{})
 
     def _populate_dataframes(self):
         self.db_df_map[self.timeframe] = self.manager.db.db_dataframe(self.timeframe)
@@ -193,10 +211,13 @@ class Strategy:
             self.db_df_map[tf] = self.manager.db.db_dataframe(tf)
         
     def df(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
-        if not symbol:
-            return self.df_map[timeframe]
+        if timeframe in self.df_map:
+            if not symbol:
+                return self.df_map[timeframe]
+            else:
+                return self.df_map[timeframe][self.df_map[timeframe]["symbol"] == symbol]
         else:
-            return self.df_map[timeframe][self.df_map[timeframe]["symbol"] == symbol]
+            return  pd.DataFrame()
     
     def extra_dataframes(self)->List[str]:
         return []
@@ -212,6 +233,12 @@ class Strategy:
         pass
 
     async def on_symbol_candle(self, symbol:str, dataframe: pd.DataFrame, metadata: dict):
+        '''
+        call at every main timeframe  symbol  candle,dataframe is filtered
+        '''
+        pass
+
+    def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
         '''
         call at every main timeframe  symbol  candle,dataframe is filtered
         '''

@@ -50,14 +50,16 @@
 
             <div
               class="chart-legend-left-ind-item"
-              v-for="(ind, i) in indicatorList"
+              v-for="(ind, i) in ui_indicatorList"
               :key="ind.id || i"
             >
               <span :style="{ color: ind.params.color }">
                 {{ ind.name }}
               </span>
-
-              <input
+              <span v-if="ind.type == 'strategy'">
+                  {{ ind.value }}
+              </span>
+              <input v-if="ind.type != 'strategy'"
                 type="color"
                 v-model="ind.params.color"
                 class="ms-0 p-0 b-0"
@@ -65,7 +67,7 @@
                 @input="updateIndicatorColor(ind)"
               />
 
-              <button
+              <button v-if="ind.type != 'strategy'"
                 class="btn btn-sm btn-outline-danger ms-0 p-0 b-0" 
                 
                 style="width:20px;height:20px"
@@ -154,7 +156,7 @@ import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
    LineSeries, applyVolume,setVolumeData,updateVolumeData,getVolume,
-createInteractiveLineManager ,LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
+createInteractiveLineManager ,LineStyle,createSeriesMarkers } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
@@ -194,7 +196,8 @@ const indicatorList = ref([]);
 const profileName = ref("");
 let timeLine_pre=null;
 let timeLine_open=null;
-const strategy_index_map = {}
+let strategy_index_map = {}
+let strategy_index_list = []
 
 const gfx_canvas = ref(null);
 
@@ -236,6 +239,14 @@ function context() {
         gfx_canvas
     };
 }
+
+const ui_indicatorList = computed( ()=>
+{
+   return [
+    ...indicatorList.value,
+    ...strategy_index_list
+  ];
+});
 
 const lastTrade = computed(() => {
   return tradeStore.lastTrade(props.symbol);
@@ -426,8 +437,17 @@ function linkClearIndicators(){
 
 // ================
 
+function clearStrategyIndicators(){
+  strategy_index_map={}
+  strategy_index_list.forEach((ind)=>
+  { 
+    chart.removeSeries(ind.line);
+  });
+  strategy_index_list=[]
+   createSeriesMarkers(series, []);
+}
 async function updateStrategyIndicators(since=null){
-  //console.log("updateStrategyIndicators",since)
+  console.log("updateStrategyIndicators",since)
   //if (Object.keys(strategy_index_map).length==0)
   {
     let strat_response =null;
@@ -437,15 +457,66 @@ async function updateStrategyIndicators(since=null){
       strat_response = await send_get(`/live/strategy/indicators`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value , "since": since });
 
     // console.log("task strat_response",strat_response)
-      strat_response.forEach( (strat) =>
-      {
-         // console.log("task strat_response",strat)
+    strat_response.forEach( (strat) =>
+    {
+          console.log("task strat_response",strat)
           const strat_name = strat.strategy
 
           if(!strategy_index_map[strat_name])
               strategy_index_map[strat_name] = {}
 
           let storage = strategy_index_map[strat_name] 
+
+          if (!storage["markers"])
+          {
+            console.log("NEW")
+            let markers =  []
+
+            strat.markers.forEach( marker =>{
+                  markers.push(
+                  {
+                    time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker
+                    position: marker.position,                    // posizione rispetto barra
+                    color: marker.color,                        // colore
+                    shape:marker.shape,                         // forma
+                    text: marker.desc                                // testo sul marker
+                  })
+            });
+            if (markers.length>0)
+            {
+               createSeriesMarkers(series, markers);
+               storage["markers_last"] = markers.at(-1)
+               storage["markers"] = markers;
+               console.log("markers",markers,  storage["markers"])
+            }
+          }
+          else{
+             console.log("UPDATE")
+             const last =  storage["markers_last"] 
+             let markers = storage["markers"] 
+
+             strat.markers.forEach( marker =>{
+                  const m =   {
+                          time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker
+                          position: marker.position,                    // posizione rispetto barra
+                          color: marker.color,                        // colore
+                          shape:marker.shape,                         // forma
+                          text: marker.desc                                // testo sul marker
+                        }
+
+                  if (m.time > last.time)
+                      markers.push(m);
+              });
+
+              if (markers.length>0)
+              {
+                console.log("UPDATE MARKER", markers)
+                createSeriesMarkers(series, markers);
+                storage["markers_last"] = markers.at(-1)
+                storage["markers"] = markers;
+              }
+          }
+          
 
           strat.list.forEach( (data) =>
           {
@@ -454,6 +525,13 @@ async function updateStrategyIndicators(since=null){
             if(!storage[name])
             {
                 storage[name] = data
+                storage[name].params = data 
+                storage[name].type="strategy"
+                storage[name].value = ref(0.1)
+                storage[name].data_cache={}
+                
+                strategy_index_list.push(data)
+
                 // creo indice
                 let line =  chart.addSeries(LineSeries, {
                     color: data.color,
@@ -465,40 +543,53 @@ async function updateStrategyIndicators(since=null){
                   });
                   data.line = line
 
-                const formattedData = data.data.map(d => ({
+                 const formattedData = data.data.map(d => ({
                     time: window.db_localTime ? window.db_localTime(d.time) : d.time,
                     value: d.value
                   }));
-                  //console.log("formattedData",formattedData)
+                  console.log("formattedData",formattedData)
+
+                  data.data.forEach( (d)=>{
+                      storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
+                  });
+             
+                  storage[name].last_candle = data.data.at(-1);
+
                   line.setData(formattedData);
             }
             else
             {
-                if (data.data.length>0)
-                {
-                 
-                      const formattedData = data.data.map(d => ({
-                      time: window.db_localTime ? window.db_localTime(d.time) : d.time,
-                      value: d.value
-                    }));
+              // UPDATE
+              let last_candle = storage[name].last_candle;
 
-                       console.log("UPDATE",formattedData)
+            
+              if (data.data.length>0)
+            {
+              
+                  data.data.forEach(  (d)=>
+                  {
+                      if (d.time >= last_candle.time)
+                      {
+                        const formattedData = {
+                          time:  window.db_localTime(d.time) ,
+                          value: d.value
+                        };
 
-                    //storage[name].line.update("UPDATE",formattedData);
+                        console.log("UPDATE",formattedData)
+
+                        storage[name].line.update(formattedData);
+                        storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
+                        storage[name].last_candle = d;
+                      }
+                  });
+                
+                    //storage[name].line.setData(formattedData);
                 }
             }
-            
-            
-            
               console.log("data",strat_name,data)
           })
-
-          //console.log("strategy_index_map",strategy_index_map)
       })
     }
-
-    
-
 }
 //  ---------
 /*
@@ -510,7 +601,8 @@ const handleRefresh = async () => {
 
     // SYMBOLS CANDLES
 
- 
+    clearStrategyIndicators()
+
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
     const data = await response.json();
@@ -935,6 +1027,13 @@ const buildChart =  () => {
       lbl += ` V: <strong>${formatValue(vol)}</strong></span>`;
       legendHtml.value = lbl;
 
+      
+      strategy_index_list.forEach( ind=>
+      {
+          const v = ind.data_cache[timeKey]
+          ind.value = v;
+          //console.log("i ",v )
+      });
       lbl=""
       // Aggiungi valori indicatori alla legenda
 
@@ -1086,16 +1185,17 @@ function on_candle(c)
     {
       last_time = c.ts
      
-    
       indicatorList.value.forEach((ind) => {
         if (ind.refresh != null)   
             ind.refresh ()
           //console.log("update ind",ind.name,ind.refresh)
         
       }); 
+      updateStrategyIndicators(c.ts- 1000*100);
     }
    // console.log(c)
-    updateStrategyIndicators(c.ts- 1000*100);
+   // TEST
+    //updateStrategyIndicators(c.ts- 1000*100);
   }
   else
   {
@@ -1180,7 +1280,7 @@ defineExpose({
 }
 
 .chart-legend-left-ind  {
-  left:  0px;
+  left:  3px;
   top: 60px;
   text-align: left;
   background: rgba(50, 59, 85, 0.7);
