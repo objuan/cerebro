@@ -1,7 +1,178 @@
 import {send_post,generateGUID, send_delete} from '@/components/js/utils.js';
 import {pointToSegmentDistance} from '@/components/js/utils.js'; // Usa il percorso corretto
-import { createTradingLine, LineSeries,LineStyle } from '@pipsend/charts';
+import { createTradingLine, LineSeries,LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
+import { ref} from 'vue';
 
+import {send_get} from '@/components/js/utils.js'; // Usa il percorso corretto
+import {  createSeriesMarkers } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
+
+export function clearStrategyIndicators(context){
+  //context.strategy_index_map={}
+  Object.keys(context.strategy_index_map).forEach(key => {
+  delete context.strategy_index_map[key];
+});
+  context.strategy_index_list.forEach((ind)=>
+  { 
+    context.chart.removeSeries(ind.line);
+  });
+  context.strategy_index_list.length =0
+   createSeriesMarkers(context.series, []);
+}
+
+export async  function updateStrategyIndicators(context,
+    symbol, timeframe,since=null){
+  console.log("updateStrategyIndicators",context,symbol,timeframe,since)
+
+  try
+  //if (Object.keys(strategy_index_map).length==0)
+  {
+    let strategy_index_map = context.strategy_index_map;
+    let strategy_index_list = context.strategy_index_list;
+
+    let strat_response =null;
+    if (since==null)
+      strat_response = await send_get(`/live/strategy/indicators`,{"symbol":symbol,"timeframe":timeframe  });
+    else
+      strat_response = await send_get(`/live/strategy/indicators`,{"symbol":symbol,"timeframe":timeframe , "since": since });
+
+    // console.log("task strat_response",strat_response)
+    strat_response.forEach( (strat) =>
+    {
+          console.log("task strat_response",strat)
+          const strat_name = strat.strategy
+
+          if(!strategy_index_map[strat_name])
+              strategy_index_map[strat_name] = {}
+
+          let storage = strategy_index_map[strat_name] 
+
+          if (!storage["markers"])
+          {
+            console.log("NEW")
+            let markers =  []
+
+            strat.markers.forEach( marker =>{
+                  markers.push(
+                  {
+                    time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker
+                    position: marker.position,                    // posizione rispetto barra
+                    color: marker.color,                        // colore
+                    shape:marker.shape,                         // forma
+                    text: marker.desc                                // testo sul marker
+                  })
+            });
+            if (markers.length>0)
+            {
+               createSeriesMarkers(context.series, markers);
+               storage["markers_last"] = markers.at(-1)
+               storage["markers"] = markers;
+               console.log("markers",markers,  storage["markers"])
+            }
+          }
+          else{
+             console.log("UPDATE")
+             const last =  storage["markers_last"] 
+             let markers = storage["markers"] 
+
+             strat.markers.forEach( marker =>{
+                  const m =   {
+                          time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker
+                          position: marker.position,                    // posizione rispetto barra
+                          color: marker.color,                        // colore
+                          shape:marker.shape,                         // forma
+                          text: marker.desc                                // testo sul marker
+                        }
+
+                  if (m.time > last.time)
+                      markers.push(m);
+              });
+
+              if (markers.length>0)
+              {
+                console.log("UPDATE MARKER", markers)
+                createSeriesMarkers(context.series, markers);
+                storage["markers_last"] = markers.at(-1)
+                storage["markers"] = markers;
+              }
+          }
+          
+
+          strat.list.forEach( (data) =>
+          {
+            const name = data.name;
+            //console.log("name",name,storage[name])
+            if(!storage[name])
+            {
+                storage[name] = data
+                storage[name].params = data 
+                storage[name].type="strategy"
+                storage[name].value = ref(0.1)
+                storage[name].data_cache={}
+                
+                strategy_index_list.push(data)
+
+                // creo indice
+                let line =  context.chart.addSeries(LineSeries, {
+                    color: data.color,
+                    lineWidth: 2,
+                    lineStyle:0,
+                    priceLineVisible: false,
+                    lastValueVisible: false,
+                    crosshairMarkerVisible: false,
+                  });
+                  data.line = line
+
+                 const formattedData = data.data.map(d => ({
+                    time: window.db_localTime ? window.db_localTime(d.time) : d.time,
+                    value: d.value
+                  }));
+                  console.log("formattedData",formattedData)
+
+                  data.data.forEach( (d)=>{
+                      storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
+                  });
+             
+                  storage[name].last_candle = data.data.at(-1);
+
+                  line.setData(formattedData);
+            }
+            else
+            {
+              // UPDATE
+              let last_candle = storage[name].last_candle;
+
+            
+              if (data.data.length>0)
+            {
+              
+                  data.data.forEach(  (d)=>
+                  {
+                      if (d.time >= last_candle.time)
+                      {
+                        const formattedData = {
+                          time:  window.db_localTime(d.time) ,
+                          value: d.value
+                        };
+
+                        console.log("UPDATE",formattedData)
+
+                        storage[name].line.update(formattedData);
+                        storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
+                        storage[name].last_candle = d;
+                      }
+                  });
+                
+                    //storage[name].line.setData(formattedData);
+                }
+            }
+              console.log("data",strat_name,data)
+          })
+      })
+    }
+    catch(e){
+        console.error(e);
+    }
+}
 
 function update_marker_pos(chart_context,price_marker,price ){
     if (chart_context.gfx_canvas.value.width==0) return;

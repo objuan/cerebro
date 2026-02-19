@@ -44,15 +44,19 @@ class Strategy:
         ind.client = self.client
         return ind
 
-    def _fill_indicators(self,timeframe, allMode,df=None):
+    def _fill_indicators(self,timeframe, from_global_index:int):
         for tf, inds in self.indicators.items():
             if tf == timeframe:
                 for ind in inds:
+                    #logger.info(f"_fill_indicators {from_global_index}")
+                    ind.apply( self.df(tf),from_global_index)
+                    '''
                     if allMode:
                         ind.apply(self.df(tf))    
                     else:
 
                         ind.apply(df)
+                    '''
 
     def live_indicators(self,symbol,timeframe,since):
         return None
@@ -84,7 +88,7 @@ class Strategy:
         self.populate_indicators( )
 
         for tf, db_df in self.db_df_map.items():
-            self._fill_indicators(tf,allMode=True)
+            self._fill_indicators(tf,0)
             db_df.on_df_last_added+= self._on_df_last_added
 
         for tf,df in self.df_map.items():
@@ -99,7 +103,7 @@ class Strategy:
             for idx in group.index:
                 try:
                     self.trade_index= idx
-                    self.trade_symbol_at(symbol, group,idx,{})
+                    await self.trade_symbol_at(False,symbol, group,idx,{})
                 except:
                     logger.error(f"trade_symbol_at  {symbol} index {idx}" , exc_info=True)
                    
@@ -179,16 +183,22 @@ class Strategy:
 
             #logger.info(f"TO ADD \n {add_df.tail(4)}")
 
+            from_global_index = df_tf.index.max()
+
+            #ADD NEW
             df_tf = pd.concat([df_tf, add_df], ignore_index=True)
             self.df_map[tf] = df_tf
+
             #self._fill_indicators(allMode=False,df=add_df)
             #TODO BETTER
-            self._fill_indicators(tf,allMode=True)
+            #self._fill_indicators(tf,allMode=True)
             
             last_rows = df_tf.tail(len(rows_to_add))
         
            # logger.info(f"ADD FINAL\n{last_rows}")
             #self._fill_indicators()
+
+            self._fill_indicators(tf, from_global_index)
 
             # candele solo per l'evento principale
             if self.timeframe == tf:
@@ -203,7 +213,7 @@ class Strategy:
                     if symbol in symbols:
                         await self.on_symbol_candle(symbol, group,{})
                         self.trade_index= group.index.max()
-                        self.trade_symbol_at(symbol, group,group.index.max(),{})
+                        await self.trade_symbol_at(True,symbol, group,group.index.max(),{})
 
     def _populate_dataframes(self):
         self.db_df_map[self.timeframe] = self.manager.db.db_dataframe(self.timeframe)
@@ -238,7 +248,7 @@ class Strategy:
         '''
         pass
 
-    def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
+    async def trade_symbol_at(self,isLive:bool,  symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
         '''
         call at every main timeframe  symbol  candle,dataframe is filtered
         '''
@@ -246,9 +256,9 @@ class Strategy:
 
     #######################
 
-    async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str, data):
+    async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str,color):
        
-        await self.client.send_event("strategy",symbol,name,small_desc,full_desc,data)
+        await self.client.send_event("strategy",symbol,name,small_desc,full_desc,{"color":color})
 
 
     def __str__(self):

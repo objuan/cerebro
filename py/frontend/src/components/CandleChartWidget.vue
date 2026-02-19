@@ -57,7 +57,7 @@
                 {{ ind.name }}
               </span>
               <span v-if="ind.type == 'strategy'">
-                  {{ ind.value }}
+                {{ Number(ind.value)?.toFixed(4) }}
               </span>
               <input v-if="ind.type != 'strategy'"
                 type="color"
@@ -156,13 +156,13 @@ import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
    LineSeries, applyVolume,setVolumeData,updateVolumeData,getVolume,
-createInteractiveLineManager ,LineStyle,createSeriesMarkers } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
+createInteractiveLineManager ,LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker,
    updateTradeMarker ,setTradeMarker,updateVerticalLineData,
-   findLastCandleOfEachDay,findOpenDate
+   findLastCandleOfEachDay,findOpenDate,updateStrategyIndicators,clearStrategyIndicators
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
 import { tradeStore } from "@/components/js/tradeStore";
@@ -236,7 +236,10 @@ function context() {
         series,
         drawSeries,
         liveStore,
-        gfx_canvas
+        gfx_canvas,
+        strategy_index_map,
+        strategy_index_list
+
     };
 }
 
@@ -436,7 +439,7 @@ function linkClearIndicators(){
 }
 
 // ================
-
+/*
 function clearStrategyIndicators(){
   strategy_index_map={}
   strategy_index_list.forEach((ind)=>
@@ -446,7 +449,9 @@ function clearStrategyIndicators(){
   strategy_index_list=[]
    createSeriesMarkers(series, []);
 }
-async function updateStrategyIndicators(since=null){
+
+
+async function updateStrategyIndicators1(since=null){
   console.log("updateStrategyIndicators",since)
   //if (Object.keys(strategy_index_map).length==0)
   {
@@ -535,7 +540,7 @@ async function updateStrategyIndicators(since=null){
                 // creo indice
                 let line =  chart.addSeries(LineSeries, {
                     color: data.color,
-                    lineWidth: 1,
+                    lineWidth: 2,
                     lineStyle:0,
                     priceLineVisible: false,
                     lastValueVisible: false,
@@ -591,6 +596,7 @@ async function updateStrategyIndicators(since=null){
       })
     }
 }
+    */
 //  ---------
 /*
  --- LOGICA REFRESH DATI ---
@@ -601,7 +607,7 @@ const handleRefresh = async () => {
 
     // SYMBOLS CANDLES
 
-    clearStrategyIndicators()
+    clearStrategyIndicators(context())
 
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
@@ -617,7 +623,9 @@ const handleRefresh = async () => {
       })  
 
         // STETEGY
-        await updateStrategyIndicators()
+        await updateStrategyIndicators( context(),
+          currentSymbol.value, currentTimeframe.value
+        )
    
       // TASK LIST
 
@@ -1191,7 +1199,8 @@ function on_candle(c)
           //console.log("update ind",ind.name,ind.refresh)
         
       }); 
-      updateStrategyIndicators(c.ts- 1000*100);
+      updateStrategyIndicators(context(),
+          currentSymbol.value, currentTimeframe.value,c.ts- 1000*100);
     }
    // console.log(c)
    // TEST

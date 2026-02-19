@@ -111,11 +111,24 @@
 				}
 			}
 	]
+	,"stategies22":[
+		{
+			   "module": "trade_strategy",
+				"class" : "TradeStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+					"eta" : 5,
+					"min_gain" : 5
+				}
+			}
+	]
+	
 	,"stategies":[
 		{
 			   "module": "trade_strategy",
 				"class" : "TradeStrategy",
-				"timeframe" : "10s",
+				"timeframe" : "1m",
 				"params" :
 				{
 					"eta" : 5,

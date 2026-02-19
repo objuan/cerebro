@@ -159,7 +159,7 @@ class OrderManager:
                 #data["type"] = "ORDER"
             #ser = json.dumps( self.lastError)
 
-            if errorCode in [2104, 2105, 2106]:
+            if errorCode in [2104, 2105, 2106,2107,2108]:
                 await self.client.send_message_event(self.lastError )
             else:
                 await self.client.send_error_event(self.lastError )

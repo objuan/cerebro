@@ -15,49 +15,53 @@ from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
 
-class VWAP(Indicator):
-    def __init__(self,target_col, timeperiod:int):
-        self.target_col=target_col
-        self.timeperiod=timeperiod
 
-    def apply(self,dataframe : pd.DataFrame, last_idx=-1):
-        
-       # logger.info(f"GAIN \n{dataframe.tail(30)}")
-
-        #dataframe[self.target_col]  =  ((dataframe[self.source_col] - dataframe[self.source_col].shift(self.timeperiod)) / dataframe[self.source_col].shift(self.timeperiod))* 100
-        dataframe[self.target_col] = (
-            dataframe
-                .groupby("symbol")["close"]
-                .transform(
-                    lambda s: (s)
-                )
-        )
-
-    def get_render_data(self,dataframe)-> pd.DataFrame:
-        return dataframe[["symbol","timestamp",self.t
-                          
 class TEST(Indicator):
     def __init__(self,target_col, timeperiod:int):
         self.target_col=target_col
         self.timeperiod=timeperiod
 
-    def apply(self,dataframe : pd.DataFrame, last_idx=-1):
+    def compute(self, dataframe, group, start_pos):
         
-       # logger.info(f"GAIN \n{dataframe.tail(30)}")
+        #logger.info(f"compute {start_pos} \n{group}")
+        
+        alpha = 2 / (window + 1)
 
-        #dataframe[self.target_col]  =  ((dataframe[self.source_col] - dataframe[self.source_col].shift(self.timeperiod)) / dataframe[self.source_col].shift(self.timeperiod))* 100
-        dataframe[self.target_col] = (
-            dataframe
-                .groupby("symbol")["close"]
-                .transform(
-                    lambda s: (s)
-                )
-        )
+        close = group["close"]
 
-    def get_render_data(self,dataframe)-> pd.DataFrame:
-        return dataframe[["symbol","timestamp",self.target_col]].rename(columns={self.target_col: "value", "timestamp": "time"})
+        if start_pos == 0:
+            ema = close.ewm(span=window, adjust=False).mean()
+            dataframe.loc[group.index, self.target_col] = ema.values
+            return
+
+        # Recupera EMA precedente
+        prev_index = group.index[start_pos - 1]
+        prev_ema = dataframe.loc[prev_index, self.target_col]
+
+        ema_values = []
+
+        for i in range(start_pos, len(group)):
+            price = close.iloc[i]
+            prev_ema = alpha * price + (1 - alpha) * prev_ema
+            ema_values.append(prev_ema)
+
+        dataframe.loc[group.index[start_pos:],self.target_col] = ema_values
+        
+class VWAP_DIFF(Indicator):
+  
+  def __init__(self,target_col):
+        self.target_col=target_col
     
-       # logger.info(f"GAIN AFTER \n{dataframe.tail(30)}")
+  def compute(self, dataframe, group, start_pos):
+        
+        close = group["close"]
+        vwap = group["vwap"]
+
+        diff_perc = ((close - vwap) / vwap) * 100
+        
+        dataframe.loc[group.index, self.target_col] = diff_perc
+
+        #logger.info(f"VWAP_DIFF AFTER \n{group.tail(30)}")
 
 #from strategy.order_strategy import *
 class SmartStrategy(Strategy):
@@ -69,7 +73,7 @@ class SmartStrategy(Strategy):
         self.marker_map= {}
 
     def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
-        if timeframe in self.df_map:
+        if timeframe in self.marker_map:
             if not symbol:
                 return self.marker_map[timeframe]
             else:
@@ -84,13 +88,13 @@ class SmartStrategy(Strategy):
     def add_marker(self, symbol,type, label,color,shape, position ="aboveBar", _timeframe=None):
         timeframe = self.timeframe if _timeframe==None else _timeframe
         
-        logger.info(f"self.trade_index {self.trade_index}")
+        #logger.info(f"self.trade_index {self.trade_index}")
         candle =  self.trade_dataframe.loc[self.trade_index]
         
         timestamp =  candle["timestamp"]
         value = candle["close"]
 
-        logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
+        #logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
 
         if not timeframe in self.marker_map:
             self.marker_map[timeframe] = pd.DataFrame(
@@ -172,17 +176,41 @@ class TradeStrategy(SmartStrategy):
         pass
 
     def populate_indicators(self) :
-        self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=self.eta))
-        i = self.addIndicator(self.timeframe,TEST("test",timeperiod=self.eta))
-        i = self.addIndicator(self.timeframe,VWAP("VWAP",timeperiod=self.eta))
-        self.add_plot(i, "test","#ffffff", True)
 
-    def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
-        #logger.info(f"trade_symbol_at   {symbol} index {index} \n {dataframe.tail(1)}" )
+        i = self.addIndicator(self.timeframe,VWAP("vwap"))
+
+        self.addIndicator(self.timeframe, VWAP_DIFF("diff"))
+        #i=self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=self.eta))
+        #i = self.addIndicator(self.timeframe,TEST("test",timeperiod=self.eta))
+        #i = self.addIndicator(self.timeframe,VWAP("test"))#,"close",timeperiod=self.eta))
+        #i = self.addIndicator(self.timeframe,VWAP("VWAP",timeperiod=self.eta))
+        self.add_plot(i, "vwap","#ffffff", True)
+
+    async def trade_symbol_at(self, isLive:bool, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
+        if not isLive:
+            return
+            #logger.info(f"trade_symbol_at   {symbol} \n {dataframe.tail(1)}" )
         try:
-            gain = dataframe.loc[global_index]["gain"]
-            if (gain > 0):
-                self.buy(symbol,f"BUY")
+            df_symbols = dataframe[dataframe["symbol"]== symbol ]
+            #close = dataframe.loc[global_index]["close"]
+            #vwap = dataframe.loc[global_index]["vwap"]
+            #diff_perc = ((close - vwap) / vwap) * 100
+            diff_perc_prec =  df_symbols.iloc[-2]["diff"]
+            diff_perc =  df_symbols.iloc[-1]["diff"]
+
+            logger.info(f"df_symbols   {symbol} \n {df_symbols.tail(2)}" )
+
+            #dataframe.loc[global_index]["diff_perc"] = diff_perc
+
+            if isLive and diff_perc>0:
+                await self.send_event(symbol, "vwap", f"vwap {diff_perc:.1f}%",f"vwap {diff_perc:.1f}%",color="#BDB112")
+
+                if isLive and diff_perc_prec* diff_perc<0:
+                    await self.send_event(symbol, "vwap sign", f"vwap sign {diff_perc:.1f}%",f"vwap {diff_perc_prec:.1f}%->{diff_perc:.1f}% ",color="#B90AFF")
+
+            pass
+            #if (gain > 0):
+            #    self.buy(symbol,f"BUY")
                 #logger.info(f"trade_symbol_at   {symbol} index {global_index} {gain} " )
         except:
             logger.error(f"trade_symbol_at   {symbol} index {global_index} \n {dataframe.tail(1)}", exc_info=True )

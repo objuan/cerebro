@@ -16761,7 +16761,7 @@ function applyVWAP(series, chart, options = {}) {
     // Function to calculate VWAP
     const calculateVWAP = (data) => {
 
-       // console.log("calculateVWAP")//, data,cache)
+        //console.log("calculateVWAP")//, data,cache)
         if (!data || data.length === 0) {
             return [];
         }
@@ -16785,22 +16785,24 @@ function applyVWAP(series, chart, options = {}) {
                 continue;
             }
              // ===== ricava il giorno dal timestamp =====
-            const date = new Date(d.time * 1000);
+            const date = new Date(d.time * 1000); // è in locale 
             
             const hours = date.getUTCHours();
             const minutes = date.getUTCMinutes();
             // minuti totali della giornata
             const totalMinutes = hours * 60 + minutes;
 
-            // 15:30 = 930 minuti
-            const isAfter1530 = totalMinutes >= 930;
+            // 15:30 = 930 minuti, ora locale 
+            //const isAfter1530 = totalMinutes >= 930;
+            const isAfter1530 = totalMinutes >= 0;
 
             const dayKey = date.toISOString().slice(0, 10); // YYYY-MM-DD
             // ===== reset VWAP a cambio giorno =====
            //if (currentDay !== dayKey) {
            if (isAfter1530 && !passed1530) {
+                        //console.log("date",date,hours,minutes)
                         cumulativeTPV = 0;
-                        cumulativeVolume = 0;
+                        cumulativeVolume = -0;
                         //currentDay = dayKey;
                          passed1530 = true;
                         i=0;

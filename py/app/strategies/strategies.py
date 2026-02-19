@@ -54,7 +54,7 @@ class LowFlowStrategy(Strategy):
                                   name=f"LOW FLOW",
                                   small_desc=f"{gain:.4f}>{self.min_gain:.1f} v:({rel_vol_5m:.1})",
                                   full_desc=f"gain {gain:.4f} > {self.min_gain:.1f} rel_vol_5m:({rel_vol_5m:.1})",
-                                  data= {"color":"#62C050"})
+                                  color= "#50AFC0")
         
 class MidFloatStrategy(Strategy):
 
@@ -96,7 +96,7 @@ class MidFloatStrategy(Strategy):
                 await self.send_event(symbol,name=f"MID FLOAT",
                                       small_desc=f"  v:({rel_vol_5m:.1})",
                                       full_desc=f" float:{current_float} rel_vol_5m:({rel_vol_5m:.1}>{self.min_rel_vol_5m:.1})",
-                                      data={"color":"#FF71B3"})
+                                      color="#FF71B3")
         
 class MomoStrategy(Strategy):
     '''
@@ -199,10 +199,10 @@ class MomoStrategy(Strategy):
                         await self.send_event(symbol,name=f"MOMO",
                                             small_desc=f"p:{self.diff[symbol]['new_pos']} v:({rel_vol_1d:.1})",
                                             full_desc=f"pos:{self.diff[symbol]['new_pos']} v:({rel_vol_1d:.1}>{self.min_rel_vol_24:.1})",
-                                            data = {"color":"#8AFFAD"})
+                                            color = "#94A599")
                     elif (self.diff[symbol]["is_new"]):
                         await self.send_event(symbol,name=f"MOMO",
                                             small_desc=f"p:NEW v:({rel_vol_1d:.1})",
                                             full_desc=f"pos:NEW v:({rel_vol_1d:.1}>{self.min_rel_vol_24:.1})",
-                                            data = {"color":"#757776"})
+                                            color ="#757776")
             

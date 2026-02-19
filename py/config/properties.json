@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "AUUD",
+      "symbol": "RXT",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -20,7 +20,7 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "10s"
+          "timeframe": "1m"
         }
       },
       "2_2": {
@@ -90,6 +90,9 @@
     },
     "CRSR": {
       "mode": "DIRECT"
+    },
+    "RXT": {
+      "mode": "MARKER"
     }
   },
   "back": {

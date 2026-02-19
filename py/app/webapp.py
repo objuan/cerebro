@@ -951,12 +951,17 @@ async def get_strategy(limit, types:str    ):
 ############################
 @app.get("/api/news/update")
 async def get_news(symbol):
-    await newService.scan([symbol],force=True)
+    # no wait
 
+    asyncio.create_task(newService.scan([symbol], force=True))
+
+    #newService.scan([symbol],force=True)
+
+    '''
     news = await newService.find(symbol)
     if news:
         await client.send_news(symbol,news)
-
+    '''
     return {"status": "ok" }
 
 @app.get("/api/news/get")
@@ -1244,13 +1249,19 @@ async def back_get_symbols(date:str):
         
         return JSONResponse(df.to_dict(orient="records"))
     except:
-        logger.error("ERRRO",exc_info=True)
+        logger.error("ERRO",exc_info=True)
         return {"status": "ko"}
     
 @app.get("/live/strategy/indicators")
 async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Optional[str] = None,since: Optional[int] = None):
-    all = strategy.live_indicators(symbol,timeframe,since)
-    return JSONResponse(all)
+    try:
+        all = strategy.live_indicators(symbol,timeframe,since)
+        #logger.info(f"\n {all}")
+        return JSONResponse(all)
+    except:
+        logger.error(f"\n {all}")
+        logger.error("Error",exc_info=True)
+        return JSONResponse({})
     
 ########
 
