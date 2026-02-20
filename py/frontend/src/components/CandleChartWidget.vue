@@ -213,9 +213,11 @@ let series  = null;
 let buy_line = null
 //let indicators = {}
 
+let prevMainCandle=null
 let lastMainCandle=null
 let tradeMarkerData = {}; 
 let taskData = {}
+let chartWidth=null;
 
 //let DEFAULT_INTERACTION=null;
 let manager = null;
@@ -438,165 +440,6 @@ function linkClearIndicators(){
     clearIndicators();
 }
 
-// ================
-/*
-function clearStrategyIndicators(){
-  strategy_index_map={}
-  strategy_index_list.forEach((ind)=>
-  { 
-    chart.removeSeries(ind.line);
-  });
-  strategy_index_list=[]
-   createSeriesMarkers(series, []);
-}
-
-
-async function updateStrategyIndicators1(since=null){
-  console.log("updateStrategyIndicators",since)
-  //if (Object.keys(strategy_index_map).length==0)
-  {
-    let strat_response =null;
-    if (since==null)
-      strat_response = await send_get(`/live/strategy/indicators`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value  });
-    else
-      strat_response = await send_get(`/live/strategy/indicators`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value , "since": since });
-
-    // console.log("task strat_response",strat_response)
-    strat_response.forEach( (strat) =>
-    {
-          console.log("task strat_response",strat)
-          const strat_name = strat.strategy
-
-          if(!strategy_index_map[strat_name])
-              strategy_index_map[strat_name] = {}
-
-          let storage = strategy_index_map[strat_name] 
-
-          if (!storage["markers"])
-          {
-            console.log("NEW")
-            let markers =  []
-
-            strat.markers.forEach( marker =>{
-                  markers.push(
-                  {
-                    time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker
-                    position: marker.position,                    // posizione rispetto barra
-                    color: marker.color,                        // colore
-                    shape:marker.shape,                         // forma
-                    text: marker.desc                                // testo sul marker
-                  })
-            });
-            if (markers.length>0)
-            {
-               createSeriesMarkers(series, markers);
-               storage["markers_last"] = markers.at(-1)
-               storage["markers"] = markers;
-               console.log("markers",markers,  storage["markers"])
-            }
-          }
-          else{
-             console.log("UPDATE")
-             const last =  storage["markers_last"] 
-             let markers = storage["markers"] 
-
-             strat.markers.forEach( marker =>{
-                  const m =   {
-                          time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker
-                          position: marker.position,                    // posizione rispetto barra
-                          color: marker.color,                        // colore
-                          shape:marker.shape,                         // forma
-                          text: marker.desc                                // testo sul marker
-                        }
-
-                  if (m.time > last.time)
-                      markers.push(m);
-              });
-
-              if (markers.length>0)
-              {
-                console.log("UPDATE MARKER", markers)
-                createSeriesMarkers(series, markers);
-                storage["markers_last"] = markers.at(-1)
-                storage["markers"] = markers;
-              }
-          }
-          
-
-          strat.list.forEach( (data) =>
-          {
-            const name = data.name;
-            //console.log("name",name,storage[name])
-            if(!storage[name])
-            {
-                storage[name] = data
-                storage[name].params = data 
-                storage[name].type="strategy"
-                storage[name].value = ref(0.1)
-                storage[name].data_cache={}
-                
-                strategy_index_list.push(data)
-
-                // creo indice
-                let line =  chart.addSeries(LineSeries, {
-                    color: data.color,
-                    lineWidth: 2,
-                    lineStyle:0,
-                    priceLineVisible: false,
-                    lastValueVisible: false,
-                    crosshairMarkerVisible: false,
-                  });
-                  data.line = line
-
-                 const formattedData = data.data.map(d => ({
-                    time: window.db_localTime ? window.db_localTime(d.time) : d.time,
-                    value: d.value
-                  }));
-                  console.log("formattedData",formattedData)
-
-                  data.data.forEach( (d)=>{
-                      storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
-                  });
-             
-                  storage[name].last_candle = data.data.at(-1);
-
-                  line.setData(formattedData);
-            }
-            else
-            {
-              // UPDATE
-              let last_candle = storage[name].last_candle;
-
-            
-              if (data.data.length>0)
-            {
-              
-                  data.data.forEach(  (d)=>
-                  {
-                      if (d.time >= last_candle.time)
-                      {
-                        const formattedData = {
-                          time:  window.db_localTime(d.time) ,
-                          value: d.value
-                        };
-
-                        console.log("UPDATE",formattedData)
-
-                        storage[name].line.update(formattedData);
-                        storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
-                        storage[name].last_candle = d;
-                      }
-                  });
-                
-                    //storage[name].line.setData(formattedData);
-                }
-            }
-              console.log("data",strat_name,data)
-          })
-      })
-    }
-}
-    */
 //  ---------
 /*
  --- LOGICA REFRESH DATI ---
@@ -661,7 +504,7 @@ const handleRefresh = async () => {
        updateVerticalLineData(timeLine_pre,formattedData,findLastCandleOfEachDay(formattedData))
        updateVerticalLineData(timeLine_open,formattedData,findOpenDate(formattedData))
 
-
+        prevMainCandle = formattedData[formattedData.length - 2].time;
         lastMainCandle = formattedData[formattedData.length - 1];
 
         // Gestione Indicatori (EMA, etc)
@@ -1071,19 +914,67 @@ const buildChart =  () => {
     }
     //const candle_price = param.seriesData.get(series).close;
     const price = series.coordinateToPrice(param.point.y);
-  
-    if (price == null) return;
+    let time = chart.timeScale().coordinateToTime(param.point.x)
+   
+    if (!time) {
+      const timeScale = chart.timeScale()
 
-    console.log("Click at", param.time, price);  
+      const visible = timeScale.getVisibleLogicalRange()
+      const width = chartWidth   // devi salvarlo dal resize
+      const bars = visible.to - visible.from
+
+      const barsPerPixel = bars / width
+      const deltaBars = (param.point.x - width) * barsPerPixel
+
+      const lastBar = lastMainCandle.time
+      const step = -60;//data[data.length-1].time - data[data.length-2].time
+
+      time = lastBar + deltaBars * step
+
+      console.log("d:",deltaBars,"v",visible, "t",Date(time),prevMainCandle)
+
+      /*
+      const timeScale = chart.timeScale()
+      const logical = timeScale.coordinateToLogical
+        ? timeScale.coordinateToLogical(param.point.x)
+        : null
+
+      const lastLogical = timeScale.getVisibleLogicalRange()?.to
+
+      if (logical != null && lastLogical != null) {
+
+        const lastBar = lastMainCandle.time
+        const delta = logical - lastLogical
+
+
+        // intervallo medio barre
+        //const step =lastMainCandle.time - prevMainCandle
+
+        const step = 60;
+
+        console.log("delta",delta,"step",step,lastLogical,logical,"..",prevMainCandle)
+
+        time = lastBar + delta * step
+      }
+        */
+      // console.log(prevMainCandle)
+    }
+
+   // const logical = chart.timeScale().coordinateToLogical(param.point.x)
+    //const time = chart.timeScale().logicalToTime(logical)
+
+    if (price == null ) return;
+
+    console.log("Click at", Date(time),price);  
    
     if (drawMode.value === 'hline') {
       drawHorizontalLine(context(),price);
       drawMode.value = null;
     }
-    if (param.time)
+    if (time)
     {
       if (drawMode.value === 'line') {
-        drawPoints.push({ time: param.time, value: price });
+        drawPoints.push({ time: time, value: price });
 
         if (drawPoints.length === 2) {
           drawTrendLine(context(),drawPoints[0], drawPoints[1]);
@@ -1092,7 +983,7 @@ const buildChart =  () => {
         }
       }
       if (drawMode.value === 'delete') {
-          clearLine(context(),param.time,price)
+          clearLine(context(),time,price)
           drawMode.value = null;
       }
     }
@@ -1152,7 +1043,8 @@ const resize =  () => {
     {
       old_size = [ width, height ]
 
-      chart.resize(width-10,height-40);
+      chartWidth = width-10
+      chart.resize(chartWidth,height-40);
 
       handleRefresh();
     }
@@ -1179,6 +1071,7 @@ function on_candle(c)
   //console.log("new_value",c) 
   if (lastMainCandle !=null && new_value.time >= lastMainCandle.time )
   {
+    prevMainCandle = lastMainCandle.time;
     lastMainCandle =new_value;
     
     updateVolumeData(series,{

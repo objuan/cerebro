@@ -1,6 +1,7 @@
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
+from bot.indicators import VWAP
 from company_loaders import *
 from collections import deque
 import numpy as np
@@ -46,6 +47,8 @@ class ReportManager:
         self.db.db_dataframe("1m").on_row_added+= self.on_db_1m_added
 
         self.first_open=[]
+
+        self.ind_vwap = VWAP("vwap")
 
         await self.tick()
         #self.fill()
@@ -216,13 +219,22 @@ class ReportManager:
             ####
 
             df_1m = self.db.dataframe("1m")[["timestamp","symbol","close","open","low","high","base_volume","date"]]
+            
+            #self.ind_vwap.apply(df_1m)
+
             #df_1m["date"] = pd.to_datetime(df_1m["timestamp"], unit="ms", utc=True).dt.date
             #df_1d["date"] = pd.to_datetime(df_1d["timestamp"], unit="ms", utc=True).dt.date
             #logger.info(f"df_1m \n{df_1m.to_string(index=False)}")
          
-            df = df_tickers[["symbol","last_close","last","gain","ask","bid","day_volume","ts"]].copy()#self.get_last(df_1m)#.drop(columns=["quote_volume"])
+            df = df_tickers.copy().rename(columns={"ts": "timestamp"})
 
             #logger.info(f"df \n{df.to_string(index=False)}")
+            
+            #self.ind_vwap.apply(df)
+            
+            df = df[["symbol","last_close","last","gain","ask","bid","day_volume"]]#self.get_last(df_1m)#.drop(columns=["quote_volume"])
+
+            #logger.info(f"df1 \n{df_1m.to_string(index=False)}")
 
 
             ######## LAST CLOSE, FIRST OPEN #########

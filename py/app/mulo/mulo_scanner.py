@@ -87,60 +87,42 @@ class Scanner:
                 )
                 return df
 
-            filter=None
+            selected_profile=None
             for prof in self.config["live_service"]["profiles"]:
                 logger.debug(f"LOAD PROF {prof}")
                 if prof["name"] == name:# and zone == MarketZone.LIVE:
-                    filter = prof
+                    selected_profile = prof
                 if prof["name"] == name:# and zone == MarketZone.PRE:
-                    filter = prof
+                    selected_profile = prof
             
-            logger.debug(f'filter ...{filter}')
+            logger.info(f'selected_profile ...{selected_profile}')
 
             sub = ScannerSubscription(
                 numberOfRows=50,
-                instrument=filter["instrument"],
-                locationCode=filter["location"],
-                scanCode=filter["type"]
+                instrument=selected_profile["instrument"],
+                locationCode=selected_profile["location"],
+                scanCode=selected_profile["type"]
                 # marketCapAbove= 1_000_000 , abovePrice= 100, aboveVolume= 100000
             )
-            '''
-            DA XML
-            <RangeFilter>
-				<code>priceAbove</code>
-                <code>priceBelow</code>
-            <SimpleFilter>
-                <code>volumeAbove</code>
-            <RangeFilter>
-                <code>ihNumSharesInsiderAbove</code>
-                <code>ihNumSharesInsiderBelow</code>
-                <displayName># Shares held by Insider</displayName>
-            <RangeFilter>
-                <code>ihInsiderOfFloatPercAbove</code>
-                <code>ihInsiderOfFloatPercBelow</code>
-				<displayName>Insider Shares as % of Float </displayName>
-            <RangeFilter>
-                <code>marketCapAbove1e6</code><code>marketCapBelow1e6</code>
-				<displayName>Capitalization</displayName>
-            
-            '''
+            filter = selected_profile["filter"]
+
             #if zone == MarketZone.LIVE:
             if True:
                 sub.stockTypeFilter = "COMMON" # solo azione vere, no nETF
-                if "abovePrice" in filter:
-                    sub.abovePrice = filter["abovePrice" ]
-                if "belowPrice" in filter:
-                    sub.belowPrice = filter["belowPrice" ]
+                if "price_min" in filter:
+                    sub.abovePrice = filter["price_min" ]
+                if "price_max" in filter:
+                    sub.belowPrice = filter["price_max" ]
                 
                 # numero di azioni
                 # È il volume giornaliero cumulato del titolo nel momento in cui lo scanner gira.
-                if "aboveVolume" in filter:
-                    sub.aboveVolume = filter["aboveVolume" ]
+                if "min_volume" in filter:
+                    sub.aboveVolume = filter["min_volume" ]
 
-                if "marketCapAbove" in filter:
-                    sub.marketCapAbove = filter["marketCapAbove" ]
-                if "marketCapBelow" in filter:
-                    sub.marketCapBelow = filter["marketCapBelow" ]
+                if "marketCap_min" in filter:
+                    sub.marketCapAbove = filter["marketCap_min" ]
+                if "marketCap_max" in filter:
+                    sub.marketCapBelow = filter["marketCap_max" ]
             '''
             else:
                 sub.instrument="STK"
@@ -152,7 +134,15 @@ class Scanner:
                 sub.aboveVolume = 1
                 #sub.marketCapAbove = 0
             '''
-            
+            float_min = 0
+            float_max = 99999999999
+
+            if "float_min" in filter:
+                    float_min = filter["float_min" ]
+
+            if "float_max" in filter:
+                    float_max = filter["float_max" ]
+
             #logger.info(f'USED FILTER ...{sub}')
 
             scanData = self.ib.reqScannerData(sub)
@@ -161,11 +151,11 @@ class Scanner:
 
             if len(scanData)>0:
                 conn = sqlite3.connect(DB_FILE)
-                cursor = conn.cursor()
+                #cursor = conn.cursor()
 
                 run_time = int(_time.time() * 1000)
                 #run_time = int(_time.time() )
-                ds_run_time  = datetime.utcnow().isoformat()
+                #ds_run_time  = datetime.utcnow().isoformat()
                 
                 #logger.info(display_with_stock_symbol(scanData)["symbol"])
 
@@ -180,13 +170,27 @@ class Scanner:
 
                 #scarto stocks senza float 
                 for _, row in df_fundamentals.iterrows():
+                    discard=""
+
                     if not  row["float"] :
-                        logger.warning(f"DISCARD STOCK : {row['symbol']}")
+                        discard = (f"DISCARD NOT FLOAT STOCK : {row['symbol']}")
+                    else:
+                        float = int(row["float"])
+                        #logger.info(f"{row['symbol']} = {float} [{float_min} {float_max}]")
+                        if float < float_min:
+                             discard = (f"DISCARD FLOAT MIN : {row['symbol']}")
+                        if float > float_max:
+                             discard = (f"DISCARD FLOAT MAX : {row['symbol']}")
+
+                    if discard!="":
+                        logger.warning(discard)
+
                         for i,m in  enumerate(symbols):
                             #e = self.monitor[row['symbol']]
                             if m == row['symbol']:
                                 del symbols[i]                
                                 break
+
                 # filtro df_fundamentals                  
                 mask = df_fundamentals.apply(
                     lambda row: not not row["float"],
@@ -194,6 +198,10 @@ class Scanner:
                     )
                 df_fundamentals = df_fundamentals[mask]
                 
+                # filtro float
+
+    
+
                 pos=0
                 # inserimento dati
                 #for row in display_with_stock_symbol(scanData).iterrows():

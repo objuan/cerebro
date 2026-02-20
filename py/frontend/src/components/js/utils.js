@@ -291,3 +291,43 @@ export const volumeRelColor = (v) => {
 
   return `rgb(${r}, ${g}, ${b})`
 }
+
+
+function hexToRgb(hex){
+  hex = hex.replace("#","")
+  if(hex.length === 3)
+    hex = hex.split("").map(x=>x+x).join("")
+
+  const num = parseInt(hex,16)
+  return {
+    r:(num>>16)&255,
+    g:(num>>8)&255,
+    b:num&255
+  }
+}
+
+function rgbToHex(r,g,b){
+  return "#" + [r,g,b].map(x=>{
+    const h = x.toString(16)
+    return h.length===1 ? "0"+h : h
+  }).join("")
+}
+
+function blend(c1,c2,t){
+  return {
+    r:Math.round(c1.r+(c2.r-c1.r)*t),
+    g:Math.round(c1.g+(c2.g-c1.g)*t),
+    b:Math.round(c1.b+(c2.b-c1.b)*t)
+  }
+}
+
+export function color_ramp(t, color, bg="#111"){
+
+  const c1 = hexToRgb(bg)
+  const c2 = hexToRgb(color)
+
+  const mix = blend(c1,c2,t)
+  const hex = rgbToHex(mix.r,mix.g,mix.b)
+   //console.log(t,color,hex)
+  return hex;//`background-color:${hex}`
+}

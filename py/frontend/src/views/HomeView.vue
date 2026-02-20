@@ -33,6 +33,14 @@
                    Grid 1x2
                 </a></li>
                 <li><a class="dropdown-item" href="#"
+                  @click.prevent="setGrid(2,2)">
+                   Grid 2x2
+                </a></li>
+                 <li><a class="dropdown-item" href="#"
+                  @click.prevent="setGrid(3,1)">
+                   Grid 3x1
+                </a></li>
+                <li><a class="dropdown-item" href="#"
                   @click.prevent="setGrid(1,3)">
                    Grid 1x3
                 </a></li>
@@ -304,11 +312,14 @@ const initWebSocket_mulo = () => {
                 ? JSON.parse(msg.data)
                 : msg.data;
           dataParsed["source"] = "order"  
-          dataParsed["timestamp"] = msg["timestamp"]
-          dataParsed["ts"] = msg["ts"]
+   
+          
+          dataParsed["ts"] =Math.floor(new Date(msg["timestamp"]).getTime() )
+          dataParsed["timestamp"] =dataParsed["ts"]
+
           dataParsed["event_type"] = msg["event_type"]
 
-          //console.log("ORDER",dataParsed)
+         // console.log("ORDER",dataParsed)
 
           eventBus.emit("order-received", dataParsed);
           break
@@ -563,7 +574,10 @@ onMounted( async () => {
               typeof msg.data === "string"
                 ? JSON.parse(msg.data)
                 : msg.data;
-              dataParsed["timestamp"] = msg["timestamp"]
+              dataParsed["ts"] =Math.floor(new Date(msg["timestamp"]).getTime())
+              dataParsed["timestamp"] = msg["ts"]
+               dataParsed["event_type"] = msg["event_type"]
+
             eventBus.emit("order-received", dataParsed);
             //portfolioRef.value?.handleMessage(val);
         });

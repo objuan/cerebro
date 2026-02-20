@@ -73,7 +73,8 @@ const STATUS_COLORS = {
 }
 
 function onOrderReceived(msg) {
-
+  // console.log("onOrderReceived",msg)
+   
     if (msg.event_type == "STATUS" && ( msg.status === "Filled" || msg.status === "Submitted" ||  msg.status === "Cancelled") )
     {  
       //console.log("onOrderReceived",msg)
@@ -96,7 +97,7 @@ function onOrderReceived(msg) {
 
 function onTaskOrderReceived( msg) {
   try {
-    console.log("onTaskOrderReceived",msg);
+   // console.log("onTaskOrderReceived",msg);
 
     msg.data.forEach( (step)=>{
       if (step.step == msg.step){

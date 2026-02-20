@@ -898,6 +898,12 @@ async def add_to_watch(name,type,symbol):
    fetcher.add_watch(name,type,symbol)
    return {"status": "ok"}
 
+@app.get("/admin/clear_day_watch")
+async def clear_day_watch(name,type,symbol):
+   fetcher.clear_day_watch(name,type,symbol)
+   return {"status": "ok"}
+
+
 @app.get("/admin/scan")
 async def admin_scan(profile_name):
     await live.scanData(profile_name)

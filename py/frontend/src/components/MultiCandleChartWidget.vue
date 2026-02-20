@@ -22,7 +22,9 @@
         </select>
         </div>
 
-        <div  class="middle-row" style="margin-left:20px; display:flex; flex-direction:column;justify-content:center; ">
+        <div  class="middle-row" style="margin-left:20px; 
+            display:flex; flex-direction:column;justify-content:center;
+            font-size: 14px; ">
              <span v-html="fundamentals"></span>
             <span class="ticker" v-html="ticker"></span>
         </div>

@@ -198,12 +198,14 @@ class TradeStrategy(SmartStrategy):
             diff_perc_prec =  df_symbols.iloc[-2]["diff"]
             diff_perc =  df_symbols.iloc[-1]["diff"]
 
-            logger.info(f"df_symbols   {symbol} \n {df_symbols.tail(2)}" )
+            #logger.info(f"df_symbols   {symbol} \n {df_symbols.tail(2)}" )
 
             #dataframe.loc[global_index]["diff_perc"] = diff_perc
 
-            if isLive and diff_perc>0:
-                await self.send_event(symbol, "vwap", f"vwap {diff_perc:.1f}%",f"vwap {diff_perc:.1f}%",color="#BDB112")
+            if isLive and diff_perc>1:
+                await self.send_event(symbol, "vwap",
+                     f"""<span :style="my_ramp_perc({diff_perc},'#FF0000')"> vwap {diff_perc:.1f}%</span>""",
+                     f"vwap {diff_perc:.1f}%",color="#E4D61A")
 
                 if isLive and diff_perc_prec* diff_perc<0:
                     await self.send_event(symbol, "vwap sign", f"vwap sign {diff_perc:.1f}%",f"vwap {diff_perc_prec:.1f}%->{diff_perc:.1f}% ",color="#B90AFF")

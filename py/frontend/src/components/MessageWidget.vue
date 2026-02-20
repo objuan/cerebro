@@ -27,7 +27,10 @@
                       </a>
               </div>
 
-              <div class="msg" v-html="props.text"></div>
+              <div class="msg" 
+                :style="process_text(props.text).style" 
+                v-html="process_text(props.text).text">
+             </div>
 
               <button class="toggle-btn" @click="toggle">
                 <svg v-if="!open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -83,12 +86,77 @@ import { ref,onMounted, onUnmounted ,onBeforeUnmount,watch } from 'vue';
 
 //import { send_get } from '@/components/js/utils';
 import { reportStore as report } from "@/components/js/reportStore";
-import { formatValue,priceColor,newsColor,volumeRelColor} from "@/components/js/utils";// scaleColor
+import { formatValue,priceColor,newsColor,volumeRelColor,color_ramp} from "@/components/js/utils";// scaleColor
 import { eventBus } from "@/components/js/eventBus";
+
+const props = defineProps({
+  icon: { type: String, required: false, default:"" },
+  symbol: { type: String, required: false ,default:""},
+  title: { type: String, required: true },
+  timestamp: { required: true },
+  color: { type: String, required: false,default:"" },
+
+  text: { type: String, required: false },
+  detail: { type: String, required: false },
+});
+
 
 let reportDetails = null // key -> result
 const isNew = ref(true)
 const open = ref(false)
+
+function my_ramp_perc(v, color){
+  const f =  Math.min(10,v) / 10
+  return `background-color:${color_ramp(f,color,props.color)};`
+}
+
+function process_text(text){
+   if (!text.trim().startsWith("<span"))
+     return {"text":  text, "style":null}
+
+  const scope = { my_ramp_perc }
+
+  //console.log(text)
+  let style =  {color: 'black'}
+   const m = text.match(/:style\s*=\s*(['"])(.*?)\1/)
+   if (m) 
+   {
+    // console.log("CALL",m)
+
+     const expr = m[2]
+     const fnMatch = expr.match(/^\s*(\w+)\s*\((.*)\)\s*$/)
+      if (fnMatch) 
+      {
+      //  console.log("fnMatch",fnMatch)
+        const fnName = fnMatch[1]
+        const argsRaw = fnMatch[2]
+
+         
+      // split argomenti gestendo stringhe
+        const args = Function(`return [${argsRaw}]`)()
+
+        if (typeof scope[fnName] === "function")
+      {
+        
+       // console.log("CALL",fnName,args)
+        try{
+          style =  scope[fnName](...args)
+
+           // style console.log("RET",ret)
+        }
+        catch(e){
+          console.error(e)
+        }
+      }
+
+      }
+    //let ret =  scope[fnName](...args)
+    //console.log("ret",ret)
+   }
+ 
+  return {"text":  text, "style":style}
+}
+
 
 function getDate(){
   try{
@@ -115,6 +183,11 @@ function toggle() {
  // console.log("fullDetails",fullDetails)
 }
 
+function ramp_perc(value,color){
+ console.log(value,color)
+}
+
+console.debug(ramp_perc)
 // Esponiamo i dati dello store al template
 
 function onSymbolClick(symbol) {
@@ -122,16 +195,6 @@ function onSymbolClick(symbol) {
   eventBus.emit("chart-select",{"symbol" : symbol , "id": "chart_1"});
 }
 
-const props = defineProps({
-  icon: { type: String, required: false, default:"" },
-  symbol: { type: String, required: false ,default:""},
-  title: { type: String, required: true },
-  timestamp: { required: true },
-  color: { type: String, required: false,default:"" },
-
-  text: { type: String, required: false },
-  detail: { type: String, required: false },
-});
 
 const checkNew = () => {
   const dt = new Date(props.timestamp)

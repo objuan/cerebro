@@ -236,15 +236,27 @@
                    Update  News
                 </a>
               </li>
+
                <li><hr class="dropdown-divider"></li>
-                <li>
+
+               <li>
                 <a class="dropdown-item"
                   href="#"
                   @click.prevent="addToDayWatch(item.symbol)">
                    Add to day watch list
                 </a>
               </li>
+
+               <li>
+                <a class="dropdown-item"
+                  href="#"
+                  @click.prevent="clearDayWatch(item.symbol)">
+                   Clear day watch list
+                </a>
+              </li>
+
               <li><hr class="dropdown-divider"></li>
+
               <li>
                 <a class="dropdown-item"
                   href="#"
@@ -339,7 +351,10 @@ function addToDayWatch(symbol) {
   //console.log("Add to watchlist:", symbol);
    send_get("/api/admin/add_to_watch", {"name": "day_watch", "type":"day", "symbol": symbol})
 }
-
+function clearDayWatch(symbol) {
+  //console.log("Add to watchlist:", symbol);
+   send_get("/api/admin/clear_day_watch", {"name": "day_watch", "type":"day", "symbol": symbol})
+}
 function addToDayBlack(symbol) {
   //console.log("Add to watchlist:", symbol);
    send_get("/api/admin/add_to_black", {"mode":"day", "symbol": symbol})

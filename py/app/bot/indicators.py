@@ -13,7 +13,7 @@ from report import *
 from reports.db_dataframe import *
 from renderpage import RenderPage
 from utils import *
-from reports.report_manager import ReportManager
+#from reports.report_manager import ReportManager
 
 
 class Indicator:
@@ -127,15 +127,16 @@ class GAIN(Indicator):
         
 
 class VWAP(Indicator):
-    def __init__(self,target_col):
+    def __init__(self,target_col, price_name="close"):
         self.target_col=target_col
+        self.price_name=price_name
 
     def compute(self, dataframe, group, start_pos):
 
         group = group.sort_values("timestamp")
         ts = pd.to_datetime(group["timestamp"], unit="ms")
 
-        price = (group["high"] + group["low"] + group["close"]) / 3
+        price = (group["high"] + group["low"] + group[self.price_name]) / 3
         day = ts.dt.date
         
         day_volume = group["day_volume"]  # cumulativo
@@ -152,6 +153,7 @@ class VWAP(Indicator):
         vwap_full = cum_pv / day_volume
         vwap_full = vwap_full.replace([np.inf, -np.inf], np.nan).fillna(0)
 
+        #logger.info(f"vwap_full {vwap_full}")
 
         if start_pos == 0:
             dataframe.loc[group.index, self.target_col] = vwap_full.values

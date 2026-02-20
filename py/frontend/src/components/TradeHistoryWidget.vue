@@ -18,9 +18,9 @@
           <td  style="width:50%;height:100%">
             <table v-if="lastTrade && lastTrade.isOpen" style="width:100%;height:100%">
                <tr>
-                  <td>BUY AT</td>
+                  <td>B at</td>
                   <td>{{lastSummary?.avgPrice.toFixed(2)}} $ </td>
-                  <td>SELL AT</td>
+                  <td>S at</td>
                   <td>{{lastPrice}} $ </td>
                 </tr>
                 <tr>
@@ -170,6 +170,9 @@ table td:first-child {
 table td {
   text-align: right;
 }
+table tr {
+  max-height: 20px;
+}
 
 .history-btn {
   margin-left: 50%;
@@ -216,7 +219,8 @@ table td {
 
 .trade-table{
   width: 99%;
-  height:100%;
+  height:96px;
+  max-height: 96px;
    background: #0b1220;
   font-family: monospace;
    font-size: 13px;

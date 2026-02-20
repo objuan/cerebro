@@ -21,7 +21,7 @@ export function clearStrategyIndicators(context){
 
 export async  function updateStrategyIndicators(context,
     symbol, timeframe,since=null){
-  console.log("updateStrategyIndicators",context,symbol,timeframe,since)
+  // console.log("updateStrategyIndicators",context,symbol,timeframe,since)
 
   try
   //if (Object.keys(strategy_index_map).length==0)
@@ -38,7 +38,7 @@ export async  function updateStrategyIndicators(context,
     // console.log("task strat_response",strat_response)
     strat_response.forEach( (strat) =>
     {
-          console.log("task strat_response",strat)
+       //   console.log("task strat_response",strat)
           const strat_name = strat.strategy
 
           if(!strategy_index_map[strat_name])
@@ -48,7 +48,7 @@ export async  function updateStrategyIndicators(context,
 
           if (!storage["markers"])
           {
-            console.log("NEW")
+            //console.log("NEW")
             let markers =  []
 
             strat.markers.forEach( marker =>{
@@ -96,77 +96,77 @@ export async  function updateStrategyIndicators(context,
               }
           }
           
-
-          strat.list.forEach( (data) =>
-          {
-            const name = data.name;
-            //console.log("name",name,storage[name])
-            if(!storage[name])
+          if (strat.list)
+            strat.list.forEach( (data) =>
             {
-                storage[name] = data
-                storage[name].params = data 
-                storage[name].type="strategy"
-                storage[name].value = ref(0.1)
-                storage[name].data_cache={}
-                
-                strategy_index_list.push(data)
+              const name = data.name;
+              //console.log("name",name,storage[name])
+              if(!storage[name])
+              {
+                  storage[name] = data
+                  storage[name].params = data 
+                  storage[name].type="strategy"
+                  storage[name].value = ref(0.1)
+                  storage[name].data_cache={}
+                  
+                  strategy_index_list.push(data)
 
-                // creo indice
-                let line =  context.chart.addSeries(LineSeries, {
-                    color: data.color,
-                    lineWidth: 2,
-                    lineStyle:0,
-                    priceLineVisible: false,
-                    lastValueVisible: false,
-                    crosshairMarkerVisible: false,
-                  });
-                  data.line = line
+                  // creo indice
+                  let line =  context.chart.addSeries(LineSeries, {
+                      color: data.color,
+                      lineWidth: 2,
+                      lineStyle:0,
+                      priceLineVisible: false,
+                      lastValueVisible: false,
+                      crosshairMarkerVisible: false,
+                    });
+                    data.line = line
 
-                 const formattedData = data.data.map(d => ({
-                    time: window.db_localTime ? window.db_localTime(d.time) : d.time,
-                    value: d.value
-                  }));
-                  console.log("formattedData",formattedData)
+                  const formattedData = data.data.map(d => ({
+                      time: window.db_localTime ? window.db_localTime(d.time) : d.time,
+                      value: d.value
+                    }));
+                    //console.log("formattedData",formattedData)
 
-                  data.data.forEach( (d)=>{
-                      storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
-                  });
-             
-                  storage[name].last_candle = data.data.at(-1);
-
-                  line.setData(formattedData);
-            }
-            else
-            {
-              // UPDATE
-              let last_candle = storage[name].last_candle;
-
-            
-              if (data.data.length>0)
-            {
-              
-                  data.data.forEach(  (d)=>
-                  {
-                      if (d.time >= last_candle.time)
-                      {
-                        const formattedData = {
-                          time:  window.db_localTime(d.time) ,
-                          value: d.value
-                        };
-
-                        console.log("UPDATE",formattedData)
-
-                        storage[name].line.update(formattedData);
+                    data.data.forEach( (d)=>{
                         storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
-                        storage[name].last_candle = d;
-                      }
-                  });
+                    });
+              
+                    storage[name].last_candle = data.data.at(-1);
+
+                    line.setData(formattedData);
+              }
+              else
+              {
+                // UPDATE
+                let last_candle = storage[name].last_candle;
+
+              
+                if (data.data.length>0)
+              {
                 
-                    //storage[name].line.setData(formattedData);
-                }
-            }
-              console.log("data",strat_name,data)
-          })
+                    data.data.forEach(  (d)=>
+                    {
+                        if (d.time >= last_candle.time)
+                        {
+                          const formattedData = {
+                            time:  window.db_localTime(d.time) ,
+                            value: d.value
+                          };
+
+                       //   console.log("UPDATE",formattedData)
+
+                          storage[name].line.update(formattedData);
+                          storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
+                          storage[name].last_candle = d;
+                        }
+                    });
+                  
+                      //storage[name].line.setData(formattedData);
+                  }
+              }
+             //   console.log("data",strat_name,data)
+            })
       })
     }
     catch(e){

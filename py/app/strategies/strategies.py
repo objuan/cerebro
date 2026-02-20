@@ -54,7 +54,7 @@ class LowFlowStrategy(Strategy):
                                   name=f"LOW FLOW",
                                   small_desc=f"{gain:.4f}>{self.min_gain:.1f} v:({rel_vol_5m:.1})",
                                   full_desc=f"gain {gain:.4f} > {self.min_gain:.1f} rel_vol_5m:({rel_vol_5m:.1})",
-                                  color= "#50AFC0")
+                                  color= "#A2F1FF")
         
 class MidFloatStrategy(Strategy):
 

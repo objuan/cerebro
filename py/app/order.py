@@ -186,37 +186,42 @@ class OrderManager:
 
     #############
 
-    def rebuild_trades(self,df)-> List[PositionTrade]:
+    def rebuild_trades(self, df) -> List[PositionTrade]:
         trades = []
-        current = None
 
-        # scorri dall'ultima riga alla prima
-        for row in df.iloc[::-1].itertuples(index=False):
-            symbol = row.symbol
-            side = row.side
-            data = json.loads(row.data)
-            #logger.info(f"row {data}")
-            price = data["avgFillPrice"]
-            size = data["totalQuantity"]
+        # group per symbol
+        for symbol, g in df.groupby("symbol"):
+            current = None
 
-            time = data["log"][-1]["time"]
-            dt = datetime.fromisoformat(time)
-            unix_time = dt.timestamp()
+            # scorri dall'ultima riga alla prima
+            for row in g.iloc[::-1].itertuples(index=False):
+                side = row.side
+                data = json.loads(row.data)
 
-            #logger.info(f"unix_time {unix_time}")
-          
-            if side == "BUY":
-                if current is None:
-                    current = PositionTrade(symbol)
-                    trades.append(current)
-                current.appendBuy(price, size, unix_time)
+                #logger.info(f"rebuild_trades row {data}")
 
-            elif side == "SELL":
-                if current is not None:
-                    current.appendSell(price, size, unix_time)
-                    if current.isClosed:
-                        current = None
+                price = data["avgFillPrice"]
+                size = data["totalQuantity"]
 
+                time = data["log"][-1]["time"]
+                dt = datetime.fromisoformat(time)
+                unix_time = dt.timestamp()
+
+                if side == "BUY":
+                    if current is None:
+                        current = PositionTrade(symbol)
+                        trades.append(current)
+
+                    current.appendBuy(price, size, unix_time)
+                    
+                elif side == "SELL":
+                    if current is not None:
+                        current.appendSell(price, size, unix_time)
+
+                        if current.isClosed:
+                            current = None
+
+        #logger.info(f"trades {len(trades)}")
         return trades
 
     def getTradeHistory(self,symbol)-> List[PositionTrade]:
@@ -224,7 +229,9 @@ class OrderManager:
         if symbol:
             df = self.client.get_df(f"""
                     select distinct symbol,side,data from ib_orders 
-                    WHERE SYMBOL = '{symbol}' AND status = 'Filled' AND event_type = 'STATUS'
+                    WHERE SYMBOL = '{symbol}' 
+                    AND status = 'Filled' 
+                    AND event_type = 'STATUS'
                     order by id desc 
                     LIMIT 10
                     """)

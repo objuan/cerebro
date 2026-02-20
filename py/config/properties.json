@@ -10,8 +10,8 @@
   },
   "chart": {
     "1": {
-      "grid": "1_1",
-      "symbol": "RXT",
+      "grid": "1_2",
+      "symbol": "AGAE",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -33,11 +33,16 @@
         "3": {
           "timeframe": "1d"
         }
+      },
+      "1_2": {
+        "2": {
+          "timeframe": "10s"
+        }
       }
     },
     "2": {
       "grid": "1_1",
-      "symbol": "OBAI",
+      "symbol": "NCI",
       "indicator": {
         "1m": "aa"
       },
@@ -46,12 +51,29 @@
           "timeframe": "1m"
         }
       }
+    },
+    "4": {
+      "grid": "1_1",
+      "symbol": "NAMM",
+      "indicator": {
+        "1m": "aa"
+      }
+    },
+    "3": {
+      "grid": "1_1",
+      "symbol": "AGAE",
+      "indicator": {
+        "1m": "aa"
+      }
     }
   },
   "event": {
-    "filter": "[\"strategy\"]",
-    "filter_strategy": "[\"strategy\"]",
-    "filter_events": "[\"trade\",\"error\",\"order\",\"task-order\",\"message\"]"
+    "filter_events": "[\"trade\",\"order\"]",
+    "filter_strategy": {
+      "sources": "[\"strategy\"]",
+      "names": "[\"GAIN_5\",\"vwap\"]",
+      "symbols": "[]"
+    }
   },
   "symbols": {
     "undefined": {
@@ -92,6 +114,16 @@
       "mode": "DIRECT"
     },
     "RXT": {
+      "mode": "MARKER"
+    },
+    "YIBO": {
+      "mode": "DIRECT"
+    },
+    "TRNR": {
+      "quantity": 100,
+      "mode": "MARKER"
+    },
+    "AGAE": {
       "mode": "MARKER"
     }
   },

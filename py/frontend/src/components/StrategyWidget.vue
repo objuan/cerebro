@@ -7,26 +7,47 @@
             Filters ⚙️
           </button>
 
-          <div v-if="open" class="filter-popup">
-            <label
-              v-for="src in ['mule','strategy']"
-              :key="src"
-              class="popup-item"
-            >
-              <input
-                type="checkbox"
-                :value="src"
-                v-model="allowedSources"
-              />
-              {{ src }}
-            </label>
+         <div v-if="open" class="filter-popup">
+
+            <!-- SOURCES -->
+            <div class="popup-group">
+              <div class="popup-title">Sources</div>
+              <label v-for="src in ['mule','strategy']" :key="src" class="popup-item">
+                <input type="checkbox" :value="src" v-model="allowedSources"/>
+                {{ src }}
+              </label>
+            </div>
+
+            <!-- NAMES -->
+            <div class="popup-group">
+              <div class="popup-title">Names</div>
+              <label v-for="n in uniqueNames" :key="n" class="popup-item">
+                <input type="checkbox" :value="n" v-model="allowedNames"/>
+                {{ n }}
+              </label>
+            </div>
+
+            <!-- SYMBOLS -->
+            <div class="popup-group">
+              <div class="popup-title">Symbols</div>
+              <label v-for="s in uniqueSymbols" :key="s" class="popup-item">
+                <input type="checkbox" :value="s" v-model="allowedSymbols"/>
+                {{ s }}
+              </label>
+            </div>
+
           </div>
+
         </div>
 
-      <button  class="btn tiny-btn btn-danger ms-0"  title="Delete Marker Trade"
-              @click="clear()">
-              x
-            </button>
+        <button
+        class="btn tiny-btn btn-danger ms-auto me-2"
+        title="Delete Marker Trade"
+        @click="clear()"
+      >
+        x
+      </button>
+
     </div>
 
      <div class=" d-flex flex-wrap gap-0 justify-content-end align-content-start items-container">
@@ -58,17 +79,30 @@ import { staticStore } from '@/components/js/staticStore.js';
 //import {saveProp} from '@/components/js/utils.js'
 import MessageWidget from "@/components/MessageWidget.vue";
 
-const allowedSources = ref(['mule', 'strategy']);
+
+const allowedSources = ref(['mule', 'strategy'])
+const allowedNames = ref([])
+const allowedSymbols = ref([])
 const open = ref(false)
+
+const uniqueNames = computed(() =>
+  [...new Set(store.items.map(e => e.name))]
+)
+
+const uniqueSymbols = computed(() =>
+  [...new Set(store.items.map(e => e.symbol))]
+)
 
 const sortedEvents = computed(() =>
 {
- return [...store.items]
-    .filter(e => allowedSources.value.includes(e.source))
+  return [...store.items]
+    .filter(e =>
+      allowedSources.value.includes(e.source) &&
+      (allowedNames.value.length === 0 || allowedNames.value.includes(e.name)) &&
+      (allowedSymbols.value.length === 0 || allowedSymbols.value.includes(e.symbol))
+    )
     .sort((a, b) => b.timestamp - a.timestamp)
-}
-);
-
+})
 
 defineProps({
 })
@@ -76,6 +110,7 @@ defineProps({
 function clear(){
   store.clear()
 }
+
 
 async function onStart(){
     let pdata = await send_get("/api/strategy/get",{"limit":50, "types": allowedSources.value.join(",")})
@@ -86,13 +121,20 @@ async function onStart(){
       store.push(val)    
     });
 
-   let filter = staticStore.get('event.filter_strategy');
-    //console.log("allowedSources filter:", filter)
-      
-    if (filter){
-    
+   let filter = staticStore.get('event.filter_strategy.sources');
+   // console.log("allowedSources filter:", filter)
+    if (filter)
       allowedSources.value = JSON.parse(filter)
-    }
+    
+    filter = staticStore.get('event.filter_strategy.names');
+   // console.log("names filter:", filter)
+    if (filter)
+      allowedNames.value = JSON.parse(filter)
+
+    filter = staticStore.get('event.filter_strategy.symbols');
+    //console.log("names filter:", filter)
+    if (filter)
+      allowedSymbols.value = JSON.parse(filter)
 }
 onMounted( async () => {
     eventBus.on("on-start", onStart)
@@ -119,16 +161,37 @@ watch(allowedSources, (newVal, ) => {
   
   let v = JSON.stringify(newVal)
  // console.log("allowedSources cambiato:", newVal,v)
-
-  staticStore.set('event.filter_strategy',v)
+  staticStore.set('event.filter_strategy.sources',v)
   //saveProp("event.filter",v)
 }, { deep: true })
 
+watch(allowedNames, (newVal, ) => {
+  
+  let v = JSON.stringify(newVal)
+  staticStore.set('event.filter_strategy.names',v)
+}, { deep: true })
+
+watch(allowedSymbols, (newVal, ) => {
+  
+  let v = JSON.stringify(newVal)
+  staticStore.set('event.filter_strategy.symbols',v)
+}, { deep: true })
 
 </script>
 
 <style scoped>
+.popup-group{
+  border-bottom:1px solid #333;
+  margin-bottom:6px;
+  padding-bottom:6px;
+}
 
+.popup-title{
+  font-weight:bold;
+  font-size:11px;
+  opacity:.7;
+  margin-bottom:4px;
+}
 .popup-item {
   display: flex;
   align-items: center;
@@ -145,10 +208,13 @@ watch(allowedSources, (newVal, ) => {
   min-width: 18px;
   height: 18px;
 }
-
+.delete-btn{
+  margin-left:auto;
+}
 
 .filter-bar{
   display:flex;
+  align-items:center;
   gap:12px;
   padding:1px;
   background:#111;

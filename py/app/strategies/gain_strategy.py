@@ -39,5 +39,5 @@ class GainStrategy(Strategy):
                                   name= f"GAIN_{self.min_gain}",
                                   small_desc=f"{gain:.1f}>{self.min_gain}",
                                   full_desc=f"gain {gain:.1f}>{self.min_gain}",
-                                  color = "#ACAC0A")
+                                  color = "#9795FF")
   

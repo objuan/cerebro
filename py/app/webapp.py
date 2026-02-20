@@ -723,10 +723,11 @@ async def get_orders(start: Optional[str] = None):
     try:
         # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
         query = """
-        SELECT * FROM ib_orders 
+        SELECT *, strftime('%s', timestamp) AS unix_time FROM ib_orders 
         WHERE id IN (
             SELECT MAX(id) FROM ib_orders 
             WHERE timestamp >= ? 
+            and event_type='STATUS'
             GROUP BY trade_id
         )
         ORDER BY timestamp DESC
@@ -1033,6 +1034,11 @@ async def add_to_watch(name,type,symbol):
     await client.send_cmd("/admin/add_to_watch", {"name": name,"type":type, "symbol": symbol})
     return {"status": "ok"}
 
+@app.get("/api/admin/clear_day_watch")
+async def clear_day_watch(name,type,symbol):
+    await client.send_cmd("/admin/clear_day_watch", {"name": name,"type":type, "symbol": symbol})
+    return {"status": "ok"}
+
 @app.get("/api/admin/scan")
 async def admin_scan(profile_name):
     await client.send_cmd("/admin/scan",{"profile_name":profile_name})
@@ -1124,7 +1130,7 @@ def trade_history():
     list = []
     trades = orderManager.getTradeHistory(None)
     for trade in trades:
-        #logger.info(f"trade {trade.to_dict()}")
+        logger.info(f"trade {trade.to_dict()}")
         list.append(trade.to_dict())
 
     return list

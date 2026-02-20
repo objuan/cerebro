@@ -714,6 +714,12 @@ class MuloJob:
         
         self.conn_exe.commit()
 
+    def clear_day_watch(self,name,type,symbol):
+        self.cur_exe.execute("""
+                DELETE FROM  watch_list where  type=?  where symbol = ? and name= ? """, (type,symbol,name    ))
+        self.conn_exe.commit()
+        
+
     def add_blacklist(self,symbol, errorDesc, user_mode=None ):
         df = self.get_df(f"""
                 SELECT * from  black_list

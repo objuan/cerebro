@@ -101,11 +101,13 @@ TIME_MULTIPLIERS = {
     "s": 1,
     "m": 60,
     "h": 3600,
-    "d": 86400
+    "d": 86400,
+    "M": 1_000_000,  # nuovo suffisso
+    "K": 1000,  # nuovo suffisso
 }
 
 
-DURATION_RE = re.compile(r"^(\d+)([smhd])$")
+DURATION_RE = re.compile(r"^(\d+)([smhdMK])$")
 
 
 def duration_to_seconds(value):
