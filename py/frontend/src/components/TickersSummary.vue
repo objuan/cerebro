@@ -46,7 +46,9 @@
         class="card ticket-card"
       >
         <div class="card-body p-0 d-flex justify-content-between align-items-center">
-          
+            <div class="time-bar">
+            <div class="time-bar-fill" :style="{ width: progress(item) + '%' }"></div>
+          </div>
             <table style="width: 100%; height: 100%;">
               <tr style="height : 60%">
                 <td>
@@ -117,9 +119,15 @@
              
             <div class="report" v-if="item.report">
               <div class="title">{{ item.symbol }}</div>
-                <div class="row">
+           
+               <div class="row">
+                <div class="label">last</div>
+                <div class="value">{{ item.last }} </div>
+              </div>
+
+              <div class="row">
                     <div class="label">From Last</div>
-                    <div class="value">{{ secondsFrom(item.ts)  }}</div>
+                    <div class="value">{{ item.secs_from }} secs</div>
               </div>
               <div class="row">
                 <div class="label">Rank</div>
@@ -310,6 +318,12 @@ const orderedKeys = [
   'news', 'price', 'volume'
 ]
 
+const progress = (item) => {
+  if ( item.secs_from< 10) return 100;
+  const f =  Math.min(10, item.secs_from-10)/10
+  return 100 - f * 100;
+}
+
 const sortedTickers = computed(() => {
   const list = tickerList.get_sorted();
 
@@ -384,9 +398,7 @@ function secondsFrom(ts) {
 
   const diff = Math.floor((now.value - timestamp) / 1000)
 
-  if (diff < 60) return `${diff}s`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`
-  return `${Math.floor(diff / 3600)}h`
+  return diff
 }
 
 function onReportReceived(data){
@@ -408,6 +420,15 @@ onMounted( async () => {
 
   timer = setInterval(() => {
     now.value = Date.now()
+    try{
+      const list = tickerList.get_list();
+      list.forEach( ( item)=>
+      {
+        tickerList.push({"symbol": item.symbol,"secs_from": secondsFrom(item.ts)})
+      });
+    }catch(e){
+      console.error(e)
+    }
   }, 1000)
 
   /*
@@ -452,11 +473,29 @@ defineExpose({
 </script>
 
 <style scoped>
+
+.time-bar{
+  position:absolute;
+  left:0;
+  bottom:0;
+  width:100%;
+  height:2px;
+  background:#333;
+}
+
+.time-bar-fill{
+  height:100%;
+  width:0%;
+  background:#00ff88;
+  transition:width .2s linear;
+}
+
 .volume{
   top: 0px;
  font-family: monospace; 
  font-size: 13px;
 }
+
 .items-container {
    height: calc(100vh - 90px); 
   overflow-y: auto;

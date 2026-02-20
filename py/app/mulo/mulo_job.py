@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, HTMLResponse
 from ib_insync import Stock,util
+import asyncio
 import websockets
 import time as _time
 import pandas as pd
@@ -200,10 +201,15 @@ class MuloJob:
             
             if self.getCurrentZone() == MarketZone.LIVE:
                 if tf=="1m" and last_update_delta_min.total_seconds() > 60:
-                    await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
+                    #await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
+                    asyncio.create_task(self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]]))
+
                     self.update_ts[key] = new_ticker["ts"]
+
                 elif tf == "5m" and last_update_delta_min.total_seconds() > 60*5:
-                    await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
+                    #await self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]])
+                    asyncio.create_task(self._align_data(symbol,TF_SEC_TO_DESC[new_ticker["tf"]]))
+
                     self.update_ts[key] = new_ticker["ts"]
                 #print("last_update_delta_min" , last_update_delta_min)
  
@@ -273,7 +279,7 @@ class MuloJob:
                
 
                 if update_delta_min.total_seconds() > self.TIMEFRAME_UPDATE_SECONDS[timeframe]:
-                    logger.info(f"durationStr {since_to_durationStr(int(update_delta_min.total_seconds() ))}")
+                    #logger.info(f"durationStr {since_to_durationStr(int(update_delta_min.total_seconds() ))}")
                             
                 
                     if self.useHistoryYahoo:
@@ -293,7 +299,7 @@ class MuloJob:
                         #else:
                         #    end = datetime.now(timezone.utc).strftime('%Y%m%d-00:00:00')
 
-                        logger.info(f">> end {end}")
+                        #logger.info(f">> end {end}")
 
                         bars =  self.ib.reqHistoricalData(
                             contract,

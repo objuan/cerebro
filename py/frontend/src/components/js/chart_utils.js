@@ -349,7 +349,7 @@ export function drawHorizontalLine(chart_context,price,guid=null) {
       price: price,
       color: '#ffcc00',
       lineWidth: 1,
-      lineStyle: LineStyle.SparseDotted, // oppure Dashed
+      lineStyle: LineStyle.Solid, // oppure Dashed
       axisLabelVisible: true,
       title: ''
     });

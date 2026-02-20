@@ -27,7 +27,7 @@
 
       <div ref="chartContainer" class="chart-container  w-100 d-flex flex-column">
         <div ref="mainChartRef" class=" w-100" >
-          
+        <canvas ref="overlay" class="overlay"></canvas>
            <!-- TODO aggiungere FLOAT, MARKETCAP -->
            <!-- INDICATOR MENU -->
 
@@ -160,12 +160,13 @@ createInteractiveLineManager ,LineStyle } from '@/components/js/ind.js' // '@pip
 
 import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
-import { drawTrendLine,drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker,
+import { drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker,
    updateTradeMarker ,setTradeMarker,updateVerticalLineData,
    findLastCandleOfEachDay,findOpenDate,updateStrategyIndicators,clearStrategyIndicators
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
 import { tradeStore } from "@/components/js/tradeStore";
+import { createPainter } from "@/components/js/chart_painter";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -194,6 +195,13 @@ const price_marker_tp= ref(null);
 const price_marker_sl= ref(null);
 const indicatorList = ref([]);
 const profileName = ref("");
+
+const overlay = ref(null)
+
+let painter = null;
+
+// ==================
+
 let timeLine_pre=null;
 let timeLine_open=null;
 let strategy_index_map = {}
@@ -202,7 +210,7 @@ let strategy_index_list = []
 const gfx_canvas = ref(null);
 
 const drawMode = ref(null); // null | 'hline' | 'line'
-let drawPoints = [];
+//let drawPoints = [];
 let drawSeries = [];
 
 // Oggetti Chart e Series (non reattivi per performance)
@@ -213,7 +221,6 @@ let series  = null;
 let buy_line = null
 //let indicators = {}
 
-let prevMainCandle=null
 let lastMainCandle=null
 let tradeMarkerData = {}; 
 let taskData = {}
@@ -221,7 +228,7 @@ let chartWidth=null;
 
 //let DEFAULT_INTERACTION=null;
 let manager = null;
-
+//let ctx=null;
 
 let timeframe_start = {}
 timeframe_start["10s"] = 100
@@ -240,7 +247,8 @@ function context() {
         liveStore,
         gfx_canvas,
         strategy_index_map,
-        strategy_index_list
+        strategy_index_list,
+        mainChartRef
 
     };
 }
@@ -465,6 +473,7 @@ const handleRefresh = async () => {
           line.data = JSON.parse(line.data)
       })  
 
+        
         // STETEGY
         await updateStrategyIndicators( context(),
           currentSymbol.value, currentTimeframe.value
@@ -504,7 +513,6 @@ const handleRefresh = async () => {
        updateVerticalLineData(timeLine_pre,formattedData,findLastCandleOfEachDay(formattedData))
        updateVerticalLineData(timeLine_open,formattedData,findOpenDate(formattedData))
 
-        prevMainCandle = formattedData[formattedData.length - 2].time;
         lastMainCandle = formattedData[formattedData.length - 1];
 
         // Gestione Indicatori (EMA, etc)
@@ -518,8 +526,10 @@ const handleRefresh = async () => {
           });
         }
 
+        await painter.load()
      
         // gestione lieen user
+        
         clearDrawings( context() );
         ind_response.forEach( line =>
         {
@@ -527,11 +537,12 @@ const handleRefresh = async () => {
             {
                 drawHorizontalLine(context(),line.data.price, line.guid);
             }
-            if (line.type ==='trend')
+            /*if (line.type ==='trend')
             {
               // console.log("draw trend",line.data)
                 drawTrendLine(context(),line.data.p1,line.data.p2, line.guid);
             }
+            */
         });
 
 
@@ -540,10 +551,12 @@ const handleRefresh = async () => {
         if ( data.length >timeframe_start[currentTimeframe.value])
         {
           try{
+            chart.timeScale().fitContent()
             chart.timeScale().setVisibleLogicalRange({
               from: data.length - timeframe_start[currentTimeframe.value],
               to: data.length
             });
+            
           }catch{
             console.debug("!!")
           }
@@ -595,7 +608,7 @@ const handleRefresh = async () => {
               {
                   if (step["step"]== next_step_idx)
                   {
-                    console.log("ACTIVE",step)
+                    //console.log("ACTIVE",step)
                     if (step["desc"] == "MARKER")
                         taskData["price_marker"] ={"ref" : price_marker, "task": step}
                     if (step["desc"] == "SL")
@@ -666,12 +679,17 @@ async function delete_marker_trade(){
 
 async function setDrawMode(mode) {
   if (mode === 'delete_all') {
+    painter.clear();
     clearDrawings(context(),true);
     return;
   }
+  if (mode ==='line'){
+     painter.begin()
+     return
+  }
 
   drawMode.value = mode;
-  drawPoints = [];
+  //drawPoints = [];
   console.log("Draw mode:", mode);
 }
 /*
@@ -723,7 +741,8 @@ onMounted(  () => {
   //canvas = bgCanvas.value
   //ctx = canvas.getContext('2d')
   //console.log("ctx",canvas,ctx,bgCanvas)
-
+  painter =  createPainter(context(),mainChartRef,overlay)
+    
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
   eventBus.on("trade-last-changed", onTradeLastUpdated);
@@ -793,13 +812,19 @@ const buildChart =  () => {
             visible: false,
         }, 
     },
-    timeScale: { timeVisible: true, borderColor: '#485c7b' }
+    timeScale: { timeVisible: true, borderColor: '#485c7b' },
+    rightPriceScale: {
+      autoScale: true
+    }
+    
   });
 
   series = chart.addSeries(CandlestickSeries, {
     upColor: '#4bffb5', downColor: '#ff4976', borderUpColor: '#4bffb5', borderDownColor: '#ff4976',
     wickUpColor: '#838ca1', wickDownColor: '#838ca1',
   });
+
+  painter.setChart(chart,series)
 
   timeLine_pre =  chart.addSeries(LineSeries, {
     color: '#FFFFFF',
@@ -850,7 +875,11 @@ const buildChart =  () => {
       }
     });
   }
-
+  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>
+    
+    painter.redraw()
+  )
+  
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
   chart.subscribeCrosshairMove(param => 
   {
@@ -886,6 +915,9 @@ const buildChart =  () => {
           //console.log("i ",v )
       });
       lbl=""
+      
+      painter.onMouseMove_disabled(param.point)
+      painter.redraw();
       // Aggiungi valori indicatori alla legenda
 
       /*
@@ -905,9 +937,13 @@ const buildChart =  () => {
 
 
   chart.subscribeClick(param => {
-    
+    //console.log("click",param)
+
+    if (painter.onMouseClick_disabled(param.point))
+        return 
+
     if (!drawMode.value ) return;
-    console.log(param)
+   // console.log(param)
     if (!param || !param.point ) {
       console.log("Click cancelled");
       return;
@@ -916,50 +952,8 @@ const buildChart =  () => {
     const price = series.coordinateToPrice(param.point.y);
     let time = chart.timeScale().coordinateToTime(param.point.x)
    
-    if (!time) {
-      const timeScale = chart.timeScale()
-
-      const visible = timeScale.getVisibleLogicalRange()
-      const width = chartWidth   // devi salvarlo dal resize
-      const bars = visible.to - visible.from
-
-      const barsPerPixel = bars / width
-      const deltaBars = (param.point.x - width) * barsPerPixel
-
-      const lastBar = lastMainCandle.time
-      const step = -60;//data[data.length-1].time - data[data.length-2].time
-
-      time = lastBar + deltaBars * step
-
-      console.log("d:",deltaBars,"v",visible, "t",Date(time),prevMainCandle)
-
-      /*
-      const timeScale = chart.timeScale()
-      const logical = timeScale.coordinateToLogical
-        ? timeScale.coordinateToLogical(param.point.x)
-        : null
-
-      const lastLogical = timeScale.getVisibleLogicalRange()?.to
-
-      if (logical != null && lastLogical != null) {
-
-        const lastBar = lastMainCandle.time
-        const delta = logical - lastLogical
-
-
-        // intervallo medio barre
-        //const step =lastMainCandle.time - prevMainCandle
-
-        const step = 60;
-
-        console.log("delta",delta,"step",step,lastLogical,logical,"..",prevMainCandle)
-
-        time = lastBar + delta * step
-      }
-        */
-      // console.log(prevMainCandle)
-    }
-
+   
+  
    // const logical = chart.timeScale().coordinateToLogical(param.point.x)
     //const time = chart.timeScale().logicalToTime(logical)
 
@@ -973,7 +967,13 @@ const buildChart =  () => {
     }
     if (time)
     {
+      /*
       if (drawMode.value === 'line') {
+
+       // painter.begin()
+
+        console.log(drawPoints)
+        
         drawPoints.push({ time: time, value: price });
 
         if (drawPoints.length === 2) {
@@ -981,8 +981,10 @@ const buildChart =  () => {
           drawPoints = [];
           drawMode.value = null;
         }
+        
       }
-      if (drawMode.value === 'delete') {
+          */
+    if (drawMode.value === 'delete') {
           clearLine(context(),time,price)
           drawMode.value = null;
       }
@@ -1047,6 +1049,7 @@ const resize =  () => {
       chart.resize(chartWidth,height-40);
 
       handleRefresh();
+      painter.resizeOverlay();
     }
 };
 
@@ -1071,7 +1074,6 @@ function on_candle(c)
   //console.log("new_value",c) 
   if (lastMainCandle !=null && new_value.time >= lastMainCandle.time )
   {
-    prevMainCandle = lastMainCandle.time;
     lastMainCandle =new_value;
     
     updateVolumeData(series,{
@@ -1105,6 +1107,9 @@ function on_candle(c)
   } 
 }
 
+// =====================================
+// OVERLAY
+
 // ==========================
 
 defineExpose({
@@ -1120,6 +1125,16 @@ defineExpose({
 </script>
 
 <style scoped>
+
+.overlay{
+  position:absolute;
+  inset:0;
+  /*pointer-events:auto;*/
+   pointer-events:none;
+  /*background-color: rgba(19, 23, 34, 0.7);*/
+  z-index: 10000;
+}
+
 
 .charts-grid {
   width: 100%;

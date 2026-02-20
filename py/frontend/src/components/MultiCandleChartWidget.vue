@@ -3,9 +3,16 @@
     <div class="chart-header">
       <div class="top-row">
          <strong class="text-uppercas symbol">({{number}} )
-          <span class="symbol">{{ currentSymbol }} </span>
+          <span class="symbol">{{ currentSymbol }} 
+            
+          </span>
+          
           <span class="positon">#{{ position }}</span>
         </strong>
+
+        <div class="time-bar" style="width: 20px;height: 10px;">
+           <div class="time-bar-fill" :style="{ width: progress(tickerRef) + '%' }"></div>
+          </div>
           
         <select 
           v-model="currentSymbol" 
@@ -82,6 +89,7 @@ import { eventBus } from "@/components/js/eventBus";
 import {send_get} from '@/components/js/utils.js' // saveProp
 //import { liveStore } from '@/components/js/liveStore.js';
 import { staticStore } from '@/components/js/staticStore.js';
+import { tickerStore as tickerList } from "@/components/js/tickerStore";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -114,6 +122,24 @@ function handleSelect() {
 const get_layout_key = (subkey)=> { return `chart.${props.number}.${subkey}`}
 
 // -------------
+
+const progress = (item) => {
+
+  if (item?.secs_from){
+    if ( item.secs_from< 10) return 100;
+    const f =  Math.min(10, item.secs_from-10)/10
+    return 100 - f * 100;
+  }
+  else
+    return 100
+  
+}
+  
+
+const tickerRef = computed( ()=>{
+  return tickerList.get_ticker(currentSymbol.value)
+})
+
 
 const grid = computed( ()=>{
   return `${rows.value}_${cols.value}`
@@ -338,7 +364,21 @@ watch(
 
 <style scoped>
 
+.time-bar{
+  position:relative;
+  left:0;
+  bottom:0;
+  width:100%;
+  height:2px;
+  background:#525151;
+}
 
+.time-bar-fill{
+  height:100%;
+  width:0%;
+  background:#00ff88;
+  transition:width .2s linear;
+}
 .in-charts-grid {
   width: 100%;
   height: calc(100% - 140px);

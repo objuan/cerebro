@@ -15,8 +15,12 @@
                     <option :value="100">100</option>
                     <option :value="200">200</option>
                     <option :value="300">300</option>
+                    <option :value="400">400</option>
                     <option :value="500">500</option>
+                    <option :value="600">600</option>
                     <option :value="700">700</option>
+                    <option :value="800">800</option>
+                    <option :value="900">900</option>
                     <option :value="1000">1000</option>
                     <option :value="1500">1500</option>
                     <option :value="2000">2000</option>
@@ -44,12 +48,16 @@
                           @click="send_limit_order()"
                         >BUY</button>
 
-                        <div>
+                     <div class="flex-grow-1 text-center">
                           Buy <strong>{{ quantity }}</strong> at 
                           <strong>{{ ticker?.last.toFixed(2) }}</strong> 
                             = ${{ (quantity * ticker?.last).toFixed(1) }}     
                      
-                        </div>
+                    </div>
+                    <div  v-if="lastTrade && lastTrade.isOpen">
+                           (OPEN)
+                    </div>
+
                   </div>
                   <div class="d-flex align-items-center gap-1" v-if="tradeMode=='MARKER' && isCurrent">
                     <table class="trade-info-panel" >
@@ -128,6 +136,7 @@ import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
 import {order_limit,clear_all_orders,order_bracket,order_tp_sl} from "@/components/js/orderManager";
 import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
+import { tradeStore } from "@/components/js/tradeStore";
 
 //events
 const emit = defineEmits(['cancel-task-order']);
@@ -145,6 +154,10 @@ const liveData = computed(() => liveStore.state.dataByPath);
 const isCurrent = computed(() => {
   return tradeData.value && tradeData.value.symbol == props.symbol;
 });
+
+const lastTrade = computed(() => {
+  return tradeStore.lastTrade(props.symbol);
+})
 
 const tradeMode = ref("DIRECT");
 
@@ -179,6 +192,12 @@ function setMode(mode){
 }
 
 function send_limit_order(){
+  // check 
+  if(lastTrade.value && lastTrade.value.isOpen){
+    const ok = confirm("Hai già una posizione aperta. Vuoi continuare?")
+    if(!ok) return
+  }
+
   order_limit(props.symbol,quantity.value)
 }
 

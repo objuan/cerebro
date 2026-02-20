@@ -426,16 +426,29 @@ def save_chart_line(payload: dict):
             status_code=400,
             detail=f"Campo mancante: {e.args[0]}"
         )
-    client.execute("""
-        INSERT INTO chart_lines (guid,symbol, timeframe, type, data)
-        VALUES (?, ?, ?, ?,?)
-    """, (
-        guid,
-        symbol,
-        timeframe,
-        data.get("type"),
-        json.dumps(data)
-    ))
+    df = client.get_df("""
+        SELECT guid
+        FROM chart_lines WHERE guid =  ?
+    """, (guid,))
+    if len(df)>0:
+          client.execute("""
+            UPDATE chart_lines set data = ?
+            WHERE guid =  ?         
+        """, (
+             json.dumps(data),
+            guid,
+        ))
+    else:
+        client.execute("""
+            INSERT INTO chart_lines (guid,symbol, timeframe, type, data)
+            VALUES (?, ?, ?, ?,?)
+        """, (
+            guid,
+            symbol,
+            timeframe,
+            data.get("type"),
+            json.dumps(data)
+        ))
 
     return {"status": "ok"}
 

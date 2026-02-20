@@ -28,6 +28,16 @@ MARKETAUX_KEY = "Pv7vlvoLhKuSt7ySoQkOFwx4DX6oxRFHn8DNUzbb"
 ALPHAVANTAGE_KEY = "DWFYHOZURRTF2IVK"
 BENZINGA_KEY = "YOUR_BENZINGA_KEY"
 
+exclude_titles = ["""What's going on in today's pre-market session""",
+                  """Technology Stocks Moving In""",
+                  """Top stock movements in today's session""",
+                  """These stocks are gapping in today""",
+                  """Top movers in Tuesday""",
+                  """Here are the top movers in""",
+                  """Industrials Stocks Moving In""",
+                  """Which stocks are moving""",
+                  """Consumer Staples Stocks Moving"""]
+
 #############
 
 def get_df(query, params=()):
@@ -56,14 +66,6 @@ def normalize_news(provider, guid, source, symbol, title, image, url, published_
         "summary": summary,
     }
 
-
-exclude_titles = ["""What's going on in today's pre-market session""",
-                  """Technology Stocks Moving In""",
-                  """Top stock movements in today's session""",
-                  """These stocks are gapping in today""",
-                  """Top movers in Tuesday""",
-                  """Here are the top movers in""",
-                  """Industrials Stocks Moving In"""]
 
 def insert_news(conn, news):
     #news = normalize_news(provider, source, title, image, url, published_at, summary)

@@ -151,7 +151,7 @@ class VWAP(Indicator):
         cum_pv = (price * volume_bar).groupby(day).cumsum()
 
         vwap_full = cum_pv / day_volume
-        vwap_full = vwap_full.replace([np.inf, -np.inf], np.nan).fillna(0)
+        vwap_full = vwap_full.replace([np.inf, -np.inf], np.nan)#.fillna(0)
 
         #logger.info(f"vwap_full {vwap_full}")
 

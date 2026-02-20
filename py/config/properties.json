@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_2",
-      "symbol": "AGAE",
+      "symbol": "MGRX",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -125,6 +125,20 @@
     },
     "AGAE": {
       "mode": "MARKER"
+    },
+    "CDIO": {
+      "mode": "MARKER",
+      "quantity": 100
+    },
+    "MGRX": {
+      "mode": "DIRECT",
+      "quantity": 600
+    },
+    "EVTV": {
+      "mode": "DIRECT"
+    },
+    "BDMD": {
+      "quantity": 200
     }
   },
   "back": {

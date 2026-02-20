@@ -206,7 +206,7 @@
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
-				"mode" : "live",
+				"mode" : "sliveym",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["live"],
 				"start_scan" : "live",
@@ -241,7 +241,7 @@
 						}
 					},
 					{
-						"name" : "TOP_PERC_GAIN SMALL",
+						"name" : "TOP_PERC_GAIN ALL",
 						"instrument": "STK",
 						"location": "STK.US.MAJOR",
 						"type": "TOP_PERC_GAIN",
@@ -249,12 +249,12 @@
 						
 						"filter": 
 						{
-							"price_min": 0.5,
-							"price_max": 2,
-							"min_volume": 10,
-							"marketCap_min" : 10,
-							"float_min" : "500K",
-							"float_max" : "50M"
+							"price_min": 0.1,
+							"price_max": 200,
+							"min_volume": 0,
+							"marketCap_min" : 0,
+							"float_min" : "0",
+							"float_max" : "500M"
 						}
 					},
 					{
