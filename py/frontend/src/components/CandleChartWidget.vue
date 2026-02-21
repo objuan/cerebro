@@ -425,9 +425,10 @@ function removeIndicator(index) {
 
     if (ind.serie.isComposite)
       {
-        chart.removeSeries(ind.serie.macd);
-        chart.removeSeries(ind.serie.signal);
-        chart.removeSeries(ind.serie.histogram);
+        ind.serie.delete(chart)
+       // chart.removeSeries(ind.serie.macd);
+        //chart.removeSeries(ind.serie.signal);
+        //chart.removeSeries(ind.serie.histogram);
       }
     else
       chart.removeSeries(ind.serie)

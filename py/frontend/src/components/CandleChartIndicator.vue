@@ -140,7 +140,11 @@ function addIndicator(context,ind){
       });
       serie.isComposite=true;
       //console.log("MACD",serie)
-      
+        serie.delete = (chart)=>{
+          chart.removeSeries(serie.macd);
+          chart.removeSeries(serie.signal);
+          chart.removeSeries(serie.histogram);
+      }
     }
   
      if (ind.type =="VWAP")
@@ -150,11 +154,13 @@ function addIndicator(context,ind){
         period: ind.params.period, 
         color: ind.params.color,
       });
+      serie.isComposite=true;
+      
 
     }
 
 
-    if (name != "MACD")
+    if (!serie.isComposite)
       serie.applyOptions({
         priceLineVisible: false,
         lastValueVisible: false,

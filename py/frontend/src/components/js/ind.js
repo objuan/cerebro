@@ -16734,6 +16734,7 @@ function version() {
 
 function applyVWAP(series, chart, options = {}) {
     const color = options.color ?? '#FF9800';
+    const mult = options.stdMult ?? 1;
 
     // Create the VWAP line series as overlay (paneIndex: 0)
     const vwapSeries = chart.addSeries(lineSeries, {
@@ -16745,106 +16746,74 @@ function applyVWAP(series, chart, options = {}) {
             minMove: 0.01,
         },
     }, 0);
-
+    const upperSeries = chart.addSeries(lineSeries, { color: '#ffffff', lineWidth: 1  ,
+        lineStyle : 1,
+          priceLineVisible: false,lastValueVisible: false, crosshairMarkerVisible: false}, 0);
+    const lowerSeries = chart.addSeries(lineSeries, { color: '#ffffff', lineWidth: 1  ,
+        lineStyle : 1,
+          priceLineVisible: false,lastValueVisible: false, crosshairMarkerVisible: false}, 0);
+          
     const cache = volumeCache.get(series);
 
-    
-    /*
-    for (const d of data) {
-        if ('time' in d && 'volume' in d) {
-            const timeKey = typeof d.time === 'string' ? d.time : String(d.time);
-            cache.set(timeKey, d.volume);
-        }
-    }
-        */
-
     // Function to calculate VWAP
-    const calculateVWAP = (data) => {
-
-        //console.log("calculateVWAP")//, data,cache)
-        if (!data || data.length === 0) {
-            return [];
-        }
-
-     
-        let cumulativeTPV = 0; // Typical Price * Volume
+     const calculateVWAP = (data) => {
+        let cumulativeTPV = 0;
+        let cumulativeTP2V = 0;
         let cumulativeVolume = 0;
-        //let currentDay = null;
+        
+        const fillRes = [];     
+        const vwapRes = [];
+        const upperRes = [];
+        const lowerRes = [];
 
-        const results = [];
-        let i=0;
         let passed1530 = false;
+
         for (const d of data) {
-            // Assicurati che sia una candela con volume
-            if (
-                d.high === undefined ||
-                d.low === undefined ||
-                d.close === undefined 
-               //d.volume === undefined
-            ) {
-                continue;
-            }
-             // ===== ricava il giorno dal timestamp =====
-            const date = new Date(d.time * 1000); // è in locale 
-            
+            if (d.high === undefined || d.low === undefined || d.close === undefined) continue;
+
+            const date = new Date(d.time * 1000);
             const hours = date.getUTCHours();
             const minutes = date.getUTCMinutes();
-            // minuti totali della giornata
             const totalMinutes = hours * 60 + minutes;
 
-            // 15:30 = 930 minuti, ora locale 
-            //const isAfter1530 = totalMinutes >= 930;
-            const isAfter1530 = totalMinutes >= 0;
+            const isAfter1530 = totalMinutes >= 930;
 
-            const dayKey = date.toISOString().slice(0, 10); // YYYY-MM-DD
-            // ===== reset VWAP a cambio giorno =====
-           //if (currentDay !== dayKey) {
-           if (isAfter1530 && !passed1530) {
-                        //console.log("date",date,hours,minutes)
-                        cumulativeTPV = 0;
-                        cumulativeVolume = -0;
-                        //currentDay = dayKey;
-                         passed1530 = true;
-                        i=0;
+            if (isAfter1530 && !passed1530) {
+                cumulativeTPV = 0;
+                cumulativeTP2V = 0;
+                cumulativeVolume = 0;
+                passed1530 = true;
             }
-            // Se torni prima di 15:30 (giorno dopo), riabilita il reset
-            if (!isAfter1530) {
-                passed1530 = false;
-            }
+            if (!isAfter1530) passed1530 = false;
 
-            i=i+1;   
+            const volume = cache.get(String(d.time));
+            if (!volume) continue;
 
-            const timeKey = typeof d.time === 'string' ? d.time : String(d.time);
+            const tp = (d.high + d.low + d.close) / 3;
 
-            //console.log("vol", timeKey)
-
-            const volume = cache.get(timeKey);
-
-            //console.log("vol", volume)
-            const typicalPrice = (d.high + d.low + d.close) / 3;
-
-            //console.log("vol", volume, i,dayKey)
-
-            cumulativeTPV += typicalPrice * volume;
+            cumulativeTPV += tp * volume;
+            cumulativeTP2V += tp * tp * volume;
             cumulativeVolume += volume;
 
-            if (cumulativeVolume === 0) {
-                continue;
-            }
-         
+            if (cumulativeVolume === 0) continue;
+
             const vwap = cumulativeTPV / cumulativeVolume;
-            if (isNaN(vwap) || !isFinite(vwap)) 
-                continue;
-            //if (d.time) {
-                results.push({
-                    time: d.time,
-                    value: vwap,
-                });
-           // }
+
+            const variance = cumulativeTP2V / cumulativeVolume - vwap * vwap;
+            const std = Math.sqrt(Math.max(variance, 0));
+
+            const upper = vwap + mult * std;
+            const lower = vwap - mult * std;
+
+            vwapRes.push({ time: d.time, value: vwap });
+            upperRes.push({ time: d.time, value: upper });
+            lowerRes.push({ time: d.time, value: lower });
+      
         }
 
-        return results;
+        return { vwapRes, upperRes, lowerRes };
     };
+
 
     // Update function
     const updateVWAP = () => {
@@ -16854,23 +16823,33 @@ function applyVWAP(series, chart, options = {}) {
                 return;
             }
 
-            const vwapData = calculateVWAP([...seriesData]);
-            if (vwapData && vwapData.length > 0) {
-                vwapSeries.setData(vwapData);
-            }
+            const { vwapRes, upperRes, lowerRes,bandRes }  = calculateVWAP([...seriesData]);
+            if (vwapRes && vwapRes.length > 0) {
+                vwapSeries.setData(vwapRes);
+                upperSeries.setData(upperRes);
+                lowerSeries.setData(lowerRes);
+
+           
+                }
+              //  lowerFill.setData(lowerRes);
+            
         }
         catch (error) {
             console.error('Error calculating VWAP:', error);
         }
     };
 
-    // Subscribe to data changes
-    //series.subscribeDataChanged(updateVWAP);
-
     // Initial calculation
     updateVWAP();
 
     vwapSeries.refresh = updateVWAP
-    return vwapSeries;
+    const _delete = (chart)=>{
+        
+        chart.removeSeries(vwapSeries);
+        chart.removeSeries(upperSeries);
+        chart.removeSeries(lowerSeries);
+        
+    }
+    return {refresh : updateVWAP, delete:_delete};
 }
 export { getVolume,applyVWAP , updateVolumeData ,areaSeries as AreaSeries, barSeries as BarSeries, baselineSeries as BaselineSeries, candlestickSeries as CandlestickSeries, ColorType, CrosshairMode, DraggablePriceLine, histogramSeries as HistogramSeries, InteractiveLineManager, LastPriceAnimationMode, lineSeries as LineSeries, LineStyle, LineType, MismatchDirection, PriceLineSource, PriceScaleMode, TickMarkType, TrackingModeExitMode, applyATR, applyBollingerBands, applyEMA, applyMACD, applyOBV, applyRSI, applySMA, applyStochastic, applyVolume, applyWMA, createChart, createChartEx, createImageWatermark, createInteractiveLineManager, createOptionsChart, createSeriesMarkers, createTextWatermark, createTradingLine, createUpDownMarkers, createYieldCurveChart, customSeriesDefaultOptions, defaultHorzScaleBehavior, isBusinessDay, isUTCTimestamp, setOBVVolumeData, setVolumeData, version };

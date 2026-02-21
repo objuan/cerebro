@@ -10,8 +10,8 @@
   },
   "chart": {
     "1": {
-      "grid": "1_2",
-      "symbol": "MGRX",
+      "grid": "1_1",
+      "symbol": "AIOS",
       "indicator": {
         "1m": "aa",
         "10s": "aa",

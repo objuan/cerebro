@@ -3,9 +3,7 @@ import pandas as pd
 import logging
 from datetime import datetime, timedelta
 from bot.indicators import *
-from bot.strategy import Strategy
-from company_loaders import *
-from collections import deque
+from bot.strategy import SmartStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -15,38 +13,39 @@ from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
 
-
-class TEST(Indicator):
-    def __init__(self,target_col, timeperiod:int):
-        self.target_col=target_col
-        self.timeperiod=timeperiod
+class VWAP1(Indicator):
+    def __init__(self, target_col, price_name="close"):
+        self.target_col = target_col
+        self.price_name = price_name
 
     def compute(self, dataframe, group, start_pos):
-        
-        #logger.info(f"compute {start_pos} \n{group}")
-        
-        alpha = 2 / (window + 1)
 
-        close = group["close"]
+        group = group.sort_values("timestamp")
+        ts = pd.to_datetime(group["timestamp"], unit="ms")
+
+        # sessione regular US (15:30 Italia)
+        session = (ts - pd.Timedelta(hours=14, minutes=30)).dt.date
+
+        # prezzo tipico
+        price = (group["high"] + group["low"] + group[self.price_name]) / 3
+
+        # volume reale candela
+        volume = group["base_volume"]
+
+        # cumulativi per sessione
+        cum_vol = volume.groupby(session).cumsum()
+        cum_pv = (price * volume).groupby(session).cumsum()
+
+        # VWAP
+        vwap_full = (cum_pv / cum_vol).replace([np.inf, -np.inf], np.nan)
 
         if start_pos == 0:
-            ema = close.ewm(span=window, adjust=False).mean()
-            dataframe.loc[group.index, self.target_col] = ema.values
-            return
+            dataframe.loc[group.index, self.target_col] = vwap_full.values
+        else:
+            dataframe.loc[group.index[start_pos:], self.target_col] = \
+                vwap_full.iloc[start_pos:].values
 
-        # Recupera EMA precedente
-        prev_index = group.index[start_pos - 1]
-        prev_ema = dataframe.loc[prev_index, self.target_col]
 
-        ema_values = []
-
-        for i in range(start_pos, len(group)):
-            price = close.iloc[i]
-            prev_ema = alpha * price + (1 - alpha) * prev_ema
-            ema_values.append(prev_ema)
-
-        dataframe.loc[group.index[start_pos:],self.target_col] = ema_values
-        
 class VWAP_DIFF(Indicator):
   
   def __init__(self,target_col):
@@ -63,108 +62,6 @@ class VWAP_DIFF(Indicator):
 
         #logger.info(f"VWAP_DIFF AFTER \n{group.tail(30)}")
 
-#from strategy.order_strategy import *
-class SmartStrategy(Strategy):
-    
-    
-    def __init__(self, manager):
-        super().__init__(manager)
-        self.plots = []
-        self.marker_map= {}
-
-    def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
-        if timeframe in self.marker_map:
-            if not symbol:
-                return self.marker_map[timeframe]
-            else:
-                return self.marker_map[timeframe][self.marker_map[timeframe]["symbol"] == symbol]
-        else:
-            return  pd.DataFrame()
-         
-    def buy(self,  symbol, label):
-        self.add_marker(symbol,"BUY",label,"#00FF00","arrowUp")
-
-    #shapes : arrowUp, arrowDown, circle
-    def add_marker(self, symbol,type, label,color,shape, position ="aboveBar", _timeframe=None):
-        timeframe = self.timeframe if _timeframe==None else _timeframe
-        
-        #logger.info(f"self.trade_index {self.trade_index}")
-        candle =  self.trade_dataframe.loc[self.trade_index]
-        
-        timestamp =  candle["timestamp"]
-        value = candle["close"]
-
-        #logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
-
-        if not timeframe in self.marker_map:
-            self.marker_map[timeframe] = pd.DataFrame(
-                    columns=["symbol","timeframe","type", "timestamp", "value", "desc","color","shape","position"]
-                )
-
-        self.marker_map[timeframe].loc[len(self.marker_map[timeframe])] = [
-                symbol,               # symbol
-                timeframe,                # type
-                type,               # symbol
-                timestamp,       # timestamp
-                value,              # value
-                label,           # desc
-                color,
-                shape,
-                position
-            ]
-
-       # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
-     
-    def live_markers(self,symbol,timeframe,since):
-        if not timeframe:
-            timeframe = self.timeframe
-        if since:
-            df = self.marker(timeframe,symbol)
-            if not df.empty:
-                df = df[df["timestamp"]>= since]
-        else:
-            df = self.marker(timeframe,symbol)
-        if df.empty:
-            return []
-        else:
-            logger.info(f"live_markers since:{since}\n{df}")
-            return df.to_dict(orient="records")
-       
-    def live_indicators(self,symbol,timeframe,since):
-     
-        if not timeframe:
-            timeframe = self.timeframe
-
-        if since:
-            df = self.df(timeframe,symbol)
-            if not df.empty:
-                df = df[df["timestamp"]>= since]
-            #logger.info(f"since {since}\n{df}")
-        else:
-            df = self.df(timeframe,symbol)
-        if df.empty:
-            return{"strategy": __name__ ,"markers": self.live_markers(symbol,timeframe,since)}
-        
-        #logger.info(f"out \n{df}")
-        o = {"strategy": __name__ ,"markers": self.live_markers(symbol,timeframe,since), "list" : []}
-
-        for p in  self.plots:
-           d = p.copy()
-           del d["ind"]
-           d["symbol"] = symbol
-           d["timeframe"] = timeframe
-           df_data = p["ind"].get_render_data(df)
-           if symbol:
-                df_data = df_data[["time","value"]]
-           d["data"] = df_data.to_dict(orient="records")
-             
-           o["list"].append(d)
-
-        return o
-
-    def add_plot(self,ind : Indicator ,name :str,  color:str,isMain: bool =True):
-        self.plots.append({"ind": ind ,"name" : name , "color" : color, "main" : isMain})
-        pass
 
 ########################
 
@@ -177,7 +74,8 @@ class TradeStrategy(SmartStrategy):
 
     def populate_indicators(self) :
 
-        i = self.addIndicator(self.timeframe,VWAP("vwap"))
+        i = self.addIndicator(self.timeframe,VWAP1("vwap"))
+       #/ i1 = self.addIndicator(self.timeframe,VWAP("vwap1"))
 
         self.addIndicator(self.timeframe, VWAP_DIFF("diff"))
         #i=self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=self.eta))
@@ -185,6 +83,7 @@ class TradeStrategy(SmartStrategy):
         #i = self.addIndicator(self.timeframe,VWAP("test"))#,"close",timeperiod=self.eta))
         #i = self.addIndicator(self.timeframe,VWAP("VWAP",timeperiod=self.eta))
         self.add_plot(i, "vwap","#ffffff", True)
+        #self.add_plot(i1, "vwap1","#0000ff", True)
 
     async def trade_symbol_at(self, isLive:bool, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
         if not isLive:
