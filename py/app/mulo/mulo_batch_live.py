@@ -60,7 +60,8 @@ if False:
         archived = os.path.join(LOG_DIR, f"app_{timestamp}.log")
         shutil.move(LOG_FILE, archived)
 else:
-    os.remove(LOG_FILE)
+    if os.path.exists(LOG_FILE):
+        os.remove(LOG_FILE)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -784,10 +785,13 @@ class LiveManager:
 
     async def bootstrap(self,start_scan):
         if start_scan=="debug":
-
+           
             symbols =  self.config["live_service"]["debug_symbols"]   
             filter = str(symbols)[1:-1]
             df_symbols = self.fetcher.get_df(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})")   
+            for symbol in symbols:
+                await self.fetcher._align_data(symbol,"1m")
+
             await self.updateLive(df_symbols )
         else:
             if  start_scan== "keep_last_session":
@@ -859,6 +863,10 @@ else:
         #OrderManager(config,None)
         #Balance(config,None)
         scanner = Scanner(None,config,ms)
+
+        #ib = IB()
+        #ib.connect('127.0.0.1', config["live_service"]["ib_port"], clientId=config["live_service"]["ib_client"])
+
         live = LiveManager(None,config,fetcher,scanner,ws_manager,None)
 
 @app.get("/symbols")

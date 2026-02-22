@@ -48,15 +48,18 @@ class Strategy:
         for tf, inds in self.indicators.items():
             if tf == timeframe:
                 for ind in inds:
-                    #logger.info(f"_fill_indicators {from_global_index}")
-                    ind.apply( self.df(tf),from_global_index)
-                    '''
-                    if allMode:
-                        ind.apply(self.df(tf))    
-                    else:
+                    try:
+                        #logger.info(f"_fill_indicators {from_global_index}")
+                        ind.apply( self.df(tf),from_global_index)
+                        '''
+                        if allMode:
+                            ind.apply(self.df(tf))    
+                        else:
 
-                        ind.apply(df)
-                    '''
+                            ind.apply(df)
+                        '''
+                    except:
+                        logger.error("error",exc_info=True)
 
     def live_indicators(self,symbol,timeframe,since):
         return None
