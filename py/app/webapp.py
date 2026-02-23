@@ -415,42 +415,45 @@ def list_chart_indicator():
 
 @app.post("/api/chart/save")
 def save_chart_line(payload: dict):
-    #logger.info(f"SAVE CHART LINE {payload}")   
+    logger.info(f"SAVE CHART LINE {payload}")   
     try:
         symbol = payload["symbol"]
         timeframe = payload["timeframe"]
         guid = payload["guid"]
         data = payload["data"]
-    except KeyError as e:
+   
+        df = client.get_df("""
+            SELECT guid
+            FROM chart_lines WHERE guid =  ?
+        """, (guid,))
+        if len(df)>0:
+            client.execute("""
+                UPDATE chart_lines set data = ?
+                WHERE guid =  ?         
+            """, (
+                json.dumps(data),
+                guid,
+            ))
+        else:
+            client.execute("""
+                INSERT INTO chart_lines (guid,symbol, timeframe, type, data)
+                VALUES (?, ?, ?, ?,?)
+            """, (
+                guid,
+                symbol,
+                timeframe,
+                data.get("type"),
+                json.dumps(data)
+            ))
+
+        return {"status": "ok"}
+    
+    except :
+        logger.error("Error", exc_info=True)
         raise HTTPException(
             status_code=400,
-            detail=f"Campo mancante: {e.args[0]}"
+            detail=f"Error"
         )
-    df = client.get_df("""
-        SELECT guid
-        FROM chart_lines WHERE guid =  ?
-    """, (guid,))
-    if len(df)>0:
-          client.execute("""
-            UPDATE chart_lines set data = ?
-            WHERE guid =  ?         
-        """, (
-             json.dumps(data),
-            guid,
-        ))
-    else:
-        client.execute("""
-            INSERT INTO chart_lines (guid,symbol, timeframe, type, data)
-            VALUES (?, ?, ?, ?,?)
-        """, (
-            guid,
-            symbol,
-            timeframe,
-            data.get("type"),
-            json.dumps(data)
-        ))
-
-    return {"status": "ok"}
 
 @app.delete("/api/chart/delete")
 def delete_chart_line(payload: dict  ):

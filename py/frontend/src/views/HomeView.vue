@@ -158,7 +158,7 @@
 
     </main>
      <EventToast  />
-
+<PainterEditor></PainterEditor>
   </div>
 </template>
 
@@ -190,7 +190,7 @@ import { reportStore } from "@/components/js/reportStore";
 import { tickerStore } from "@/components/js/tickerStore";
 import { newsStore } from "@/components/js/newsStore";
 import { initProps } from "@/components/js/common";
-
+import PainterEditor from '@/components/PainterEditor.vue';
 
 // --- STATO REATTIVO ---
 

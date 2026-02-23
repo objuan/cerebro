@@ -1133,7 +1133,7 @@ defineExpose({
   /*pointer-events:auto;*/
    pointer-events:none;
   /*background-color: rgba(19, 23, 34, 0.7);*/
-  z-index: 10000;
+  z-index: 100;
 }
 
 
