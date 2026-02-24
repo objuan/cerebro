@@ -7296,6 +7296,8 @@ class MouseEventHandler {
         this._private__tapPosition = { _internal_x: Number.NEGATIVE_INFINITY, _internal_y: Number.POSITIVE_INFINITY };
     }
     _private__mouseMoveHandler(moveEvent) {
+      //  console.log("_private__mouseMoveHandler", moveEvent)
+      //  console.trace()
         if (this._private__mousePressed || this._private__touchMoveStartPosition !== null) {
             return;
         }
@@ -10208,6 +10210,8 @@ class ChartWidget {
         return (1 / window.devicePixelRatio);
     }
     _private__onMousewheel(event) {
+       // console.log("_private__onMousewheel",event)
+
         if ((event.deltaX === 0 || !this._private__options['handleScroll'].mouseWheel) &&
             (event.deltaY === 0 || !this._private__options['handleScale'].mouseWheel)) {
             return;

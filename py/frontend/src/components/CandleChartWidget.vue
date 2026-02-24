@@ -94,7 +94,18 @@
               @click="setDrawMode('line')">
             ／
           </button>
-
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('hline')">
+            H
+          </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('box')">
+            B
+          </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('trade-box')">
+            T
+          </button>
           <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
             @click="setDrawMode('delete')">
             D
@@ -104,6 +115,13 @@
             @click="setDrawMode('delete_all')">
             ✕
           </button>
+            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+            @click="painter.redraw()">
+            refresh
+          </button>
+          <span>
+            mode {{  painter?.drawMode }}
+          </span>
     
           
         </div>
@@ -685,7 +703,8 @@ async function setDrawMode(mode) {
     return;
   }
   if (mode ==='line'){
-     painter.begin()
+     //painter.begin()
+     painter.setMode("line")
      return
   }
 
@@ -771,6 +790,7 @@ onMounted(  () => {
 });
 
 onBeforeUnmount(() => {
+  painter.unregister()
   eventBus.off("order-received", onOrderReceived);
   eventBus.off("task-order-received", onTaskOrderReceived);
   eventBus.off("trade-last-changed", onTradeLastUpdated);
@@ -940,8 +960,8 @@ const buildChart =  () => {
   chart.subscribeClick(param => {
     //console.log("click",param)
 
-    if (painter.onMouseClick_disabled(param.point))
-        return 
+    //if (painter.onMouseClick_disabled(param.point))
+        //return 
 
     if (!drawMode.value ) return;
    // console.log(param)
@@ -1083,7 +1103,7 @@ function on_candle(c)
     })
 
     series.update(new_value);
-
+    painter.redraw()
     // series
     if (last_time != c.ts)
     {
@@ -1133,7 +1153,7 @@ defineExpose({
   /*pointer-events:auto;*/
    pointer-events:none;
   /*background-color: rgba(19, 23, 34, 0.7);*/
-  z-index: 100;
+  z-index: 10;
 }
 
 

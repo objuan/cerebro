@@ -465,7 +465,7 @@ def delete_chart_line(payload: dict  ):
             detail=f"Campo mancante: {e.args[0]}"
         )
 
-    #logger.info(f"DELETE CHART LINE {guid}")
+    logger.info(f"DELETE CHART LINE {guid}")
     client.execute("""
         DELETE FROM chart_lines WHERE guid = ?
     """, (guid,))
