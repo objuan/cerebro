@@ -53,6 +53,7 @@
           class="form-select form-select-sm"
           style="width: 80px"
         >
+          <option :value="1">1:1</option>
           <option :value="2">2:1</option>
           <option :value="3">3:1</option>
           <option :value="4">4:1</option>

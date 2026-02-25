@@ -1,153 +1,28 @@
 import {  send_post,generateGUID ,send_delete} from '@/components/js/utils.js'; // Usa il percorso corretto
+import {  drawHandle,hitHandle,drawTextOnLine,hitLine,handleSize,drawLine,drawRect} from '@/components/js/chart_draw.js'; // Usa il percorso corretto
 
-const handleSize=6
 
-
-function drawTextOnLine(
-  ctx,
-  a,
-  b,
-  text,
-  color = "white",
-  offset = 10,
-  anchor = "center",   // ⭐ left | right | center
-  bgColor = null,
-  padding = 4,
-  font = "14px Arial"
-){
-  const angle = Math.atan2(b.y - a.y, b.x - a.x);
-
-  // ⭐ origine
-  let origin;
-  if(anchor === "left") origin = a;
-  else if(anchor === "right") origin = b;
-  else origin = { x:(a.x+b.x)/2, y:(a.y+b.y)/2 };
-
-  ctx.save();
-  ctx.translate(origin.x, origin.y);
-  ctx.rotate(angle);
-
-  ctx.font = font;
-  ctx.textBaseline = "middle";
-
-  const metrics = ctx.measureText(text);
-  const width = metrics.width;
-  const height =
-    (metrics.actualBoundingBoxAscent || 8) +
-    (metrics.actualBoundingBoxDescent || 4);
-
-  const y = -offset;
-
-  let textX;
-  let rectX;
-
-  // ⭐ logica anchor
-  if(anchor === "left"){
-    textX = padding;
-    rectX = textX - padding;
-    ctx.textAlign = "left";
-  }
-  else if(anchor === "right"){
-    textX = -padding;
-    rectX = -width - padding;
-    ctx.textAlign = "right";
-  }
-  else{
-    textX = 0;
-    rectX = -width/2 - padding;
-    ctx.textAlign = "center";
-  }
-
-  if(bgColor){
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(
-      rectX,
-      y - height/2 - padding,
-      width + padding*2,
-      height + padding*2
-    );
-  }
-
-  ctx.fillStyle = color;
-  ctx.fillText(text, textX, y);
-
-  ctx.restore();
-}
-
-function  drawLine(ctx, a,b,color, hover=false){
-      ctx.beginPath()
-      ctx.moveTo(a.x,a.y)
-      ctx.lineTo(b.x,b.y)
-      ctx.strokeStyle = hover ? 'yellow' : color
-      ctx.lineWidth = hover ? 2 : 1
-      ctx.stroke()
-}
-function drawRect(ctx, a, b,color, fillColor,hover=false){
-    const x = Math.min(a.x, b.x)
-    const y = Math.min(a.y, b.y)
-    const w = Math.abs(b.x - a.x)
-    const h = Math.abs(b.y - a.y)
-
-    ctx.beginPath()
-    ctx.rect(x, y, w, h)
-
-    // riempimento
-    ctx.fillStyle = fillColor
-    ctx.fill()
-
-    // bordo
-    ctx.strokeStyle = hover ? 'yellow' : color
-    ctx.lineWidth = hover ? 2 : 1
-    ctx.stroke()
-}
-
-function drawHandle(ctx,p,hover=false){
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, handleSize, 0, Math.PI*2)
-      ctx.fillStyle = hover ? 'green' : 'yellow'
-      ctx.fill()
-  }
-
-function hitLine(mouse, a, b, tolerance = 6){
-      // lunghezza segmento
-      const dx = b.x - a.x
-      const dy = b.y - a.y
-
-      const lenSq = dx*dx + dy*dy
-      if(lenSq === 0) return false
-
-      // proiezione del mouse sul segmento
-      let t = ((mouse.x - a.x)*dx + (mouse.y - a.y)*dy) / lenSq
-
-    
-      // clamp sul segmento
-      t = Math.max(0, Math.min(1, t))
-
-      // punto più vicino sulla linea
-      const px = a.x + t*dx
-      const py = a.y + t*dy
-
-      // distanza mouse → linea
-      const dist = Math.hypot(mouse.x - px, mouse.y - py)
-
-      return dist <= tolerance
-    }
-
-  function hitHandle(mouse,p){
-      return Math.hypot(mouse.x-p.x, mouse.y-p.y) <= handleSize+2
-    }
-
-// ======================================================
 
 class Primitive {
   constructor(painter){
        this.painter=painter
        this.guid = generateGUID()
+       this.virtual=false
+       this.style ="solid"
+       this.alarms=[]
   }
   end(){
+     this.onEnd()
+  }
+  // type : "above" : "below"
+  addAlarm(source,type){
+      this.alarms.push({source : source, type: type})
+  }
+  onEnd(){
+
      this.save()
   }
-
+  update(){}
   edit(){
       return false
   }
@@ -159,7 +34,7 @@ class Primitive {
   }
   delete(){
     console.log("delete",this)
-     send_delete("/api/chart/delete",
+     send_delete("/api/chart/painter/delete",
       {
           guid: this.guid
         });
@@ -168,6 +43,8 @@ class Primitive {
   onChange(){
   }
   save(){
+      if (this.virtual)
+        return
       console.log("save", this)
       let s = this.painter.context.currentSymbol.value
       if (!s) s = this.painter.context.currentSymbol
@@ -176,7 +53,8 @@ class Primitive {
       const data = this.serialize()
        // console.log("serial", data,this.painter.context.currentSymbol)
       data.type = this.type
-      send_post("/api/chart/save",
+      data.alarms = this.alarms
+      send_post("/api/chart/painter/save",
       {
           symbol: s,
           timeframe:tf,
@@ -193,6 +71,8 @@ class Primitive {
   }
 }
 
+// =======================================
+
 export class Handle  extends Primitive{
 
   constructor(painter, parent){
@@ -207,7 +87,7 @@ export class Handle  extends Primitive{
     this.val = p
   }
   end(){
-     this.parent.save()
+     this.parent.end()
   }
 
   edit(){
@@ -231,6 +111,13 @@ export class Handle  extends Primitive{
     const a = this.painter.chartToPixel(this.val)
     this.isHover = hitHandle(pos, a)
     return this.isHover ? this : null
+  }
+  serialize(){
+    return {"val" : this.val,"time": this.painter.chartToTime(this.val)}
+  }
+  fromSerial(ser){
+    
+    this.val = ser.val
   }
 }
 // ============
@@ -359,20 +246,20 @@ export  class Line  extends Primitive{
   }
   props(){
     return [
-      "color","text"
+      "color","text","alarms"
     ]
   }
   serialize(){
     return {
-        "p1": this.p1.val,
-        "p2":   this.p2.val,
+        "p1": this.p1.serialize(),
+        "p2":   this.p2.serialize(),
         "color":  this.color,
     }
   }
   fromSerial(data){
-    console.log("fromSerial",data)
-      this.p1.val = data.p1
-      this.p2.val = data.p2
+ //   console.log("fromSerial",data)
+      this.p1.fromSerial(data.p1)
+      this.p2.fromSerial(data.p2)
       this.color = data.color
   }
   begin(p1){
@@ -420,6 +307,81 @@ export  class Line  extends Primitive{
   }
 }
 
+// =============
+
+export  class PriceLine  extends Primitive{
+
+   constructor(painter){
+    super(painter)
+    this.type = "price-line"
+    this.p = new Handle(painter, this)
+    this.isHover = false
+    this.color = '#ea00ff'
+  }
+  props(){
+    return [
+      "color"
+    ]
+  }
+  serialize(){
+    return {
+        "p": this.p.val,
+        "color":  this.color,
+    }
+  }
+  fromSerial(data){
+   // console.log("fromSerial",data)
+      this.p.val = data.p
+      this.color = data.color
+  }
+  begin(p1){
+    this.p.set(p1)
+  }
+
+  drag(p2){
+    this.p.set(p2)
+  }
+
+  draw(ctx){
+
+    const a = this.painter.chartToPixel(this.p.val)
+    const from = {x:0, y: a.y}
+    const to = {x:this.painter.getPriceBand().max, y: a.y}
+    drawLine(ctx,from,to,this.color, this.isHover)
+
+    drawTextOnLine(ctx, from, to , `${this.p.val.y.toFixed(2)}`,
+    "black", 6, "right" , this.color, 1,"13px Arial")
+
+    if(this.isHover){
+      this.p.draw(ctx)
+    }
+  }
+
+  pick(pos){
+    const a = this.painter.chartToPixel(this.p.val)
+    const from = {x:0, y: a.y}
+    const to = {x:this.painter.getPriceBand().max, y: a.y}
+
+    this.isHover = false
+
+    if(hitLine(pos, from,to))
+      this.isHover = true
+
+    if(this.p.pick(pos)) return this.p
+    if(this.isHover) return this
+
+    return null
+  }
+}
+/*
+export  class AlarmLine  extends PriceLine{
+    constructor(painter){
+    super(painter)
+    this.type = "alarm-line"
+  }
+}
+  */
+
 // ============
 
 export  class Box  extends Primitive{
@@ -433,7 +395,7 @@ export  class Box  extends Primitive{
     this.bottom_right = new Handle(painter, this)
 
     this.isHover = false
-    this.color ='rgba(255,255,255,0.2)'
+    this.color ='rgba(255,255,255,0.1)'
     this.text = new Text(painter,this)
     this.text.set(this.top_left, this.top_right)
   }
@@ -450,7 +412,7 @@ export  class Box  extends Primitive{
     }
   }
   fromSerial(data){
-    console.log("fromSerial",data)
+   // console.log("fromSerial",data)
       this.top_left.val = data.top_left
       this.bottom_right.val = data.bottom_right
       this.color = data.color
@@ -525,19 +487,56 @@ export  class HLine extends Line {
   }
 }
 
+// ========================
+
+
+export  class VLine  extends PriceLine{
+
+   constructor(painter){
+    super(painter)
+    this.type = "vline"
+    this.color = '#1268d8'
+  }
+  draw(ctx){
+   
+    const a = this.painter.chartToPixel(this.p.val)
+    const from = {x:a.x, y: 0}
+    const to = {x:a.x,y:this.painter.geHeight()}
+
+   //  console.log("draw",from,to)
+
+    drawLine(ctx,from,to,this.color, this.isHover, 1, this.style)
+
+    if(this.isHover){
+      this.p.draw(ctx)
+    }
+  }
+
+  pick(pos){
+    const a = this.painter.chartToPixel(this.p.val)
+    const from = {x:a.x, y: 0}
+    const to = {x:a.x,y:this.painter.geHeight()}
+
+    this.isHover = false
+
+    if(hitLine(pos, from,to))
+      this.isHover = true
+
+    if(this.p.pick(pos)) return this.p
+    if(this.isHover) return this
+
+    return null
+  }
+}
 
 // ======================================================
 
-export  class TradeBox  extends Box{
+export  class SplitBox  extends Box{
    constructor(painter){
     super(painter)
-    this.type = "trade-box"
+    this.type = "split-box"
     this.center_left = new Handle(painter, this)
     this.center_right = new Point(painter, this)
-    this.price_txt = ".."
-    this.tp_txt = ".."
-    this.sl_txt = ".."
-    this.risk_txt = ".."
   }
    serialize(){
      let ser = super.serialize()
@@ -551,7 +550,7 @@ export  class TradeBox  extends Box{
   }
   drag(p2){
     super.drag(p2)
-    this.center_left.set({ x: this.top_left.val.x , y:this.middleY()} )
+    this.center_left.set({ x: this.top_left.val.x , y:this.compute_middleY()} )
     this.update()
   }
   onChange(handle){
@@ -568,7 +567,7 @@ export  class TradeBox  extends Box{
     }
     this.update()
   }
-  middleY(){
+  compute_middleY(){
     const p1 = this.top_left
     const p2 = this.bottom_right
     const y_min = Math.min(p1.val.y, p2.val.y)
@@ -578,27 +577,7 @@ export  class TradeBox  extends Box{
   }
   update(){
       this.center_right.set(
-        { x: this.bottom_right.val.x , y:this.center_left.val.y} )
-      const quantity = 100;
-      const price = this.center_left.val.y
-      const tp = this.top_left.val.y;
-      const sl = this.bottom_right.val.y;
-      const profit = 100 * ((tp- price) / price)
-      const loss = 100 * ((sl-price) / price)
-      const rr = Math.abs((tp -price)  / (sl-price))
-
-      this.price_txt=`Buy ${price.toFixed(4)} (${quantity}) => ${(quantity*price).toFixed(1)}$`
-
-      this.tp_txt=`Target ${tp.toFixed(4)} (${profit.toFixed(1)}%) ${(tp * quantity).toFixed(4)} $`
-      this.sl_txt=`Stop ${sl.toFixed(4)} (${loss.toFixed(1)}%) ${(sl * quantity).toFixed(4)} $`
-      
-
-      this.risk_txt = `RR ${rr.toFixed(2)}`
-
-      this.buy_price_txt = `${price.toFixed(2)}`
-      this.tp_price_txt = `${tp.toFixed(2)}`
-      this.sl_price_txt = `${sl.toFixed(2)}`
-     
+        { x: this.bottom_right.val.x , y:this.center_left.val.y} )     
   }
   pick(pos){
     if(this.center_left.pick(pos)) return this.center_left
@@ -606,6 +585,107 @@ export  class TradeBox  extends Box{
     return super.pick(pos)
   }
    draw(ctx){
+      super.draw(ctx)
+      if (!this.center_left.val)
+        return
+      const p1 = this.top_left
+      const p2 = this.bottom_right
+      const y_min = Math.min(p1.val.y, p2.val.y)
+      const y_max = Math.max(p1.val.y, p2.val.y)
+
+      const m_l = this.painter.chartToPixel(this.center_left.val)
+      const m_r = this.painter.chartToPixel(this.center_right.val)
+
+      const delta = y_max- y_min;
+      const p =   100 * ((this.center_left.val.y - y_min) / delta)
+
+      drawTextOnLine(ctx, m_l, m_r ,`${p.toFixed(1)}%`, "white", -11, "right" , this.color)
+      drawLine(ctx,m_l,m_r,"white",this.isHover )
+
+     if(this.isHover){
+      this.center_left.draw(ctx)
+    }
+
+   }
+}
+
+/// ======================================
+
+export  class  TradeBox  extends SplitBox{
+   constructor(painter){
+    super(painter)
+    this.trade_quantity_ref=painter.trade_quantity_ref
+    this.trade_RR_ref=painter.trade_RR_ref
+    this.type = "trade-box"
+    this.price_txt = ".."
+    this.tp_txt = ".."
+    this.sl_txt = ".."
+    this.risk_txt = ".."
+    this.clearMarkerMode()
+  }
+  quantity(){
+    return this.trade_quantity_ref.value
+  }
+  buy_price(){
+    return this.center_left.val.y
+  }
+  tp_price(){
+    return this.top_left.val.y
+  }
+  sl_price(){
+    return this.bottom_right.val.y
+  }
+  clearMarkerMode(){
+     this.trade_mode = {"price": false, "tp" : false , "sl" : false}
+  }
+  setMarkerMode(mode){
+     this.trade_mode[mode] =true
+  }
+  onEnd(){
+     //console.log("end")
+     this.save()
+     this.painter.tradeBoxHandler.change(this);
+  }
+
+  compute_middleY(){
+    // 1 -> 2
+    // 2 -> 3
+    const upPerc = this.trade_RR_ref.value;
+
+    const p1 = this.top_left
+    const p2 = this.bottom_right
+    const y_min = Math.min(p1.val.y, p2.val.y)
+    const y_max = Math.max(p1.val.y, p2.val.y)
+
+    return y_min+ (y_max-y_min)/ (upPerc+1)
+  }
+  update(){
+
+      super.update()
+      const quantity = this.trade_quantity_ref.value;
+      const price = this.center_left.val.y
+      const tp = this.top_left.val.y;
+      const sl = this.bottom_right.val.y;
+      const profitPerc = 100 * ((tp- price) / price)
+      const lossPerc = 100 * ((sl-price) / price)
+      const rr = Math.abs((tp -price)  / (sl-price))
+      const gain = (tp * quantity) - (quantity*price)
+      const loss = (sl*quantity) - (quantity*price)
+
+      this.price_txt=`Buy ${quantity} => <color:#000000>${(quantity*price).toFixed(1)}$</color> [ <color:#FFFF00>RR ${rr.toFixed(2)}</color>]`
+
+      this.tp_txt=`Target  (${profitPerc.toFixed(1)}%) =><color:#000000>${(tp * quantity).toFixed(1)}$</color> Gain <color:#000000>${gain.toFixed(1)}$</color>`
+      this.sl_txt=`Stop (${lossPerc.toFixed(1)}%) =><color:#000000>${(sl * quantity).toFixed(1)}$</color> Loss <color:#000000>${loss.toFixed(1)}$</color>`
+      
+
+      //this.risk_txt = `RR ${rr.toFixed(2)}`
+
+      this.buy_price_txt = `${price.toFixed(2)}`
+      this.tp_price_txt = `${tp.toFixed(2)}`
+      this.sl_price_txt = `${sl.toFixed(2)}`
+  }
+
+  draw(ctx){
     const t_l = this.painter.chartToPixel(this.top_left.val)
     const m_l = this.painter.chartToPixel(this.center_left.val)
     const m_r = this.painter.chartToPixel(this.center_right.val)
@@ -614,20 +694,10 @@ export  class TradeBox  extends Box{
     const t_r = {x:b_r.x, y: t_l.y}
     const b_l = {x:t_l.x, y: b_r.y}
 
-
-    //  console.log(t_l, m_l,m_r,b_r  ) 
-    drawRect(ctx,  t_l, m_r,"rgba(0,255,0,0.1)","rgba(0,255,0,0.05)")
-    drawRect(ctx,  m_l, b_r,"rgba(255,0,0,0.1)","rgba(255,0,0,0.05)")
-
-    if(this.isHover){
-      this.top_left.draw(ctx)
-      this.bottom_right.draw(ctx)
-      this.center_left.draw(ctx)
-    }
-
+    const buy_color = "#5f5fff"
     
-    drawTextOnLine(ctx, m_l, m_r , this.price_txt, "white", -11, "center" , "blue")
-    drawTextOnLine(ctx, m_l, m_r , this.risk_txt, "white", -31, "center" , "blue")
+    drawTextOnLine(ctx, m_l, m_r , this.price_txt, "white", -11, "center" , buy_color)
+    //drawTextOnLine(ctx, m_l, m_r , this.risk_txt, "white", -31, "center" , buy_color)
 
     drawTextOnLine(ctx, t_l, t_r , this.tp_txt, "white", 13, "center" , "green")
     drawTextOnLine(ctx, b_l, b_r , this.sl_txt, "white", -13, "center" , "red")
@@ -647,12 +717,31 @@ export  class TradeBox  extends Box{
     //console.log("mM",min,max)
     drawRect(ctx, min_s, max_e, "rgba(187, 187, 187, 0.1)", "rgba(187, 187, 187, 0.1)")
 
-    drawTextOnLine(ctx, min_s, min_e , this.tp_price_txt, "white", 11, "right" , "green")
-    drawTextOnLine(ctx, mid_s, mid_e , this.buy_price_txt, "white", 11, "right" , "blue")
-    drawTextOnLine(ctx, max_s, max_e , this.sl_price_txt, "white", 11, "right" , "red")
+    const buy_price_txt = `${this.trade_mode["price"] ? "🏁": ""} ${this.buy_price_txt}`
+    const tp_price_txt = `${this.trade_mode["tp"] ? "🏁": ""} ${this.tp_price_txt}`
+    const sl_price_txt = `${this.trade_mode["sl"] ? "🏁": ""} ${this.sl_price_txt}`
+
+    drawTextOnLine(ctx, min_s, min_e , tp_price_txt, "white", 11, "right" , "green")
+    drawTextOnLine(ctx, mid_s, mid_e , buy_price_txt, "white", -11, "right" , buy_color)
+    drawTextOnLine(ctx, max_s, max_e , sl_price_txt, "white", -11, "right" , "red")
+
+      //  console.log(t_l, m_l,m_r,b_r  ) 
+    drawRect(ctx,  t_l, m_r,"rgba(0,255,0,0.3)","rgba(0,255,0,0.1)")
+    drawRect(ctx,  m_l, b_r,"rgba(255,0,0,0.3)","rgba(255,0,0,0.1)")
+
+    drawLine(ctx, t_l,t_r , "green",this.isHover, 2)
+    drawLine(ctx, m_l,m_r , "blue",this.isHover, 2)
+    drawLine(ctx, b_l,b_r , "red",this.isHover, 2)
+
+    if(this.isHover){
+      this.top_left.draw(ctx)
+      this.bottom_right.draw(ctx)
+      this.center_left.draw(ctx)
+    }
+
+
    }
 }
-
 
 // ======================================================
 

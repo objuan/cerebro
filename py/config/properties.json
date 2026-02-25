@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "RCT",
+      "symbol": "EDSA",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -68,7 +68,7 @@
     }
   },
   "event": {
-    "filter_events": "[\"trade\",\"order\"]",
+    "filter_events": "[\"trade\",\"order\",\"task-order\",\"error\",\"message\"]",
     "filter_strategy": {
       "sources": "[\"strategy\"]",
       "names": "[\"GAIN_5\",\"vwap\"]",
@@ -139,6 +139,45 @@
     },
     "BDMD": {
       "quantity": 200
+    },
+    "XTKG": {
+      "quantity": 300
+    },
+    "GNTA": {
+      "quantity": 200
+    },
+    "GNPX": {
+      "quantity": 200,
+      "mode": "MARKER"
+    },
+    "GIPR": {
+      "quantity": 300
+    },
+    "ETS": {
+      "quantity": 100
+    },
+    "ELPW": {
+      "mode": "MARKER",
+      "quantity": 300
+    },
+    "NXL": {
+      "quantity": 100
+    },
+    "LRMR": {
+      "mode": "MARKER",
+      "quantity": 200
+    },
+    "TLIH": {
+      "quantity": 100
+    },
+    "GANX": {
+      "quantity": 100
+    },
+    "BIAF": {
+      "quantity": 100
+    },
+    "FLUX": {
+      "mode": "DIRECT"
     }
   },
   "back": {

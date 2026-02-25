@@ -547,7 +547,7 @@ onMounted( async () => {
         }
         
         await send_get("/api/report/get")
-        await send_get("/api/event/get",{"limit":50, "types":  ['order','error','message']})
+        await send_get("/api/event/get",{"limit":50, "types":  ['error','message']})
         //await send_get("/api/event/get")
         await send_get("/api/news/current")
 

@@ -1,7 +1,13 @@
-import { send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
-import { ref} from 'vue';
-import {TradeBox,HLine,Box,Line } from '@/components/js/chart_primitives.js'
+import { send_get,localUnixToUtc,timeframeToSeconds,formatUnixDate } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { ref,computed} from 'vue';
+import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine } from '@/components/js/chart_primitives.js'
+import { liveStore } from '@/components/js/liveStore.js';
 
+
+
+const trade_rr = computed(() => {
+  return liveStore.get('trade.rr',1);
+});
 
 function cloneMouseEvent(e, type = e.type) {
   return new MouseEvent(type, {
@@ -40,7 +46,7 @@ function syncOverlaySize(overlay, topCanvas) {
       }
 }
 
-export function  createPainter(context,mainChart,overlay) 
+export function  createPainter(context,mainChart,overlay, trade_quantity_ref) 
 {
   return {
     context,
@@ -56,8 +62,13 @@ export function  createPainter(context,mainChart,overlay)
     selected:null,
     edit:null,
     primitives : [],
-    chartCanvas:null
+    chartCanvas:null,
 
+    tradeBoxHandler: {change : null, delete : null},
+    //
+    trade_quantity_ref : trade_quantity_ref,
+    trade_RR_ref : trade_rr
+   
     // ==================================
     
     ,_private__mouseEnterHandler(e){
@@ -148,6 +159,16 @@ export function  createPainter(context,mainChart,overlay)
         this.onRightClick(e)
       }
 
+       // ==========================
+
+      // 
+      ,onTradeDataChanged(){
+          this.primitives.forEach( (p)=>
+          {
+              p.update();
+          });
+          this.redraw()
+      }
     // ==================================
 
     ,setMode(drawMode){
@@ -162,7 +183,24 @@ export function  createPainter(context,mainChart,overlay)
     }
 
     // ==========================
-
+    ,setData(data){
+      this.data=data
+    }
+    ,pushData(candle){
+      this.data.push(candle)
+    }
+    /*
+    , pushLastDataTime(time, dataLen){
+      if (!this.lastData) this.lastData = time
+      else if (time> this.lastData)
+      {
+        this.prevData=this.lastData
+        this.lastData=time
+      }
+      this.dataLen=dataLen
+     // console.log("setLastDataTime","p",this.prevData ,"l",this.lastData ,"len",this.dataLen)
+    }
+     */
     ,setChart(chart,series){
       this.chart=chart;
       this.series=series;
@@ -183,6 +221,7 @@ export function  createPainter(context,mainChart,overlay)
       });
 
       ro.observe(topCanvas);
+      
       this.chartCanvas = topCanvas;
       // ===================
 
@@ -211,22 +250,19 @@ export function  createPainter(context,mainChart,overlay)
        console.log( "load")
       try
       {
-        const ind_response = await send_get(`/api/chart/read`,
+        const ind_response = await send_get(`/api/chart/painter/read`,
           {"symbol":this.context.currentSymbol.value,"timeframe":this.context.currentTimeframe.value  });
           //ind_response.data = JSON.parse(ind_response.data)
         this.primitives.length=0;
+        //this.primitives = this.primitives.filter(p => p.virtual !== false);
+
         ind_response.map( data => {
               data.data = JSON.parse(data.data)
              console.log( "load",data)
               let prim = null
-              if (data.data.type =="line")
-                  prim = new Line(this)
-               if (data.data.type =="box")
-                  prim = new Box(this)
-               if (data.data.type =="hline")
-                  prim = new HLine(this)
-                 if (data.data.type =="trade-box")
-                  prim = new TradeBox(this)
+
+              prim = this.create(data.data.type )
+             
               if (prim) 
               {
                   prim.fromSerial(data.data)
@@ -243,29 +279,81 @@ export function  createPainter(context,mainChart,overlay)
     }
     ,clear(){
       this.primitives.forEach((p)=>{
+        if (!p.virtual)
           p.delete()
       })
-      this.primitives.length=0;
+    // this.primitives.length=0;
       this.clearMode()
       this.redraw();
     }
     ,pixelToChart(pos){
+
+
       const logical = this.chart.timeScale().coordinateToLogical(pos.x)
       const price = this.series.coordinateToPrice(pos.y)
+
+      //let t = ts.coordinateToTime(pos.x)
+      /*
+      const d = this.data[logical]
+      if (d)
+        console.log("time 11",d,formatUnixDate(d.time*1000))
+      */
       return { x: logical, y: price }
     }
     ,chartToPixel(pos){
       if (!pos) return {x:0,y:0}
 
+    
       const ts = this.chart.timeScale();
-      let x = ts.logicalToCoordinate(pos.x);
 
+      const x0 = ts.logicalToCoordinate(0);
+      const x1 = ts.logicalToCoordinate(1);
+      const tickPx = x1 - x0;
+      
       const vr = ts.getVisibleLogicalRange();
 
       const barSpacing = ts.options().barSpacing;
-       x = ts.logicalToCoordinate(vr.from) + (pos.x-vr.from ) * barSpacing;
+      const  x = tickPx/2 + ts.logicalToCoordinate(vr.from) + (pos.x-vr.from ) * barSpacing;
       const y = this.series.priceToCoordinate(pos.y);
+
+     // console.log(pos)
+
       return { x, y };
+    }
+    ,chartToTime(pos){
+      console.log("time",pos)
+      
+      const ts = this.chart.timeScale();
+       const vr = ts.getVisibleLogicalRange();
+
+      const barSpacing = ts.options().barSpacing;
+      const  x = ts.logicalToCoordinate(vr.from) + (pos.x-vr.from ) * barSpacing;
+      // è in local time, la devo riportare in unix time
+
+      let t = ts.coordinateToTime(x)
+      if (t == null)
+      {
+        const dt = 1000* timeframeToSeconds(this.context.currentTimeframe.value)
+         const xLast = ts.logicalToCoordinate(this.data.length-1);
+
+       // const  last_x = ts.logicalToCoordinate(vr.from) + (pos.x-vr.from ) * barSpacing;
+
+        const x0 = ts.logicalToCoordinate(0);
+        const x1 = ts.logicalToCoordinate(1);
+        const tickPx = x1 - x0;
+
+        const factor = Math.round((x - xLast + tickPx/2)/tickPx);
+
+        t =(this.data[this.data.length-1].time*1000)+ factor * dt
+
+        //t = window.db_localTime(t)
+
+       // console.log("...",dt,xLast, tickPx,"factor", factor )  
+      }
+      t = localUnixToUtc(t)
+      console.log("chartToTime",x,t, formatUnixDate(t))
+      return t;
+      
     }
     ,begin(){
         //console.log("begin")
@@ -296,16 +384,69 @@ export function  createPainter(context,mainChart,overlay)
        });
        return o_p;
     }
+     ,geHeight(){
+      const rect = this.chartCanvas.getBoundingClientRect();
+      return rect.height;
+    }
     ,getPriceBand(){
-       const rect = this.chartCanvas.getBoundingClientRect();
+      const rect = this.chartCanvas.getBoundingClientRect();
       const a =  {min: rect.width -40 ,      max : rect.width} 
-
       return a;
     }
+     // =========
+    ,subscribeTradeBoxChanged(handler)
+    {
+       this.tradeBoxHandler.change=handler
+    }
+    ,subscribeTradeBoxDeleted(handler)
+    {
+       this.tradeBoxHandler.delete=handler
+    }
+    ,getTradeBox()
+    {
+        return this.primitives.find(p => p.type === "trade-box");
+    }
+    ,createVirtualVLine(timeIndex,color){
+        const line = this.create("vline")
+        line.color=color
+        line.virtual=true
+        line.style ="dotted"
+        line.p.set({x:timeIndex , y:0})
+        this.primitives.push(line)
+    }
     // =========================================
+    , create(type){
+        if (type == "line"){
+          return new Line(this)
+      }
+      if (type== "hline"){
+          return  new HLine(this)
+      } 
+     if (type== "vline"){
+          return  new VLine(this)
+      } 
+      if (type == "price-line"){
+          return new PriceLine(this)
+      }
+      if (type == "box"){
+          return new Box(this)
+      }
+      if (type == "split-box"){
+          return new SplitBox(this)
+      }
+       if (type  == "alarm-line")
+            return new PriceLine(this)   
+      if (type =="trade-box"){
+        // controllo se cè gia
 
+          const exists = this.primitives.some(p => p.type === "trade-box");
+          if (!exists)
+            return new TradeBox(this,trade_rr)
+      }
+      return null
+    }
     ,onMouseDown(e){
-      console.log("mousedown",e)
+     // console.log("mousedown",e)
 
       if (this.edit)
         return
@@ -317,22 +458,8 @@ export function  createPainter(context,mainChart,overlay)
       this.new_primitive=null;
       this.start =  this.pixelToChart(this.getMouse(e))
       
-      if (this.drawMode.value == "line"){
-          this.new_primitive = new Line(this)
-      }
-      if (this.drawMode.value == "hline"){
-          this.new_primitive = new HLine(this)
-      }
-      if (this.drawMode.value == "box"){
-          this.new_primitive = new Box(this)
-      }
-      if (this.drawMode.value =="trade-box"){
-        // controllo se cè gia
-
-          const exists = this.primitives.some(p => p.type === "trade-box");
-          if (!exists)
-            this.new_primitive = new TradeBox(this)
-      }
+      this.new_primitive = this.create(this.drawMode.value )
+     
       if (this.new_primitive)
       {
        this.new_primitive.begin(this.start)
@@ -371,9 +498,16 @@ export function  createPainter(context,mainChart,overlay)
     
     }
     ,onDelete(guid){
-      console.log( this.primitives)
+      //console.log( this.primitives)
+      const p =  this.primitives.find(p => p.guid === guid);
       this.primitives = this.primitives.filter(p => p.guid !== guid);
-      console.log( this.primitives)
+      if (p.type =="trade-box"){
+          console.log("dleete nob")
+          this.tradeBoxHandler.delete(p)
+      }
+      
+      //console.log( this.primitives)
+
       //this.redraw()
     }
     ,onRightClick(){
@@ -393,8 +527,8 @@ export function  createPainter(context,mainChart,overlay)
       }
     }
     ,redraw(){
-     // console.log("redraw",this.overlay.value.width, this.primitives?.length)
-
+     // console.log("redraw")
+      if (!this.overlay.value) return
       this.canvas_ctx.save();
       this.canvas_ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.canvas_ctx.clearRect(0,0,this.overlay.value.width,this.overlay.value.height)

@@ -50,7 +50,7 @@ function forceScan(profile_name){
 
 onMounted(async () => {
    profiles.value = await send_get("/api/admin/scan/profiles")
-   console.log(profiles.value)
+ //  console.log(profiles.value)
 })
 
 

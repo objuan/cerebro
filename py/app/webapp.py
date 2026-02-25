@@ -413,7 +413,9 @@ def list_chart_indicator():
     """)
     return JSONResponse(df.to_dict(orient="records"))
 
-@app.post("/api/chart/save")
+# =========================================
+
+@app.post("/api/chart/painter/save")
 def save_chart_line(payload: dict):
     logger.info(f"SAVE CHART LINE {payload}")   
     try:
@@ -455,7 +457,7 @@ def save_chart_line(payload: dict):
             detail=f"Error"
         )
 
-@app.delete("/api/chart/delete")
+@app.delete("/api/chart/painter/delete")
 def delete_chart_line(payload: dict  ):
     try:
         guid = payload["guid"]
@@ -471,7 +473,7 @@ def delete_chart_line(payload: dict  ):
     """, (guid,))
     return {"status": "ok" }
 
-@app.delete("/api/chart/delete/all")
+@app.delete("/api/chart/painter/delete/all")
 def delete_chart_all(payload: dict  ):
     try:
         symbol = payload["symbol"]
@@ -488,7 +490,7 @@ def delete_chart_all(payload: dict  ):
     """, (symbol,timeframe))
     return {"status": "ok" }
 
-@app.get("/api/chart/read")
+@app.get("/api/chart/painter/read")
 def read_chart_lines(symbol: str, timeframe: str):
     df = client.get_df("""
         SELECT guid, symbol, timeframe, type, data

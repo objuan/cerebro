@@ -16,7 +16,7 @@ export const tradeStore = reactive({
     data.pos = newTime;
     data.isOpen = this._isOpen(data)  
 
-    // console.log("tradeStore", data)
+     console.log("tradeStore", data)
      if (!this.items[symbol]) {
         this.items[symbol] = [];
       }
@@ -27,12 +27,14 @@ export const tradeStore = reactive({
         );
 
         if (index !== -1) {
+          console.log("update old")
           // aggiorna il vecchio mantenendo eventuali campi non presenti nel nuovo
           this.items[symbol][index] = {
             ...this.items[symbol][index],
             ...data
           };
         } else {
+          console.log("new")
           this.items[symbol].push(data);
         }
       }

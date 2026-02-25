@@ -8,6 +8,46 @@ export const formatUnixDate = (unixTime) => {
   
   return date.toLocaleString(); // Formato locale: dd/mm/yyyy, hh:mm:ss
 };
+export const timeframeToSeconds = (tf) => {
+  if (!tf) return 0;
+
+  const match = tf.trim().match(/^(\d+)\s*([smhdw])$/i);
+  if (!match) return 0;
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+
+  const multipliers = {
+    s: 1,
+    m: 60,
+    h: 3600,
+    d: 86400,
+    w: 604800,
+  };
+
+  return value * multipliers[unit];
+};
+
+export const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+
+  const ms = new Date(dateString).getTime();
+  if (isNaN(ms)) return null;
+
+  return Math.floor(ms / 1000); // unix seconds
+};
+
+export const localUnixToUtc = (unixLocal) => {
+  if (!unixLocal) return null;
+
+  const ms = unixLocal < 1e12 ? unixLocal * 1000 : unixLocal;
+
+  const date = new Date(ms);
+
+  const utcMs = ms + date.getTimezoneOffset() * 60000;
+
+  return unixLocal < 1e12 ? Math.floor(utcMs / 1000) : utcMs;
+};
 
 export const formatUnixTimeOnly = (unixTime) => {
   if (!unixTime) return '...';

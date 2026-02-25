@@ -6,7 +6,7 @@
        <div class="col-2rows">
           <div class="row r1">
                 <div class="d-flex align-items-center gap-1">
-                  Quantity
+                  {{symbol}} Quantity
                   <select
                     v-model="quantity"
                     class="form-select form-select-sm"
@@ -145,9 +145,27 @@ const emit = defineEmits(['cancel-task-order']);
 const props = defineProps({
   symbol: { type: String, required: true },
 });
+watch(() => props.symbol, () => {
+  //console.log("symbol cambiato:", newValue);
+
+    quantity.value = staticStore.get(get_key("quantity"),100);  
+    tradeMode.value = staticStore.get(get_key("mode"),"DIRECT");  
+});
 
 // 
 const get_key = (subkey)=> { return `symbols.${props.symbol}.${subkey}`}
+
+
+const tradeMode = ref("DIRECT");
+const tradeData = ref(null);
+const quantity = ref(0);
+const ticker = ref(null);
+const isUpdating = ref(false)
+const active_order_task = ref("");
+
+let updateTimer = null
+
+// =========
 
 const liveData = computed(() => liveStore.state.dataByPath);
 
@@ -159,32 +177,8 @@ const lastTrade = computed(() => {
   return tradeStore.lastTrade(props.symbol);
 })
 
-const tradeMode = ref("DIRECT");
 
-const tradeData = ref(null);
-const quantity = ref(0);
-const ticker = ref(null);
-
-const isUpdating = ref(false)
-let updateTimer = null
-//const position = ref(null);
-
-//const tradeList = ref([]);
-//const showAll = ref(false)
-
-//const active_order = ref("...");
-const active_order_task = ref("");
-/*
-const lastTrade = computed(() => {
-  if (tradeList.value.length === 0) return null
-  return tradeList.value[tradeList.value.length - 1]
-})
-  */
-/*
-function toggleTrades() {
-  showAll.value = !showAll.value
-}
-  */
+// =========
 
 function setMode(mode){
   tradeMode.value=mode;
@@ -202,11 +196,6 @@ function send_limit_order(){
 }
 
 
-/*
-function send_buy_at_level(){
-  order_buy_at_level(props.symbol,quantity.value,ticker.value.last )
-}
-*/
 
 function send_order_marker(){
 
@@ -380,7 +369,7 @@ watch(
     return liveData.value['trade.tradeData.'+props.symbol];
   } ,
   v => {
-    console.log("TradeConsole watch tradeData", props.symbol, v); 
+  //  console.log("TradeConsole watch tradeData", props.symbol, v); 
 
     //if (v != null) 
         tradeData.value = v;
@@ -403,7 +392,7 @@ watch(
 watch(quantity,  async (newValue, oldValue) => {
   if (oldValue && oldValue!= newValue)
   {
-     console.log("quantity",newValue, oldValue)
+     //console.log("quantity",newValue, oldValue)
 
      staticStore.set(get_key("quantity"),quantity.value );  
 

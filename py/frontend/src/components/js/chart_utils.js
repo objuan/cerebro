@@ -604,7 +604,7 @@ export function clearLine(chart_context,time,price) {
          chart_context.drawSeries.splice(index, 1);
         // console.log("Line deleted",chart_context.drawSeries.length ); 
 
-         send_delete("/api/chart/delete", {"guid": line["line"].guid});
+         send_delete("/api/chart/painter/delete", {"guid": line["line"].guid});
     } 
 }
 
@@ -626,7 +626,7 @@ export function clearDrawings(chart_context,clearDB=false) {
   });
   chart_context.drawSeries.length = 0;
   if (clearDB)
-    send_delete("/api/chart/delete/all", {"symbol": chart_context.currentSymbol.value, "timeframe": chart_context.currentTimeframe.value } );
+    send_delete("/api/chart/painter/delete/all", {"symbol": chart_context.currentSymbol.value, "timeframe": chart_context.currentTimeframe.value } );
 }
 
 

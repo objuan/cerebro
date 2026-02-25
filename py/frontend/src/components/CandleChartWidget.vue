@@ -85,13 +85,18 @@
         <!-- BUTTON BAR -->
 
         <div class="button_bar">
+           <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
+           @click="painter?.setMode('alarm-line')">
+             🔔
+          </button>
+
           <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
-            @click="setDrawMode('hline')">
+           @click="painter?.setMode('price-line')">
             ─
           </button>
 
           <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="setDrawMode('line')">
+              @click="painter?.setMode('line')">
             ／
           </button>
           <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
@@ -99,8 +104,16 @@
             H
           </button>
           <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('vline')">
+            V
+          </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
               @click="painter?.setMode('box')">
             B
+          </button>
+           <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('split-box')">
+            S
           </button>
           <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
               @click="painter?.setMode('trade-box')">
@@ -112,7 +125,7 @@
           </button>
 
           <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="setDrawMode('delete_all')">
+            @click="painter_delete_all()">
             ✕
           </button>
             <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
@@ -120,7 +133,7 @@
             refresh
           </button>
           <span>
-            mode {{  painter?.drawMode }}
+            mode {{  painter?.drawMode }} {{ painter?.trade_quantity_ref }}
           </span>
     
           
@@ -129,33 +142,16 @@
         <!-- TRADE BAR -->
         <div class="trade_bar">
             <button   class="btn btn-sm btn-outline-success ms-1"   title="Set Trade"
-              @click="setDrawMode('trade_marker')" 
-              @pointerdown.stop
-              @pointerup.stop
-              @mousedown.stop
-              @mouseup.stop
-              @click.stop>
+               @click="set_marker_trade()">
               ⚑
             </button>
 
-            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Delete Marker Trade"
-              @click="delete_marker_trade()">
-              ❌
-            </button>
-
+          
         </div>
        
       </div>
     </div>
-    <div ref="price_marker" class="price-marker">
-      <span class="icon">🎯</span>
-   </div>
-   <div  ref="price_marker_tp" class="price-marker">
-      <span class="icon">🏁</span>
-   </div>
-   <div  ref="price_marker_sl" class="price-marker">
-      <span class="icon">⛔</span>
-   </div>
+
    <CandleChartIndicator ref="indicatorMenu"
         @add-indicator="onAddIndicator"></CandleChartIndicator>
 
@@ -167,7 +163,7 @@
 
 
 <script setup>
-import { ref, onMounted, onUnmounted ,onBeforeUnmount,toRaw,computed, nextTick } from 'vue';
+import { ref, watch,onMounted, onUnmounted ,onBeforeUnmount,toRaw,computed, nextTick } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js';
 import { staticStore } from '@/components/js/staticStore.js';
 import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
@@ -178,9 +174,9 @@ createInteractiveLineManager ,LineStyle } from '@/components/js/ind.js' // '@pip
 
 import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
-import { drawHorizontalLine,clearLine,clearDrawings,updateTaskMarker,
-   updateTradeMarker ,setTradeMarker,updateVerticalLineData,
-   findLastCandleOfEachDay,findOpenDate,updateStrategyIndicators,clearStrategyIndicators
+import { drawHorizontalLine,clearDrawings,
+    // setTradeMarker,updateTradeMarker,updateTaskMarker,clearLine,updateVerticalLineData
+   findLastCandleOfEachDay,findOpenDate,updateStrategyIndicators,clearStrategyIndicators,
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
 import { tradeStore } from "@/components/js/tradeStore";
@@ -208,9 +204,11 @@ const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
 //const symbolList = ref([]);
 const container = ref(null);
+/*
 const price_marker= ref(null);
 const price_marker_tp= ref(null);
 const price_marker_sl= ref(null);
+*/
 const indicatorList = ref([]);
 const profileName = ref("");
 
@@ -220,8 +218,8 @@ let painter = null;
 
 // ==================
 
-let timeLine_pre=null;
-let timeLine_open=null;
+//let timeLine_pre=null;
+//let timeLine_open=null;
 let strategy_index_map = {}
 let strategy_index_list = []
 
@@ -241,7 +239,7 @@ let buy_line = null
 
 let lastMainCandle=null
 let tradeMarkerData = {}; 
-let taskData = {}
+//let taskData = {}
 let chartWidth=null;
 
 //let DEFAULT_INTERACTION=null;
@@ -254,6 +252,15 @@ timeframe_start["1m"] = 50
 timeframe_start["5m"] = 50
 timeframe_start["1h"] = 24
 timeframe_start["1d"] = 30
+
+const get_key = (subkey)=> { return `symbols.${currentSymbol.value}.${subkey}`}
+
+const trade_quantity = ref(null);
+
+watch(trade_quantity,   () => {
+ //   console.log("trade_quantity",newValue)
+    painter?.onTradeDataChanged()
+});
 
 function context() {
     return {
@@ -482,21 +489,20 @@ const handleRefresh = async () => {
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
     const data = await response.json();
-    //console.log("response",data)
+    console.log("response",data)
 
     if (data.length>0)
     {
-      const ind_response = await send_get(`/api/chart/read`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value  });
+      const ind_response = await send_get(`/api/chart/painter/read`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value  });
       //ind_response.data = JSON.parse(ind_response.data)
       ind_response.map( line => {
           line.data = JSON.parse(line.data)
       })  
 
-        
-        // STETEGY
-        await updateStrategyIndicators( context(),
+      // STATEGY
+      await updateStrategyIndicators( context(),
           currentSymbol.value, currentTimeframe.value
-        )
+      )
    
       // TASK LIST
 
@@ -510,12 +516,14 @@ const handleRefresh = async () => {
       
       if (_trade_marker_data.data!=null)
           _trade_marker_data.data = JSON.parse(_trade_marker_data.data)
-      console.debug("trade marker",_trade_marker_data)
-        
+    //  console.debug("trade marker",_trade_marker_data)
+   //     
       //console.log("ind_response",ind_response) 
 
-      console.debug("loading ",currentSymbol.value,currentTimeframe.value)
+     // console.log("loading ",currentSymbol.value,currentTimeframe.value)
       
+    // console.info("data ",data)
+
       if (data && data.length > 0) {
 
         const formattedData = data.map(d => ({
@@ -523,14 +531,31 @@ const handleRefresh = async () => {
           open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
         }));
 
-        //console.info("formattedData ",data)
+       //  console.info("formattedData ",data)
 
+        await painter.load()
+
+        painter.setData(formattedData)
+
+        //painter.pushLastDataTime(data.at(-2).t,data.length);
+        //painter.pushLastDataTime(data.at(-1).t,data.length);
+
+       
         series.setData(formattedData);
 
         // OPEN DATE
+        const first = findLastCandleOfEachDay(formattedData)
+        const openDate = findOpenDate(formattedData)
 
-       updateVerticalLineData(timeLine_pre,formattedData,findLastCandleOfEachDay(formattedData))
-       updateVerticalLineData(timeLine_open,formattedData,findOpenDate(formattedData))
+        const idx = formattedData.findIndex(p => p.time === first);
+        painter.createVirtualVLine(idx, "white")
+
+        const idx1 = formattedData.findIndex(p => p.time === openDate);
+        painter.createVirtualVLine(idx1, "yellow")
+
+       // console.log(first,openDate,idx)
+      // updateVerticalLineData(timeLine_pre,formattedData,findLastCandleOfEachDay(formattedData))
+       //updateVerticalLineData(timeLine_open,formattedData,findOpenDate(formattedData))
 
         lastMainCandle = formattedData[formattedData.length - 1];
 
@@ -545,7 +570,8 @@ const handleRefresh = async () => {
           });
         }
 
-        await painter.load()
+
+        
      
         // gestione lieen user
         
@@ -605,8 +631,7 @@ const handleRefresh = async () => {
         if (_trade_marker_data.data!=null)
         {
             tradeMarkerData = _trade_marker_data.data;
-            updateTradeMarker(context(),tradeMarkerData)
-
+            //updateTradeMarker(context(),tradeMarkerData)
             liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
                 
         }
@@ -614,7 +639,7 @@ const handleRefresh = async () => {
         // TRADE MARKER
         if (_task_datas!=null){
 
-            taskData={}
+           // taskData={}
             _task_datas.forEach( (task)=>
             {
               const next_step_idx = task.step;
@@ -623,19 +648,23 @@ const handleRefresh = async () => {
             //  console.log("..",next_step_idx,data)
 
               // prendo i passi prima
-              data.forEach( (step)=>
+              const tradeBox = painter.getTradeBox()
+              if (tradeBox)
               {
-                  if (step["step"]== next_step_idx)
+                  tradeBox.clearMarkerMode()
+                  data.forEach( (step)=>
                   {
-                    //console.log("ACTIVE",step)
-                    if (step["desc"] == "MARKER")
-                        taskData["price_marker"] ={"ref" : price_marker, "task": step}
-                    if (step["desc"] == "SL")
-                        taskData["price_marker_sl"] ={"ref" : price_marker_sl, "task": step}
-                    if (step["desc"] == "TP")
-                        taskData["price_marker_tp"] ={"ref" : price_marker_tp, "task": step}
-                  }
-              });
+                      if (step["step"]== next_step_idx)
+                      {
+                          if (step["desc"] == "MARKER")
+                              tradeBox.setMarkerMode("price")
+                          if (step["desc"] == "SL")
+                              tradeBox.setMarkerMode("sl")
+                          if (step["desc"] == "TP")
+                              tradeBox.setMarkerMode("tp")
+                      }
+                  });
+                }
             });
         }
 
@@ -680,33 +709,99 @@ const handleRefresh = async () => {
     else
         console.log("empty ");
   } catch (err) {
-    console.debug("Errore refresh:", err.stack);
+    console.error("Errore refresh:", err.stack);
   }
 };
 
-async function delete_marker_trade(){
+// ====================================
+
+async function set_marker_trade(){
+    const tradeBox = painter.getTradeBox()
+    if (!tradeBox)
+    {
+       alert("Trade box non trovato");
+    }
+
+    tradeMarkerData.price =   tradeBox.buy_price()
+    tradeMarkerData.take_profit = tradeBox.tp_price()
+    tradeMarkerData.stop_loss = tradeBox.sl_price()
+    tradeMarkerData.quantity =tradeBox.quantity()
+    tradeMarkerData.type="bracket"
+    
+    await send_post("/api/trade/marker/add",
+        {
+            symbol: currentSymbol.value,
+            timeframe: currentTimeframe.value,
+            data: tradeMarkerData,
+        });
+   
+    console.log("new tradeMarkerData",tradeMarkerData)
+
+    liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+    handleRefresh ();
+}
+
+async function onTradeBoxChanged(){
+ 
+   if (Object.keys(tradeMarkerData).length === 0) return;
+ 
+    console.log("tradeMarkerData",tradeMarkerData)
+
+    const tradeBox = painter.getTradeBox()
+    if (!tradeBox) return
+    
+    tradeMarkerData.price =   tradeBox.buy_price()
+    tradeMarkerData.take_profit = tradeBox.tp_price()
+    tradeMarkerData.stop_loss = tradeBox.sl_price()
+    tradeMarkerData.quantity =tradeBox.quantity()
+
+    let ret = await send_post("/api/trade/marker/update",
+    {
+         symbol: currentSymbol.value,
+         timeframe: currentTimeframe.value,
+         data: tradeMarkerData,
+    });
+          
+    if (ret.status === "ok") {
+        tradeMarkerData = ret.data
+        console.log("Trade marker set price", tradeMarkerData);
+
+     
+          //if (title!= "BUY")
+          //{
+          //     clearLineByGUID(chart_context,guid);
+          //     addTradeLine(chart_context,tradeData,price,title,color,guid )
+          // }
+                   
+        liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+                
+                //console.log("UPDATE ", chart_context.liveStore,'trade.tradeData.'+chart_context.currentSymbol.value,tradeData);
+
+                //updateTradeMarker(chart_context,tradeData); 
+    }
+                
+}
+
+async function onTradeBoxDeleted(){
      let ret = await send_delete("/api/trade/marker/delete", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value}); 
      console.log("trade delete",ret)  
 
      liveStore.set('trade.tradeData.'+currentSymbol.value, null);
 
      tradeMarkerData = {};
-     updateTradeMarker(context(),tradeMarkerData)
+     //updateTradeMarker(context(),tradeMarkerData)
      handleRefresh ();
 }
+
+// ====================================
 // UI LINKS
 
-async function setDrawMode(mode) {
-  if (mode === 'delete_all') {
-    painter.clear();
+function painter_delete_all(){
+     painter.clear();
     clearDrawings(context(),true);
-    return;
-  }
-  if (mode ==='line'){
-     //painter.begin()
-     painter.setMode("line")
-     return
-  }
+}
+
+async function setDrawMode(mode) {
 
   drawMode.value = mode;
   //drawPoints = [];
@@ -722,6 +817,7 @@ const handleSymbols = async () => {
 const setSymbol = async (symbol) => {
   console.log("setSymbol")
   currentSymbol.value= symbol
+  trade_quantity.value = staticStore.get(get_key("quantity"),100)
   await handleRefresh();
 };
 
@@ -758,11 +854,11 @@ function onTradeLastUpdated(msg){
 onMounted(  () => {
 
  // console.log("onMounted")
-  //canvas = bgCanvas.value
-  //ctx = canvas.getContext('2d')
-  //console.log("ctx",canvas,ctx,bgCanvas)
-  painter =  createPainter(context(),mainChartRef,overlay)
-    
+
+  painter =  createPainter(context(),mainChartRef,overlay, trade_quantity)
+  painter.subscribeTradeBoxChanged(onTradeBoxChanged)
+  painter.subscribeTradeBoxDeleted(onTradeBoxDeleted)
+
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
   eventBus.on("trade-last-changed", onTradeLastUpdated);
@@ -780,7 +876,13 @@ onMounted(  () => {
     });
      
   });
-  
+
+  staticStore.on("change", (value) => {
+    if (value.path == get_key("quantity"))
+        trade_quantity.value = value.data;
+  });
+  trade_quantity.value = staticStore.get(get_key("quantity"),100)
+    
 
   buildChart();
  // handleRefresh();
@@ -798,6 +900,9 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
 
+  staticStore.off("change", () => {
+  });
+
   if (chart) chart.remove();
   //if (charts.volume) charts.volume.remove();
 });
@@ -805,12 +910,9 @@ onUnmounted(() => {
 function watchPriceScale() {
     if (gfx_canvas.value)
     {
-        if (price_marker.value!=null){
-            price_marker.value.style.display ="none"
-            price_marker_tp.value.style.display ="none"
-            price_marker_sl.value.style.display ="none"
-          updateTaskMarker(context(),taskData)
-      }
+
+      painter.redraw()
+
     }
     requestAnimationFrame(watchPriceScale);
   }
@@ -847,6 +949,7 @@ const buildChart =  () => {
 
   painter.setChart(chart,series)
 
+  /*
   timeLine_pre =  chart.addSeries(LineSeries, {
     color: '#FFFFFF',
     lineWidth: 2,
@@ -863,6 +966,7 @@ const buildChart =  () => {
     lastValueVisible: false,
     crosshairMarkerVisible: false,
   });
+  */
 
   // ==============
 
@@ -896,10 +1000,19 @@ const buildChart =  () => {
       }
     });
   }
-  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>
+  series.subscribeDataChanged(()=>
+  {
+    //console.log("kk")
+    painter.redraw()
+  }
+  )
+  
+  chart.timeScale().subscribeVisibleTimeRangeChange(()=>
     
     painter.redraw()
   )
+  
+ 
   
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
   chart.subscribeCrosshairMove(param => 
@@ -911,6 +1024,18 @@ const buildChart =  () => {
        // charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
         return;
       }
+/*
+      const timeScale = chart.timeScale();
+    
+    // This gets the time specifically at the mouse X coordinate
+    const timeAtCursor = timeScale.coordinateToTime(param.point.x);
+    
+    // This gets the time at the very left edge of the visible chart
+   // const timeAtLeftEdge = timeScale.coordinateToTime(0);
+
+    //console.log("Left edge time:", new Date(timeAtLeftEdge*1000));
+    console.log("Cursor time:", param.point.x, new Date(timeAtCursor*1000));
+    */
 
       const data = param.seriesData.get(series);
       if (!data) return;
@@ -937,7 +1062,7 @@ const buildChart =  () => {
       });
       lbl=""
       
-      painter.onMouseMove_disabled(param.point)
+      //painter.onMouseMove_disabled(param.point)
       painter.redraw();
       // Aggiungi valori indicatori alla legenda
 
@@ -973,8 +1098,6 @@ const buildChart =  () => {
     const price = series.coordinateToPrice(param.point.y);
     let time = chart.timeScale().coordinateToTime(param.point.x)
    
-   
-  
    // const logical = chart.timeScale().coordinateToLogical(param.point.x)
     //const time = chart.timeScale().logicalToTime(logical)
 
@@ -982,55 +1105,6 @@ const buildChart =  () => {
 
     console.log("Click at", Date(time),price);  
    
-    if (drawMode.value === 'hline') {
-      drawHorizontalLine(context(),price);
-      drawMode.value = null;
-    }
-    if (time)
-    {
-      /*
-      if (drawMode.value === 'line') {
-
-       // painter.begin()
-
-        console.log(drawPoints)
-        
-        drawPoints.push({ time: time, value: price });
-
-        if (drawPoints.length === 2) {
-          drawTrendLine(context(),drawPoints[0], drawPoints[1]);
-          drawPoints = [];
-          drawMode.value = null;
-        }
-        
-      }
-          */
-    if (drawMode.value === 'delete') {
-          clearLine(context(),time,price)
-          drawMode.value = null;
-      }
-    }
-     if (drawMode.value === 'trade_marker') {
-        
-      //  console.log("Set trade marker at",  price,);  
-
-        if (lastTrade.value != null  && lastTrade.value.isOpen)
-        {
-          tradeMarkerData.price = tradeStore.buyPrice(lastTrade.value); 
-          tradeMarkerData.type="tp_sl"
-        }
-        else
-        {
-          tradeMarkerData.price = price;  
-          tradeMarkerData.type="bracket"
-        }
-
-        setTradeMarker(context(),tradeMarkerData)
-        
-        drawMode.value = null;
-
-    }
-
   });
 
   //
@@ -1044,12 +1118,9 @@ const buildChart =  () => {
     refresh: buildChart 
   });
 
-  gfx_canvas.value = container.value.querySelector('canvas');
-  //console.log(container.value,canvas);
-  const canvasParent = gfx_canvas.value.parentElement;
-  canvasParent.appendChild(price_marker.value);
-  canvasParent.appendChild(price_marker_sl.value);
-  canvasParent.appendChild(price_marker_tp.value);
+ // gfx_canvas.value = container.value.querySelector('canvas');
+  gfx_canvas.value = overlay.value
+
   
 }catch(ex){
   console.error(ex)
@@ -1103,10 +1174,13 @@ function on_candle(c)
     })
 
     series.update(new_value);
-    painter.redraw()
+    
     // series
     if (last_time != c.ts)
     {
+      //painter.pushLastDataTime(c.ts,painter.dataLen+1)
+      painter.pushData(new_value)
+
       last_time = c.ts
      
       indicatorList.value.forEach((ind) => {
@@ -1117,6 +1191,8 @@ function on_candle(c)
       }); 
       updateStrategyIndicators(context(),
           currentSymbol.value, currentTimeframe.value,c.ts- 1000*100);
+
+          painter.redraw()
     }
    // console.log(c)
    // TEST
@@ -1137,8 +1213,8 @@ defineExpose({
   resize,
   setSymbol,
   on_candle,
-  onTickerReceived,
-  delete_marker_trade
+  onTickerReceived
+//  delete_marker_trade
 
 });
 

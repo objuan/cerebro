@@ -140,10 +140,12 @@ class TradeManager:
         logger.info(f"add_order {symbol} {timeframe} {data}")   
 
         order =None
+        
         if data["type"] =="bracket":
-             order = await self.add_order_bracket(symbol, timeframe,data["price"],"bracket")
+             order = await self.add_order_bracket(symbol, timeframe,data,"bracket")
         if data["type"] =="tp_sl":
-             order = await self.add_tp_sl(symbol, timeframe,data["price"])
+             order = await self.add_tp_sl(symbol, timeframe,data)
+        
         if order:     
             self.client.execute("""
                 INSERT INTO trade_marker (symbol, timeframe,  data)
@@ -156,20 +158,20 @@ class TradeManager:
         return order
     
     ###
-    async def  add_tp_sl(self,symbol, timeframe,price)-> TradeOrder:
+    async def  add_tp_sl(self,symbol, timeframe,data)-> TradeOrder:
         #TODO
-        quantity = self.props.get("symbols."+symbol+".quantity",100)  
+        #quantity = self.props.get("symbols."+symbol+".quantity",100)  
 
-        logger.info(f"add_sl_tp {symbol} {timeframe} {price} {quantity}")       
+        logger.info(f"add_sl_tp {symbol} {timeframe} {data} ")       
 
-        loss_per_trade = self.loss_per_trade()
+        #loss_per_trade = self.loss_per_trade()
 
-        price_for_action_diff = loss_per_trade / quantity
+        #price_for_action_diff = loss_per_trade / quantity
 
 
-        stop_loss = price - price_for_action_diff
+        #stop_loss = price - price_for_action_diff
        
-        take_profit = price + ( price -stop_loss ) * self.props.get("trade.rr")
+        #take_profit = price + ( price -stop_loss ) * self.props.get("trade.rr")
 
         #gger.info(f"min {min_l} max {max_h}")
  
@@ -177,19 +179,20 @@ class TradeManager:
              "symbol" : symbol,
              "timeframe" : timeframe,
              "type" : "tp_sl",
-             "price" : price,
-             "stop_loss" : stop_loss,
-             "take_profit" : take_profit,
-             "quantity" : 100
+             "price" : data["price"],
+             "stop_loss" : data["stop_loss"],
+             "take_profit" : data["take_profit"],
+             "quantity" : data["quantity"]
         })
         self.fill_computed(order)
         return order
          #return await self.add_order_bracket(symbol, timeframe,price,"sl_tp")    
     ###
 
-    async def  add_order_bracket(self,symbol, timeframe,price,stype)-> TradeOrder:
-        last_candles_count = 10
+    async def  add_order_bracket(self,symbol, timeframe,data,stype)-> TradeOrder:
+        #last_candles_count = 10
         
+        '''
         df_last_data = await self.client.ohlc_data(symbol,timeframe)
         df_last_data["datetime"] = (
             pd.to_datetime(df_last_data["t"], unit="ms", utc=True)
@@ -200,23 +203,24 @@ class TradeManager:
         max_h = df_last_data.tail(last_candles_count)["h"].max()
         min_l = df_last_data.tail(last_candles_count)["l"].min()
         stop_loss=min_l
+        '''
      
         #loss_percent = calc_percent(price,stop_loss )
         #tp_percent = loss_percent * self.props.get("trade.rr")
         #take_profit= price + price * tp_percent
 
-        take_profit = price + ( price -stop_loss ) * self.props.get("trade.rr")
+        #take_profit = price + ( price -stop_loss ) * self.props.get("trade.rr")
 
-        logger.info(f"min {min_l} max {max_h}")
+        #logger.info(f"min {min_l} max {max_h}")
 
         order = TradeOrder({
              "symbol" : symbol,
              "timeframe" : timeframe,
              "type" : stype,
-             "price" : price,
-             "stop_loss" : stop_loss,
-             "take_profit" : take_profit,
-             "quantity" : 100
+             "price" : data["price"],
+             "stop_loss" : data["stop_loss"],
+             "take_profit" : data["take_profit"],
+              "quantity" : data["quantity"]
         })
         self.fill_computed(order)
         return order

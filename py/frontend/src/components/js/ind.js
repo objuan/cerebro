@@ -16744,6 +16744,7 @@ function applyVWAP(series, chart, options = {}) {
     const vwapSeries = chart.addSeries(lineSeries, {
         color,
         lineWidth: 2,
+         priceLineVisible: false,lastValueVisible: false,
         priceFormat: {
             type: 'price',
             precision: 2,
@@ -16752,10 +16753,10 @@ function applyVWAP(series, chart, options = {}) {
     }, 0);
     const upperSeries = chart.addSeries(lineSeries, { color: '#ffffff', lineWidth: 1  ,
         lineStyle : 1,
-          priceLineVisible: false,lastValueVisible: false, crosshairMarkerVisible: false}, 0);
+        priceLineVisible: false,lastValueVisible: false, crosshairMarkerVisible: false}, 0);
     const lowerSeries = chart.addSeries(lineSeries, { color: '#ffffff', lineWidth: 1  ,
         lineStyle : 1,
-          priceLineVisible: false,lastValueVisible: false, crosshairMarkerVisible: false}, 0);
+        priceLineVisible: false,lastValueVisible: false, crosshairMarkerVisible: false}, 0);
           
     const cache = volumeCache.get(series);
 
