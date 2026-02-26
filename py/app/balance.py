@@ -22,11 +22,13 @@ logger.setLevel(logging.DEBUG)
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
 class TradeOp:
-    def __init__(self,side, price,size,time):
+    def __init__(self,side, price,size,time,pnl,comm):
         self.side=side
         self.price=price
         self.size=size
         self.time = time
+        self.pnl = pnl
+        self.comm = comm
         
         
 class PositionTrade:
@@ -36,11 +38,11 @@ class PositionTrade:
         self.symbol = symbol
         self.list=[]
 
-    def appendBuy(self, price,size,time):
-        self.list.append(TradeOp("BUY", price,size,time))
+    def appendBuy(self, price,size,time,pnl,comm):
+        self.list.append(TradeOp("BUY", price,size,time,pnl,comm))
 
-    def appendSell(self, price,size,time):
-        self.list.append(TradeOp("SELL", price,size,time))
+    def appendSell(self, price,size,time,pnl,comm):
+        self.list.append(TradeOp("SELL", price,size,time,pnl,comm))
         #self.exit_time = datetime.now()
         #self.exit_price = exit_price
         #self.pnl = (exit_price - self.entry_price) * self.entry_size
@@ -91,6 +93,8 @@ class PositionTrade:
                     "price": op.price,
                     "size": op.size,
                     "time": op.time,
+                     "pnl": op.pnl,
+                      "comm": op.comm,
                 }
                 for op in self.list
             ],

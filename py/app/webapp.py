@@ -448,6 +448,7 @@ def save_chart_line(payload: dict):
                 json.dumps(data)
             ))
 
+        strategy.on_plot_lines_changed(symbol,timeframe)
         return {"status": "ok"}
     
     except :
@@ -467,10 +468,20 @@ def delete_chart_line(payload: dict  ):
             detail=f"Campo mancante: {e.args[0]}"
         )
 
-    logger.info(f"DELETE CHART LINE {guid}")
-    client.execute("""
-        DELETE FROM chart_lines WHERE guid = ?
-    """, (guid,))
+    df = client.get_df("""
+            SELECT *
+            FROM chart_lines WHERE guid =  ?
+        """, (guid,))
+
+    if len(df)>0:
+        logger.info(f"DELETE CHART LINE {guid}")
+        client.execute("""
+            DELETE FROM chart_lines WHERE guid = ?
+        """, (guid,))
+
+
+        strategy.on_plot_lines_changed(df.iloc[0]["symbol"],df.iloc[0]["timeframe"])
+
     return {"status": "ok" }
 
 @app.delete("/api/chart/painter/delete/all")
@@ -488,6 +499,8 @@ def delete_chart_all(payload: dict  ):
     client.execute("""
         DELETE FROM chart_lines WHERE symbol = ? and timeframe= ?   
     """, (symbol,timeframe))
+
+    strategy.on_plot_lines_changed(symbol,timeframe)
     return {"status": "ok" }
 
 @app.get("/api/chart/painter/read")

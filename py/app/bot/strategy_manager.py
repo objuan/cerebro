@@ -223,6 +223,11 @@ class StrategyManager:
             if i:
                 list.append(i)
         return list
+
+
+    def on_plot_lines_changed(self, symbol, tf):
+         for strat in self.strategies:
+            strat["instance"].on_plot_lines_changed(symbol, tf)
 ############################################
 
 

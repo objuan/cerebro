@@ -38,7 +38,7 @@ export async  function updateStrategyIndicators(context,
     // console.log("task strat_response",strat_response)
     strat_response.forEach( (strat) =>
     {
-       //   console.log("task strat_response",strat)
+      //   console.log("task strat_response",strat)
           const strat_name = strat.strategy
 
           if(!strategy_index_map[strat_name])

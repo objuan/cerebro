@@ -357,14 +357,30 @@ class MuloLiveClient:
 
         else:
             query = f"""
-                SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
-                FROM ib_ohlc_history
-                WHERE symbol=? AND timeframe=?
-                ORDER BY timestamp DESC
+                    SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
+                    FROM ib_ohlc_history
+                    WHERE symbol=? AND timeframe=?
+                    ORDER BY timestamp DESC
                 LIMIT ?"""
              
         conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
+        if timeframe in ['15m']:
+            df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
+
+            df["t"] = pd.to_datetime(df["t"], unit="ms")
+            df = df.set_index("t")
+
+            ohlc = df.resample("15T").agg({
+                "o": "first",
+                "h": "max",
+                "l": "min",
+                "c": "last",
+                "qv": "sum",
+                "bv": "sum"
+            }).dropna()
+
+        else:
+            df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
         df = df.iloc[::-1].reset_index(drop=True)
       
         conn.close()     

@@ -18,6 +18,9 @@ class Primitive {
   addAlarm(source,type){
       this.alarms.push({source : source, type: type})
   }
+  hasAlarm(){
+    return this.alarms.length>0
+  }
   onEnd(){
 
      this.save()
@@ -64,10 +67,10 @@ class Primitive {
         });
   }
   serialize(){
-    return {}
+  
   }
-  fromSerial(){
-    
+  fromSerial(data){
+      this.alarms = data.alarms
   }
 }
 
@@ -251,6 +254,7 @@ export  class Line  extends Primitive{
   }
   serialize(){
     return {
+        ...super.serialize(),
         "p1": this.p1.serialize(),
         "p2":   this.p2.serialize(),
         "color":  this.color,
@@ -258,6 +262,7 @@ export  class Line  extends Primitive{
   }
   fromSerial(data){
  //   console.log("fromSerial",data)
+      super.fromSerial(data)
       this.p1.fromSerial(data.p1)
       this.p2.fromSerial(data.p2)
       this.color = data.color
@@ -287,6 +292,9 @@ export  class Line  extends Primitive{
     if(this.isHover){
       this.p1.draw(ctx)
       this.p2.draw(ctx)
+    }
+    if (this.hasAlarm()){
+      drawTextOnLine(ctx,a,b,"🔔","white",10,"center")
     }
   }
 
@@ -320,18 +328,20 @@ export  class PriceLine  extends Primitive{
   }
   props(){
     return [
-      "color"
+      "color","alarms"
     ]
   }
   serialize(){
     return {
-        "p": this.p.val,
+       ...super.serialize(),
+        "p": this.p.serialize(),
         "color":  this.color,
     }
   }
   fromSerial(data){
    // console.log("fromSerial",data)
-      this.p.val = data.p
+      super.fromSerial(data)
+      this.p.fromSerial(data.p)
       this.color = data.color
   }
   begin(p1){
@@ -354,6 +364,10 @@ export  class PriceLine  extends Primitive{
 
     if(this.isHover){
       this.p.draw(ctx)
+    }
+
+     if (this.hasAlarm()){
+      drawTextOnLine(ctx,from,to,"🔔","white",10,"center")
     }
   }
 
@@ -413,6 +427,7 @@ export  class Box  extends Primitive{
   }
   fromSerial(data){
    // console.log("fromSerial",data)
+      super.fromSerial(data)
       this.top_left.val = data.top_left
       this.bottom_right.val = data.bottom_right
       this.color = data.color
@@ -538,6 +553,12 @@ export  class SplitBox  extends Box{
     this.center_left = new Handle(painter, this)
     this.center_right = new Point(painter, this)
   }
+   props(){
+    return [
+      "color","text","alarms"
+
+    ]
+  }
    serialize(){
      let ser = super.serialize()
      ser.center_left = this.center_left.val
@@ -604,6 +625,9 @@ export  class SplitBox  extends Box{
 
      if(this.isHover){
       this.center_left.draw(ctx)
+    }
+      if (this.hasAlarm()){
+      drawTextOnLine(ctx,m_l,m_r,"🔔","white",10,"center")
     }
 
    }
@@ -737,6 +761,10 @@ export  class  TradeBox  extends SplitBox{
       this.top_left.draw(ctx)
       this.bottom_right.draw(ctx)
       this.center_left.draw(ctx)
+    }
+
+   if (this.hasAlarm()){
+      drawTextOnLine(ctx,mid_s,mid_e,"🔔","white",10,"center")
     }
 
 

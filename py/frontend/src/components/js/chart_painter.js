@@ -1,4 +1,5 @@
-import { send_get,localUnixToUtc,timeframeToSeconds,formatUnixDate } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_get,localUnixToUtc,timeframeToSeconds } from '@/components/js/utils.js'; // Usa il percorso corretto
+//formatUnixDate
 import { ref,computed} from 'vue';
 import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine } from '@/components/js/chart_primitives.js'
 import { liveStore } from '@/components/js/liveStore.js';
@@ -187,7 +188,8 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       this.data=data
     }
     ,pushData(candle){
-      this.data.push(candle)
+      if (this.data)
+        this.data.push(candle)
     }
     /*
     , pushLastDataTime(time, dataLen){
@@ -247,7 +249,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
 
     }
     ,async load(){
-       console.log( "load")
+      // console.log( "load")
       try
       {
         const ind_response = await send_get(`/api/chart/painter/read`,
@@ -321,7 +323,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       return { x, y };
     }
     ,chartToTime(pos){
-      console.log("time",pos)
+      //console.log("chartToTime",pos)
       
       const ts = this.chart.timeScale();
        const vr = ts.getVisibleLogicalRange();
@@ -350,8 +352,10 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
 
        // console.log("...",dt,xLast, tickPx,"factor", factor )  
       }
+      else
+        t=t*1000
       t = localUnixToUtc(t)
-      console.log("chartToTime",x,t, formatUnixDate(t))
+      //console.log("chartToTime",x,t, formatUnixDate(t))
       return t;
       
     }

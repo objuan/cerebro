@@ -113,18 +113,24 @@
 	]
 	,"stategies22":[
 		{
-			   "module": "trade_strategy",
-				"class" : "TradeStrategy",
-				"timeframe" : "1m",
+			    "module": "alarm_strategy",
+				"class" : "AlarmStrategy",
+				"timeframe" : "10s",
 				"params" :
 				{
-					"eta" : 5,
-					"min_gain" : 5
 				}
 			}
 	]
 	
 	,"stategies":[
+		{
+			    "module": "alarm_strategy",
+				"class" : "AlarmStrategy",
+				"timeframe" : "10s",
+				"params" :
+				{
+				}
+		},
 		{
 			   "module": "trade_strategy",
 				"class" : "TradeStrategy",

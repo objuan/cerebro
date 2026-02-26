@@ -142,6 +142,8 @@ class OrderManager:
         self.lastError="" 
         self.sym_mode = config["live_service"]["mode"] =="sym"
         
+        self.exec_to_order = {}
+        self.order_commissions = {}
 
         # Assegna gli event handlers
 
@@ -182,6 +184,8 @@ class OrderManager:
             self.ib.newOrderEvent += self.onNewOrder
             self.ib.newOrderEvent += self.onNewOrder
             self.ib.errorEvent += onError
+            self.ib.execDetailsEvent  += self.onExec
+            self.ib.commissionReportEvent += self.onCommission
         pass 
 
     #############
@@ -198,25 +202,34 @@ class OrderManager:
                 side = row.side
                 data = json.loads(row.data)
 
-                #logger.info(f"rebuild_trades row {data}")
+                logger.info(f"rebuild_trades row {data}")
 
                 price = data["avgFillPrice"]
                 size = data["totalQuantity"]
+                trade_id = data["trade_id"]
 
                 time = data["log"][-1]["time"]
                 dt = datetime.fromisoformat(time)
                 unix_time = dt.timestamp()
+
+                pnl=0
+                comm=0
+                df = self.client.get_df(f""" select * from ib_order_commissions  
+                      WHERE trade_id = '{trade_id}'  """)
+                if len(df)>0:
+                    pnl = + df.iloc[0]["pnl"]
+                    comm =  df.iloc[0]["commission"]
 
                 if side == "BUY":
                     if current is None:
                         current = PositionTrade(symbol)
                         trades.append(current)
 
-                    current.appendBuy(price, size, unix_time)
+                    current.appendBuy(price, size, unix_time,pnl,comm)
                     
                 elif side == "SELL":
                     if current is not None:
-                        current.appendSell(price, size, unix_time)
+                        current.appendSell(price, size, unix_time,pnl,comm)
 
                         if current.isClosed:
                             current = None
@@ -228,21 +241,35 @@ class OrderManager:
         
         if symbol:
             df = self.client.get_df(f"""
-                    select distinct symbol,side,data from ib_orders 
-                    WHERE SYMBOL = '{symbol}' 
-                    AND status = 'Filled' 
-                    AND event_type = 'STATUS'
-                    order by id desc 
-                    LIMIT 10
+                   SELECT o.*
+                    FROM ib_orders o
+                    JOIN (
+                        SELECT trade_id, MAX(id) AS max_id
+                        FROM ib_orders
+                        WHERE status = 'Filled'
+                        AND SYMBOL = '{symbol}' 
+                        AND event_type = 'STATUS'
+                        GROUP BY trade_id
+                    ) t
+                    ON o.id = t.max_id
+                    ORDER BY o.symbol ASC, o.id DESC
+                    LIMIT 10;
                     """)
         else:
+            #DAY
             df = self.client.get_df(f"""
-                 SELECT DISTINCT symbol, side, data
-                    FROM ib_orders
-                    WHERE status = 'Filled'
-                    AND event_type = 'STATUS'
-                    AND timestamp >= datetime('now', 'start of day')
-                    ORDER BY id DESC;
+                   SELECT o.*
+                    FROM ib_orders o
+                    JOIN (
+                        SELECT trade_id, MAX(id) AS max_id
+                        FROM ib_orders
+                        WHERE status = 'Filled'
+                        AND event_type = 'STATUS'
+                        AND timestamp >= datetime('now', 'start of day')
+                        GROUP BY trade_id
+                    ) t
+                    ON o.id = t.max_id
+                    ORDER BY o.symbol ASC, o.id DESC;
                     """)
         
         trades = self.rebuild_trades(df)
@@ -333,6 +360,36 @@ class OrderManager:
     async def onOrderStatus(self,trade:Trade):
        await self.addOrder(trade, "STATUS")
 
+    #############
+    
+    def onExec(self,trade, fill):
+        
+        logger.info(f"onExec {trade} {fill}")
+        self.exec_to_order[fill.execution.execId] = trade.order.orderId
+
+    async def onCommission(self,trade:Trade,fill:Fill,commissionReport:CommissionReport):
+        logger.info(f"onCommission {trade} \ncommissionReport:{commissionReport}")
+
+        orderId = trade.order.orderId
+        permId = trade.orderStatus.permId
+        comm = commissionReport.commission
+        pnl = commissionReport.realizedPNL
+
+        logger.info(f"orderId {orderId} Commission:{comm} pnl:{pnl}")
+
+        df = self.client.get_df(f""" select * from ib_order_commissions  WHERE trade_id = '{permId}'  """)
+        if len(df)>0:
+            logger.info(f"UPDATE \n{df}")
+            pnl = pnl + df.iloc[0]["pnl"]
+            comm = comm + df.iloc[0]["commission"]
+            cur.execute('''UPDATE ib_order_commissions set pnl= ? ,  commission = ?
+                    WHERE trade_id = ? ''',
+                (pnl,comm ,permId))
+        else:
+            cur.execute('''INSERT INTO ib_order_commissions (trade_id, symbol, pnl, commission)
+                    VALUES (?, ?, ?, ?)''',
+                (permId, trade.contract.symbol,pnl,comm ))
+     
     ###########
 
     def format_price(self,contract,price)-> float:
@@ -382,6 +439,7 @@ class OrderManager:
             totalQuantity=totalQuantity,
             lmtPrice=formatted_price,
             tif='DAY' ,
+            #tif='FOK', #tutto o niente, + difficile
             outsideRth=True
         )
         #entry.orderId = ib.client.getReqId()
@@ -647,13 +705,39 @@ class OrderManager:
                         logger.info(f">> LimitOrder : {symbol} ({attempt}) {op} {totalQuantity} at {ticker['last']} -> {formatted_price} (tick_size:{tick_size}) ")
 
                         # 🔹 ORDINE
-                        entry = LimitOrder(
-                            action=op,
-                            totalQuantity=totalQuantity,
-                            lmtPrice=formatted_price,
-                            tif='DAY' ,
-                            outsideRth=True
-                        )
+                        if True:
+                            # MARKET
+                            entry = LimitOrder(
+                                action=op,
+                                totalQuantity=totalQuantity,
+                                lmtPrice=formatted_price,
+                                tif='DAY' ,
+                                #tif='IOC' , #o tutto o niente
+                                outsideRth=False
+                            )
+                        else:
+                            # PRE / AFTER
+                            entry = LimitOrder(
+                                action=op,
+                                totalQuantity=totalQuantity,
+                                lmtPrice=formatted_price,
+                                tif='DAY' ,
+                                #tif='FOK' , #o tutto o niente
+                                outsideRth=True
+                            )
+
+
+                        ''' per vedere commissioni
+                        order.whatIf = True
+
+                        trade = ib.placeOrder(contract, order)
+                        ib.sleep(1)
+
+                        print("Commission:", trade.orderState.commission)
+                        print("Min:", trade.orderState.minCommission)
+                        print("Max:", trade.orderState.maxCommission)
+                        print("Margin:", trade.orderState.initMarginChange)
+                                                '''
                         self.lastError = None
                         return self.ib.placeOrder(contract, entry)
 

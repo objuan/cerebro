@@ -12,10 +12,11 @@
           <option value="30s">30s</option>
           <option value="1m">1m</option>
           <option value="5m">5m</option>
+          <option value="15m">15m</option>
           <option value="1h">1h</option>
           <option value="1d">1d</option>
         </select>
-        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
+        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh(false)" >🔄 </button>
       </div>
     </div>
 
@@ -85,10 +86,6 @@
         <!-- BUTTON BAR -->
 
         <div class="button_bar">
-           <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
-           @click="painter?.setMode('alarm-line')">
-             🔔
-          </button>
 
           <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
            @click="painter?.setMode('price-line')">
@@ -133,7 +130,7 @@
             refresh
           </button>
           <span>
-            mode {{  painter?.drawMode }} {{ painter?.trade_quantity_ref }}
+            mode {{  painter?.drawMode }}
           </span>
     
           
@@ -310,7 +307,7 @@ function onTimeFrameChange(){
           else
             clearIndicators()
 
-  handleRefresh();
+  handleRefresh(true);
 }
 
 // ===============================
@@ -360,6 +357,7 @@ async function selectProfile(item) {
 // ===================================
 
 function onAddIndicator(ind){
+  if (!indicatorMenu.value) return
     let serie = indicatorMenu.value.addIndicator(context(),ind)
    // console.log("add",serie)
     indicatorList.value.push(serie)
@@ -478,18 +476,17 @@ function linkClearIndicators(){
 /*
  --- LOGICA REFRESH DATI ---
 */
-const handleRefresh = async () => {
+async function handleRefresh (resetWindow )
+{
   try {
-    //console.log("handleRefresh ", currentTimeframe.value);
-
-    // SYMBOLS CANDLES
+    console.log("handleRefresh ", resetWindow);
 
     clearStrategyIndicators(context())
 
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
     const data = await response.json();
-    console.log("response",data)
+   // console.log("response",data)
 
     if (data.length>0)
     {
@@ -499,11 +496,6 @@ const handleRefresh = async () => {
           line.data = JSON.parse(line.data)
       })  
 
-      // STATEGY
-      await updateStrategyIndicators( context(),
-          currentSymbol.value, currentTimeframe.value
-      )
-   
       // TASK LIST
 
       const task_response = await send_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
@@ -518,11 +510,6 @@ const handleRefresh = async () => {
           _trade_marker_data.data = JSON.parse(_trade_marker_data.data)
     //  console.debug("trade marker",_trade_marker_data)
    //     
-      //console.log("ind_response",ind_response) 
-
-     // console.log("loading ",currentSymbol.value,currentTimeframe.value)
-      
-    // console.info("data ",data)
 
       if (data && data.length > 0) {
 
@@ -533,30 +520,17 @@ const handleRefresh = async () => {
 
        //  console.info("formattedData ",data)
 
-        await painter.load()
+        setVolumeData(series,data.map(d => (
+                {
+                  time: window.db_localTime ? window.db_localTime(d.t) : d.t,
+                  volume: Math.max(0,d.bv),
+                  color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
+                })));
 
-        painter.setData(formattedData)
-
-        //painter.pushLastDataTime(data.at(-2).t,data.length);
-        //painter.pushLastDataTime(data.at(-1).t,data.length);
-
-       
         series.setData(formattedData);
-
-        // OPEN DATE
-        const first = findLastCandleOfEachDay(formattedData)
-        const openDate = findOpenDate(formattedData)
-
-        const idx = formattedData.findIndex(p => p.time === first);
-        painter.createVirtualVLine(idx, "white")
-
-        const idx1 = formattedData.findIndex(p => p.time === openDate);
-        painter.createVirtualVLine(idx1, "yellow")
-
+                 
        // console.log(first,openDate,idx)
-      // updateVerticalLineData(timeLine_pre,formattedData,findLastCandleOfEachDay(formattedData))
-       //updateVerticalLineData(timeLine_open,formattedData,findOpenDate(formattedData))
-
+   
         lastMainCandle = formattedData[formattedData.length - 1];
 
         // Gestione Indicatori (EMA, etc)
@@ -570,37 +544,32 @@ const handleRefresh = async () => {
           });
         }
 
-
-        
-     
         // gestione lieen user
         
         clearDrawings( context() );
+
         ind_response.forEach( line =>
         {
             if (line.type ==='price_line')
             {
                 drawHorizontalLine(context(),line.data.price, line.guid);
             }
-            /*if (line.type ==='trend')
-            {
-              // console.log("draw trend",line.data)
-                drawTrendLine(context(),line.data.p1,line.data.p2, line.guid);
-            }
-            */
         });
-
 
         // Zoom finale
         
         if ( data.length >timeframe_start[currentTimeframe.value])
         {
           try{
-            chart.timeScale().fitContent()
-            chart.timeScale().setVisibleLogicalRange({
-              from: data.length - timeframe_start[currentTimeframe.value],
-              to: data.length
-            });
+            if (resetWindow)
+            {
+              console.log("reset")
+             // chart.timeScale().fitContent()
+              chart.timeScale().setVisibleLogicalRange({
+                from: data.length - timeframe_start[currentTimeframe.value],
+                to: data.length
+              });
+            }
             
           }catch{
             console.debug("!!")
@@ -608,15 +577,10 @@ const handleRefresh = async () => {
         }
           
         // chart.timeScale().scrollToPosition(0, false);
-        nextTick( ()=>
-      {
-                setVolumeData(series,data.map(d => (
-                {
-                  time: window.db_localTime ? window.db_localTime(d.t) : d.t,
-                  volume: Math.max(0,d.bv),
-                  color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
-                })));
-
+       // nextTick( ()=>
+      //{
+                         //let panes = chart.panes();
+                
                 indicatorList.value.forEach((ind) => {
                   if (ind.refresh != null)   
                       ind.refresh ()
@@ -624,7 +588,7 @@ const handleRefresh = async () => {
                 
                 }); 
 
-      } );
+      //  } );
  
 
         // TRADE MARKER
@@ -636,37 +600,7 @@ const handleRefresh = async () => {
                 
         }
         //console.log("_task_datas",_task_datas)
-        // TRADE MARKER
-        if (_task_datas!=null){
-
-           // taskData={}
-            _task_datas.forEach( (task)=>
-            {
-              const next_step_idx = task.step;
-              const data = JSON.parse(task.data)
-
-            //  console.log("..",next_step_idx,data)
-
-              // prendo i passi prima
-              const tradeBox = painter.getTradeBox()
-              if (tradeBox)
-              {
-                  tradeBox.clearMarkerMode()
-                  data.forEach( (step)=>
-                  {
-                      if (step["step"]== next_step_idx)
-                      {
-                          if (step["desc"] == "MARKER")
-                              tradeBox.setMarkerMode("price")
-                          if (step["desc"] == "SL")
-                              tradeBox.setMarkerMode("sl")
-                          if (step["desc"] == "TP")
-                              tradeBox.setMarkerMode("tp")
-                      }
-                  });
-                }
-            });
-        }
+     
 
         // INDICATORS
 
@@ -701,7 +635,62 @@ const handleRefresh = async () => {
                   });
             //  console.log("buy_line ADD",buy_line)  
           }
-          
+        // PAINTER
+        nextTick( async ()=>
+        {
+          await painter.load()
+          painter.setData(formattedData)
+          // OPEN DATE
+          const first = findLastCandleOfEachDay(formattedData)
+          const openDate = findOpenDate(formattedData)
+
+          const idx = formattedData.findIndex(p => p.time === first);
+          painter.createVirtualVLine(idx, "white")
+
+          const idx1 = formattedData.findIndex(p => p.time === openDate);
+          painter.createVirtualVLine(idx1, "yellow")
+
+            // STATEGY
+         
+          await updateStrategyIndicators( context(),
+            currentSymbol.value, currentTimeframe.value
+          )
+
+             // TRADE MARKER
+            if (_task_datas!=null){
+
+              // taskData={}
+                _task_datas.forEach( (task)=>
+                {
+                  const next_step_idx = task.step;
+                  const data = JSON.parse(task.data)
+
+                  
+                  // prendo i passi prima
+                  const tradeBox = painter.getTradeBox()
+                  //console.log("..",tradeBox,next_step_idx,data)
+
+                  if (tradeBox)
+                  {
+                      tradeBox.clearMarkerMode()
+                      data.forEach( (step)=>
+                      {
+                          if (step["step"]== next_step_idx)
+                          {
+                              console.log("step.",step)
+                              if (step["desc"] == "MARKER")
+                                  tradeBox.setMarkerMode("price")
+                              if (step["desc"] == "SL")
+                                  tradeBox.setMarkerMode("sl")
+                              if (step["desc"] == "TP")
+                                  tradeBox.setMarkerMode("tp")
+                          }
+                      });
+                    }
+                });
+            }
+            
+        });
           
       }
      //console.log("handleRefresh DONE")
@@ -711,7 +700,7 @@ const handleRefresh = async () => {
   } catch (err) {
     console.error("Errore refresh:", err.stack);
   }
-};
+}
 
 // ====================================
 
@@ -738,7 +727,7 @@ async function set_marker_trade(){
     console.log("new tradeMarkerData",tradeMarkerData)
 
     liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
-    handleRefresh ();
+    handleRefresh (false);
 }
 
 async function onTradeBoxChanged(){
@@ -790,7 +779,7 @@ async function onTradeBoxDeleted(){
 
      tradeMarkerData = {};
      //updateTradeMarker(context(),tradeMarkerData)
-     handleRefresh ();
+     handleRefresh (false);
 }
 
 // ====================================
@@ -818,7 +807,7 @@ const setSymbol = async (symbol) => {
   console.log("setSymbol")
   currentSymbol.value= symbol
   trade_quantity.value = staticStore.get(get_key("quantity"),100)
-  await handleRefresh();
+  await handleRefresh(true);
 };
 
 // =========================
@@ -834,7 +823,7 @@ function onTaskOrderReceived(order){
   if (order.symbol == props.symbol)
   {
     // console.log("Chart → task ordine:", order);
-     handleRefresh();
+     handleRefresh(false);
    // console.log("Chart → task ordine:", order);
   }
 }
@@ -844,7 +833,7 @@ function onTradeLastUpdated(msg){
  if (msg && msg.symbol === props.symbol)
   {
     //console.log("onTradeLastUpdated ",props.symbol,msg) 
-     handleRefresh();
+     handleRefresh(false);
      // tradeStore.push(msg)
   }   
 }
@@ -1140,7 +1129,7 @@ const resize =  () => {
       chartWidth = width-10
       chart.resize(chartWidth,height-40);
 
-      handleRefresh();
+      handleRefresh(true);
       painter.resizeOverlay();
     }
 };
@@ -1168,6 +1157,8 @@ function on_candle(c)
   {
     lastMainCandle =new_value;
     
+    //console.log("new_value",c)
+
     updateVolumeData(series,{
                 time: window.db_localTime(c.ts),
                 volume: c.v
@@ -1186,7 +1177,7 @@ function on_candle(c)
       indicatorList.value.forEach((ind) => {
         if (ind.refresh != null)   
             ind.refresh ()
-          //console.log("update ind",ind.name,ind.refresh)
+        //console.log("update ind",ind.name,ind.refresh)
         
       }); 
       updateStrategyIndicators(context(),

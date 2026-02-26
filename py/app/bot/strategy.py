@@ -257,6 +257,11 @@ class Strategy:
         '''
         pass
 
+    #################
+    def on_plot_lines_changed(self, symbol, tf):
+         pass
+    
+
     #######################
 
     async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str,color):
@@ -366,10 +371,15 @@ class SmartStrategy(Strategy):
            o["list"].append(d)
 
         return o
+    
+    #######
 
     def add_plot(self,ind : Indicator ,name :str,  color:str,isMain: bool =True):
         self.plots.append({"ind": ind ,"name" : name , "color" : color, "main" : isMain})
         pass
     
+    #######
+
+
 #############
 

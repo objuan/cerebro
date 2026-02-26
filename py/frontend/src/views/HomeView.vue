@@ -413,7 +413,7 @@ const initWebSocket = () => {
 
         case "candle":
           {
-            // console.log("WS CANDLE",msg) 
+             //console.log("WS CANDLE",msg) 
 
               for (const id in widgetRefs.value) {
                 const comp = widgetRefs.value[id]
