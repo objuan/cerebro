@@ -536,7 +536,7 @@ class NewService:
             return None
 
     ###
-    async def scan(self,symbols,force=False):
+    async def scan(self,symbols,onEndHandler=None,force=False):
        
 
         min = config["news"]["live_range"]["min"]
@@ -544,34 +544,38 @@ class NewService:
         
         if (config["live_service"]["mode"] =="sym"):
             return
-        
-        # filtro per il giorno
-        date_str = str(datetime.now().date())
-        hh_str = datetime.now().strftime("%H")
+        try:
+            # filtro per il giorno
+            date_str = str(datetime.now().date())
+            hh_str = datetime.now().strftime("%H")
 
-        #logger.info(f"SCAN {_symbols} {min}-{max}")
+            #logger.info(f"SCAN {_symbols} {min}-{max}")
 
-        if (force or (int(hh_str) >= min and int(hh_str)<=max )):
-            
-            logger.info(f"NEW SCAN {symbols}")
+            if (force or (int(hh_str) >= min and int(hh_str)<=max )):
+                
+                logger.info(f"NEW SCAN {symbols}")
 
-            if len(symbols)>0:
-                logger.info(f"SCAN FOR NEWS: {symbols}")
+                if len(symbols)>0:
+                    logger.info(f"SCAN FOR NEWS: {symbols}")
 
-                conn = sqlite3.connect(DB_FILE, isolation_level=None)
-                #seen_urls = set()
+                    conn = sqlite3.connect(DB_FILE, isolation_level=None)
+                    #seen_urls = set()
 
-                for provider in self.providers:
-                    try:
-                        news_list =  await provider.get_stock_news(symbols, limit=30)
-                        for n in news_list:
-                            insert_news(conn,n)
-                    except Exception as e:
-                        logger.error(f"{provider.provider} error ",exc_info=True)
+                    for provider in self.providers:
+                        try:
+                            news_list =  await provider.get_stock_news(symbols, limit=30)
+                            for n in news_list:
+                                insert_news(conn,n)
+                        except Exception as e:
+                            logger.error(f"{provider.provider} error ",exc_info=True)
 
-                conn.close()
- 
+                    conn.close()
+    
 
+            if onEndHandler:
+                await onEndHandler()
+        except:
+            logger.error("ERROR", exc_info=True)
 
 ####################################################################
 ####################################################################

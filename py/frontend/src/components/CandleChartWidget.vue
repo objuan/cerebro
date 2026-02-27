@@ -129,6 +129,10 @@
             @click="painter.redraw()">
             refresh
           </button>
+            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+            @click="clearStrategyIndicators(context())">
+            Test
+          </button>
           <span>
             mode {{  painter?.drawMode }}
           </span>
@@ -167,7 +171,7 @@ import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
    LineSeries, applyVolume,setVolumeData,updateVolumeData,getVolume,
-createInteractiveLineManager ,LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
+LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
@@ -177,7 +181,7 @@ import { drawHorizontalLine,clearDrawings,
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
 import { tradeStore } from "@/components/js/tradeStore";
-import { createPainter } from "@/components/js/chart_painter";
+import { createPainter ,ChartWatcher} from "@/components/js/chart_painter";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -218,7 +222,7 @@ let painter = null;
 //let timeLine_pre=null;
 //let timeLine_open=null;
 let strategy_index_map = {}
-let strategy_index_list = []
+const  strategy_index_list = ref([])
 
 const gfx_canvas = ref(null);
 
@@ -240,7 +244,7 @@ let tradeMarkerData = {};
 let chartWidth=null;
 
 //let DEFAULT_INTERACTION=null;
-let manager = null;
+//let manager = null;
 //let ctx=null;
 
 let timeframe_start = {}
@@ -279,7 +283,7 @@ const ui_indicatorList = computed( ()=>
 {
    return [
     ...indicatorList.value,
-    ...strategy_index_list
+    ...strategy_index_list.value
   ];
 });
 
@@ -376,7 +380,9 @@ function getIndicators(profile)
   })
 }
 
-function updateIndicatorColor(ind) {
+function updateIndicatorColor(_ind) {
+  const ind = toRaw (_ind)
+  console.log("updateIndicatorColor",ind)
   if (ind.serie) {
     ind.serie.applyOptions({
       color: ind.params.color
@@ -479,7 +485,7 @@ function linkClearIndicators(){
 async function handleRefresh (resetWindow )
 {
   try {
-    console.log("handleRefresh ", resetWindow);
+   // console.log("handleRefresh ", resetWindow);
 
     clearStrategyIndicators(context())
 
@@ -563,7 +569,7 @@ async function handleRefresh (resetWindow )
           try{
             if (resetWindow)
             {
-              console.log("reset")
+            //  console.log("reset")
              // chart.timeScale().fitContent()
               chart.timeScale().setVisibleLogicalRange({
                 from: data.length - timeframe_start[currentTimeframe.value],
@@ -636,7 +642,7 @@ async function handleRefresh (resetWindow )
             //  console.log("buy_line ADD",buy_line)  
           }
         // PAINTER
-        nextTick( async ()=>
+       // nextTick( async ()=>
         {
           await painter.load()
           painter.setData(formattedData)
@@ -656,8 +662,8 @@ async function handleRefresh (resetWindow )
             currentSymbol.value, currentTimeframe.value
           )
 
-             // TRADE MARKER
-            if (_task_datas!=null){
+            // TRADE MARKER
+           if (_task_datas!=null){
 
               // taskData={}
                 _task_datas.forEach( (task)=>
@@ -690,7 +696,8 @@ async function handleRefresh (resetWindow )
                 });
             }
             
-        });
+        }
+        //;
           
       }
      //console.log("handleRefresh DONE")
@@ -804,7 +811,7 @@ const handleSymbols = async () => {
 */
 
 const setSymbol = async (symbol) => {
-  console.log("setSymbol")
+ // console.log("setSymbol")
   currentSymbol.value= symbol
   trade_quantity.value = staticStore.get(get_key("quantity"),100)
   await handleRefresh(true);
@@ -838,6 +845,7 @@ function onTradeLastUpdated(msg){
   }   
 }
 
+let chartWatcher=null
 
 // --- INIZIALIZZAZIONE ---
 onMounted(  () => {
@@ -889,6 +897,7 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
 
+  chartWatcher.destroy()
   staticStore.off("change", () => {
   });
 
@@ -896,6 +905,7 @@ onUnmounted(() => {
   //if (charts.volume) charts.volume.remove();
 });
 
+/*
 function watchPriceScale() {
     if (gfx_canvas.value)
     {
@@ -907,8 +917,10 @@ function watchPriceScale() {
   }
 
 watchPriceScale();
+*/
 
-
+//let lastRange_price=null;
+//let lastRange_time=null;
 /* buildChart
 */
 const buildChart =  () => {
@@ -932,30 +944,14 @@ const buildChart =  () => {
   });
 
   series = chart.addSeries(CandlestickSeries, {
-    upColor: '#4bffb5', downColor: '#ff4976', borderUpColor: '#4bffb5', borderDownColor: '#ff4976',
+    upColor: '#4bffb5', downColor: '#ff4976',
+     borderUpColor: '#4bffb5', borderDownColor: '#ff4976',
     wickUpColor: '#838ca1', wickDownColor: '#838ca1',
+    priceScaleId : "right"
   });
+  console.log
 
   painter.setChart(chart,series)
-
-  /*
-  timeLine_pre =  chart.addSeries(LineSeries, {
-    color: '#FFFFFF',
-    lineWidth: 2,
-    lineStyle:2,
-    priceLineVisible: false,
-    lastValueVisible: false,
-    crosshairMarkerVisible: false,
-  });
-  timeLine_open =  chart.addSeries(LineSeries, {
-    color: '#FFFF00',
-    lineWidth: 2,
-    lineStyle:2,
-    priceLineVisible: false,
-    lastValueVisible: false,
-    crosshairMarkerVisible: false,
-  });
-  */
 
   // ==============
 
@@ -969,11 +965,10 @@ const buildChart =  () => {
     panes[1]?.setStretchFactor(0.5);
 
 
-    //console.log("stopLoss",stopLoss );
-
    // Click-to-create: Create lines by clicking on chart
-  manager = createInteractiveLineManager( chart,series);
-  console.debug(manager);
+  //manager = createInteractiveLineManager( chart,series);
+ // console.debug(manager);
+
   // 3. Indicatori Dinamici
   //console.log("plot_config",props.plot_config)
   if (props.plot_config.main_plot!=null)
@@ -989,20 +984,10 @@ const buildChart =  () => {
       }
     });
   }
-  series.subscribeDataChanged(()=>
-  {
-    //console.log("kk")
-    painter.redraw()
-  }
-  )
-  
-  chart.timeScale().subscribeVisibleTimeRangeChange(()=>
-    
-    painter.redraw()
-  )
-  
- 
-  
+
+  chartWatcher = new ChartWatcher(chart,painter,20)
+  chartWatcher.start()
+
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
   chart.subscribeCrosshairMove(param => 
   {
@@ -1042,17 +1027,17 @@ const buildChart =  () => {
       lbl += ` V: <strong>${formatValue(vol)}</strong></span>`;
       legendHtml.value = lbl;
 
-      
-      strategy_index_list.forEach( ind=>
+      //console.log(strategy_index_list)
+      strategy_index_list.value.forEach( ind=>
       {
           const v = ind.data_cache[timeKey]
           ind.value = v;
-          //console.log("i ",v )
+         // console.log("i ",v )
       });
       lbl=""
       
       //painter.onMouseMove_disabled(param.point)
-      painter.redraw();
+      //painter.redraw();
       // Aggiungi valori indicatori alla legenda
 
       /*
@@ -1116,6 +1101,7 @@ const buildChart =  () => {
 }
 
 };
+
 
 // =========================
 let old_size = [0,0]

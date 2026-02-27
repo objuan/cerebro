@@ -184,7 +184,7 @@ class OrderManager:
             self.ib.newOrderEvent += self.onNewOrder
             self.ib.newOrderEvent += self.onNewOrder
             self.ib.errorEvent += onError
-            self.ib.execDetailsEvent  += self.onExec
+            #self.ib.execDetailsEvent  += self.onExec
             self.ib.commissionReportEvent += self.onCommission
         pass 
 
@@ -284,7 +284,7 @@ class OrderManager:
                 select * from ib_orders 
                 WHERE SYMBOL = '{symbol}' AND status = 'Filled' AND event_type = 'STATUS'
                 order by id desc 
-                LIMIT 5
+                LIMIT 10
                 """)
         
         trades = self.rebuild_trades(df)
@@ -295,6 +295,24 @@ class OrderManager:
         else:
             return None
 
+    def getTradeByTradeID(self,trade_id)-> PositionTrade:
+        
+        df = self.client.get_df(f"""
+                select * from ib_orders 
+                WHERE trade_id = '{trade_id}' 
+                AND status = 'Filled' AND event_type = 'STATUS'
+                order by id desc 
+                LIMIT 10
+                """)
+        
+        trades = self.rebuild_trades(df)
+        
+        #PositionTrade
+        if len(trades)>0:
+            return trades[-1]
+        else:
+            return None
+        
     #####################
 
 
@@ -361,11 +379,12 @@ class OrderManager:
        await self.addOrder(trade, "STATUS")
 
     #############
-    
+    '''
     def onExec(self,trade, fill):
         
         logger.info(f"onExec {trade} {fill}")
         self.exec_to_order[fill.execution.execId] = trade.order.orderId
+    '''
 
     async def onCommission(self,trade:Trade,fill:Fill,commissionReport:CommissionReport):
         logger.info(f"onCommission {trade} \ncommissionReport:{commissionReport}")
@@ -375,7 +394,7 @@ class OrderManager:
         comm = commissionReport.commission
         pnl = commissionReport.realizedPNL
 
-        logger.info(f"orderId {orderId} Commission:{comm} pnl:{pnl}")
+        logger.info(f"orderId {orderId} Commission:{comm} pnl:{pnl} permId:{permId}")
 
         df = self.client.get_df(f""" select * from ib_order_commissions  WHERE trade_id = '{permId}'  """)
         if len(df)>0:
@@ -389,6 +408,9 @@ class OrderManager:
             cur.execute('''INSERT INTO ib_order_commissions (trade_id, symbol, pnl, commission)
                     VALUES (?, ?, ?, ?)''',
                 (permId, trade.contract.symbol,pnl,comm ))
+            
+        msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
+        await self.client.send_trade_event("POSITION_TRADE",msg)
      
     ###########
 
@@ -713,7 +735,7 @@ class OrderManager:
                                 lmtPrice=formatted_price,
                                 tif='DAY' ,
                                 #tif='IOC' , #o tutto o niente
-                                outsideRth=False
+                                outsideRth=True
                             )
                         else:
                             # PRE / AFTER
@@ -741,8 +763,10 @@ class OrderManager:
                         self.lastError = None
                         return self.ib.placeOrder(contract, entry)
 
-                    attempt=attempt+1
+                    
                     trade:Trade = await self.send_order(contract.symbol,do_order,attempt)
+                    attempt=attempt+1
+                    
                     submittedCount=0
 
                     ###trade:Trade = 

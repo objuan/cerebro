@@ -53,22 +53,22 @@ class PositionTrade:
         else:
             return False
         
-    @property
-    def pnl(self):
+    def eval(self):
  
         buys = deque()
         pnl = 0.0
-
+        commissions = 0.0
         for op in self.list:
+            commissions += op.comm
             if op.side == "BUY":
-                buys.append([op.size, op.price])
+                buys.append([op.size, op.price,op.comm])
 
             elif op.side == "SELL":
                 sell_size = op.size
                 sell_price = op.price
 
                 while sell_size > 0 and buys:
-                    buy_size, buy_price = buys[0]
+                    buy_size, buy_price ,comm = buys[0]
 
                     matched = min(buy_size, sell_size)
 
@@ -82,9 +82,17 @@ class PositionTrade:
                     else:
                         buys[0][0] = buy_size
 
-        return pnl
+        return {"pnl": pnl-commissions,"balance": pnl, "comm": commissions}
+
+    @property
+    def comm(self):
+        comm = 0.0
+        for op in self.list:
+            comm+= op.comm
+        return comm
 
     def to_dict(self):
+        e = self.eval()
         return {
             "symbol": self.symbol,
             "list": [
@@ -98,7 +106,9 @@ class PositionTrade:
                 }
                 for op in self.list
             ],
-            "pnl": self.pnl
+            "pnl": e["pnl"],
+            "balance": e["balance"],
+             "comm":e["comm"]
         }
 
 

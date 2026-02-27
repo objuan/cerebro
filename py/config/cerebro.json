@@ -158,7 +158,23 @@
 				"params" :
 				{
 					"eta" : 5,
-					"min_gain" : 5
+					"min_gain" : 5,
+					"min_volume" : "500K",
+					"name" : "GAIN_5_5",
+					"color" : "#CC95FF"
+				}
+			},
+			{
+			   "module": "gain_strategy",
+				"class" : "GainStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+					"eta" : 1,
+					"min_gain" : 3,
+					"min_volume" : "500K",
+					"name" : "GAIN_1_5",
+					"color" : "#9795FF"
 				}
 			},
 			{

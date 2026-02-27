@@ -34,6 +34,7 @@ import TradeWidget from '@/components/TradeWidget.vue'
 
 
 function onTradeUpdated(msg){
+  //console.log("onTradeUpdated",msg)
  tradeStore.push(msg)
 }
 

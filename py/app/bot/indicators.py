@@ -18,15 +18,23 @@ from utils import *
 
 class Indicator:
     
-    def get_render_data(self, dataframe) -> pd.DataFrame:
+    def __init__(self,target_cols):
+        self.target_cols=target_cols
+        pass
+
+    def get_render_data(self, dataframe,target_col) -> pd.DataFrame:
+        if not target_col in self.target_cols:
+            raise "col not found : " + target_col
         return (
-            dataframe[["symbol", "timestamp", self.target_col]]
-            .dropna(subset=[self.target_col])
+            dataframe[["symbol", "timestamp", target_col]]
+            .dropna(subset=[target_col])
             .rename(columns={
-                self.target_col: "value",
+                target_col: "value",
                 "timestamp": "time"
             })
         )
+
+
     def compute(self, dataframe, group, start_pos):
         pass
 
@@ -50,6 +58,7 @@ class Indicator:
 class SMA(Indicator):
    
     def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
         self.source_col=source_col
         self.target_col=target_col
         self.window=timeperiod
@@ -71,6 +80,7 @@ class SMA(Indicator):
 class EMA(Indicator):
    
     def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
         self.source_col=source_col
         self.target_col=target_col
         self.window=timeperiod
@@ -102,6 +112,7 @@ class EMA(Indicator):
 
 class GAIN(Indicator):
     def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
         self.source_col=source_col
         self.target_col=target_col
         self.timeperiod=timeperiod
@@ -128,6 +139,7 @@ class GAIN(Indicator):
 
 class VWAP(Indicator):
     def __init__(self,target_col, price_name="close"):
+        super().__init__([target_col])
         self.target_col=target_col
         self.price_name=price_name
 
@@ -205,6 +217,7 @@ class GAIN(Indicator):
 
 class AVG(Indicator):
     def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
         self.source_col=source_col
         self.target_col=target_col
         self.timeperiod=timeperiod
@@ -223,6 +236,7 @@ class AVG(Indicator):
 
 class FLOAT(Indicator):
     def __init__(self,target_col):
+        super().__init__([target_col])
         self.target_col=target_col
         self.cache = {}
 
@@ -242,6 +256,7 @@ class FLOAT(Indicator):
 
 class SORT_POS(Indicator):
     def __init__(self,target_col, source_col):
+        super().__init__([target_col])
         self.target_col=target_col
         self.source_col=source_col
         self.cache = {}

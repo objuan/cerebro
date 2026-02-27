@@ -3,6 +3,7 @@
     <div class="filter-bar">
 
       <div class="filter-popup-wrapper">
+        Strats
           <button class="btn btn-sm btn-dark" @click="open = !open">
             Filters ⚙️
           </button>
@@ -98,7 +99,7 @@ const sortedEvents = computed(() =>
   return [...store.items]
     .filter(e =>
       allowedSources.value.includes(e.source) &&
-      (allowedNames.value.length === 0 || allowedNames.value.includes(e.name)) &&
+      (e.name==="ALARM" || allowedNames.value.length === 0 || allowedNames.value.includes(e.name)) &&
       (allowedSymbols.value.length === 0 || allowedSymbols.value.includes(e.symbol))
     )
     .sort((a, b) => b.timestamp - a.timestamp)

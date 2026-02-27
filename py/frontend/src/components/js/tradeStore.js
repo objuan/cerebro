@@ -4,6 +4,7 @@ import { eventBus } from "@/components/js/eventBus";
 
 export const tradeStore = reactive({
   items: {},
+  items_summary: {},
   day_PNL: 0,
   win: 0,
   loss: 0,
@@ -16,7 +17,7 @@ export const tradeStore = reactive({
     data.pos = newTime;
     data.isOpen = this._isOpen(data)  
 
-     console.log("tradeStore", data)
+     //console.log("tradeStore", data)
      if (!this.items[symbol]) {
         this.items[symbol] = [];
       }
@@ -27,19 +28,23 @@ export const tradeStore = reactive({
         );
 
         if (index !== -1) {
-          console.log("update old")
+         // console.log("update old")
           // aggiorna il vecchio mantenendo eventuali campi non presenti nel nuovo
           this.items[symbol][index] = {
             ...this.items[symbol][index],
             ...data
           };
+          Object.assign(this.items_summary[symbol],  this._symbol_pnl(symbol))
+          
+
         } else {
-          console.log("new")
+         // console.log("new")
           this.items[symbol].push(data);
+          // se è sell calcolo il totale per symbolo 
+          this.items_summary[symbol] = this._symbol_pnl(symbol)
         }
       }
       
-
       //console.log("trade",data)     
 
       this._day_pnl()
@@ -82,6 +87,27 @@ export const tradeStore = reactive({
       symbol,
       ...data
     }))
+  },
+  symbolSummary(symbol){
+    return this.items_summary[symbol]
+  },
+   _symbol_pnl(symbol){
+    let ret = {pnl : 0, win : 0, loss : 0, total:0}
+    this.get_all_trades().forEach( (trade) => {  
+       if (!trade.isOpen && trade.symbol == symbol){
+        //if (!trade.isOpen)
+         // console.log("trade",trade.value) 
+          ret.pnl = ret.pnl +trade.pnl
+          ret.total = ret.total +1  
+          if (trade.pnl >= 0) {
+            ret.win = ret.win +1
+          } else {
+            ret.loss = ret.loss +1
+          } 
+       } 
+    })
+    return ret;
+
   },
    _day_pnl(){
     this.day_PNL=0;
@@ -137,6 +163,18 @@ export const tradeStore = reactive({
               .filter(f => f.side === 'BUY')
               .map(f => f.price)
               
+          const buy_comm = trade.list
+            .filter(fill => fill.side === 'BUY')
+            .reduce((sum, fill) => sum + (fill.comm || 0), 0);
+
+          let sell_comm = trade.list
+            .filter(fill => fill.side === 'SELL')
+            .reduce((sum, fill) => sum + (fill.comm || 0), 0);
+          if (sell_comm == 0){
+              sell_comm = buy_comm
+          }
+          const comm = buy_comm+ sell_comm;
+
           const avgPrice =
             buyPrices.length
               ? buyPrices.reduce((s, p) => s + p, 0) / buyPrices.length
@@ -146,10 +184,11 @@ export const tradeStore = reactive({
             .filter(fill => fill.side === 'SELL')
             .reduce((sum, fill) => sum + fill.price * fill.size, 0)
           
-
           const sellSize= trade.list
             .filter(fill => fill.side === 'SELL')
             .reduce((sum, fill) => sum + fill.size, 0)
+
+      
 
           const remain = buySize-sellSize
 
@@ -157,13 +196,13 @@ export const tradeStore = reactive({
           
           //console.log("cpu",buyTotal,sellTotal,remain,actualSell) 
 
-          const pnl = actualSell-buyTotal;
+          const pnl = actualSell-buyTotal - comm;
           
           const gain =  ((actualSell-buyTotal) / buyTotal) * 100
       
          // console.log("pnl",pnl,"gain",gain)
 
-          return {buyTotal,avgPrice,sellTotal,actualSell,buySize,sellSize,pnl, gain}
+          return {buyTotal,avgPrice,sellTotal,actualSell,buySize,sellSize,pnl, gain,comm}
       }
       return null
   }

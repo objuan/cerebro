@@ -27,6 +27,9 @@
             {{ s }}
           </option>
         </select>
+        <!-- -->
+        PNL {{tradeStore.symbolSummary(currentSymbol)?.pnl.toFixed(1)}}$
+
         </div>
 
         <div  class="middle-row" style="margin-left:20px; 
@@ -90,6 +93,7 @@ import {send_get} from '@/components/js/utils.js' // saveProp
 //import { liveStore } from '@/components/js/liveStore.js';
 import { staticStore } from '@/components/js/staticStore.js';
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
+import { tradeStore } from "@/components/js/tradeStore";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -443,7 +447,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 600px;
+  width: 700px;
 }
 
 .middle-row {
@@ -460,11 +464,11 @@ watch(
 
 .symbol {
   color: yellow;
-   font-size: 1.9rem;
+   font-size: 1.5rem;
 }
 .positon{
   margin-left: 10px;
     color: rgb(255, 255, 255);
-   font-size: 1.9rem;
+   font-size: 1.5rem;
 }
 </style>

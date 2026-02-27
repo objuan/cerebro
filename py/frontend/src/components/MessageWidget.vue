@@ -104,6 +104,18 @@ const props = defineProps({
 let reportDetails = null // key -> result
 const isNew = ref(true)
 const open = ref(false)
+const audio = ref(null);
+
+audio.value = new Audio("/media/alert1.mp3");
+
+
+const playSound = () => {
+  audio.value.muted = true;
+  audio.value.currentTime = 0;
+  audio.value.play().catch(()=>{});
+  audio.value.muted = false;
+};
+
 
 function my_ramp_perc(v, color){
   const f =  Math.min(10,v) / 10
@@ -182,12 +194,12 @@ function toggle() {
 
  // console.log("fullDetails",fullDetails)
 }
-
+/*
 function ramp_perc(value,color){
- console.log(value,color)
+    console.log(value,color)
 }
-
-console.debug(ramp_perc)
+*/
+//console.debug(ramp_perc)
 // Esponiamo i dati dello store al template
 
 function onSymbolClick(symbol) {
@@ -212,8 +224,12 @@ const checkNew = () => {
   }
 }
 
+
+
 onMounted( async () => {
    checkNew();
+   if (props.title =="ALARM")
+      playSound()
 });
 
 onBeforeUnmount(() => {

@@ -36,6 +36,7 @@
                   <td  >
                     <span :style="{ color: lastSummary?.pnl>0 ? 'lime' : 'red' }">
                      {{lastSummary?.pnl.toFixed(1)}} 
+                     ({{-lastSummary?.comm.toFixed(1)}} )
                     </span>
                   </td>
                    <td>
@@ -58,9 +59,11 @@
       <!--  DETAIL -->
 
      <div v-if="showHistory" class="history-popup">
-        <div>{{ props.symbol }}</div>
+        <div>{{ props.symbol }}
+           PNL {{  tradeStore.symbolSummary(symbol)?.pnl.toFixed(1)}} $
+        </div>
         <div class="history-close" @click="toggleHistory">✕</div>
-        
+       
         <TradeWidget
 
           v-for="(trade, ti) in tradeStore.get_trades(props.symbol)"
@@ -109,10 +112,13 @@ const lastPrice = computed(() => {
 });
 
 const lastSummary = computed(() => {
+  return tradeStore.computeGain(lastTrade.value)
+  /*
   if (tradeStore.computeGain(lastTrade.value))
     return tradeStore.computeGain(lastTrade.value)
   else
       return null
+    */
 });
 
 /*

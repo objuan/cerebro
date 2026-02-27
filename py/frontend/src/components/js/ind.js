@@ -16743,7 +16743,7 @@ function applyVWAP(series, chart, options = {}) {
     // Create the VWAP line series as overlay (paneIndex: 0)
     const vwapSeries = chart.addSeries(lineSeries, {
         color,
-        lineWidth: 2,
+        lineWidth: 1,
          priceLineVisible: false,lastValueVisible: false,
         priceFormat: {
             type: 'price',

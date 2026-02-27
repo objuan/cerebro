@@ -47,6 +47,58 @@ function syncOverlaySize(overlay, topCanvas) {
       }
 }
 
+export class ChartWatcher
+{
+  constructor(chart,painter, pollingTime){
+     this.lastRangePrice=null;
+     this.lastRangeTime=null;
+     this.intervalId=null
+     this.chart=chart;
+     this.painter=painter;
+     this.pollingTime=pollingTime
+  }
+
+  start(){
+   
+      const panes = this.chart.panes();
+
+      // console.log("ChartWatcher start",panes)
+
+      //if (!panes?.length) return;
+
+      const priceScale = panes[0].priceScale("right");
+      const ts = this.chart.timeScale();
+  
+      //console.log("ChartWatcher ..")
+
+      this.intervalId=setInterval(()=>{
+        try{
+          let changed=false;
+
+          const pr=priceScale.getVisibleRange?.();
+          if(pr && (!this.lastRangePrice || pr.from!==this.lastRangePrice.from || pr.to!==this.lastRangePrice.to)){
+            this.lastRangePrice=pr;
+            changed=true;
+          }
+
+          const tr=ts.getVisibleLogicalRange?.();
+          if(tr && (!this.lastRangeTime || tr.from!==this.lastRangeTime.from || tr.to!==this.lastRangeTime.to)){
+            this.lastRangeTime=tr;
+            changed=true;
+          }
+
+          if(changed) this.painter?.safeRedraw?.();
+        }catch(e){console.debug(e)}
+      },this.pollingTime)
+    }
+  destroy(){
+    console.log("ChartWatcher destroy",this.intervalId)
+
+    if (this.intervalId)
+      clearInterval(this.intervalId)
+  }
+}
+
 export function  createPainter(context,mainChart,overlay, trade_quantity_ref) 
 {
   return {
@@ -64,6 +116,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     edit:null,
     primitives : [],
     chartCanvas:null,
+    running:false,
 
     tradeBoxHandler: {change : null, delete : null},
     //
@@ -153,6 +206,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         });
 
          this.chartCanvas.dispatchEvent(evt);
+         this.redraw();
     }
     ,_private__contextMenuHandler(e){
         e.preventDefault() // blocca menu browser
@@ -529,9 +583,18 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
           this.redraw()
           */
       }
+    },
+    safeRedraw(){
+      if (this.running) return;
+      this.running = true;
+      requestAnimationFrame(()=>{
+        this.redraw();
+        this.running = false;
+      });
     }
     ,redraw(){
-     // console.log("redraw")
+      //console.trace()
+      //console.log("redraw")
       if (!this.overlay.value) return
       this.canvas_ctx.save();
       this.canvas_ctx.setTransform(1, 0, 0, 1, 0, 0);

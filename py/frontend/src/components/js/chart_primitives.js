@@ -48,7 +48,7 @@ class Primitive {
   save(){
       if (this.virtual)
         return
-      console.log("save", this)
+      //console.log("save", this)
       let s = this.painter.context.currentSymbol.value
       if (!s) s = this.painter.context.currentSymbol
       let tf = this.painter.context.currentTimeframe.value

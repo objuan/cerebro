@@ -2,16 +2,16 @@
   "trade": {
     "rr": 2,
     "trade_risk": 0.1,
-    "day_risk": 0.1,
+    "day_risk": 0.2,
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "2_1"
+    "grid": "1_1"
   },
   "chart": {
     "1": {
-      "grid": "1_2",
-      "symbol": "CDIO",
+      "grid": "1_1",
+      "symbol": "LASE",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -42,7 +42,7 @@
     },
     "2": {
       "grid": "1_2",
-      "symbol": "XWEL",
+      "symbol": "BYAH",
       "indicator": {
         "1m": "aa",
         "10s": "aa"
@@ -60,14 +60,14 @@
     },
     "4": {
       "grid": "1_1",
-      "symbol": "NAMM",
+      "symbol": "RRGB",
       "indicator": {
         "1m": "aa"
       }
     },
     "3": {
       "grid": "1_1",
-      "symbol": "AGAE",
+      "symbol": "HIT",
       "indicator": {
         "1m": "aa"
       }
@@ -77,7 +77,7 @@
     "filter_events": "[\"trade\",\"order\",\"task-order\",\"error\",\"message\"]",
     "filter_strategy": {
       "sources": "[\"strategy\"]",
-      "names": "[\"GAIN_5\",\"vwap\",\"ALARM\"]",
+      "names": "[\"GAIN_5_5\",\"GAIN_1_5\"]",
       "symbols": "[]"
     }
   },
@@ -123,7 +123,8 @@
       "mode": "MARKER"
     },
     "YIBO": {
-      "mode": "DIRECT"
+      "mode": "DIRECT",
+      "quantity": 100
     },
     "TRNR": {
       "quantity": 100,
@@ -207,6 +208,36 @@
     },
     "VSME": {
       "quantity": 200
+    },
+    "PFSA": {
+      "quantity": 200
+    },
+    "BYAH": {
+      "quantity": 100
+    },
+    "RRGB": {
+      "quantity": 100
+    },
+    "CURX": {
+      "quantity": 100
+    },
+    "ALBT": {
+      "quantity": 300
+    },
+    "MGN": {
+      "quantity": 100
+    },
+    "BGL": {
+      "quantity": 100
+    },
+    "AEHL": {
+      "quantity": 100
+    },
+    "LASE": {
+      "quantity": 100
+    },
+    "PMVP": {
+      "quantity": 100
     }
   },
   "back": {

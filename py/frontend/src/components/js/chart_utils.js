@@ -1,33 +1,40 @@
 import {send_post,generateGUID, send_delete} from '@/components/js/utils.js';
 import {pointToSegmentDistance} from '@/components/js/utils.js'; // Usa il percorso corretto
 import { createTradingLine, LineSeries,LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
-import { ref} from 'vue';
+import { ref,toRaw} from 'vue';
 
 import {send_get} from '@/components/js/utils.js'; // Usa il percorso corretto
 import {  createSeriesMarkers } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 export function clearStrategyIndicators(context){
   //context.strategy_index_map={}
+  
+  console.log("clearStrategyIndicators ")
+
   Object.keys(context.strategy_index_map).forEach(key => {
-  delete context.strategy_index_map[key];
-});
-  context.strategy_index_list.forEach((ind)=>
-  { 
-    context.chart.removeSeries(ind.line);
+    if (context.strategy_index_map[key]["marker_series"])
+        context.strategy_index_map[key]["marker_series"] .setMarkers([])
+
+      delete context.strategy_index_map[key];
   });
-  context.strategy_index_list.length =0
-   createSeriesMarkers(context.series, []);
+  context.strategy_index_list.value.forEach((ind)=>
+  { 
+  //  console.log("remove ",ind.line)
+    context.chart.removeSeries(toRaw(ind.line));
+  });
+  context.strategy_index_list.value.length =0
+
+  //createSeriesMarkers(context.series, []);
 }
 
 export async  function updateStrategyIndicators(context,
     symbol, timeframe,since=null){
-  // console.log("updateStrategyIndicators",context,symbol,timeframe,since)
+   //console.log("updateStrategyIndicators",context,symbol,timeframe,since)
 
   try
   //if (Object.keys(strategy_index_map).length==0)
   {
     let strategy_index_map = context.strategy_index_map;
-    let strategy_index_list = context.strategy_index_list;
 
     let strat_response =null;
     if (since==null)
@@ -38,7 +45,7 @@ export async  function updateStrategyIndicators(context,
     // console.log("task strat_response",strat_response)
     strat_response.forEach( (strat) =>
     {
-      //   console.log("task strat_response",strat)
+         console.log("task strat_response",strat)
           const strat_name = strat.strategy
 
           if(!strategy_index_map[strat_name])
@@ -48,7 +55,7 @@ export async  function updateStrategyIndicators(context,
 
           if (!storage["markers"])
           {
-            //console.log("NEW")
+            console.log("NEW")
             let markers =  []
 
             strat.markers.forEach( marker =>{
@@ -63,11 +70,13 @@ export async  function updateStrategyIndicators(context,
             });
             if (markers.length>0)
             {
-               createSeriesMarkers(context.series, markers);
+               const _m = createSeriesMarkers(context.series, markers);
                storage["markers_last"] = markers.at(-1)
                storage["markers"] = markers;
+               storage["marker_series"]  = _m;
                console.log("markers",markers,  storage["markers"])
             }
+           
           }
           else{
              console.log("UPDATE")
@@ -90,17 +99,19 @@ export async  function updateStrategyIndicators(context,
               if (markers.length>0)
               {
                 console.log("UPDATE MARKER", markers)
-                createSeriesMarkers(context.series, markers);
+                //createSeriesMarkers(context.series, markers);
+                 storage["marker_series"] .setMarkers(markers)
                 storage["markers_last"] = markers.at(-1)
                 storage["markers"] = markers;
               }
           }
-          
+          // INDICATIORS
           if (strat.list)
+          {
             strat.list.forEach( (data) =>
             {
               const name = data.name;
-              //console.log("name",name,storage[name])
+              console.log("name",name,storage[name],"style",data.style,"len",context.strategy_index_list.value.length)
               if(!storage[name])
               {
                   storage[name] = data
@@ -109,18 +120,18 @@ export async  function updateStrategyIndicators(context,
                   storage[name].value = ref(0.1)
                   storage[name].data_cache={}
                   
-                  strategy_index_list.push(data)
+                  context.strategy_index_list.value.push(data)
 
                   // creo indice
                   let line =  context.chart.addSeries(LineSeries, {
                       color: data.color,
-                      lineWidth: 2,
-                      lineStyle:0,
+                      lineWidth: data.lineWidth,
+                      lineStyle:LineStyle[data.style],
                       priceLineVisible: false,
                       lastValueVisible: false,
                       crosshairMarkerVisible: false,
                     });
-                    data.line = line
+                  data.line = line
 
                   const formattedData = data.data.map(d => ({
                       time: window.db_localTime ? window.db_localTime(d.time) : d.time,
@@ -143,30 +154,31 @@ export async  function updateStrategyIndicators(context,
 
               
                 if (data.data.length>0)
-              {
-                
-                    data.data.forEach(  (d)=>
-                    {
-                        if (d.time >= last_candle.time)
-                        {
-                          const formattedData = {
-                            time:  window.db_localTime(d.time) ,
-                            value: d.value
-                          };
-
-                       //   console.log("UPDATE",formattedData)
-
-                          storage[name].line.update(formattedData);
-                          storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
-                          storage[name].last_candle = d;
-                        }
-                    });
+                {
                   
-                      //storage[name].line.setData(formattedData);
-                  }
-              }
+                      data.data.forEach(  (d)=>
+                      {
+                          if (d.time >= last_candle.time)
+                          {
+                            const formattedData = {
+                              time:  window.db_localTime(d.time) ,
+                              value: d.value
+                            };
+
+                        //   console.log("UPDATE",formattedData)
+
+                            storage[name].line.update(formattedData);
+                            storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value
+                            storage[name].last_candle = d;
+                          }
+                      });
+                    
+                        //storage[name].line.setData(formattedData);
+                    }
+                }
              //   console.log("data",strat_name,data)
             })
+          }
       })
     }
     catch(e){

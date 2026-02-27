@@ -6,7 +6,7 @@
        <div class="col-2rows">
           <div class="row r1">
                 <div class="d-flex align-items-center gap-1">
-                  {{symbol}} Quantity
+                  Quantity
                   <select
                     v-model="quantity"
                     class="form-select form-select-sm"
@@ -186,13 +186,33 @@ function setMode(mode){
 }
 
 function send_limit_order(){
-  // check 
-  if(lastTrade.value && lastTrade.value.isOpen){
-    const ok = confirm("Hai già una posizione aperta. Vuoi continuare?")
-    if(!ok) return
-  }
+  const val =  quantity.value * ticker.value.last
+  if (val>0){
+    const day_balance_USD =  liveData.value['trade.day_balance_USD']
+    const max_day_loss = liveData.value['trade.max_day_loss']
+    const day_PNL = tradeStore.day_PNL
 
-  order_limit(props.symbol,quantity.value)
+    if (day_PNL < -max_day_loss)
+    {
+        const ok = confirm("Hai già perso il badget del giorno ("+day_PNL.toFixed(1)+"/"+max_day_loss+"), vuoi continuare ?" )
+        if(!ok) return
+    }
+    if (val < 100)
+    {
+        const ok = confirm("Prezzo finale troppo piccolo, vuoi continuare ?" )
+        if(!ok) return
+    }
+
+
+    console.log("send ",val,day_balance_USD,max_day_loss,day_PNL)
+    // check 
+    if(lastTrade.value && lastTrade.value.isOpen){
+      const ok = confirm("Hai già una posizione aperta. Vuoi continuare?")
+      if(!ok) return
+    }
+
+    order_limit(props.symbol,quantity.value)
+  }
 }
 
 

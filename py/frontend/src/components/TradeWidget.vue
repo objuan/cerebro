@@ -7,11 +7,12 @@
             <span v-if="tradeIsOpen(props.trade)"  style="color:orange">
               Open
             </span>
-            <span
-              v-else
+            <span v-else
               :style="{ color: trade.pnl >= 0 ? 'lime' : 'red' }"
             >
               PnL: {{ props.trade.pnl.toFixed(2) }}
+              (G:{{ props.trade.balance.toFixed(2) }},
+              C:{{-props.trade.comm.toFixed(1) }})
             </span>
           </div>
 
@@ -23,9 +24,9 @@
             <span :style="{ color: fill.side === 'BUY' ? 'lime' : 'red' }">
               {{ fill.side }}
             </span>
-            {{ formatTime(fill.time*1000) }}
-            @ {{ fill.price }}
-            x {{ fill.size }}
+            {{ formatTime(fill.time*1000) }}           
+            @{{ fill.price.toFixed(3) }}x{{ fill.size }}
+            ({{ fill.comm.toFixed(1) }})
           </div>
         </div>
   
@@ -93,6 +94,7 @@ watch(
   z-index: 9999;
   box-shadow: 0 10px 30px rgba(0,0,0,0.6);
   font-family: monospace;
+
 }
 
 .history-close {
@@ -140,7 +142,7 @@ watch(
   color: white;
   cursor: pointer;
    font-family: system-ui;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .tooltip {

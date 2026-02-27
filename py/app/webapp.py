@@ -981,11 +981,29 @@ async def get_strategy(limit, types:str    ):
         return {"status": "error"}
     
 ############################
+@app.get("/api/news/update/all")
+async def get_news_all():
+
+    async def on_end():
+        await get_news_current()
+        #logger.info("!!!!!!!!!!!!!!!!!!!!!")
+    asyncio.create_task(newService.scan(client.symbols,onEndHandler=on_end,force=True))
+
+    
+    return {"status": "ok" }
+
 @app.get("/api/news/update")
 async def get_news(symbol):
     # no wait
+    async def on_end():
+        #await get_news_current()
+        news = await newService.find(symbol)
+        if news:
+            await client.send_news(symbol,news)
 
-    asyncio.create_task(newService.scan([symbol], force=True))
+        #logger.info("!!!!!!!!!!!!!!!!!!!!!")
+
+    asyncio.create_task(newService.scan([symbol], onEndHandler=on_end,force=True))
 
     #newService.scan([symbol],force=True)
 

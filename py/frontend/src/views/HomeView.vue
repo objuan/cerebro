@@ -116,7 +116,7 @@
             <OrderChartWidget  ></OrderChartWidget>
          </SidePanel>
           
-         <SidePanel title="Day Trade" ref ="tradeRef" width="400px">
+         <SidePanel title="Day Trade" ref ="tradeRef" width="500px">
              <TradeSideSummary></TradeSideSummary>
         </SidePanel>
 
@@ -369,7 +369,7 @@ const initWebSocket_mulo = () => {
           dataParsed["source"] = "message"  
           dataParsed["color"] = "#FF000"
         
-          console.log("MESSAGE",msg)
+          //console.log("MESSAGE",msg)
 
           eventBus.emit("message-received",dataParsed);
           break
@@ -474,7 +474,7 @@ const initWebSocket = () => {
         
         case "news":
           {
-          //  console.log("news",msg);
+            console.log("news",msg);
             newsStore.push(msg["symbol"], msg["data"])
          }
           break;

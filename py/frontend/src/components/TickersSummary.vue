@@ -244,7 +244,13 @@
                    Update  News
                 </a>
               </li>
-
+              <li>
+                <a class="dropdown-item"
+                  href="#"
+                   @click.prevent="updateNewsAll()">
+                   Update  News All
+                </a>
+              </li>
                <li><hr class="dropdown-divider"></li>
 
                <li>
@@ -319,6 +325,7 @@ const orderedKeys = [
 ]
 
 const progress = (item) => {
+  if (!item.secs_from) return 0;
   if ( item.secs_from< 10) return 100;
   const f =  Math.min(10, item.secs_from-10)/10
   return 100 - f * 100;
@@ -328,9 +335,12 @@ const sortedTickers = computed(() => {
   const list = tickerList.get_sorted();
 
   return [...list].sort((a, b) => {
-    const av = a.report?.[sortBy.value] ?? 0;
-    const bv = b.report?.[sortBy.value] ?? 0;
-    return bv - av; // decrescente
+    const aMissing = !a.secs_from;
+    const bMissing = !b.secs_from;
+
+    if (aMissing !== bMissing) return aMissing - bMissing;
+
+    return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
   });
 });
 
@@ -354,6 +364,9 @@ function getSymbolInfos(symbol){
 
 async function updateNews(symbol){
     await send_get("/api/news/update", {"symbol": symbol})
+}
+async function updateNewsAll(){
+    await send_get("/api/news/update/all")
 }
 function getNews(symbol){
   console.log("selectedSymbol", symbol)
