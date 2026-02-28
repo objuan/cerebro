@@ -55,6 +55,78 @@ class Indicator:
             self.compute(dataframe, group, start_pos)
 
  
+ 
+class VWAP_OPEN(Indicator):
+    def __init__(self, target_col, variance_mult, price_name="close"):
+        super().__init__([target_col,target_col+"_up",target_col+"_down"])
+        self.target_col = target_col
+        self.price_name = price_name
+        self.variance_mult=variance_mult
+
+    def compute(self, dataframe, group, start_pos):
+
+        group = group.sort_values("timestamp")
+        ts = pd.to_datetime(group["timestamp"], unit="ms")
+
+        # sessione regular US (15:30 Italia)
+        session = (ts - pd.Timedelta(hours=14, minutes=30)).dt.date
+        #session = ts.dt.tz_localize("UTC").dt.tz_convert("America/New_York").dt.date
+
+        # prezzo tipico
+        price = (group["high"] + group["low"] + group[self.price_name]) / 3
+
+        # volume reale candela
+        volume = group["base_volume"]
+
+        # cumulativi per sessione
+        cum_vol = volume.groupby(session).cumsum()
+
+        cum_pv = (price * volume).groupby(session).cumsum()
+        #
+        cum_p2v  = (price * price * volume).groupby(session).cumsum()
+
+        # VWAP
+        vwap  = (cum_pv / cum_vol).replace([np.inf, -np.inf], np.nan)
+
+        variance = (cum_p2v / cum_vol) - (vwap * vwap)
+        variance = variance.clip(lower=0)
+        std = np.sqrt(variance)
+
+        upper = vwap + self.variance_mult * std
+        lower = vwap - self.variance_mult * std
+
+        #variance = (cum_pv_2v / cum_vol- vwap_full*vwap_full).replace([np.inf, -np.inf], np.nan)
+
+        if start_pos == 0:
+            dataframe.loc[group.index, self.target_col] = vwap.values
+            dataframe.loc[group.index, self.target_col+"_up"] = upper.values
+            dataframe.loc[group.index, self.target_col+"_down"] = lower.values
+
+        else:
+            dataframe.loc[group.index[start_pos:], self.target_col] = \
+                vwap.iloc[start_pos:].values
+            dataframe.loc[group.index[start_pos:], self.target_col+"_up"] = \
+                upper.iloc[start_pos:].values
+            dataframe.loc[group.index[start_pos:], self.target_col+"_down"] = \
+                lower.iloc[start_pos:].values
+
+
+class VWAP_DIFF(Indicator):
+  
+  def __init__(self,target_col):
+        self.target_col=target_col
+    
+  def compute(self, dataframe, group, start_pos):
+        
+        close = group["close"]
+        vwap = group["vwap"]
+
+        diff_perc = ((close - vwap) / vwap) * 100
+        
+        dataframe.loc[group.index, self.target_col] = diff_perc
+
+        #logger.info(f"VWAP_DIFF AFTER \n{group.tail(30)}")
+        
 class SMA(Indicator):
    
     def __init__(self,target_col, source_col:str, timeperiod:int):

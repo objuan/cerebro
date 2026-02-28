@@ -70,7 +70,10 @@
               </tr>
             <tr style="height : 40%">
               <td class="volume">
-                  {{ formatValue(item.report?.day_volume) }}
+                <span :style="{ color: rankColor(item.summary?.day_volume,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 170, b: 90 }) }">
+                    {{ formatValue(item.report?.day_volume) }}
+                </span>
+                  
               </td>
               <td class="volume" :style="{ color: item.report?.rel_vol_5m>0 ? 'green' : 'red' }">
                   {{item.report?.rel_vol_5m.toFixed(1)}}%
@@ -87,13 +90,14 @@
                 v-for="key in orderedKeys"
                 :key="key"
                 class="cell"
-                :title="getRank(key)"
+                :title="key"
               >
-              <span v-if="isTrue(item.summary[key])">
+              <span >
+
                   <svg
-                    v-if="key === 'news'"
+                    v-if="key === 'news' "
                     class="icon "
-                    :style="{color:newsColor(item.summary.news-1)}"
+                    :style="{color:newsColor(item.summary.news)}"
                     viewBox="0 0 24 24"
                   >
                     <path
@@ -103,9 +107,21 @@
                   </svg>
 
                   <svg
+                    v-else-if="key == 'last' "
+                    class="icon "
+                    :style="{color:rankColor(item.summary[key]) }"
+                    viewBox="0 0 24 24"
+                  >
+                      <path
+                        d="M12 2C7 2 3 4.2 3 7v10c0 2.8 4 5 9 5s9-2.2 9-5V7c0-2.8-4-5-9-5zm0 2c4.4 0 7 1.6 7 3s-2.6 3-7 3-7-1.6-7-3 2.6-3 7-3zm0 14c-4.4 0-7-1.6-7-3V9c1.7 1.2 4.4 2 7 2s5.3-.8 7-2v6c0 1.4-2.6 3-7 3z"
+                        fill="currentColor"
+                      />
+                  </svg>
+
+                  <svg
                     v-else
                     class="icon "
-                    :style="{color:priceColor(item.summary[key]) }"
+                    :style="{color:rankColor(item.summary[key]) }"
                     viewBox="0 0 24 24"
                   >
                     <path
@@ -136,16 +152,18 @@
 
               <div class="row">
                 <div class="label">Volume</div>
-                <div class="value">{{ formatValue(item.report.day_volume) }}</div>
+                <div class="value"
+                :style="{ color: rankColor(item.summary.day_volume) }"
+                >{{ formatValue(item.report.day_volume) }}   ({{ item.summary.day_volume.rank }})</div>
               </div>
 
               <div class="row">
                 <div class="label">Price</div>
                 <div
                   class="value"
-                  :style="{ color: priceColor(item.summary.price) }"
+                  :style="{ color: rankColor(item.summary.last) }"
                 >
-                  {{ item.report.last }}
+                  {{ item.report.last }} ({{ item.summary.last.rank }})
                 </div>
               </div>
 
@@ -153,9 +171,9 @@
                 <div class="label">From Close</div>
                 <div
                   class="value"
-                  :style="{ color: priceColor(item.summary.gain) }"
+                  :style="{ color: rankColor(item.summary.gain) }"
                 >
-                  {{ item.report.gain.toFixed(1) }}%
+                  {{ item.report.gain.toFixed(1) }}% ({{ item.summary.gain.rank }})
                 </div>
               </div>
 
@@ -163,9 +181,9 @@
                 <div class="label">Gap</div>
                 <div
                   class="value"
-                  :style="{ color: priceColor(item.summary.gap) }"
+                  :style="{ color: rankColor(item.summary.gap) }"
                 >
-                  {{ item.report.gap.toFixed(1) }}%
+                  {{ item.report.gap.toFixed(1) }}% ({{ item.summary.gap.rank }})
                 </div>
               </div>
 
@@ -173,9 +191,9 @@
                 <div class="label">Float</div>
                 <div
                   class="value"
-                  :style="{ color: priceColor(item.summary.float) }"
+                  :style="{ color: rankColor(item.summary.float) }"
                 >
-                  {{ formatValue(item.report.float) }}
+                  {{ formatValue(item.report.float) }} ({{ item.summary.float.rank }})
                 </div>
               </div>
 
@@ -183,10 +201,11 @@
                 <div class="label">Rel 24</div>
                 <div
                   class="value"
-                  :style="{ color: priceColor(item.summary.rel_vol_24) }"
-                >
-                  {{ item.report.rel_vol_24.toFixed(1) }}%
+                  :style="{ color: rankColor(item.summary.rel_vol_24) }"
+                > 
+                  {{ item.report.rel_vol_24.toFixed(1) }}%  ({{ item.summary.rel_vol_24.rank }})
                 </div>
+                
               </div>
 
               <div class="row">
@@ -307,7 +326,7 @@
 import {  ref, computed, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import { send_get,formatValue,priceColor,newsColor } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_get,formatValue,newsColor,rankColor } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { eventBus } from "@/components/js/eventBus";
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { reportStore as report } from "@/components/js/reportStore";
@@ -321,7 +340,7 @@ let timer = null
 
 const orderedKeys = [
   'float', 'gain', 'gap',
-  'news', 'price', 'volume'
+  'news', 'last', 'rel_vol_24'
 ]
 
 const progress = (item) => {
@@ -343,19 +362,25 @@ const sortedTickers = computed(() => {
     return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
   });
 });
-
-const isTrue = (v) => v > 0
+/*
+const isTrue = (v) =>
+{
+  console.log(v.name)
+  return v.value>0
+}
+  */
 
 defineProps({
 })
 
-
+/*
 function getRank(key){
   if (key =="news")
     return "news";
   else
     return key;
 }
+    */
 function getSymbolInfos(symbol){
   console.log("getSymbolInfos", symbol)
   const url = `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`;

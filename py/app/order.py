@@ -409,8 +409,9 @@ class OrderManager:
                     VALUES (?, ?, ?, ?)''',
                 (permId, trade.contract.symbol,pnl,comm ))
             
-        msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
-        await self.client.send_trade_event("POSITION_TRADE",msg)
+        if self.getLastTrade(trade.contract.symbol):
+            msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
+            await self.client.send_trade_event("POSITION_TRADE",msg)
      
     ###########
 

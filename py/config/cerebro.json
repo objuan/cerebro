@@ -111,17 +111,6 @@
 				}
 			}
 	]
-	,"stategies22":[
-		{
-			    "module": "alarm_strategy",
-				"class" : "AlarmStrategy",
-				"timeframe" : "10s",
-				"params" :
-				{
-				}
-			}
-	]
-	
 	,"stategies":[
 		{
 			    "module": "alarm_strategy",
@@ -134,7 +123,28 @@
 		{
 			   "module": "trade_strategy",
 				"class" : "TradeStrategy",
-				"timeframe" : "1m",
+				"timeframe" : "10s",
+				"params" :
+				{
+					"eta" : 5,
+					"min_gain" : 5
+				}
+			}
+	]
+	
+	,"stategies22":[
+		{
+			    "module": "alarm_strategy",
+				"class" : "AlarmStrategy",
+				"timeframe" : "10s",
+				"params" :
+				{
+				}
+		},
+		{
+			   "module": "trade_strategy",
+				"class" : "TradeStrategy",
+				"timeframe" : "10s",
 				"params" :
 				{
 					"eta" : 5,

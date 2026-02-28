@@ -9,7 +9,7 @@ import {  createSeriesMarkers } from '@/components/js/ind.js' // '@pipsend/chart
 export function clearStrategyIndicators(context){
   //context.strategy_index_map={}
   
-  console.log("clearStrategyIndicators ")
+ // console.log("clearStrategyIndicators ")
 
   Object.keys(context.strategy_index_map).forEach(key => {
     if (context.strategy_index_map[key]["marker_series"])
@@ -45,7 +45,7 @@ export async  function updateStrategyIndicators(context,
     // console.log("task strat_response",strat_response)
     strat_response.forEach( (strat) =>
     {
-         console.log("task strat_response",strat)
+         //onsole.log("task strat_response",strat)
           const strat_name = strat.strategy
 
           if(!strategy_index_map[strat_name])
@@ -53,9 +53,10 @@ export async  function updateStrategyIndicators(context,
 
           let storage = strategy_index_map[strat_name] 
 
+          // MARKERS
           if (!storage["markers"])
           {
-            console.log("NEW")
+          //  console.log("NEW")
             let markers =  []
 
             strat.markers.forEach( marker =>{
@@ -79,7 +80,7 @@ export async  function updateStrategyIndicators(context,
            
           }
           else{
-             console.log("UPDATE")
+            // console.log("UPDATE")
              const last =  storage["markers_last"] 
              let markers = storage["markers"] 
 
@@ -111,7 +112,7 @@ export async  function updateStrategyIndicators(context,
             strat.list.forEach( (data) =>
             {
               const name = data.name;
-              console.log("name",name,storage[name],"style",data.style,"len",context.strategy_index_list.value.length)
+              //console.log("name",name,storage[name],"style",data.style,"len",context.strategy_index_list.value.length)
               if(!storage[name])
               {
                   storage[name] = data
@@ -121,9 +122,11 @@ export async  function updateStrategyIndicators(context,
                   storage[name].data_cache={}
                   
                   context.strategy_index_list.value.push(data)
-
+                   let line =null;
+                  if (data.panel == 'main')
+                  {
                   // creo indice
-                  let line =  context.chart.addSeries(LineSeries, {
+                  line =  context.chart.addSeries(LineSeries, {
                       color: data.color,
                       lineWidth: data.lineWidth,
                       lineStyle:LineStyle[data.style],
@@ -132,6 +135,19 @@ export async  function updateStrategyIndicators(context,
                       crosshairMarkerVisible: false,
                     });
                   data.line = line
+                  }
+                  else
+                  {
+                       line =  context.chart.addSeries(LineSeries, {
+                      color: data.color,
+                      lineWidth: data.lineWidth,
+                      lineStyle:LineStyle[data.style],
+                      priceLineVisible: false,
+                      lastValueVisible: false,
+                      crosshairMarkerVisible: false,
+                    },1);
+                      data.line = line
+                  }
 
                   const formattedData = data.data.map(d => ({
                       time: window.db_localTime ? window.db_localTime(d.time) : d.time,
@@ -146,6 +162,7 @@ export async  function updateStrategyIndicators(context,
                     storage[name].last_candle = data.data.at(-1);
 
                     line.setData(formattedData);
+                  
               }
               else
               {
@@ -178,6 +195,24 @@ export async  function updateStrategyIndicators(context,
                 }
              //   console.log("data",strat_name,data)
             })
+            // LEGENTS
+            if (strat.legends)
+            {
+              context.legend_index_list.value.length=0
+              //console.log("dddd",strat.legends)
+              strat.legends.forEach( (data) =>
+                {
+                  console.log(data)
+
+                  const legend_data={
+                    type:"legend", name: data.label,value : data.value,params : {color : data.color}
+                  }
+               
+
+                  context.legend_index_list.value.push(legend_data)
+                  
+              });
+            }
           }
       })
     }

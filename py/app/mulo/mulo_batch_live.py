@@ -473,6 +473,7 @@ class LiveManager:
                                 #logger.info("send")
                                 # send
                                 v = volume - candle["last_volume"]
+                                v = max(0,v)
                                 
                                 data = {
                                     "m": "full",

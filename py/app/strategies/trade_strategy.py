@@ -13,78 +13,33 @@ from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
 
-class VWAP_OPEN(Indicator):
-    def __init__(self, target_col, variance_mult, price_name="close"):
-        super().__init__([target_col,target_col+"_up",target_col+"_down"])
-        self.target_col = target_col
-        self.price_name = price_name
-        self.variance_mult=variance_mult
-
-    def compute(self, dataframe, group, start_pos):
-
-        group = group.sort_values("timestamp")
-        ts = pd.to_datetime(group["timestamp"], unit="ms")
-
-        # sessione regular US (15:30 Italia)
-        session = (ts - pd.Timedelta(hours=14, minutes=30)).dt.date
-        #session = ts.dt.tz_localize("UTC").dt.tz_convert("America/New_York").dt.date
-
-        # prezzo tipico
-        price = (group["high"] + group["low"] + group[self.price_name]) / 3
-
-        # volume reale candela
-        volume = group["base_volume"]
-
-        # cumulativi per sessione
-        cum_vol = volume.groupby(session).cumsum()
-
-        cum_pv = (price * volume).groupby(session).cumsum()
-        #
-        cum_p2v  = (price * price * volume).groupby(session).cumsum()
-
-        # VWAP
-        vwap  = (cum_pv / cum_vol).replace([np.inf, -np.inf], np.nan)
-
-        variance = (cum_p2v / cum_vol) - (vwap * vwap)
-        variance = variance.clip(lower=0)
-        std = np.sqrt(variance)
-
-        upper = vwap + self.variance_mult * std
-        lower = vwap - self.variance_mult * std
-
-        #variance = (cum_pv_2v / cum_vol- vwap_full*vwap_full).replace([np.inf, -np.inf], np.nan)
-
-        if start_pos == 0:
-            dataframe.loc[group.index, self.target_col] = vwap.values
-            dataframe.loc[group.index, self.target_col+"_up"] = upper.values
-            dataframe.loc[group.index, self.target_col+"_down"] = lower.values
-
-        else:
-            dataframe.loc[group.index[start_pos:], self.target_col] = \
-                vwap.iloc[start_pos:].values
-            dataframe.loc[group.index[start_pos:], self.target_col+"_up"] = \
-                upper.iloc[start_pos:].values
-            dataframe.loc[group.index[start_pos:], self.target_col+"_down"] = \
-                lower.iloc[start_pos:].values
-
-
-class VWAP_DIFF(Indicator):
+class VWAP_PERC(Indicator):
   
   def __init__(self,target_col):
+        super().__init__([target_col])
         self.target_col=target_col
     
   def compute(self, dataframe, group, start_pos):
         
         close = group["close"]
         vwap = group["vwap"]
+        vwap_up = group["vwap_up"]
+        vwap_down = group["vwap_down"]
 
-        diff_perc = ((close - vwap) / vwap) * 100
-        
-        dataframe.loc[group.index, self.target_col] = diff_perc
+        band_h = vwap_up-vwap_down
+        close_perc = 100* (close - vwap_down) / band_h
 
-        #logger.info(f"VWAP_DIFF AFTER \n{group.tail(30)}")
+        dataframe.loc[group.index, self.target_col] = close_perc
 
+        gain = close_perc - close_perc.shift(1)
 
+        dataframe.loc[group.index, self.target_col + "_gain"] = gain
+
+        variance = ((band_h) / vwap_down) * 100
+
+        dataframe.loc[group.index, self.target_col + "_var"] = variance
+
+########################
 
 #from strategy.order_strategy import *
 class SmartStrategy(Strategy):
@@ -93,6 +48,7 @@ class SmartStrategy(Strategy):
     def __init__(self, manager):
         super().__init__(manager)
         self.plots = []
+        self.legend = []
         self.marker_map= {}
 
     def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
@@ -151,9 +107,29 @@ class SmartStrategy(Strategy):
         if df.empty:
             return []
         else:
-            logger.info(f"live_markers since:{since}\n{df}")
+            #logger.info(f"live_markers since:{since}\n{df}")
             return df.to_dict(orient="records")
        
+    def live_legend(self,symbol,timeframe,since):
+        if not timeframe:
+            timeframe = self.timeframe
+
+        if since:
+            df = self.df(timeframe,symbol)
+            if not df.empty:
+                df = df[df["timestamp"]>= since]
+            #logger.info(f"since {since}\n{df}")
+        else:
+            df = self.df(timeframe,symbol)
+        arr = []
+        for leg in self.legend:
+            d = leg.copy()
+            del d["ind"]
+            d["value"] =   df.iloc[-1] [d["source"]]
+            arr.append(d)
+         #logger.info(f"live_markers since:{since}\n{df}")
+        return arr
+        
     def live_indicators(self,symbol,timeframe,since):
      
         if not timeframe:
@@ -166,11 +142,20 @@ class SmartStrategy(Strategy):
             #logger.info(f"since {since}\n{df}")
         else:
             df = self.df(timeframe,symbol)
+
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df.dropna()
+    
         if df.empty:
-            return{"strategy": __name__ ,"markers": self.live_markers(symbol,timeframe,since)}
+            return{"strategy": __name__ 
+                   ,"legends" : []
+                   ,"markers": self.live_markers(symbol,timeframe,since)}
         
         #logger.info(f"out \n{df}")
-        o = {"strategy": __name__ ,"markers": self.live_markers(symbol,timeframe,since), "list" : []}
+        o = {"strategy": __name__ ,
+             "markers": self.live_markers(symbol,timeframe,since), 
+             "legends": self.live_legend(symbol,timeframe,since), 
+             "list" : []}
 
         #logger.info(f"process1 {self.plots}")
         for p in  self.plots:
@@ -192,11 +177,13 @@ class SmartStrategy(Strategy):
     
     #######
     # style in ['Solid','Dotted','Dashed','LargeDashed','SparseDotted']
-    def add_plot(self,ind : Indicator ,name :str,  color:str,isMain: bool =True,source = None, style="Solid",lineWidth=1):
-        self.plots.append({"ind": ind ,"name" : name ,"source" : source, "color" : color, "main" : isMain,"style":style,"lineWidth": lineWidth})
+    def add_plot(self,ind : Indicator ,name :str,  color:str,panel: str ='main',source = None, style="Solid",lineWidth=1):
+        self.plots.append({"ind": ind ,"name" : name ,"source" : source, "color" : color, "panel" : panel,"style":style,"lineWidth": lineWidth})
         pass
     
-    #######
+    def add_legend(self, ind:Indicator, source:str,label:str, color:str):
+        self.legend.append( {"ind": ind ,"source" : source ,"label" : label, "color" : color})
+        pass
 
 ########################
 
@@ -210,41 +197,66 @@ class TradeStrategy(SmartStrategy):
     def populate_indicators(self) :
 
         i = self.addIndicator(self.timeframe,VWAP_OPEN("vwap",1))
-       #/ i1 = self.addIndicator(self.timeframe,VWAP("vwap1"))
+        i1 = self.addIndicator(self.timeframe,VWAP_PERC("vwap_perc"))
 
-        self.addIndicator(self.timeframe, VWAP_DIFF("diff"))
+        #self.addIndicator(self.timeframe, VWAP_DIFF("diff"))
        
-        self.add_plot(i, "vwap","#15ff00", True, source="vwap",style="SparseDotted", lineWidth=2)
-        self.add_plot(i, "vwap_up","#15ff00", True, source="vwap_up",style="SparseDotted", lineWidth=2)
-        self.add_plot(i, "vwap_down","#15ff00", True, source="vwap_down",style="SparseDotted", lineWidth=2)
+        self.add_plot(i, "vwap","#15ff00", "main", source="vwap",style="SparseDotted", lineWidth=2)
+        self.add_plot(i, "vwap_up","#15ff00", "main", source="vwap_up",style="SparseDotted", lineWidth=2)
+        self.add_plot(i, "vwap_down","#15ff00", "main", source="vwap_down",style="SparseDotted", lineWidth=2)
 
+        self.add_plot(i1, "vwap_perc","#034cd3", "sub1", source="vwap_perc",style="Solid", lineWidth=2)
+
+        self.add_legend(i1, "vwap_perc_var","var","#ffffff" )
+    ######################################
 
     async def trade_symbol_at(self, isLive:bool, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
         if not isLive:
             return
         try:
             df_symbols = dataframe[dataframe["symbol"]== symbol ]
-           
-            close =  df_symbols.iloc[-2]["close"]
-            vwap =  df_symbols.iloc[-2]["vwap"]
-            vwap_up =  df_symbols.iloc[-1]["vwap_up"]
-            vwap_down =  df_symbols.iloc[-1]["vwap_down"]
 
-            if symbol == "AEHL":
+            close =  df_symbols.iloc[-2]["close"]
+            #vwap =  df_symbols.iloc[-2]["vwap"]
+            #vwap_up =  df_symbols.iloc[-1]["vwap_up"]
+            #vwap_down =  df_symbols.iloc[-1]["vwap_down"]
+            close_perc =  df_symbols.iloc[-1]["vwap_perc"]
+            close_perc_prev =  df_symbols.iloc[-2]["vwap_perc"]
+
+            day_volume=  df_symbols.iloc[-1]["day_volume"]
+
+            vwap_perc_gain =  df_symbols.iloc[-1]["vwap_perc_gain"]
+            vwap_perc_gain_prev =  df_symbols.iloc[-2]["vwap_perc_gain"]
+
+            if day_volume > 500000:
+     
                 logger.info(f"df_symbols   {symbol} \n {df_symbols.tail(1)}" )
 
-                band_h =  vwap_up-vwap_down
-                close_perc = 100* (close - vwap_down) / band_h
+                #band_h =  vwap_up-vwap_down
+                #close_perc = 100* (close - vwap_down) / band_h
 
                 logger.info(f"symbol close_perc {close_perc}")
 
-                if (close_perc > 50):
-                    self.buy(symbol,f"{close_perc:.1f}%")
+                if (close_perc > 90):
+                    await self.send_event(symbol, "VWAP UP", f"VWAP UP {close_perc:.1f}%",f"vwap over {close_perc:.1f}% ",color="#A7FF1A")
+                
+                if (close_perc < 10):
+                    await self.send_event(symbol, "VWAP LOW", f"VWAP LOW {close_perc:.1f}%",f"vwap lower {close_perc:.1f}% ",color="#F37C0C")
+                
+                ## sotto
+                if (close_perc_prev <=5 and close_perc>5
+                    and vwap_perc_gain<0  and vwap_perc_gain_prev >0):
+                      await self.send_event(symbol, "VWAP LOW-B", f"vwap low bounce {close_perc:.1f}%",f"vwap over {close_perc:.1f}% ",color="#B8A437")
+                
+                #f (close_perc > 50):
+                #    self.buy(symbol,f"{close_perc:.1f}%")
             #dataframe.loc[global_index]["diff_perc"] = diff_perc
 
         except:
             logger.error(f"trade_symbol_at   {symbol} index {global_index} \n {dataframe.tail(1)}", exc_info=True )
             #exit(0)
+
+    ######################################
 
     async def trade_symbol_at_old(self, isLive:bool, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
         if not isLive:

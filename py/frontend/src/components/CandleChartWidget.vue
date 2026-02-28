@@ -60,23 +60,28 @@
               <span v-if="ind.type == 'strategy'">
                 {{ Number(ind.value)?.toFixed(4) }}
               </span>
-              <input v-if="ind.type != 'strategy'"
-                type="color"
-                v-model="ind.params.color"
-                class="ms-0 p-0 b-0"
-                style="width:20px;height:20px"
-                @input="updateIndicatorColor(ind)"
-              />
+              <span v-else-if="ind.type == 'legend'">
+                {{ Number(ind.value)?.toFixed(4) }}
+              </span>
+              <div v-else >
+                  <input 
+                    type="color"
+                    v-model="ind.params.color"
+                    class="ms-0 p-0 b-0"
+                    style="width:20px;height:20px"
+                    @input="updateIndicatorColor(ind)"
+                  />
 
-              <button v-if="ind.type != 'strategy'"
-                class="btn btn-sm btn-outline-danger ms-0 p-0 b-0" 
-                
-                style="width:20px;height:20px"
-                @click="removeIndicator(i)"
-                title="Rimuovi indicatore"
-              >
-                ✕
-              </button>
+                  <button v-if="ind.type != 'strategy'"
+                    class="btn btn-sm btn-outline-danger ms-0 p-0 b-0" 
+                    
+                    style="width:20px;height:20px"
+                    @click="removeIndicator(i)"
+                    title="Rimuovi indicatore"
+                  >
+                    ✕
+                  </button>
+              </div>
             </div>
           </div>
 
@@ -223,6 +228,8 @@ let painter = null;
 //let timeLine_open=null;
 let strategy_index_map = {}
 const  strategy_index_list = ref([])
+const  legend_index_list = ref([])
+
 
 const gfx_canvas = ref(null);
 
@@ -274,6 +281,7 @@ function context() {
         gfx_canvas,
         strategy_index_map,
         strategy_index_list,
+        legend_index_list,
         mainChartRef
 
     };
@@ -283,7 +291,8 @@ const ui_indicatorList = computed( ()=>
 {
    return [
     ...indicatorList.value,
-    ...strategy_index_list.value
+    ...strategy_index_list.value,
+    ...legend_index_list.value
   ];
 });
 
@@ -949,7 +958,6 @@ const buildChart =  () => {
     wickUpColor: '#838ca1', wickDownColor: '#838ca1',
     priceScaleId : "right"
   });
-  console.log
 
   painter.setChart(chart,series)
 

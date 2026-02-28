@@ -82,7 +82,7 @@ import MessageWidget from "@/components/MessageWidget.vue";
 
 
 const allowedSources = ref(['mule', 'strategy'])
-const allowedNames = ref([])
+const allowedNames = ref()
 const allowedSymbols = ref([])
 const open = ref(false)
 
@@ -96,10 +96,14 @@ const uniqueSymbols = computed(() =>
 
 const sortedEvents = computed(() =>
 {
+  console.log(allowedNames.value)
   return [...store.items]
     .filter(e =>
       allowedSources.value.includes(e.source) &&
-      (e.name==="ALARM" || allowedNames.value.length === 0 || allowedNames.value.includes(e.name)) &&
+      ( e.name==="ALARM" 
+         || allowedNames.value.length === 0
+         || true
+         || allowedNames.value.includes(e.name)) &&
       (allowedSymbols.value.length === 0 || allowedSymbols.value.includes(e.symbol))
     )
     .sort((a, b) => b.timestamp - a.timestamp)
@@ -138,6 +142,7 @@ async function onStart(){
       allowedSymbols.value = JSON.parse(filter)
 }
 onMounted( async () => {
+  allowedNames.value=[]
     eventBus.on("on-start", onStart)
 });
 

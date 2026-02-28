@@ -295,12 +295,29 @@ export function saveProp(path,value){
 // =====================
 
 
-const _newsColors = ["#FF0000","#BBBB00","#0000ff"];
+const _newsColors = ["#ffffff","#FF0000","#BBBB00","#0000ff"];
 
 export const newsColor = (days)=>
     {
       return   _newsColors[Math.min(2,days)];
     }
+
+export const rankColor = (rank, 
+  start ={ r: 255, g: 255, b: 255 } ,
+  end =  { r: 0,   g: 230, b: 118 } // #00e676
+ ) => {
+  if (!rank) return "red"
+  // clamp sicurezza
+  const v = rank.rank / 100
+
+  //v = Math.max(0, Math.min(1, Number(v) || 0))
+
+  const r = Math.round(start.r + (end.r - start.r) * v)
+  const g = Math.round(start.g + (end.g - start.g) * v)
+  const b = Math.round(start.b + (end.b - start.b) * v)
+
+  return `rgb(${r}, ${g}, ${b})`
+}
 
 //const symbolList = ref([]);
 export const priceColor = (v) => {
