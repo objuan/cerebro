@@ -55,7 +55,75 @@ class Indicator:
             self.compute(dataframe, group, start_pos)
 
  
+ #################################
+
+
  
+#rolling().mean() → ATR stile SMA (più semplice, meno fedele al classico)
+# usata DA IB
+class ATR_SMA(Indicator):
+
+    def __init__(self, target_col: str, timeperiod: int):
+        super().__init__([target_col])
+        self.target_col = target_col
+        self.window = timeperiod
+
+    def compute(self, dataframe, group, start_pos):
+
+        warmup = max(0, start_pos - self.window)
+
+        sub = group.iloc[warmup:].copy()
+
+        high = sub["high"]
+        low = sub["low"]
+        close = sub["close"]
+
+        prev_close = close.shift(1)
+
+        tr1 = high - low
+        tr2 = (high - prev_close).abs()
+        tr3 = (low - prev_close).abs()
+
+        true_range = tr1.combine(tr2, max).combine(tr3, max)
+
+        atr = true_range.rolling(window=self.window).mean()
+
+        # Scrivi solo le nuove righe
+        dataframe.loc[sub.index[start_pos - warmup:], self.target_col] = \
+            atr.iloc[start_pos - warmup:].values
+
+class ATR(Indicator):
+
+    def __init__(self, target_col: str, timeperiod: int):
+        super().__init__([target_col])
+        self.target_col = target_col
+        self.window = timeperiod
+
+    def compute(self, dataframe, group, start_pos):
+
+        warmup = max(0, start_pos - self.window * 2)
+
+        sub = group.iloc[warmup:].copy()
+
+        high = sub["high"]
+        low = sub["low"]
+        close = sub["close"]
+
+        prev_close = close.shift(1)
+
+        tr1 = high - low
+        tr2 = (high - prev_close).abs()
+        tr3 = (low - prev_close).abs()
+
+        true_range = tr1.combine(tr2, max).combine(tr3, max)
+
+        # Wilder smoothing
+        atr = true_range.ewm(alpha=1/self.window, adjust=False).mean()
+
+        dataframe.loc[sub.index[start_pos - warmup:], self.target_col] = \
+            atr.iloc[start_pos - warmup:].values
+        
+        
 class VWAP_OPEN(Indicator):
     def __init__(self, target_col, variance_mult, price_name="close"):
         super().__init__([target_col,target_col+"_up",target_col+"_down"])
@@ -90,7 +158,7 @@ class VWAP_OPEN(Indicator):
 
         variance = (cum_p2v / cum_vol) - (vwap * vwap)
         variance = variance.clip(lower=0)
-        std = np.sqrt(variance)
+        std = np.sqrt(variance) 
 
         upper = vwap + self.variance_mult * std
         lower = vwap - self.variance_mult * std

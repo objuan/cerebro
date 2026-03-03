@@ -91,7 +91,7 @@ class ReportManager:
                 symbol: {
                     col: self.py_value(self.df_report.loc[symbol, col])
                     for col in ["rank","rank_delta","gain","last", "day_volume","avg_base_volume_1d","float","rel_vol_24","rel_vol_5m",
-                                "gap","avg_base_volume_1d","avg_base_volume_5m","volume_5m"]
+                                "gap","avg_base_volume_1d","avg_base_volume_5m","volume_5m","scan"]
                 }
                 for symbol in self.df_report.index
             }
@@ -232,7 +232,7 @@ class ReportManager:
             
             #self.ind_vwap.apply(df)
             
-            df = df[["symbol","last_close","last","gain","ask","bid","day_volume"]]#self.get_last(df_1m)#.drop(columns=["quote_volume"])
+            df = df[["symbol","last_close","last","gain","ask","bid","day_volume","scan"]]#self.get_last(df_1m)#.drop(columns=["quote_volume"])
 
             #logger.info(f"df1 \n{df_1m.to_string(index=False)}")
 
@@ -307,6 +307,7 @@ class ReportManager:
 
             df = df.fillna(0)
             df = df.replace([np.inf, -np.inf], np.nan).fillna(0)
+
             df_new_report = df.sort_values(by="gain", ascending=False)
             df_new_report["rank"] = range(1, len(df_new_report) + 1)
             

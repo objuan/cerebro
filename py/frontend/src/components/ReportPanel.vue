@@ -118,7 +118,8 @@ const columns = [
    {"title": "Gap","bind" : "gap", "type" :"perc" , "decimals": 1,"sort":"true", "colors":{ "range_min": 0 , "range_max":10 ,   "color_min": "#FFFFFF" , "color_max":"#14A014"    }} ,
    {"title": "Vol 5m","bind" : "volume_5m", "type" :"volume"  } ,
    {"title": "Avg 5m","bind" : "avg_base_volume_5m", "type" :"volume"  } ,
-   {"title": "Avg 1d","bind" : "avg_base_volume_1d", "type" :"volume"  } 
+   {"title": "Avg 1d","bind" : "avg_base_volume_1d", "type" :"volume"  } ,
+   {"title": "Scan","bind" : "scan", "type" :"text"  } 
   
 ]
 

@@ -194,7 +194,12 @@ class TradeStrategy(SmartStrategy):
         self.min_gain= self.params["min_gain"]
         pass
 
+    def extra_dataframes(self)->List[str]:
+        return ['1d']
+
     def populate_indicators(self) :
+
+        atr = self.addIndicator("1d",ATR_SMA("atr",14))
 
         i = self.addIndicator(self.timeframe,VWAP_OPEN("vwap",1))
         i1 = self.addIndicator(self.timeframe,VWAP_PERC("vwap_perc"))
@@ -208,12 +213,16 @@ class TradeStrategy(SmartStrategy):
         self.add_plot(i1, "vwap_perc","#034cd3", "sub1", source="vwap_perc",style="Solid", lineWidth=2)
 
         self.add_legend(i1, "vwap_perc_var","var","#ffffff" )
+
     ######################################
 
     async def trade_symbol_at(self, isLive:bool, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
         if not isLive:
             return
         try:
+            atr = self.df("1d",symbol).iloc[-1]["atr"]
+            #logger.info(f"atr {symbol}  {atr}" )
+
             df_symbols = dataframe[dataframe["symbol"]== symbol ]
 
             close =  df_symbols.iloc[-2]["close"]
@@ -230,12 +239,12 @@ class TradeStrategy(SmartStrategy):
 
             if day_volume > 500000:
      
-                logger.info(f"df_symbols   {symbol} \n {df_symbols.tail(1)}" )
+               # logger.info(f"df_symbols   {symbol} \n {df_symbols.tail(1)}" )
 
                 #band_h =  vwap_up-vwap_down
                 #close_perc = 100* (close - vwap_down) / band_h
 
-                logger.info(f"symbol close_perc {close_perc}")
+               # logger.info(f"symbol close_perc {close_perc}")
 
                 if (close_perc > 90):
                     await self.send_event(symbol, "VWAP UP", f"VWAP UP {close_perc:.1f}%",f"vwap over {close_perc:.1f}% ",color="#A7FF1A")

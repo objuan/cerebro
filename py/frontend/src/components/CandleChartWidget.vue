@@ -121,6 +121,10 @@
               @click="painter?.setMode('trade-box')">
             T
           </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
+              @click="painter?.setMode('fibonacci')">
+            F
+          </button>
           <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
             @click="setDrawMode('delete')">
             D

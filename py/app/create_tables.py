@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS ib_ohlc_history (
         base_volume REAL,
         quote_volume REAL,
         day_volume REAL,
+        vwap REAL,
 
         source TEXT,        -- ib | live
         updated_at INTEGER,          
@@ -124,17 +125,11 @@ cur.execute("""
 
 cur.execute("""
        CREATE TABLE IF NOT EXISTS ib_scanner (
-        mode TEXT,
-        ts_exec  INTEGER,
-        pos  INTEGER,
-        conidex NUMBER  ,
-        symbol TEXT ,
-        available_chart_periods TEXT,
-        company_name TEXT,
-        contract_description_1 TEXT,
-        listing_exchange TEXT,
-        sec_type TEXT,
-        PRIMARY KEY(mode,ts_exec,pos)
+        profile TEXT,
+        strategy TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        DATA TEXT,
+        PRIMARY KEY(profile,timestamp)
         )
     """)
 

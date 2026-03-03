@@ -1,3 +1,8 @@
+if __name__ =="__main__":
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import asyncio
 from contextlib import asynccontextmanager
 import json
@@ -203,42 +208,22 @@ class Scanner:
     
 
                 pos=0
+                data = []
                 # inserimento dati
                 #for row in display_with_stock_symbol(scanData).iterrows():
                 for contract, details in self.display_with_stock_symbol(scanData)[["contract", "contractDetails"]].values:
                         pos=pos+1
-                        sql = """
-                            INSERT INTO ib_scanner (
-                                mode,
-                                ts_exec,
-                                pos,
-                                symbol,
-                                conidex,
-                                available_chart_periods,
-                                company_name,
-                                contract_description_1,
-                                listing_exchange,
-                                sec_type
-                            ) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?,?)
-                        
-                            """
-                        
-                        conn.execute(sql, (
-                            name,
-                            run_time,
-                            pos,
-                            contract.symbol,
-                            contract.conId, #conidex
-                            "",
-                            contract.description,
-                            "",
-                            contract.exchange,
-                            contract.secType
-                        ))
-                        
-                
-                        conn.commit()
-                    
+                      
+                        data.append(
+                            {
+                                "pos": pos,
+                                "symbol" : contract.symbol,
+                                "conid" : contract.conId, #conidex                                
+                                "desc:" : contract.description,
+                                "exchange": contract.exchange,
+                                "seType": contract.secType
+                            }
+                        )
                         ##### stocks
                         df_stocks = pd.read_sql_query(f"select * from STOCKS where symbol='{contract.symbol}'", conn)
                         if len(df_stocks)==0:
@@ -253,7 +238,18 @@ class Scanner:
                         conn.execute(sql)
                         conn.commit()
 
+                sql = """
+                            INSERT INTO ib_scanner (
+                                profile,
+                                strategy,
+                                data
+                            ) VALUES (?,?, ? )
                         
+                            """
+                        
+                conn.execute(sql, ( name, selected_profile["type"], json.dumps(data)))
+                conn.commit()
+
                 conn.close()
 
                 #max_symbols=config["database"]["live"]["max_symbols"]
@@ -308,7 +304,7 @@ async def main():
     scanner = Scanner(ib,config,ms)
    
 
-    df_symbols = await scanner.do_scanner( "TOP_PERC_GAIN",2)
+    df_symbols = await scanner.do_scanner( "GAIN")
     
     print(df_symbols)
 

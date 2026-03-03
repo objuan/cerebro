@@ -240,7 +240,7 @@
 				"fetch_enabled" : true,
 				"mode" : "live",
 				"mode1" : "live|offline|sym",
-				"debug_symbols" : ["ABTS"],
+				"debug_symbols" : ["NVDA"],
 				"start_scan" : "live",
 				"start_scan1" : "keep_last_session|debug|live",
 				"start_sym_time" : "2026-02-13 10:00:00",
@@ -249,70 +249,68 @@
 				"strategy_folder"  :"strategies",
 				"scheduler":[
 					{
-						"name" : "PRE",
-						"update_time" : 600,
-						"live_mode" : "ADD"
+						"name" : "LOSE",
+						"update_time" : 1100,
+						"live_mode" : "MERGE",
+						"merge_weight" :"20%",
+						"discard_rule" : "TOP_GAIN"
+					},
+					{
+						"name" : "GAIN",
+						"update_time" : 60,
+						"live_mode" : "MERGE",
+						"merge_weight" :"60%",
+						"discard_rule" : "LESS_GAIN"
+					},
+					{
+						"name" : "VOLR",
+						"update_time" : 50,
+						"live_mode" : "MERGE",
+						"merge_weight" :"20%",
+						"discard_rule" : "IMMEDIATE"
 					}
+			
 				],
+				"types": "TOP_PERC_GAIN|TOP_PERC_LOSE|HOT_BY_PRICE_RANGE|TOP_VOLUME_RATE|HIGH_OPEN_GAP|LOW_OPEN_GAP|TOP_TRADE_RATE|MOST_ACTIVE|HIGH_OPEN_GAP|HIGH_PRICE",
 				"profiles": 
 				[
 					{
-						"name" : "TOP_PERC_GAIN > 1B$",
-						"instrument": "STK",
-						"location": "STK.US.MAJOR",
-						"type": "TOP_PERC_GAIN",
-						"type22": "HIGH_PRICE|MOST_ACTIVE|HIGH_OPEN_GAP|TOP_PERC_GAIN",
-						
-						"filter": 
-						{
-							"abovePrice": 0.5,
-							"belowPrice": 5,
-							"aboveVolume": 10,
-							"marketCapAbove" : 1000
-							
-						}
-					},
-					{
-						"name" : "TOP_PERC_GAIN ALL",
-						"instrument": "STK",
-						"location": "STK.US.MAJOR",
-						"type": "TOP_PERC_GAIN",
-						"type22": "HIGH_PRICE|MOST_ACTIVE|HIGH_OPEN_GAP|TOP_PERC_GAIN",
-						
-						"filter": 
-						{
-							"price_min": 0.1,
-							"price_max": 200,
-							"min_volume": 0,
-							"marketCap_min" : 0,
-							"float_min" : "0",
-							"float_max" : "500M"
-						}
-					},
-					{
-						"name" : "PRE",
+						"name" : "GAIN",
 						"instrument": "STK",
 						"location": "STK.NASDAQ",
 						"type": "TOP_PERC_GAIN",
 						"filter": 
 						{
 							"price_min": 0.5,
-							"price_max": 10,
+							"price_max": 5,
 							"float_min" : "500K",
 							"float_max" : "50M"
 						}
 					},
 					{
-						"name" : "MOST_ACTIVE",
+						"name" : "LOSE",
 						"instrument": "STK",
 						"location": "STK.NASDAQ",
-						"type": "MOST_ACTIVE",
+						"type": "TOP_PERC_LOSE",
 						"filter": 
 						{
-							"abovePrice": 1,
-							"belowPrice": 10000,
-							"aboveVolume": 10,
-							"marketCapAbove" : 1000
+							"price_min": 0.5,
+							"price_max": 5,
+							"float_min" : "500K",
+							"float_max" : "50M"
+						}
+					},
+					{
+						"name" : "VOLR",
+						"instrument": "STK",
+						"location": "STK.NASDAQ",
+						"type": "TOP_VOLUME_RATE",
+						"filter": 
+						{
+							"price_min": 0.5,
+							"price_max": 5,
+							"float_min" : "500K",
+							"float_max" : "50M"
 						}
 					}
 				]

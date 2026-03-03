@@ -62,7 +62,7 @@ def since_to_durationStr(seconds: int) -> str:
     delta = now - since
     '''
 
-    logger.info(f"since_to_durationStr << {seconds}")
+    #logger.info(f"since_to_durationStr << {seconds}")
 
     #seconds = int(delta.total_seconds())
 
@@ -299,7 +299,7 @@ class MuloJob:
                         #else:
                         #    end = datetime.now(timezone.utc).strftime('%Y%m%d-00:00:00')
 
-                        #logger.info(f">> end {end}")
+                        logger.info(f">> durationStr {since_to_durationStr(int(update_delta_min.total_seconds()))}")
 
                         bars =  self.ib.reqHistoricalData(
                             contract,
@@ -307,13 +307,14 @@ class MuloJob:
                             durationStr=since_to_durationStr(int(update_delta_min.total_seconds()) ),#tf_to_ib_period[timeframe],      # period back: 2 giorni
                             barSizeSetting=tf_to_ib[timeframe], #'1 min', # 1 minuto
                             whatToShow='TRADES',
-                            useRTH=True,           # includi orari estesi
+                            useRTH=False,           # includi orari estesi
                             formatDate=2 #unixtime
                         )
                         df = util.df(bars)
 
                         try:
                             logger.info(f">> #{len(bars)}")
+                            #logger.info(f"\n{df.columns}")
                             #df["timestamp"] = df["date"] * 1000
                             #df["Datetime"] = (df["date"].view("int64") // 10**6).astype("int64")
                             df = df.rename(columns={
@@ -322,12 +323,13 @@ class MuloJob:
                                 "low": "Low",
                                 "close": "Close",
                                 "volume": "Volume",
-                                "date" :"Datetime"
+                                "date" :"Datetime",
+                                "average" : "VWAP"
                             })
                             #df = df[["Datetime","Open","Close","High","Low","Volume"]]
                             #df.reset_index(drop=True, inplace=True)
                             #df.drop(columns=["index"], inplace=True)
-                            #logger.info(f"\n{df.tail(50)}")
+                            #logger.info(f"\n{df.tail(5)}")
 
                             await self.process_data(exchange,symbol, timeframe, cursor, df)
                             
@@ -402,7 +404,7 @@ class MuloJob:
                         df["Datetime"] = df["Datetime"].astype("int64") // 10**9
 
                 ohlcv = [
-                    (b[0] * 1000, b.Open, b.High, b.Low, b.Close, b.Volume)
+                    (b[0] * 1000, b.Open, b.High, b.Low, b.Close, b.Volume, b.VWAP)
                     for b in df.itertuples(index=False)
                 ]
 
@@ -416,15 +418,15 @@ class MuloJob:
                 if not ohlcv:
                     return False
 
-                for ts, open_, high, low, close, vol in ohlcv:
+                for ts, open_, high, low, close, vol , vwap,in ohlcv:
                     cursor.execute("""
                         INSERT INTO ib_ohlc_history (
                             exchange, symbol, timeframe, timestamp,
                             open, high, low, close,
                             base_volume, quote_volume,
-                            source, updated_at, ds_updated_at
+                            source, updated_at, ds_updated_at,vwap
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(exchange, symbol, timeframe, timestamp)
                         DO UPDATE SET
                             open = excluded.open,
@@ -435,7 +437,8 @@ class MuloJob:
                             quote_volume = excluded.quote_volume,
                             source = excluded.source,
                             updated_at = excluded.updated_at,
-                            ds_updated_at = excluded.ds_updated_at
+                            ds_updated_at = excluded.ds_updated_at,
+                            vwap = excluded.vwap
                     """, (
                         exchange,
                         symbol,
@@ -449,7 +452,8 @@ class MuloJob:
                         vol * close,
                         provider,
                         int(time.time() * 1000),
-                        datetime.utcnow().isoformat()
+                        datetime.utcnow().isoformat(),
+                        vwap
                     ))
 
                 cursor.commit()
@@ -460,7 +464,7 @@ class MuloJob:
             return
 
         try:
-            #logger.info(f"align_data {symbol} {timeframe}")
+            logger.info(f"Align_data {symbol} {timeframe}")
 
             query_max = f"""
                 SELECT max(timestamp) as max
@@ -474,8 +478,10 @@ class MuloJob:
             if True:
                     max_dt=None
                     update = False
+                    #logger.info(f"query_max {query_max}")
                     #df_min = pd.read_sql_query(query_min, conn, params= (symbol, timeframe))
                     df_max = pd.read_sql_query(query_max, conn, params= (symbol, timeframe))
+                    #logger.info(f"{df_max}")
                     #print(df)
                     if df_max.iloc[0]["max"]:
                         #if not df_min.iloc[0]["min"]:
@@ -511,7 +517,7 @@ class MuloJob:
                             (datetime.now() - timedelta(seconds=self.TIMEFRAME_LEN_CANDLES[timeframe]))
                             .timestamp()
                             )
-                        logger.info(f"BEGIN HISTORY {max_dt} ")
+                        logger.info(f"BEGIN HISTORY {max_dt} delta{self.TIMEFRAME_LEN_CANDLES[timeframe]}")
 
                     #update=True
                     if update:

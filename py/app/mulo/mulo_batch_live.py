@@ -112,6 +112,93 @@ sym_time = None
 
 #####################
 
+class LiveScanner:
+    def __init__(self, fetcher,config):
+        self.fetcher=fetcher
+        self.config=config
+        self.name=config["name"]
+        self.actual_df=None
+        self.symbol_map=None
+        self.symbol_to_conid_map=None
+        self.merge_weight = config["merge_weight"]
+        self.discard_rule = config["discard_rule"]
+
+    async def updateLive(self,df_symbols, manage_live)-> bool:#, range_min=None,range_max=None):
+
+        logger.info(f"UpdateLive {self.name} \n{df_symbols.tail(3)}")
+
+        # filter on blacklist
+        mask = df_symbols["symbol"].apply(lambda s: not fetcher.is_in_blacklist(s))
+        df_symbols = df_symbols[mask]
+        
+        logger.info(f"updateLive BLACKED #{len(df_symbols)}")
+
+        #df = df_symbols
+
+        # cut
+        if self.max_symbols != None:
+             df_symbols= df_symbols [:self.max_symbols]
+
+        '''
+        #add white list 
+        white = self.fetcher.get_day_white_list()    
+        for symbol in white:
+            contract = Stock(symbol, "SMART", 'USD')
+            self.ib.qualifyContracts(contract)
+
+            logger.info(f"ADD WATCH {symbol} {contract}")
+            
+            df_symbols.loc[len(df_symbols)] = [symbol, contract.conId,contract.primaryExchange]
+        '''
+        
+        logger.info(f"PROCESS  max:{self.max_symbols} \n{df_symbols}")
+        logger.info(f"ACTUAL {self.actual_df}")
+
+        changed=False
+        if len(df_symbols)==0:
+            self.actual_df = df_symbols
+            self.symbol_map =={}
+            self.symbol_to_conid_map = {}
+        else:
+            if not self.symbol_map:
+                self.actual_df = df_symbols
+                await manage_live(self, self.actual_df["symbol"].to_list(),[])
+                changed= True
+            else:
+                delta_prev = self.actual_df[~self.actual_df["symbol"].isin(df_symbols["symbol"])]
+                logger.info(f"PREV DELTA {delta_prev}")
+                to_remove= []
+                for s in delta_prev["symbol"].to_list():
+                    #if self.discard_rule =="IMMEDIATE":
+                    #if  fetcher.is_in_blacklist(s):
+                        to_remove.append(s)
+                    
+                logger.info(f"TO  REMOVED {to_remove}")
+                    
+                delta_new = df_symbols[~df_symbols["symbol"].isin(self.actual_df["symbol"])]
+
+                logger.info(f"NEW ADDED {delta_new}")
+
+                if len(to_remove)>0:
+                     self.actual_df = self.actual_df[
+                        ~self.actual_df["symbol"].isin(to_remove)
+                        ].reset_index(drop=True)
+
+                self.actual_df = pd.concat([self.actual_df, delta_new], ignore_index=True)
+                
+                logger.info(f"NEW LIST  {self.actual_df }")
+                
+                #in append
+                len(delta_new["symbol"].to_list())>0 or len(to_remove) >0
+
+                changed = await manage_live(self, delta_new["symbol"].to_list(),to_remove)
+
+        self.symbol_map = self.actual_df.set_index("symbol")["listing_exchange"].to_dict()
+        self.symbol_to_conid_map = self.actual_df.set_index("symbol")["conidex"].to_dict()
+        return changed
+
+   
+#####################################
 
 class LiveManager:
 
@@ -129,8 +216,10 @@ class LiveManager:
         self.run_mode = config["live_service"].get("mode","sym") 
 
         logger.info(f"RUN MODE {self.run_mode}")
-        self.actual_df=None
-        self.symbol_map=None
+        self.scanner_map = {}
+
+        #self.actual_df=None
+        #self.symbol_map=None
         self.symbol_to_conid_map=None
         self.tickers={}
         self.ticker_contracts={}
@@ -181,122 +270,96 @@ class LiveManager:
     def getTicker(self,symbol)-> Ticker:
          return self.tickers[symbol]
     
-    async def scanData(self, profile_name):
-        logger.info(f"========== SCAN ========== {profile_name} ===========")
-        df_symbols = await self.scanner.do_scanner(profile_name)
-        #logger.info(f"SCANNED \n{df_symbols}")
-        await self.updateLive(df_symbols)
-
-        await self.discard_last()
-
-        # 
-        if self.ws_manager:
-            await self.ws_manager.broadcast({"evt":"on_update_symbols"})
-
     def ordered_tickers(self):
          return sorted(  self.tickers.values(),
                         key=lambda t: t.gain,
                         reverse=True)
          
-    async def discard_last(self):
+    ################
+
+    async def scanData(self, live: LiveScanner)-> bool:
+        logger.info(f"========== SCAN ========== {live.name} ===========")
+        df_symbols = await self.scanner.do_scanner(live.name)
+
+        #logger.info(f"SCANNED \n{df_symbols}")
+        ret =  await live.updateLive(df_symbols, self.manage_live)
+
+        ret  = ret or await self.discard_last()
+        return ret
+
+    # 
+    def get_scanners(symbol):
+        scanners_found = [
+            scanner.name 
+            for scanner in live.scanner_map.values() 
+            if scanner.actual_df is not None 
+            and "symbol" in scanner.actual_df.columns
+            and symbol in scanner.actual_df["symbol"].values
+        ]
+        return scanners_found
+
+
+    async def discard_last(self)-> bool:
         logger.info(f"========== DISCARD LAST ========== ")
      
-        # ordino i tickers
-
         if len(self.tickers) > self.max_symbols:
-             o_tickers = self.ordered_tickers()
+            to_del_tickers =  {
+                    symbol: ticker
+                    for symbol, ticker in self.tickers.items()
+                    if not ticker.scan_list
+            }
+            if len(to_del_tickers)>0:
 
-             #logger.info(f"..{o_tickers}")
-             to_remove = o_tickers[self.max_symbols:]
-             
-             #symbols = [x.contract.symbol for x in to_remove]
-             symbols = [
-                x.contract.symbol
-                for x in to_remove
-                if ((datetime.now() - x.start_time).total_seconds() > 60
-                and not self.fetcher.is_in_white_list(x.contract.symbol))
-            ]
+                logger.info(f"CHECK TICKERS TO DELETE {to_del_tickers}")
 
-             logger.info(f"REMOVE LAST symbols {symbols}")
+                #o_tickers = self.ordered_tickers()
 
-             if len(symbols)>0:
-                     self.actual_df = self.actual_df[
-                        ~self.actual_df["symbol"].isin(symbols)
-                        ].reset_index(drop=True)
-                     
-             await self.manage_live([],symbols )
+                #logger.info(f"..{o_tickers}")
+                to_remove = to_del_tickers.values() # to_remove = o_tickers[self.max_symbols:]
+                
+                #symbols = [x.contract.symbol for x in to_remove]
+                symbols = [
+                    x.contract.symbol
+                    for x in to_remove
+                    if ((datetime.now() - x.start_time).total_seconds() > 60
+                    and not self.fetcher.is_in_white_list(x.contract.symbol))
+                ]
+
+                logger.info(f"REMOVE LAST symbols {symbols}")
+
+                for symbol in symbols:
+                        
+                        logger.info(f"REMOVE symbol {symbol}")
+                        
+                        '''
+                        self.actual_df = self.actual_df[
+                            ~self.actual_df["symbol"].isin(symbols)
+                            ].reset_index(drop=True)
+                        
+                        '''
+                        #exchange = "SMART"#symbol_map[symbol]
+                        contract = self.ticker_contracts[symbol]# Stock(symbol, exchange, 'USD')
+                        logger.info(f">> Close  feeds {contract}")
+                        try:
+                            self.ib.cancelMktData(contract)
+                        except:
+                            logger.error("CANCEL ERROR", exc_info=True)
+                        self.ib.sleep(1)
+
+                        del  self.tickers[symbol]
+                        
+                        
+               # await self.manage_live([],symbols )
 
     ######################
 
 
-    async def updateLive(self,df_symbols):#, range_min=None,range_max=None):
-
-        logger.info(f"updateLive \n{df_symbols.tail(3)}")
-
-        # filter on blacklist
-        mask = df_symbols["symbol"].apply(lambda s: not fetcher.is_in_blacklist(s))
-        df_symbols = df_symbols[mask]
-
-        logger.info(f"updateLive BLACKED #{len(df_symbols)}")
-
-        # cut
-        if self.max_symbols != None:
-             df_symbols= df_symbols [:self.max_symbols]
-
-        #add white list 
-        white = self.fetcher.get_day_white_list()    
-        for symbol in white:
-            contract = Stock(symbol, "SMART", 'USD')
-            self.ib.qualifyContracts(contract)
-
-            logger.info(f"ADD WATCH {symbol} {contract}")
-            
-            df_symbols.loc[len(df_symbols)] = [symbol, contract.conId,contract.primaryExchange]
-
-        
-        logger.info(f"PROCESS  {df_symbols}")
-        logger.info(f"ACTUAL {self.actual_df}")
-
-        if len(df_symbols)==0:
-            self.actual_df = df_symbols
-            self.symbol_map =={}
-            self.symbol_to_conid_map = {}
-        else:
-            if not self.symbol_map:
-                self.actual_df = df_symbols
-                await self.manage_live(self.actual_df["symbol"].to_list(),[])
-            else:
-                delta_prev = self.actual_df[~self.actual_df["symbol"].isin(df_symbols["symbol"])]
-                logger.info(f"PREV DELTA {delta_prev}")
-                to_remove= []
-                for s in delta_prev["symbol"].to_list():
-                    if  fetcher.is_in_blacklist(s):
-                        to_remove.append(s)
-                    
-                logger.info(f"TO  REMOVED {to_remove}")
-                    
-                delta_new = df_symbols[~df_symbols["symbol"].isin(self.actual_df["symbol"])]
-
-                logger.info(f"NEW ADDED {delta_new}")
-
-                if len(to_remove)>0:
-                     self.actual_df = self.actual_df[
-                        ~self.actual_df["symbol"].isin(to_remove)
-                        ].reset_index(drop=True)
-
-                self.actual_df = pd.concat([self.actual_df, delta_new], ignore_index=True)
-                
-                logger.info(f"NEW LIST  {self.actual_df }")
-                #in append
-                await self.manage_live(delta_new["symbol"].to_list(),to_remove)
-
-            self.symbol_map = self.actual_df.set_index("symbol")["listing_exchange"].to_dict()
-            self.symbol_to_conid_map = self.actual_df.set_index("symbol")["conidex"].to_dict()
-
-
-    async def manage_live(self, symbol_list_add, symbol_list_remove):
+    ###
+    # MANAGE live tickers
+    ###
+    async def manage_live(self, scan : LiveScanner, symbol_list_add, symbol_list_remove)-> bool:
      
-        logger.info(f"===== Manage_live add:{symbol_list_add} del: {symbol_list_remove} =======")
+        logger.info(f"===== Manage_live n:{scan.name} add:{symbol_list_add} del: {symbol_list_remove} =======")
 
         if self.run_mode== "sym":
             symbols=[]
@@ -310,52 +373,74 @@ class LiveManager:
         #########
 
         for symbol in symbol_list_add:
-            exchange = "SMART"#symbol_map[symbol]
-            contract = Stock(symbol, exchange, 'USD')
 
-            logger.info(f">> Open  feeds {contract}")
+            ticker = self.tickers[symbol] if symbol in self.tickers else None
 
-            # Request market data for the contract
-
-            if use_yahoo:
-                pass
-                #await ws_yahoo.subscribe(symbol)
-                #market_data={"symbol":symbol }
+            if  ticker:
+                logger.info(f"UPDATE TICKER {symbol}")
+                if not (scan in ticker.scan_list ):
+                    ticker.scan_list.append(scan)
+                else:
+                     logger.warning("DOUBLE TICKER SCAN")
             else:
- 
-                self.ib.qualifyContracts(contract)
-             
-                #reqId = self.ib.client.getReqId()
-                #self.reqId2contract[reqId] = contract
-          
-                market_data = self.ib.reqMktData(contract, "", False, False, [])#, reqId=reqId)
-                market_data.gain = 0
-                market_data.last = 0
-                market_data.start_time = datetime.now()
-                market_data.last_close = await self.fetcher.last_close(symbol)
-                market_data.symbol = symbol
+                logger.info(f"NEW TICKER {symbol}")
+
+                exchange = "SMART"#symbol_map[symbol]
+                contract = Stock(symbol, exchange, 'USD')
+
+                logger.info(f">> Open  feeds {contract}")
+
+                # Request market data for the contract
+
+                if use_yahoo:
+                    pass
+                    #await ws_yahoo.subscribe(symbol)
+                    #market_data={"symbol":symbol }
+                else:
+    
+                    self.ib.qualifyContracts(contract)
                 
+                    #reqId = self.ib.client.getReqId()
+                    #self.reqId2contract[reqId] = contract
+            
+                    market_data = self.ib.reqMktData(contract, "", False, False, [])#, reqId=reqId)
+                    market_data.gain = 0
+                    market_data.last = 0
+                    market_data.start_time = datetime.now()
+                    market_data.last_close = await self.fetcher.last_close(symbol)
+                    market_data.symbol = symbol
+                    market_data.scan_list = [scan]
+                    
 
-                '''
-                amd = Stock(symbol, 'SMART', 'USD')
+                    '''
+                    amd = Stock(symbol, 'SMART', 'USD')
 
-                #news
-                yesterday = datetime.now() - timedelta(days=1)
-                startDateTime = yesterday.strftime('%Y%m%d %H:%M:%S'),
+                    #news
+                    yesterday = datetime.now() - timedelta(days=1)
+                    startDateTime = yesterday.strftime('%Y%m%d %H:%M:%S'),
 
-                headlines = self.ib.reqHistoricalNews(amd.conId, "BRFG+BRFUPDN+FLY",startDateTime, '', 10)
-                logger.info(f"-----> {headlines}")
-                if headlines and len(headlines)>0:
-                    latest = headlines[0]
-                    print("-------",latest)
-                    article = self.ib.reqNewsArticle(latest.providerCode, latest.articleId)
-                    print("-------",article)
-                '''
+                    headlines = self.ib.reqHistoricalNews(amd.conId, "BRFG+BRFUPDN+FLY",startDateTime, '', 10)
+                    logger.info(f"-----> {headlines}")
+                    if headlines and len(headlines)>0:
+                        latest = headlines[0]
+                        print("-------",latest)
+                        article = self.ib.reqNewsArticle(latest.providerCode, latest.articleId)
+                        print("-------",article)
+                    '''
 
-            self.tickers[symbol]  = market_data
-            self.ticker_contracts[symbol]  = contract
+                self.tickers[symbol]  = market_data
+                self.ticker_contracts[symbol]  = contract
+
+        #####
 
         for symbol in symbol_list_remove:
+            # cancello logico
+            scan_list = self.tickers[symbol].scan_list
+            if scan in scan_list:
+                scan_list.remove(scan)
+            else:
+                logger.error(f"not found in scan list !!!! ")
+            '''
             #exchange = "SMART"#symbol_map[symbol]
             contract = self.ticker_contracts[symbol]# Stock(symbol, exchange, 'USD')
             logger.info(f">> Close  feeds {contract}")
@@ -366,8 +451,9 @@ class LiveManager:
             self.ib.sleep(1)
 
             del  self.tickers[symbol]
+            '''
             
-        logger.info(f"tickers {self.tickers}")
+        #logger.info(f"tickers {self.tickers}")
 
         ###
         
@@ -819,25 +905,64 @@ class LiveManager:
                     logger.error("COULD NOT FOUND SCANNER LAST")
             else:
                 sched_data = self.config["live_service"]["scheduler"]
+                '''
                 scheduler_add = next(
                     (s for s in sched_data if s.get("live_mode") == "ADD"),
                     None
                 )
-                logger.info(f"START {scheduler_add}")
+                '''
+                max_symbols = config["live_service"]["max_symbols"]
 
-                await self.scanData(scheduler_add["name"])
+                for d in sched_data:
+                    self.scanner_map[d["name"]] = LiveScanner(self.fetcher,d)
+
+                total_allocated = 0
+
+                # Converto in lista per poter fare slicing
+                items = list(self.scanner_map.items())
+
+                # Itero su tutti tranne l'ultimo
+                for name, scan in items[:-1]:
+                 
+                    #print(name,data["merge_weight"])
+
+                    if scan.merge_weight .endswith("%"):
+                        perc = float(scan.merge_weight [:-1]) / 100  # ⚠️ dividi per 100!
+                        scan.max_symbols = int(perc * max_symbols)
+                        total_allocated += scan.max_symbols
+                    else:
+                        scan.max_symbols = 1
+                        total_allocated += 1
+
+                # Ultimo elemento prende il resto
+                last_key = items[-1][0]
+                self.scanner_map[last_key].max_symbols = max_symbols - total_allocated
+
+                logger.info(f"{ self.scanner_map}")
+
+                for name,scan in self.scanner_map.items():
+                   
+                    logger.info(f"START {name} ")
+                    
+                    await self.scanData(scan)
+
+                if self.ws_manager:
+                    await self.ws_manager.broadcast({"evt":"on_update_symbols"})
                 #await self.scanner(df_symbols )
         
                 ### run scheduler
 
-                async def on_scan():
+                async def on_scan(scan):
                     try:
-                        await self.scanData(scheduler_add["name"])
+                        if await self.scanData(scan):
+                            if self.ws_manager:
+                                await self.ws_manager.broadcast({"evt":"on_update_symbols"})
                     except:
                         logger.error("Error", exc_info=True)
 
-   
-                self.scheduler.schedule_every(int(scheduler_add["update_time"]),on_scan)
+                for name,scan in self.scanner_map.items():
+                    
+                    self.scheduler.schedule_every(int(scan.config["update_time"]),on_scan,scan)
 
 
 ########################################################################
@@ -893,6 +1018,38 @@ async def get_tickers():
         "data":list,
     }
 
+@app.get("/tickers/info")
+async def get_tickers_info():
+    tickers = live.ordered_tickers()
+    logger.info(f"get_tickers info {tickers}")
+
+    response_data = []
+    for x in tickers:
+        # Troviamo i nomi degli scanner che contengono questo simbolo
+        # Assumiamo che il controllo avvenga su 'actual_df' (se è un DataFrame) 
+        # o su 'symbol_map' (se è un dizionario/lista)
+        scanners_found = [
+            scanner.name 
+            for scanner in live.scanner_map.values() 
+            if scanner.actual_df is not None 
+            and "symbol" in scanner.actual_df.columns
+            and x.symbol in scanner.actual_df["symbol"].values
+        ]
+
+        response_data.append({
+            "symbol": x.symbol,
+            "last": getattr(x, "last", None), 
+            "last_volume": getattr(x, "volume", None),
+            "scan": scanners_found  # Restituisce una lista di nomi, es: ["GAP_UP", "HIGH_VOL"]
+        })
+    logger.info(f"list {response_data}")
+
+    return {
+        "status": "ok",
+        "data":response_data,
+    }
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(status_code=204)
@@ -915,7 +1072,9 @@ async def clear_day_watch(name,type,symbol):
 
 @app.get("/admin/scan")
 async def admin_scan(profile_name):
-    await live.scanData(profile_name)
+    if await live.scanData(profile_name):
+        if live.ws_manager:
+            await live.ws_manager.broadcast({"evt":"on_update_symbols"})
     return {"status": "ok"}
 
 @app.get("/chart/align_data")
@@ -1038,7 +1197,7 @@ if __name__ =="__main__":
     # Console
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s")
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s -  Th:%(thread)d " "[%(filename)s:%(lineno)d] \t%(message)s")
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
     logger.addHandler(file_handler)

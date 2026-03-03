@@ -199,7 +199,7 @@ class MuloLiveClient:
 
         try:
             new_symbols = await self.send_cmd("symbols")
-            _mule_tickers = await self.send_cmd("tickers")
+            _mule_tickers = await self.send_cmd("tickers/info")
 
             #new_symbols = [ t["symbol"] for t in _mule_tickers] 
         
@@ -241,9 +241,14 @@ class MuloLiveClient:
               
 
                 self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
-                                    "gain" : gain, "low":0 , "high":0, "last" : ticker["last"], 
+                                    "scan" : str(ticker["scan"]).replace("'","").replace("[","").replace("]",""),
+                                    "gain" : gain, "low":0 ,
+                                    "high":0, 
+                                    "last" : ticker["last"], 
                                     "volume": 0, "ts" : 0,
-                                    "ask" : 0, "bid":0,"day_volume" : ticker["last_volume"],
+                                    "ask" : 0, 
+                                    "bid":0,
+                                    "day_volume" : ticker["last_volume"],
                                     "last_close": last_close}
             
             
@@ -302,7 +307,7 @@ class MuloLiveClient:
     def getTickersDF(self):
         if not self.tickers:
             return pd.DataFrame(
-                columns=["symbol", "timestamp", "price", "bid", "ask", "day_volume","ts"]
+                columns=["symbol", "timestamp", "price", "bid", "ask", "day_volume","ts","scan"]
             )
         df = pd.DataFrame( [ t for k,t in self.tickers.items()])
         df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
@@ -365,12 +370,12 @@ class MuloLiveClient:
              
         conn = sqlite3.connect(self.db_file)
         if timeframe in ['15m']:
-            df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
+            df = pd.read_sql_query(query, conn, params= (symbol, "1m", limit))
 
-            df["t"] = pd.to_datetime(df["t"], unit="ms")
-            df = df.set_index("t")
+            df["dt"] = pd.to_datetime(df["t"], unit="ms")
+            df = df.set_index("dt")
 
-            ohlc = df.resample("15T").agg({
+            df = df.resample("15T").agg({
                 "o": "first",
                 "h": "max",
                 "l": "min",
@@ -379,9 +384,16 @@ class MuloLiveClient:
                 "bv": "sum"
             }).dropna()
 
+            df = df.reset_index()
+            # crea la colonna t come timestamp aggregato in millisecondi
+            df["t"] = df["dt"].astype("int64") // 10**6
+
+            # opzionale: rimuovi dt se non ti serve
+            df = df.drop(columns=["dt"])
+
         else:
             df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
-        df = df.iloc[::-1].reset_index(drop=True)
+            df = df.iloc[::-1].reset_index(drop=True)
       
         conn.close()     
         return df

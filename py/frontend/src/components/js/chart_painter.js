@@ -1,7 +1,7 @@
 import { send_get,localUnixToUtc,timeframeToSeconds } from '@/components/js/utils.js'; // Usa il percorso corretto
 //formatUnixDate
 import { ref,computed} from 'vue';
-import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine } from '@/components/js/chart_primitives.js'
+import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci } from '@/components/js/chart_primitives.js'
 import { liveStore } from '@/components/js/liveStore.js';
 
 
@@ -46,6 +46,8 @@ function syncOverlaySize(overlay, topCanvas) {
         ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
       }
 }
+
+// ===========
 
 export class ChartWatcher
 {
@@ -98,6 +100,8 @@ export class ChartWatcher
       clearInterval(this.intervalId)
   }
 }
+
+// ==============================================
 
 export function  createPainter(context,mainChart,overlay, trade_quantity_ref) 
 {
@@ -494,6 +498,8 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       }
        if (type  == "alarm-line")
             return new PriceLine(this)   
+       if (type  == "fibonacci")
+            return new Fibonacci(this)   
       if (type =="trade-box"){
         // controllo se cè gia
 

@@ -132,10 +132,15 @@
                 </span>
               </div>
             </div>
-             
+            <!-- TOOLTIP -->
             <div class="report" v-if="item.report">
               <div class="title">{{ item.symbol }}</div>
-           
+              
+                <div class="row">
+                <div class="label">scan</div>
+                <div class="value" style="font-size: 10px;">{{ item.report.scan }} </div>
+              </div>
+
                <div class="row">
                 <div class="label">last</div>
                 <div class="value">{{ item.last }} </div>

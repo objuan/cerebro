@@ -418,6 +418,13 @@ export  class Box  extends Primitive{
       "color","text"
     ]
   }
+  points(){
+    const a = this.painter.chartToPixel(this.top_left.val)
+    const b = this.painter.chartToPixel(this.bottom_right.val)
+
+    return {t_l : a, t_r : {x:b.x, y:a.y},  b_r : b, b_l : {x:a.x, y:b.y}}
+  }
+
  serialize(){
     return {
         "top_left": this.top_left.val,
@@ -774,3 +781,99 @@ export  class  TradeBox  extends SplitBox{
 // ======================================================
 
 
+
+export  class Fibonacci  extends Box{
+
+   constructor(painter){
+    super(painter)
+    this.type = "fibonacci"
+    this.color = '#74a6e7'
+  }
+  props(){
+    return [
+      "color","text","alarms"
+    ]
+  }
+   serialize(){
+     let ser = super.serialize()
+     return ser;
+  }
+  fromSerial(data){
+      super.fromSerial(data)
+      this.update()
+  }
+  drag(p2){
+    super.drag(p2)
+    //this.center_left.set({ x: this.top_left.val.x , y:this.compute_middleY()} )
+    this.update()
+  }
+  onChange(){
+    //console.log("onChange",handle )
+    this.update()
+  }
+
+  update(){
+    
+  }
+  pick(pos){
+    return super.pick(pos)
+  }
+  points(){
+    const points = super.points()
+
+    const H = this.top_left.val.y - this.bottom_right.val.y
+    const fibo_1 = this.top_left.val.y  - H * (33.2 / 100)
+    const fibo_2 = this.top_left.val.y  - H * (61.80 / 100)
+    const fibo_50 = this.top_left.val.y  - H * (50 / 100)
+    // 33.20 , 61.80
+
+    const px_fibo_1 = this.painter.chartToPixel({x: points.t_l.x ,  y : fibo_1})
+    const px_fibo_2 = this.painter.chartToPixel({x: points.t_l.x ,  y : fibo_2})
+    const px_fibo_50 = this.painter.chartToPixel({x: points.t_l.x ,  y : fibo_50})
+
+    points.first_l = {x: points.t_l.x ,  y : px_fibo_1.y}//H * (33.2 / 100)}
+    points.first_r = {x: points.t_r.x ,  y :px_fibo_1.y}
+
+    points.second_l = {x: points.t_l.x ,  y : px_fibo_2.y}//H * (33.2 / 100)}
+    points.second_r = {x: points.t_r.x ,  y :px_fibo_2.y}
+
+    points.mid_l = {x: points.t_l.x ,  y : px_fibo_50.y}//H * (33.2 / 100)}
+    points.mid_r = {x: points.t_r.x ,  y :px_fibo_50.y}
+
+    return points
+  }
+   draw(ctx){
+
+    const rect = this.points()
+
+   // console.log(rect)
+    //const a = this.painter.chartToPixel(this.top_left.val)
+    //const b = this.painter.chartToPixel(this.bottom_right.val)
+
+    drawTextOnLine(ctx,rect.t_l,rect.t_r,"0%", this.color)
+    drawLine(ctx, rect.t_l,rect.t_r, this.color,this.isHover, 1)
+    drawTextOnLine(ctx,rect.b_l,rect.b_r,"100 %", this.color)
+    drawLine(ctx, rect.b_l,rect.b_r, this.color,this.isHover, 1)
+
+    drawLine(ctx, rect.t_l,rect.b_l, this.color,this.isHover, 1,"dotted")
+    drawLine(ctx, rect.t_r,rect.b_r, this.color,this.isHover, 1,"dotted")
+
+    drawTextOnLine(ctx,rect.first_l,rect.first_r,"33.2%", this.color)
+    drawLine(ctx, rect.first_l,rect.first_r, this.color,this.isHover, 1,"dotted")
+
+    drawTextOnLine(ctx,rect.second_l,rect.second_r,"61.8%", this.color)
+    drawLine(ctx, rect.second_l,rect.second_r, this.color,this.isHover, 1,"dotted")
+
+
+    drawTextOnLine(ctx,rect.mid_l,rect.mid_r,"50%", this.color)
+    drawLine(ctx, rect.mid_l,rect.mid_r, this.color,this.isHover, 1,"dashed")
+
+    //drawRect(ctx, a, b,"white",this.color,  this.isHover)
+
+    if(this.isHover){
+      this.top_left.draw(ctx)
+      this.bottom_right.draw(ctx)
+    }
+   
+   }
+}

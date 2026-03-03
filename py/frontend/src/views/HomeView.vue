@@ -108,7 +108,7 @@
             <OrdersWidget/>
         </SidePanel>
 
-        <SidePanel title="GAP" ref ="reportsRef" width="900px">
+        <SidePanel title="GAP" ref ="reportsRef" width="1000px">
             <ReportPanel ></ReportPanel>
         </SidePanel>
 
@@ -438,7 +438,7 @@ const initWebSocket = () => {
           break
         case "report":
           {
-           //console.log("Report",msg.data);
+          // console.log("Report",msg.data);
             
             reportStore.push( msg.data)
             eventBus.emit("report-received", msg.data);
@@ -474,7 +474,7 @@ const initWebSocket = () => {
         
         case "news":
           {
-            console.log("news",msg);
+           // console.log("news",msg);
             newsStore.push(msg["symbol"], msg["data"])
          }
           break;
@@ -519,25 +519,6 @@ onMounted( async () => {
         // tutte le  props
 
         await initProps();
-        /*
-        let pdata = await send_get("/api/props/find", {path : ""})
-        //console.log(pdata)
-        pdata.forEach(  (val) =>{
-          //  console.log("prop",val.path, val.value)
-            if (val.path.startsWith("chart")  
-            || val.path.startsWith("home")
-          || val.path.startsWith("symbols")
-            || val.path.startsWith("event") )
-            {
-              staticStore.load(val.path, val.value);
-            }
-            else
-            {
-              liveStore.set(val.path, val.value);
-            } 
-        });
-        */
-
         let grid = staticStore.get("home.grid","")
         if (grid!="")
         {
@@ -550,20 +531,6 @@ onMounted( async () => {
         await send_get("/api/event/get",{"limit":50, "types":  ['error','message']})
         //await send_get("/api/event/get")
         await send_get("/api/news/current")
-
-        
-        // positions
-        /*
-        response = await fetch('http://127.0.0.1:2000/account/positions')
-        if (!response.ok) throw new Error('Errore nel caricamento')
-        const pos_list = await response.json();
-        //console.log(pos_list)
-        pos_list.forEach(  (val) =>{
-            //console.log(val)
-            val["type"] = "POSITION"
-            portfolioRef.value?.handleMessage(val);
-        });
-        */
 
         // orders
 

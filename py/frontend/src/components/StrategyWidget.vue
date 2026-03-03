@@ -96,7 +96,7 @@ const uniqueSymbols = computed(() =>
 
 const sortedEvents = computed(() =>
 {
-  console.log(allowedNames.value)
+  //console.log(allowedNames.value)
   return [...store.items]
     .filter(e =>
       allowedSources.value.includes(e.source) &&
