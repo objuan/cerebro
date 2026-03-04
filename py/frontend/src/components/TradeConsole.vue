@@ -6,7 +6,8 @@
        <div class="col-2rows">
           <div class="row r1">
                 <div class="d-flex align-items-center gap-1">
-                  Quantity
+                  Quantity {{ props.symbol }}
+                  <span v-if="!props.liveMode">S</span>
                   <select
                     v-model="quantity"
                     class="form-select form-select-sm"
@@ -144,6 +145,7 @@ const emit = defineEmits(['cancel-task-order']);
 // props
 const props = defineProps({
   symbol: { type: String, required: true },
+  liveMode : { type: Boolean, required: true },
 });
 watch(() => props.symbol, () => {
   //console.log("symbol cambiato:", newValue);
@@ -353,10 +355,14 @@ function onTradeUpdated(msg){
 */
 
 onMounted( async () => {
-  eventBus.on("task-order-received", onTaskOrderReceived);
-  //eventBus.on("order-received", onOrderReceived);
-  eventBus.on("ticker-received", onTickerReceived);
-  eventBus.on("task-order-msg-received", onTaskOrderMsgReceived);
+  
+  if (props.liveMode.value)
+  {
+    eventBus.on("task-order-received", onTaskOrderReceived);
+    //eventBus.on("order-received", onOrderReceived);
+    eventBus.on("ticker-received", onTickerReceived);
+    eventBus.on("task-order-msg-received", onTaskOrderMsgReceived);
+  }
 
   eventBus.on("on-start", ()=>{
     //console.log("TradeConsole on-start", props.symbol,quantity.value );
@@ -368,11 +374,14 @@ onMounted( async () => {
 });
 
 onBeforeUnmount(() => {
-  eventBus.off("task-order-received", onTaskOrderReceived);
- // eventBus.off("order-received", onOrderReceived);
-  eventBus.off("ticker-received", onTickerReceived);
+ if (props.liveMode.value)
+  {
+    eventBus.off("task-order-received", onTaskOrderReceived);
+  // eventBus.off("order-received", onOrderReceived);
+    eventBus.off("ticker-received", onTickerReceived);
 
-  eventBus.off("task-order-msg-received", onTaskOrderMsgReceived);
+    eventBus.off("task-order-msg-received", onTaskOrderMsgReceived);
+  }
 
  // eventBus.off("update-portfolio", onPositionUpdated);
  // eventBus.off("update-position", onPositionUpdated);

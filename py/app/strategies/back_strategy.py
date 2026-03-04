@@ -28,7 +28,7 @@ class BackStrategy(Strategy):
         self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=self.eta))
 
     async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
-     
+        
         #logger.info(f"on_symbol_candles   {symbol} \n {dataframe.tail(2)}" )
         time = dataframe.iloc[-1]["timestamp"]
 

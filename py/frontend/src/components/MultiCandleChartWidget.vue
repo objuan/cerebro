@@ -55,7 +55,9 @@
     </div>
 
     <div class="trade_console p-0">
-        <TradeConsole :symbol=currentSymbol @cancel-task-order="onCancelTaskOrder"  ></TradeConsole> 
+        <TradeConsole :symbol="currentSymbol"
+        :liveMode="true"
+         @cancel-task-order="onCancelTaskOrder"  ></TradeConsole> 
     </div>
 
   

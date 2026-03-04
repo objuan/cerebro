@@ -29,10 +29,13 @@ class Strategy:
         self.df_map={}
         self.trade_index=None
         self.trade_dataframe = None
+        self.scope = ""
+    
         
     def load(self,strat_def):
         #strat.handler = find_method_local(EventManager,code)
         self.params= strat_def["params"]
+        self.scope =  strat_def["scope"] if "scope" in strat_def else ""
         self.timeframe =  SECONDS_TO_TIMEFRAME[strat_def["timeframe"]]
 
     def get_fundamentals(self,symbol)->pd.DataFrame:
@@ -76,8 +79,9 @@ class Strategy:
 
         pass
 
-    async def bootstrap(self):
-
+    async def bootstrap(self, liveMode):
+        
+        self.liveMode=liveMode
         logger.info(f"bootstrap {self.__class__} tf:{self.timeframe }")
 
         await self.on_start()
@@ -107,7 +111,7 @@ class Strategy:
             for idx in group.index:
                 try:
                     self.trade_index= idx
-                    await self.trade_symbol_at(False,symbol, group,idx,{})
+                    await self.trade_symbol_at(symbol, group,idx,{})
                 except:
                     logger.error(f"trade_symbol_at  {symbol} index {idx}" , exc_info=True)
                    
@@ -217,7 +221,7 @@ class Strategy:
                     if symbol in symbols:
                         await self.on_symbol_candle(symbol, group,{})
                         self.trade_index= group.index.max()
-                        await self.trade_symbol_at(True,symbol, group,group.index.max(),{})
+                        await self.trade_symbol_at(symbol, group,group.index.max(),{})
 
     def _populate_dataframes(self):
         self.db_df_map[self.timeframe] = self.manager.db.db_dataframe(self.timeframe)
@@ -252,28 +256,26 @@ class Strategy:
         '''
         pass
 
-    async def trade_symbol_at(self,isLive:bool,  symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
+    async def trade_symbol_at(self,  symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
         '''
         call at every main timeframe  symbol  candle,dataframe is filtered
         '''
         pass
 
     #################
+    
     def on_plot_lines_changed(self, symbol, tf):
          pass
     
-
     #######################
 
     async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str,color):
-       
-        await self.client.send_event("strategy",symbol,name,small_desc,full_desc,{"color":color})
+        if self.liveMode:
+            await self.client.send_event("strategy",symbol,name,small_desc,full_desc,{"color":color})
 
 
     def __str__(self):
         return f"{self.__class__} params:{self.params}"
-
-
 
 
     #######

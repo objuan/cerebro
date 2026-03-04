@@ -3,7 +3,7 @@
     <div class="chart-header">
 
         <div class="bottom-row">
-            {{ props.symbol }}
+            {{ currentSymbol }}
           <select 
             v-model="currentLayout" 
             @change="onChangeLayouts"
@@ -15,6 +15,10 @@
             <option value="2_2">2x2</option>
           </select>
       </div>
+    </div>
+
+    <div class="trade_console p-0">
+        <TradeConsole ref="console" :symbol="currentSymbol"  :liveMode="false"></TradeConsole> 
     </div>
 
   
@@ -31,9 +35,14 @@
               :number="number"
               :sub_number ="cell.number"
               :grid ="grid"
+              @refresh ="on_data_loaded"
           >
           </BackChartWidget>
     </div>
+    <BackController ref="controller"
+      @update:current="onTimeChange"
+    ></BackController>
+    
 
 
   </div>
@@ -43,8 +52,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted,onBeforeUnmount,nextTick,watch } from 'vue';
 import BackChartWidget from './BackChartWidget.vue';
-import { computed } from 'vue';
+import BackController from './BackController.vue';
+import TradeConsole from '../TradeConsole.vue';
+
+
+import { computed } from 'vue'; // toRaw
 import { staticStore } from '@/components/js/staticStore.js';
+import {timeframeToSeconds} from '@/components/js/utils.js';
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -54,17 +68,34 @@ const props = defineProps({
 });
 
 const widgetRefs = ref({})
+const console = ref(null)
 
 // Elementi DOM e Variabili reattive
 
-const currentSymbol = ref(props.symbol);
+const currentSymbol = computed(() => props.symbol)
 
 const currentLayout= ref("")  
 const rows = ref(1)
 const cols = ref(1)
 const cells = ref([])  // contiene i widget attivi
+const controller = ref(null)
+
+let data= []
 
 const emit = defineEmits(['select'])
+
+function onTimeChange(time) {
+   for (const id in widgetRefs.value) {
+        const comp = widgetRefs.value[id]
+        const el = comp?.$el
+        if (!el) continue
+ 
+        comp.setBackTime(time);
+        
+   }
+
+  //console.log("Current time:", date)
+}
 
 function handleSelect() {
   emit('select', props.id)
@@ -82,7 +113,7 @@ const gridStyle = computed(() => ({
   display: 'grid',
   width: '100%',
   //height: '100%',
-  height: 'calc(100% - 140px)',
+  height: 'calc(100% - 200px)',
   gridTemplateColumns: `repeat(${cols.value}, 1fr)`,
   gridTemplateRows: `repeat(${rows.value}, 1fr)`,
   gap: '6px',
@@ -137,12 +168,19 @@ const onChangeSymbols = async () => {
   staticStore.set(get_layout_key("symbol"), currentSymbol.value); 
 };
 
+function on_data_loaded(val){
+  
+  data =val.data
+  //console.log(data)
+  //console.log("dt_start",dt_start.value,dt_end.value, timeframeToSeconds(props.timeframe))
+  controller.value.setup(data,timeframeToSeconds(props.timeframe),10);
+
+}
 
 // --- INIZIALIZZAZIONE ---
 onMounted( async() => {
  // console.log("onMounted");
-  
-
+    currentSymbol.value = props.symbol;
     // --------------
     currentLayout.value = staticStore.get(get_layout_key("grid"),"1_1")
 
@@ -161,7 +199,7 @@ const setSymbol = async (symbol) => {
 
 const resize =  () => {
    
-    //console.log("m resize ",w,h);
+    //console.log("m resize ");
 
     for (const id in widgetRefs.value) {
         const comp = widgetRefs.value[id]
@@ -191,6 +229,7 @@ watch(() => props.symbol, () => {
         if (!el) continue
         comp.setSymbol(props.symbol,props.timeframe)
    }
+
 })
 watch(() => props.timeframe, () => {
  
@@ -199,6 +238,7 @@ watch(() => props.timeframe, () => {
         const el = comp?.$el
         if (!el) continue
         comp.setSymbol(props.symbol,props.timeframe)
+       // console.setSymbol(props.symbol.value)
    }
 })
 
@@ -206,7 +246,21 @@ watch(() => props.timeframe, () => {
 
 <style scoped>
 
+.time-bar{
+  position:relative;
+  left:0;
+  bottom:0;
+  width:100%;
+  height:2px;
+  background:#525151;
+}
 
+.time-bar-fill{
+  height:100%;
+  width:0%;
+  background:#00ff88;
+  transition:width .2s linear;
+}
 .in-charts-grid {
   width: 100%;
   height: calc(100% - 140px);
@@ -271,7 +325,7 @@ watch(() => props.timeframe, () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 600px;
+  width: 700px;
 }
 
 .middle-row {
@@ -288,11 +342,11 @@ watch(() => props.timeframe, () => {
 
 .symbol {
   color: yellow;
-   font-size: 1.9rem;
+   font-size: 1.5rem;
 }
 .positon{
   margin-left: 10px;
     color: rgb(255, 255, 255);
-   font-size: 1.9rem;
+   font-size: 1.5rem;
 }
 </style>

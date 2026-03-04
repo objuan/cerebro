@@ -216,9 +216,8 @@ class TradeStrategy(SmartStrategy):
 
     ######################################
 
-    async def trade_symbol_at(self, isLive:bool, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
-        if not isLive:
-            return
+    async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
+
         try:
             atr = self.df("1d",symbol).iloc[-1]["atr"]
             #logger.info(f"atr {symbol}  {atr}" )

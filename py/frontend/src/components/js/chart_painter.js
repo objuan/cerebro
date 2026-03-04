@@ -245,6 +245,9 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     ,setData(data){
       this.data=data
     }
+    ,getData(){
+      return this.data;
+    }
     ,pushData(candle){
       if (this.data)
         this.data.push(candle)
@@ -318,7 +321,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
 
         ind_response.map( data => {
               data.data = JSON.parse(data.data)
-             console.log( "load",data)
+           //  console.log( "load",data)
               let prim = null
 
               prim = this.create(data.data.type )

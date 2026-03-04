@@ -3,8 +3,20 @@
     
     <div  class="bulk_header" >
       <div style="display: grid;grid-template-columns: 80px 1fr;">
-        {{ timeframe }}
-        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh" >🔄 </button>
+        <select 
+          v-model="currentTimeframe" 
+          @change="onTimeFrameChange" 
+          class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
+        >
+          <option value="10s">10s</option>
+          <option value="30s">30s</option>
+          <option value="1m">1m</option>
+          <option value="5m">5m</option>
+          <option value="15m">15m</option>
+          <option value="1h">1h</option>
+          <option value="1d">1d</option>
+        </select>
+        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh(false)" >🔄 </button>
       </div>
     </div>
 
@@ -16,41 +28,188 @@
 
       <div ref="chartContainer" class="chart-container  w-100 d-flex flex-column">
         <div ref="mainChartRef" class=" w-100" >
+        <canvas ref="overlay" class="overlay"></canvas>
+           <!-- TODO aggiungere FLOAT, MARKETCAP -->
+           <!-- INDICATOR MENU -->
+
+          <div class="chart-legend-left-ind">
+
+              <DropdownMenu
+              label="="
+              :items="menuItems"
+              @select="handleMenu"
+            />
+            
+            <DropdownMenu
+              :label="profileName"
+              :items="menu_indicatorList"
+              @select="selectProfile"
+            />
+            
+
+            <!-- INDICATOR LEGENDS -->
+
+            <div
+              class="chart-legend-left-ind-item"
+              v-for="(ind, i) in ui_indicatorList"
+              :key="ind.id || i"
+            >
+              <span :style="{ color: ind.params.color }">
+                {{ ind.name }}
+              </span>
+              <span v-if="ind.type == 'strategy'">
+                {{ Number(ind.value)?.toFixed(4) }}
+              </span>
+              <span v-else-if="ind.type == 'legend'">
+                {{ Number(ind.value)?.toFixed(4) }}
+              </span>
+              <div v-else >
+                  <input 
+                    type="color"
+                    v-model="ind.params.color"
+                    class="ms-0 p-0 b-0"
+                    style="width:20px;height:20px"
+                    @input="updateIndicatorColor(ind)"
+                  />
+
+                  <button v-if="ind.type != 'strategy'"
+                    class="btn btn-sm btn-outline-danger ms-0 p-0 b-0" 
+                    
+                    style="width:20px;height:20px"
+                    @click="removeIndicator(i)"
+                    title="Rimuovi indicatore"
+                  >
+                    ✕
+                  </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+    
+        <!-- BUTTON BAR -->
+
+        <div class="button_bar">
+
+          <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
+           @click="painter?.setMode('price-line')">
+            ─
+          </button>
+
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('line')">
+            ／
+          </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('hline')">
+            H
+          </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('vline')">
+            V
+          </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('box')">
+            B
+          </button>
+           <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('split-box')">
+            S
+          </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+              @click="painter?.setMode('trade-box')">
+            T
+          </button>
+          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
+              @click="painter?.setMode('fibonacci')">
+            F
+          </button>
+          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+            @click="setDrawMode('delete')">
+            D
+          </button>
+
+          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+            @click="painter_delete_all()">
+            ✕
+          </button>
+            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+            @click="painter.redraw()">
+            refresh
+          </button>
+            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+            @click="clearStrategyIndicators(context())">
+            Test
+          </button>
+          <span>
+            mode {{  painter?.drawMode }}
+          </span>
+    
+          
+        </div>
+
+        <!-- TRADE BAR -->
+        <div class="trade_bar">
+            <button   class="btn btn-sm btn-outline-success ms-1"   title="Set Trade"
+               @click="set_marker_trade()">
+              ⚑
+            </button>
+
           
         </div>
        
       </div>
     </div>
 
+   <CandleChartIndicator ref="indicatorMenu"
+        @add-indicator="onAddIndicator"></CandleChartIndicator>
+
+
   </div>
 
+  
 </template>
 
 
 <script setup>
-import { ref, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 
-//import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
+/* eslint-disable no-unused-vars */
+
+import { ref, watch,onMounted, onUnmounted ,onBeforeUnmount,toRaw,computed, nextTick } from 'vue';
+import { liveStore } from '@/components/js/liveStore.js';
+import { staticStore } from '@/components/js/staticStore.js';
+import  CandleChartIndicator  from '@/components/CandleChartIndicator.vue'
 //import { createChart, CrosshairMode,  CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { createChart, CrosshairMode,  CandlestickSeries, 
-   applyVolume,setVolumeData,getVolume, // LineSeries
-  } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
+   LineSeries, applyVolume,setVolumeData,getVolume,
+LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
-import {  formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
-import {
-
+import { eventBus } from "@/components/js/eventBus";
+import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { drawHorizontalLine,clearDrawings,
+    // setTradeMarker,updateTradeMarker,updateTaskMarker,clearLine,updateVerticalLineData
+   findLastCandleOfEachDay,findOpenDate,updateStrategyIndicators,clearStrategyIndicators,
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
-//import DropdownMenu from '@/components/DropdownMenu.vue';
+import DropdownMenu from '@/components/DropdownMenu.vue';
+import { tradeStore } from "@/components/js/tradeStore";
+import { createPainter ,ChartWatcher} from "@/components/js/chart_painter";
 
 const props = defineProps({
   id: { type: String, required: true },
+  number: { type: Number, required: true },
+  grid: { type: String, required: true },
+  sub_number: { type: Number, required: true },
   symbol: { type: String, required: true },
-  timeframe: { type: String, default: '1m' }
+  timeframe: { type: String, default: '1m' },
+  plot_config: { type: Object, default: () => ({ main_plot: {} }) }
 });
 
 
-// Elementi DOM e Variabili reattive
+const emit = defineEmits(['close', 'initialized',"refresh"]);
 
+// Elementi DOM e Variabili reattive
+const indicatorMenu = ref(null);
 const mainChartRef = ref(null);
 const legendHtml = ref('');
 //const legendIndHtml = ref('');
@@ -58,33 +217,325 @@ const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
 //const symbolList = ref([]);
 const container = ref(null);
+/*
+const price_marker= ref(null);
+const price_marker_tp= ref(null);
+const price_marker_sl= ref(null);
+*/
+const indicatorList = ref([]);
+const profileName = ref("");
 
+const overlay = ref(null)
+
+let painter = null;
+
+// ==================
+
+//let timeLine_pre=null;
+//let timeLine_open=null;
+let strategy_index_map = {}
+const  strategy_index_list = ref([])
+const  legend_index_list = ref([])
+const backTime = ref(null)
+
+
+const gfx_canvas = ref(null);
+
+const drawMode = ref(null); // null | 'hline' | 'line'
+//let drawPoints = [];
+let drawSeries = [];
+
+// Oggetti Chart e Series (non reattivi per performance)
+//let charts = { main: null, volume: null };
+//let series = { main: null, volume: null, indicators: {} };
 let chart = null;
 let series  = null;
+let buy_line = null
+//let indicators = {}
+
+let tradeMarkerData = {}; 
+//let taskData = {}
+let chartWidth=null;
+
+//let DEFAULT_INTERACTION=null;
+//let manager = null;
+//let ctx=null;
+
+let timeframe_start = {}
+timeframe_start["10s"] = 100
+timeframe_start["1m"] = 50
+timeframe_start["5m"] = 50
+timeframe_start["1h"] = 24
+timeframe_start["1d"] = 30
+
+const get_key = (subkey)=> { return `symbols.${currentSymbol.value}.${subkey}`}
+
+const trade_quantity = ref(null);
+
+watch(trade_quantity,   () => {
+ //   console.log("trade_quantity",newValue)
+    painter?.onTradeDataChanged()
+});
+
+function context() {
+    return {
+        currentSymbol,
+        currentTimeframe,
+        chart,
+        series,
+        drawSeries,
+        liveStore,
+        gfx_canvas,
+        strategy_index_map,
+        strategy_index_list,
+        legend_index_list,
+        mainChartRef
+
+    };
+}
+
+const ui_indicatorList = computed( ()=>
+{
+   return [
+    ...indicatorList.value,
+    ...strategy_index_list.value,
+    ...legend_index_list.value
+  ];
+});
+
+const lastTrade = computed(() => {
+  return tradeStore.lastTrade(props.symbol);
+})
+//console.log("lastTrade",lastTrade.value)  
+
+const get_layout_key = (subkey)=> { return `chart.${props.number}.${props.grid}.${props.sub_number}.${subkey}`}
+const get_indicator_key = ()=> { return `chart.${props.number}.indicator.${currentTimeframe.value}`}
+
+function onTimeFrameChange(){
+ // console.log("onTimeFrameChange")
+  
+  //saveProp(get_layout_key("timeframe"), currentTimeframe.value)
+  staticStore.set(get_layout_key("timeframe"), currentTimeframe.value)
+  //profileName=""
+  let ind_profile = staticStore.get(get_indicator_key(),null)
+  if (ind_profile)
+          {
+            console.log("ind_profile",get_indicator_key())
+            nextTick(  loadIndicators(ind_profile))
+         
+          }
+          else
+            clearIndicators()
+
+  handleRefresh(true);
+}
+
+// ===============================
+
+const linkName = computed(() => `Link to slot:${props.number} tf: ${currentTimeframe.value}`);
+
+const menu_indicatorList = []
+const profile_indicatorList=[]
+
+const menuItems = [
+  { key: 'add', text: 'Add Indicator' },
+  { key: 'save', text: 'Save' },
+  { key: 'load', text: 'Load' },
+  { key: 'link', text: linkName },
+  { key: 'link_clear', text: "Link Clear" }
+];
+//console.log(menuItems)
+
+
+async function handleMenu(item) {
+ 
+  if (item.key === 'add') openIndicatorMenu();
+  if (item.key === 'save') saveIndicators();
+  if (item.key === 'load') await loadIndicators(null);
+  if (item.key === 'link') linkIndicators();
+  if (item.key === 'link_clear') linkClearIndicators();
+}
+
+
+async function selectProfile(item) {
+ // console.log("...",item)
+  clearIndicators()
+  if (item!=null)
+  {
+    let index=-1;
+    for(let idx = 0;idx < profile_indicatorList.length;idx++)
+    {
+        if (profile_indicatorList[idx].name ==item.text )
+          index = idx
+    }
+    if (index!= -1)
+      getIndicators(profile_indicatorList[index])
+    
+  }
+}
+
+// ===================================
+
+function onAddIndicator(ind){
+  if (!indicatorMenu.value) return
+    let serie = indicatorMenu.value.addIndicator(context(),ind)
+   // console.log("add",serie)
+    indicatorList.value.push(serie)
+}
+
+function openIndicatorMenu(){
+  indicatorMenu.value.open();
+}
+
+function getIndicators(profile)
+{   
+  profileName.value = profile.name
+ // console.log("getIndicators",profile)
+  profile.data.forEach( (ind)=>{
+      onAddIndicator(ind)
+  })
+}
+
+function updateIndicatorColor(_ind) {
+  const ind = toRaw (_ind)
+  console.log("updateIndicatorColor",ind)
+  if (ind.serie) {
+    ind.serie.applyOptions({
+      color: ind.params.color
+    });
+  }
+}
+
+// ------
+
+async function loadIndicators(profileName)
+{
+
+ // console.log("loadIndicators",profileName)
+
+  let index=null;
+  
+    
+  for(let idx = 0;idx < profile_indicatorList.length;idx++)
+  {
+          if (profile_indicatorList[idx].name ==profileName )
+              index = idx
+  }
+ 
+      //console.log("FIND ",index)
+    
+    clearIndicators()
+
+    if (index!=null)
+    {
+      const selected = profile_indicatorList[index];
+
+     // console.log("Load Profile:", selected.name, selected.data);
+
+      getIndicators(selected)
+    }
+
+  //  console.log("loadIndicators","DONE")
+}
+
+function saveIndicators(){
+
+  if (indicatorList.value.length==0)
+    return;
+
+  const name = window.prompt("Nome per salvare gli indicatori:");
+
+  if (!name) return; // annullato o vuoto
+
+  // qui fai quello che ti serve con il nome
+  //console.log("Salvo con nome:", name);
+  let data=[]
+  indicatorList.value.forEach((ind) => {
+    data.push({"type" : ind.type ,"params" : ind.params})
+  });
+   //console.log("data",data)
+
+   send_post("/api/chart/indicator/save", {"name": name, "data":data })
+}
+
+function removeIndicator(index) {
+
+    const ind = toRaw(indicatorList.value[index]);
+
+   // console.log("Remove",index, "len",indicatorList.value.length)
+    //indicatorList.value.splice(index, 1)
+    indicatorList.value = indicatorList.value.filter((_, i) => i !== index);
+
+    //console.log("Remove",ind.serie)
+
+    if (ind.serie.isComposite)
+      {
+        ind.serie.delete(chart)
+       // chart.removeSeries(ind.serie.macd);
+        //chart.removeSeries(ind.serie.signal);
+        //chart.removeSeries(ind.serie.histogram);
+      }
+    else
+      chart.removeSeries(ind.serie)
+}
+function clearIndicators(){
+  profileName.value=""
+    while(indicatorList.value.length>0)
+          removeIndicator(0)
+}
+function linkIndicators(){
+    if (profileName.value=="")
+      return
+
+     send_post('/api/props/save', { path: get_indicator_key(), "value": profileName.value });
+}
+function linkClearIndicators(){
+    send_post('/api/props/save', { path: get_indicator_key(), "value": "" });
+    clearIndicators();
+}
 
 //  ---------
 /*
  --- LOGICA REFRESH DATI ---
 */
-const handleRefresh = async () => {
+async function handleRefresh (resetWindow)
+{
   try {
-    console.log("handleRefresh ",currentSymbol.value, currentTimeframe.value);
+   // console.log("handleRefresh ", resetWindow);
 
-    // SYMBOLS CANDLES
-    if (currentSymbol.value=="")
-      return
- 
-    const response = await fetch(`http://127.0.0.1:8000/back/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
-    
-    const data = await response.json();
-    console.log("response",data)
+    clearStrategyIndicators(context())
+
+    const data = await send_get("/back/ohlc_chart", {"symbol": currentSymbol.value, 
+        "timeframe": currentTimeframe.value,
+        "backTime" : backTime.value});
+
+   // console.log("response",data)
 
     if (data.length>0)
     {
-      //console.log("ind_response",ind_response) 
-
-      console.debug("loading ",currentSymbol.value,currentTimeframe.value)
       
+      const ind_response = await send_get(`/api/chart/painter/read`,{"symbol":currentSymbol.value,"timeframe":currentTimeframe.value  });
+      //ind_response.data = JSON.parse(ind_response.data)
+      ind_response.map( line => {
+          line.data = JSON.parse(line.data)
+      })  
+
+      // TASK LIST
+      /*
+      const task_response = await send_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
+      //console.log("task list",task_response.data)
+      let _task_datas = task_response.data;
+      */
+
+      // TRADE MARKER
+
+      const _trade_marker_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
+      
+      if (_trade_marker_data.data!=null)
+          _trade_marker_data.data = JSON.parse(_trade_marker_data.data)
+    //  console.debug("trade marker",_trade_marker_data)
+   //     
+
       if (data && data.length > 0) {
 
         const formattedData = data.map(d => ({
@@ -92,75 +543,397 @@ const handleRefresh = async () => {
           open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
         }));
 
-        //console.info("formattedData ",data)
+       //  console.info("formattedData ",data)
 
-        series.setData(formattedData);
-
-
-        // Zoom finale
-        /*
-        if ( data.length >timeframe_start[currentTimeframe.value])
-        {
-          try{
-            chart.timeScale().setVisibleLogicalRange({
-              from: data.length - timeframe_start[currentTimeframe.value],
-              to: data.length
-            });
-          }catch{
-            console.debug("!!")
-          }
-        }
-          */
-          
-        // chart.timeScale().scrollToPosition(0, false);
-      //  nextTick( ()=>
-      {
-                setVolumeData(series,data.map(d => (
+        setVolumeData(series,data.map(d => (
                 {
                   time: window.db_localTime ? window.db_localTime(d.t) : d.t,
                   volume: Math.max(0,d.bv),
                   color: d.c >= d.o ? '#4bffb5aa' : '#ff4976aa'
                 })));
-      }
-    //);
- 
 
+        series.setData(formattedData);
+                
+        
+       // console.log(first,openDate,idx)
+  
+        // Gestione Indicatori (EMA, etc)
+        if (props.plot_config.main_plot!=null)
+        {
+          Object.entries(props.plot_config.main_plot).forEach(([key, config]) => {
+            if (config.fun === 'ema' && window.calculateEMA) {
+              const indData = window.calculateEMA(data, config.eta);
+              series.indicators[key].setData(indData);
+            }
+          });
+        }
+
+        // gestione lieen user
+        
+        clearDrawings( context() );
+
+        ind_response.forEach( line =>
+        {
+            if (line.type ==='price_line')
+            {
+                drawHorizontalLine(context(),line.data.price, line.guid);
+            }
+        });
+
+        // Zoom finale
+        
+        if ( data.length >timeframe_start[currentTimeframe.value])
+        {
+          try{
+            if (resetWindow)
+            {
+            //  console.log("reset")
+             // chart.timeScale().fitContent()
+              chart.timeScale().setVisibleLogicalRange({
+                from: data.length - timeframe_start[currentTimeframe.value],
+                to: data.length
+              });
+            }
+            
+          }catch{
+            console.debug("!!")
+          }
+        }
+          
+
+                         //let panes = chart.panes();
+                
+                indicatorList.value.forEach((ind) => {
+                  if (ind.refresh != null)   
+                      ind.refresh ()
+                    //console.log("update ind",ind.name,ind.refresh)
+                
+                }); 
+
+ 
+ 
+          
+        // TRADE MARKER
+        if (_trade_marker_data.data!=null)
+        {
+            tradeMarkerData = _trade_marker_data.data;
+            //updateTradeMarker(context(),tradeMarkerData)
+            liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+                
+        }
+        
+        //console.log("_task_datas",_task_datas)
      
+
+        // INDICATORS
+
+          let ind_profile = staticStore.get(get_indicator_key(),null)
+          if (ind_profile)
+          {
+          //  console.log("ind_profile",get_indicator_key())
+            nextTick(  loadIndicators(ind_profile))
+         
+          }
+          else
+            clearIndicators()
+
+          // LAST TRADE
+          //console.log("buy_line",buy_line)  
+          if (buy_line!=null)
+          {
+            series.removePriceLine(buy_line);
+            //chart.removePriceLine(buy_line);
+            buy_line=null
+          }
+          if(lastTrade.value != null  && lastTrade.value.isOpen)
+          {
+            
+              buy_line = series.createPriceLine({
+                    price: lastTrade.value.list[0].price  ,
+                    color: '#00ff00',
+                    lineWidth: 1,
+                    lineStyle: LineStyle.SparseDotted, // oppure Dashed
+                    axisLabelVisible: true,
+                    title: 'BUY'
+                  });
+            //  console.log("buy_line ADD",buy_line)  
+          }
+            
+        // PAINTER
+       // nextTick( async ()=>
+        {
+          await painter.load()
+          painter.setData(formattedData)
+          // OPEN DATE
+          const first = findLastCandleOfEachDay(formattedData)
+          const openDate = findOpenDate(formattedData)
+
+          const idx = formattedData.findIndex(p => p.time === first);
+          painter.createVirtualVLine(idx, "white")
+
+          const idx1 = formattedData.findIndex(p => p.time === openDate);
+          painter.createVirtualVLine(idx1, "yellow")
+
+            // STATEGY
+         
+          await updateStrategyIndicators( context(),
+            currentSymbol.value, currentTimeframe.value
+          )
+
+            // TRADE MARKER
+            /*
+           if (_task_datas!=null){
+
+              // taskData={}
+                _task_datas.forEach( (task)=>
+                {
+                  const next_step_idx = task.step;
+                  const data = JSON.parse(task.data)
+
+                  
+                  // prendo i passi prima
+                  const tradeBox = painter.getTradeBox()
+                  //console.log("..",tradeBox,next_step_idx,data)
+
+                  if (tradeBox)
+                  {
+                      tradeBox.clearMarkerMode()
+                      data.forEach( (step)=>
+                      {
+                          if (step["step"]== next_step_idx)
+                          {
+                              console.log("step.",step)
+                              if (step["desc"] == "MARKER")
+                                  tradeBox.setMarkerMode("price")
+                              if (step["desc"] == "SL")
+                                  tradeBox.setMarkerMode("sl")
+                              if (step["desc"] == "TP")
+                                  tradeBox.setMarkerMode("tp")
+                          }
+                      });
+                    }
+                });
+            }
+            */
+        }
+        //;
+        if (resetWindow){
+          emit('refresh', { 
+              id: props.id, 
+              data: painter.getData()
+            });
+
+        }
       }
-      console.log("handleRefresh DONE")
+     //console.log("handleRefresh DONE")
     }
     else
         console.log("empty ");
   } catch (err) {
-    console.debug("Errore refresh:", err.stack);
+    console.error("Errore refresh:", err.stack);
   }
-};
+}
 
-const setSymbol = async (symbol, tf) => {
-  console.log("setSymbol")
-  currentSymbol.value= symbol
-   currentTimeframe.value= tf
+// ====================================
+
+async function set_marker_trade(){
+    const tradeBox = painter.getTradeBox()
+    if (!tradeBox)
+    {
+       alert("Trade box non trovato");
+    }
+
+    tradeMarkerData.price =   tradeBox.buy_price()
+    tradeMarkerData.take_profit = tradeBox.tp_price()
+    tradeMarkerData.stop_loss = tradeBox.sl_price()
+    tradeMarkerData.quantity =tradeBox.quantity()
+    tradeMarkerData.type="bracket"
+    
+    await send_post("/api/trade/marker/add",
+        {
+            symbol: currentSymbol.value,
+            timeframe: currentTimeframe.value,
+            data: tradeMarkerData,
+        });
+   
+    console.log("new tradeMarkerData",tradeMarkerData)
+
+    liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+    handleRefresh (false);
+}
+
+async function onTradeBoxChanged(){
+ 
+   if (Object.keys(tradeMarkerData).length === 0) return;
+ 
+    console.log("tradeMarkerData",tradeMarkerData)
+
+    const tradeBox = painter.getTradeBox()
+    if (!tradeBox) return
+    
+    tradeMarkerData.price =   tradeBox.buy_price()
+    tradeMarkerData.take_profit = tradeBox.tp_price()
+    tradeMarkerData.stop_loss = tradeBox.sl_price()
+    tradeMarkerData.quantity =tradeBox.quantity()
+
+    let ret = await send_post("/api/trade/marker/update",
+    {
+         symbol: currentSymbol.value,
+         timeframe: currentTimeframe.value,
+         data: tradeMarkerData,
+    });
+          
+    if (ret.status === "ok") {
+        tradeMarkerData = ret.data
+        console.log("Trade marker set price", tradeMarkerData);
+
+     
+          //if (title!= "BUY")
+          //{
+          //     clearLineByGUID(chart_context,guid);
+          //     addTradeLine(chart_context,tradeData,price,title,color,guid )
+          // }
+                   
+        liveStore.updatePathData('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+                
+                //console.log("UPDATE ", chart_context.liveStore,'trade.tradeData.'+chart_context.currentSymbol.value,tradeData);
+
+                //updateTradeMarker(chart_context,tradeData); 
+    }
+                
+}
+
+async function onTradeBoxDeleted(){
+     let ret = await send_delete("/api/trade/marker/delete", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value}); 
+     console.log("trade delete",ret)  
+
+     liveStore.set('trade.tradeData.'+currentSymbol.value, null);
+
+     tradeMarkerData = {};
+     //updateTradeMarker(context(),tradeMarkerData)
+     handleRefresh (false);
+}
+
+// ====================================
+// UI LINKS
+
+function painter_delete_all(){
+     painter.clear();
+    clearDrawings(context(),true);
+}
+
+async function setDrawMode(mode) {
+
+  drawMode.value = mode;
+  //drawPoints = [];
+  console.log("Draw mode:", mode);
+}
+/*
+const handleSymbols = async () => {
+   console.log("handleSymbols")
   handleRefresh();
 };
+*/
+
+const setSymbol = async (symbol) => {
+  console.log("setSymbol",symbol)
+  currentSymbol.value= symbol
+  trade_quantity.value = staticStore.get(get_key("quantity"),100)
+  await handleRefresh(true);
+};
+
+// =========================
+
+function onOrderReceived(order) {
+  if (order.symbol == props.symbol)
+  {
+  //  console.debug("Chart → ordine:", order);
+  }
+}
+
+function onTaskOrderReceived(order){
+  if (order.symbol == props.symbol)
+  {
+    // console.log("Chart → task ordine:", order);
+     handleRefresh(false);
+   // console.log("Chart → task ordine:", order);
+  }
+}
+
+function onTradeLastUpdated(msg){
+  
+ if (msg && msg.symbol === props.symbol)
+  {
+    //console.log("onTradeLastUpdated ",props.symbol,msg) 
+     handleRefresh(false);
+     // tradeStore.push(msg)
+  }   
+}
+
+let chartWatcher=null
 
 // --- INIZIALIZZAZIONE ---
-onMounted(  () => {  
+onMounted(  () => {
+
+ // console.log("onMounted")
+
+  painter =  createPainter(context(),mainChartRef,overlay, trade_quantity)
+  painter.subscribeTradeBoxChanged(onTradeBoxChanged)
+  painter.subscribeTradeBoxDeleted(onTradeBoxDeleted)
+
+  eventBus.on("order-received", onOrderReceived);
+  eventBus.on("task-order-received", onTaskOrderReceived);
+  eventBus.on("trade-last-changed", onTradeLastUpdated);
+
+  fetch("http://127.0.0.1:8000/api/chart/indicator/list")
+  .then(res => res.json())
+  .then(list => {
+    //console.log("list", list )
+     menu_indicatorList.push({"text" :"------" ,"data" : null })
+    list.forEach(line => {
+        line.data = JSON.parse(line.data);
+        profile_indicatorList.push(line)
+        //console.log("INDICASTORS", line.data )
+        menu_indicatorList.push({"text" :line.name,"data" : line.data })
+    });
+     
+  });
+
+  staticStore.on("change", (value) => {
+    if (value.path == get_key("quantity"))
+        trade_quantity.value = value.data;
+  });
+  trade_quantity.value = staticStore.get(get_key("quantity"),100)
+    
 
   buildChart();
+ // handleRefresh();
   resize()
 
+  onTradeLastUpdated(lastTrade.value  )
 });
 
 onBeforeUnmount(() => {
+  painter.unregister()
+  eventBus.off("order-received", onOrderReceived);
+  eventBus.off("task-order-received", onTaskOrderReceived);
+  eventBus.off("trade-last-changed", onTradeLastUpdated);
 });
 
 onUnmounted(() => {
 
+  chartWatcher.destroy()
+  staticStore.off("change", () => {
+  });
+
   if (chart) chart.remove();
+  //if (charts.volume) charts.volume.remove();
 });
 
+/*
 
-
+//let lastRange_price=null;
+//let lastRange_time=null;
 /* buildChart
 */
 const buildChart =  () => {
@@ -176,31 +949,21 @@ const buildChart =  () => {
             visible: false,
         }, 
     },
-    timeScale: { timeVisible: true, borderColor: '#485c7b' }
+    timeScale: { timeVisible: true, borderColor: '#485c7b' },
+    rightPriceScale: {
+      autoScale: true
+    }
+    
   });
 
   series = chart.addSeries(CandlestickSeries, {
-    upColor: '#4bffb5', downColor: '#ff4976', borderUpColor: '#4bffb5', borderDownColor: '#ff4976',
+    upColor: '#4bffb5', downColor: '#ff4976',
+     borderUpColor: '#4bffb5', borderDownColor: '#ff4976',
     wickUpColor: '#838ca1', wickDownColor: '#838ca1',
+    priceScaleId : "right"
   });
-/*
-  timeLine_pre =  chart.addSeries(LineSeries, {
-    color: '#FFFFFF',
-    lineWidth: 2,
-    lineStyle:2,
-    priceLineVisible: false,
-    lastValueVisible: false,
-    crosshairMarkerVisible: false,
-  });
-  timeLine_open =  chart.addSeries(LineSeries, {
-    color: '#FFFF00',
-    lineWidth: 2,
-    lineStyle:2,
-    priceLineVisible: false,
-    lastValueVisible: false,
-    crosshairMarkerVisible: false,
-  });
-  */
+
+  painter.setChart(chart,series)
 
   // ==============
 
@@ -214,8 +977,28 @@ const buildChart =  () => {
     panes[1]?.setStretchFactor(0.5);
 
 
-    //console.log("stopLoss",stopLoss );
+   // Click-to-create: Create lines by clicking on chart
+  //manager = createInteractiveLineManager( chart,series);
+ // console.debug(manager);
 
+  // 3. Indicatori Dinamici
+  //console.log("plot_config",props.plot_config)
+  if (props.plot_config.main_plot!=null)
+  {
+    Object.entries(props.plot_config.main_plot).forEach(([key, config]) => {
+      if (config.fun === 'ema') {
+        series.indicators[key] = chart.addSeries(LineSeries, {
+          color: config.color,
+          lineWidth: 1,
+          lastValueVisible: false,
+          priceLineVisible: false
+        });
+      }
+    });
+  }
+
+  chartWatcher = new ChartWatcher(chart,painter,20)
+  chartWatcher.start()
 
   // MOUSE MOVE - CROSSHAIR SYNC + LEGEND UPDATE
   chart.subscribeCrosshairMove(param => 
@@ -227,6 +1010,18 @@ const buildChart =  () => {
        // charts.volume.setCrosshairPosition(0, 0, series.volume); // Clear
         return;
       }
+/*
+      const timeScale = chart.timeScale();
+    
+    // This gets the time specifically at the mouse X coordinate
+    const timeAtCursor = timeScale.coordinateToTime(param.point.x);
+    
+    // This gets the time at the very left edge of the visible chart
+   // const timeAtLeftEdge = timeScale.coordinateToTime(0);
+
+    //console.log("Left edge time:", new Date(timeAtLeftEdge*1000));
+    console.log("Cursor time:", param.point.x, new Date(timeAtCursor*1000));
+    */
 
       const data = param.seriesData.get(series);
       if (!data) return;
@@ -244,7 +1039,17 @@ const buildChart =  () => {
       lbl += ` V: <strong>${formatValue(vol)}</strong></span>`;
       legendHtml.value = lbl;
 
+      //console.log(strategy_index_list)
+      strategy_index_list.value.forEach( ind=>
+      {
+          const v = ind.data_cache[timeKey]
+          ind.value = v;
+         // console.log("i ",v )
+      });
       lbl=""
+      
+      //painter.onMouseMove_disabled(param.point)
+      //painter.redraw();
       // Aggiungi valori indicatori alla legenda
 
       /*
@@ -264,19 +1069,43 @@ const buildChart =  () => {
 
 
   chart.subscribeClick(param => {
-    
+    //console.log("click",param)
+
+    //if (painter.onMouseClick_disabled(param.point))
+        //return 
+
+    if (!drawMode.value ) return;
+   // console.log(param)
     if (!param || !param.point ) {
       console.log("Click cancelled");
       return;
     }
     //const candle_price = param.seriesData.get(series).close;
     const price = series.coordinateToPrice(param.point.y);
-  
-    if (price == null) return;
+    let time = chart.timeScale().coordinateToTime(param.point.x)
+   
+   // const logical = chart.timeScale().coordinateToLogical(param.point.x)
+    //const time = chart.timeScale().logicalToTime(logical)
 
-    console.log("Click at", param.time, price);  
+    if (price == null ) return;
 
+    console.log("Click at", Date(time),price);  
+   
   });
+
+  //
+  // Caricamento Iniziale
+
+  // Esponi l'oggetto al genitore (per aggiornamenti WS)
+  emit('initialized', { 
+    id: props.id, 
+    mainSeries: series, 
+    //volumeSeries: series.volume,
+    refresh: buildChart 
+  });
+
+ // gfx_canvas.value = container.value.querySelector('canvas');
+  gfx_canvas.value = overlay.value
 
   
 }catch(ex){
@@ -284,6 +1113,7 @@ const buildChart =  () => {
 }
 
 };
+
 
 // =========================
 let old_size = [0,0]
@@ -294,24 +1124,61 @@ const resize =  () => {
     {
       old_size = [ width, height ]
 
-      chart.resize(width-10,height-40);
+      chartWidth = width-10
+      chart.resize(chartWidth,height-1);
 
-      handleRefresh();
+      handleRefresh(true);
+      painter.resizeOverlay();
     }
 };
 
 
+function onTickerReceived(){
+
+}
+
+function on_candle(c)
+{
+  //
+  if (c.tf !== currentTimeframe.value) return;  
+}
+
+// =====================================
+// BACK
+
+function setBackTime(time){
+  //console.log("setBackTime",time)
+  backTime.value=time
+   handleRefresh(false);
+}
 
 // ==========================
 
 defineExpose({
   resize,
   setSymbol,
+  on_candle,
+  onTickerReceived,
+  setBackTime
+  
+//  delete_marker_trade
+
 });
+
 
 </script>
 
 <style scoped>
+
+.overlay{
+  position:absolute;
+  inset:0;
+  /*pointer-events:auto;*/
+   pointer-events:none;
+  /*background-color: rgba(19, 23, 34, 0.7);*/
+  z-index: 10;
+}
+
 
 .charts-grid {
   width: 100%;
@@ -374,7 +1241,7 @@ defineExpose({
 }
 
 .chart-legend-left-ind  {
-  left:  0px;
+  left:  3px;
   top: 60px;
   text-align: left;
   background: rgba(50, 59, 85, 0.7);

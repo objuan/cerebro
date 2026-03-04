@@ -76,6 +76,15 @@ export function formatTime(t) {
 export function lerp(a, b, f) {
     return a + (b - a) * f;
 }
+export function formatDate(d) {
+  return d.toLocaleString("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    day: "2-digit",
+    month: "2-digit"
+  }).replace(",", "")
+}
 
 export  function interpolateColor(start, end, f,a) {
   

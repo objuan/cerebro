@@ -96,7 +96,7 @@ class Back_DBDataframe_TimeFrame:
      
         to = 1000*int(datetime.strptime(str(inData.dt_to), "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Rome")).timestamp())
 
-        self.all_df = self.main_df.back_manager.client.back_data(inData.symbols,self.timeframe,since, to)
+        self.all_df = self.main_df.back_manager.back_data(inData.symbols,self.timeframe,since, to)
 
         self.all_df["local_time"] = pd.to_datetime(self.all_df["timestamp"], unit="ms") \
                         .dt.tz_localize("UTC") \
@@ -211,10 +211,17 @@ class Back_DatabaseManager:
 class BacktestManager:
     params : Dict
     
-    def __init__(self,client : MuloLiveClient,render_page : RenderPage):
-      self.client=client
-      self.render_page = render_page
-      pass
+    def __init__(self,config, client : MuloLiveClient,render_page : RenderPage):
+        self.client=client
+        self.config=config
+        self.render_page = render_page
+        self.strategy_folder = self.config["live_service"]["strategy_folder"]
+        self.strategies=[]
+
+        if "stategies" in self.config:
+            for strat_def in self.config["stategies"]:
+                if strat_def["scope"] =="BACK" if "scope" in strat_def else False:
+                    self.strategies.append(strat_def)
     
     async def loadStrategy(self,module_name, class_name,strat_def):
         logger.info(f"LOAD STRATEGY module: {module_name} class:{class_name}")
@@ -228,12 +235,15 @@ class BacktestManager:
 
         strategy.load(strat_def)
 
-        await strategy.bootstrap()
+        await strategy.bootstrap(False)
+
+    def get_strategy_list(self):
+        return self.strategies
 
     async def load(self, inData:BacktestIn):
         self.inData=inData
         self.db = Back_DatabaseManager(self,inData)
-       
+
     async def start(self, strat_def):
         #self.db = Back_DatabaseManager(self,inData)
         for s in self.inData.strategy:
@@ -248,7 +258,91 @@ class BacktestManager:
             time= time + time_delta
             await self.db.tick(time)
         pass
+    ##############
 
+    def setCurrentTime(self,current):
+        logger.info(f"setCurrentTime {current}")
+        pass
+
+    #########################
+
+    def back_profiles(self):
+        
+        conn = sqlite3.connect(DB_FILE)
+        query = f""" SELECT * from back_profile"""
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()    
+        return df 
+    
+    def back_data(self,symbols: List[str], timeframe: str, since : int, to: int ):
+
+        if len(symbols) == 0:
+            logger.error("symbol empty !!!")
+            return None
+
+        
+        sql_symbols = str(symbols)[1:-1]
+        conn = sqlite3.connect(DB_FILE)
+
+        #logger.info(f"SYM BOOT TIME {self.sym_start_time}")
+
+        query = f"""
+                    SELECT *
+                    FROM ib_ohlc_history
+                    WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
+                    and timestamp>= {since}
+                    and timestamp<= {to}
+                    ORDER BY timestamp DESC"""
+                    
+        #print("query",query)
+
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()    
+        return df 
+
+      
+    def back_symbols(self,timeframe:str, since : int, to: int ):
+        
+        conn = sqlite3.connect(DB_FILE)
+
+        query = f"""
+                   SELECT 
+    symbol,
+    MIN(timestamp) AS min_timestamp,
+    MAX(timestamp) AS max_timestamp
+FROM ib_ohlc_history
+WHERE timeframe = '{timeframe}'
+  AND timestamp >= {since}
+  AND timestamp <= {to}
+GROUP BY symbol;
+"""
+                    
+        #print("query",query)
+
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()    
+        return df 
+    
+
+    
+    def save_profile(self,name,data):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO back_profile (name, data)
+            VALUES (?, ?)
+            ON CONFLICT(name)
+            DO UPDATE SET data = excluded.data
+        """
+
+        cursor.execute(query, (name, json.dumps(data)))
+        conn.commit()
+        conn.close()
+    
 
 ###############################
 

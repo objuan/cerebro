@@ -346,7 +346,8 @@ class LiveManager:
                             logger.error("CANCEL ERROR", exc_info=True)
                         self.ib.sleep(1)
 
-                        del  self.tickers[symbol]
+                        if symbol in self.tickers:
+                            del  self.tickers[symbol]
                         
                         
                # await self.manage_live([],symbols )

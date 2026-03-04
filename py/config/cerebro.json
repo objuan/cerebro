@@ -129,7 +129,18 @@
 					"eta" : 5,
 					"min_gain" : 5
 				}
-			}
+		},
+		{
+			   "module": "back_strategy",
+				"class" : "BackStrategy",
+				"timeframe" : "1m",
+				"scope" : "BACK",
+				"params" :
+				{
+					"eta" : 5,
+					"min_gain" : 5
+				}
+		}
 	]
 	
 	,"stategies22":[
@@ -234,7 +245,7 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :10,
+				"max_symbols" :2,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
@@ -252,21 +263,21 @@
 						"name" : "LOSE",
 						"update_time" : 1100,
 						"live_mode" : "MERGE",
-						"merge_weight" :"20%",
+						"merge_weight" :"00%",
 						"discard_rule" : "TOP_GAIN"
 					},
 					{
 						"name" : "GAIN",
-						"update_time" : 60,
+						"update_time" : 600,
 						"live_mode" : "MERGE",
-						"merge_weight" :"60%",
+						"merge_weight" :"100%",
 						"discard_rule" : "LESS_GAIN"
 					},
 					{
 						"name" : "VOLR",
-						"update_time" : 50,
+						"update_time" : 300,
 						"live_mode" : "MERGE",
-						"merge_weight" :"20%",
+						"merge_weight" :"00%",
 						"discard_rule" : "IMMEDIATE"
 					}
 			

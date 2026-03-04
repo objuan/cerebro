@@ -787,7 +787,7 @@ export  class Fibonacci  extends Box{
    constructor(painter){
     super(painter)
     this.type = "fibonacci"
-    this.color = '#74a6e7'
+    this.color = '#ffffff'
   }
   props(){
     return [

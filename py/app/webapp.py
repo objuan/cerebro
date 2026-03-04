@@ -155,7 +155,7 @@ report.render_page=render_page
 strategy = StrategyManager(config,db,client,render_page)
 client.render_page=render_page
 
-back_manager = BacktestManager(client,render_page)
+back_manager = BacktestManager(config,client,render_page)
 
 in_data = {
             "badgetUSD": 100,
@@ -1224,32 +1224,50 @@ async def set_sym_speed(value:float):
 ####################
 
 @app.get("/back/ohlc_chart")
-async def back_ohlc_chart(symbol: str, timeframe: str):
-    
+async def back_ohlc_chart(symbol: str, timeframe: str, backTime):
     try:
-            df1 = back_manager.db.full_dataframe(timeframe, symbol)
-            #logger.debug(f"{symbol} {timeframe} {df1}")
-            df_co = (
-                df1[["timestamp","open", "high","low","close","base_volume","quote_volume"]]
-                .rename(columns={"timestamp":"t","open": "o", "high":"h","low":"l","close": "c","quote_volume":"qv","base_volume": "bv"})
-                .copy().fillna(0)
-            )
-            #logger.info(f"NAN {df_co.isna().any().any()}")
+        df1 = back_manager.db.full_dataframe(timeframe, symbol)
+        #logger.info(f"backTime {backTime}")
 
-            #logger.info(df_co.to_dict(orient="records"))
-            return JSONResponse(df_co.to_dict(orient="records"))
-    except:
+        if backTime =="null":
+            backTime = None
+
+            
+        # ✅ filtro se backTime presente
+        if backTime is not None:
+            ibackTime = int(backTime)*1000
+            #logger.info(f"ibackTime {ibackTime}")
+            df1 = df1[df1["timestamp"] < ibackTime]
+
+        df_co = (
+            df1[["timestamp", "open", "high", "low", "close", "base_volume", "quote_volume"]]
+            .rename(columns={
+                "timestamp": "t",
+                "open": "o",
+                "high": "h",
+                "low": "l",
+                "close": "c",
+                "quote_volume": "qv",
+                "base_volume": "bv"
+            })
+            .copy()
+            .fillna(0)
+        )
+
+        return JSONResponse(df_co.to_dict(orient="records"))
+
+    except Exception:
         logger.error("Error", exc_info=True)
         return HTMLResponse("error", 500)
     
 @app.get("/back/profiles")
 async def back_get_profiles():
-    df = client.back_profiles(  )
+    df = back_manager.back_profiles(  )
     return JSONResponse(df.to_dict(orient="records"))
 
 @app.get("/back/profile/select")
 async def back_select_profile(name):
-    df = client.back_profiles(  )
+    df = back_manager.back_profiles(  )
     sdata = df[df["name"]== name].iloc[0]["data"]
     logger.info(f"SELECT DATA { sdata}")
     data = json.loads(sdata)
@@ -1266,7 +1284,7 @@ async def back_select_profile(name):
 
     backData.dt_from = start_of_day.strftime("%Y-%m-%d %H:%M:%S")
     backData.dt_to =end_of_day.strftime("%Y-%m-%d %H:%M:%S")
-
+    logger.info(f"load  DATA { backData}")
     await back_manager.load(backData)
 
     return {"status": "ok"}
@@ -1278,7 +1296,7 @@ async def back_save_profile(payload: dict):
         name = payload["name"]
         data = payload["data"]
 
-        client.save_profile(name,data)
+        back_manager.save_profile(name,data)
 
         return {"status": "ok"}
     
@@ -1300,13 +1318,24 @@ async def back_get_symbols(date:str):
 
         logger.info(f"{unix_min} {unix_max}")
 
-        df = client.back_symbols("1m",unix_min, unix_max)
+        df = back_manager.back_symbols("1m",unix_min, unix_max)
         
         return JSONResponse(df.to_dict(orient="records"))
     except:
         logger.error("ERRO",exc_info=True)
         return {"status": "ko"}
     
+@app.get("/back/strategy/list")
+async def back_strategy_list():
+       return JSONResponse(back_manager.get_strategy_list())   
+
+@app.get("/back/trade/currentTime")
+async def back_currentTime(current):
+        back_manager.setCurrentTime(current)
+        return {"status": "ok"}
+
+###########################################
+
 @app.get("/live/strategy/indicators")
 async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Optional[str] = None,since: Optional[int] = None):
     try:

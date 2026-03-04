@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "STAK",
+      "symbol": "EDSA",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -262,6 +262,9 @@
     },
     "INEO": {
       "quantity": 100
+    },
+    "": {
+      "mode": "DIRECT"
     }
   },
   "back": {

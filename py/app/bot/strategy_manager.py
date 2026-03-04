@@ -89,12 +89,15 @@ class StrategyManager:
 
         self.strategies = []
 
+    def get_list(self):
+        return self.strategies
+    
 
     async def bootstrap(self):
         self.load_strategies()
         self.start_watcher()
         for strat in self.strategies:
-            await strat["instance"].bootstrap()
+            await strat["instance"].bootstrap(True)
 
     def start_watcher(self):
         root = self.config["live_service"]["root_folder"]
@@ -142,16 +145,17 @@ class StrategyManager:
                 strat = cls(self)
                 strat.load(strat_def)
 
-                self.logger.info(f"ADD STRAT {strat_def} {strat}")
+                if strat.scope != "BACK":
 
+                    self.logger.info(f"ADD STRAT {strat_def} {strat}")
 
-                self.strategies.append({
-                    "instance": strat,
-                    "def" : strat_def,
-                    "module": module,
-                    "module_name": module_name,
-                    "class_name": class_name
-                })
+                    self.strategies.append({
+                        "instance": strat,
+                        "def" : strat_def,
+                        "module": module,
+                        "module_name": module_name,
+                        "class_name": class_name
+                    })
 
     async def reload_strategies(self, module):
 
@@ -201,7 +205,7 @@ class StrategyManager:
 
                     self.logger.info(f"RELOADED {class_name}")
 
-                    await new_instance.bootstrap()
+                    await new_instance.bootstrap(True)
 
                 except Exception as e:
                     self.logger.error(f"Reload failed for {class_name}: {e}", exc_info=True)

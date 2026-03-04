@@ -35,7 +35,9 @@
             :timeframe ="currentTimeframe"
           />
         </div>
-        <div>2</div>
+        <div>
+          <BackStrategyWidget></BackStrategyWidget>
+        </div>
    
       </main>
   </div>
@@ -47,6 +49,7 @@
 import { onMounted,ref} from 'vue';
 import PageHeader from '@/components/PageHeader.vue'
 import HistoryBrowser from '@/components/back/HistoryBrowser.vue'
+import BackStrategyWidget from '@/components/back/BackStrategyWidget.vue'
 //import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { initProps } from "@/components/js/common";
 import MultiBackChartWidget from '@/components/back/MultiBackChartWidget.vue'
@@ -82,6 +85,11 @@ function onHistoryChanged(){
 
 }
 
+function resizeAllCharts() {
+  multiBackChartWidget.value.resize()
+}
+
+window.addEventListener('resize', resizeAllCharts)
 
 onMounted( async () => {
   

@@ -41,6 +41,7 @@
           <option value="1h">1h</option>
           <option value="1d">1d</option>
         </select>
+    
 
     </div>
   <!--    -->
@@ -88,6 +89,7 @@ import { staticStore } from '@/components/js/staticStore.js';
 import { initProps } from "@/components/js/common";
 import {send_get,send_post} from  "@/components/js/utils";
 import SymbolDayMap from '@/components/back/SymbolDayMap.vue'
+//import {BacktestIn}  from '@./back_types.js'
 
 //import { eventBus } from "@/components/js/eventBus";
 
@@ -102,6 +104,7 @@ const symbolList = ref([])
 const symbolMap = ref(null)
 const profile_name = ref(null)
 const currentTimeframe = ref("1m")
+
 
 let profiles = null
 let profile_data = null
