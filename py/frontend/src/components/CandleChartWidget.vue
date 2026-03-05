@@ -1,6 +1,7 @@
 <template>
   <div ref="container" class=" border rounded bg-dark text-white shadow-sm chart-parent" style="overflow: hidden;" >
     
+
     <div  class="bulk_header" >
       <div style="display: grid;grid-template-columns: 80px 1fr;">
         <select 
@@ -20,6 +21,98 @@
       </div>
     </div>
 
+    <table >
+      <tr style="height: 100%;">
+        <td >
+             <!-- BUTTON BAR -->
+
+            <div class="button_bar">
+              <DropdownMenu
+              label="="
+              :items="menuItems"
+              @select="handleMenu"
+            />
+                      
+
+              <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
+              @click="painter?.setMode('price-line')">
+                ─
+              </button>
+
+              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                  @click="painter?.setMode('line')">
+                ／
+              </button>
+              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                  @click="painter?.setMode('hline')">
+                H
+              </button>
+              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                  @click="painter?.setMode('vline')">
+                V
+              </button>
+              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                  @click="painter?.setMode('box')">
+                B
+              </button>
+              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                  @click="painter?.setMode('split-box')">
+                S
+              </button>
+              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
+                  @click="painter?.setMode('fibonacci')">
+                F
+              </button>
+              <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                @click="setDrawMode('delete')">
+                D
+              </button>
+
+              <button  class="btn btn-sm btn-danger ms-1"  title="Clear drawings"
+                @click="painter_delete_all()">
+                ✕
+              </button>
+            
+            </div>
+            </td>
+           <td>
+         <div class="button_bar">
+
+              <DropdownMenu
+              :label="profileName"
+              :items="menu_indicatorList"
+              @select="selectProfile"
+             />
+              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                  @click="painter?.setMode('trade-box')">
+                T
+              </button>
+               <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                  @click="painter?.setMode('buy-above')">
+                U
+              </button>
+                <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                  @click="painter?.setMode('buy-below')">
+                D
+              </button>
+                <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                @click="painter.redraw()">
+                refresh
+              </button>
+                <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                @click="clearStrategyIndicators(context())">
+                Clear
+              </button>
+              <span>
+                mode {{  painter?.drawMode }}
+              </span>
+        
+              
+            </div>
+        
+        </td>
+    
+      <td colspan="2">
     <!---   -->
     <div class="position-relative p-0 chart-panel">
       <div class="chart-legend-up  small" v-html="legendHtml"></div>
@@ -34,18 +127,6 @@
 
           <div class="chart-legend-left-ind">
 
-              <DropdownMenu
-              label="="
-              :items="menuItems"
-              @select="handleMenu"
-            />
-            
-            <DropdownMenu
-              :label="profileName"
-              :items="menu_indicatorList"
-              @select="selectProfile"
-            />
-            
 
             <!-- INDICATOR LEGENDS -->
 
@@ -87,68 +168,6 @@
 
         </div>
 
-    
-        <!-- BUTTON BAR -->
-
-        <div class="button_bar">
-
-          <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
-           @click="painter?.setMode('price-line')">
-            ─
-          </button>
-
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('line')">
-            ／
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('hline')">
-            H
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('vline')">
-            V
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('box')">
-            B
-          </button>
-           <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('split-box')">
-            S
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('trade-box')">
-            T
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
-              @click="painter?.setMode('fibonacci')">
-            F
-          </button>
-          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="setDrawMode('delete')">
-            D
-          </button>
-
-          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="painter_delete_all()">
-            ✕
-          </button>
-            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="painter.redraw()">
-            refresh
-          </button>
-            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="clearStrategyIndicators(context())">
-            Test
-          </button>
-          <span>
-            mode {{  painter?.drawMode }}
-          </span>
-    
-          
-        </div>
-
         <!-- TRADE BAR -->
         <div class="trade_bar">
             <button   class="btn btn-sm btn-outline-success ms-1"   title="Set Trade"
@@ -160,7 +179,14 @@
         </div>
        
       </div>
+      
     </div>
+
+    
+      </td>
+        </tr>
+    </table>
+
 
    <CandleChartIndicator ref="indicatorMenu"
         @add-indicator="onAddIndicator"></CandleChartIndicator>
@@ -225,6 +251,7 @@ const profileName = ref("");
 const overlay = ref(null)
 
 let painter = null;
+let initialized=false;
 
 // ==================
 
@@ -498,7 +525,9 @@ function linkClearIndicators(){
 async function handleRefresh (resetWindow )
 {
   try {
-   // console.log("handleRefresh ", resetWindow);
+    if (!resetWindow && !initialized) return
+
+    console.log("handleRefresh ", resetWindow);
 
     clearStrategyIndicators(context())
 
@@ -519,7 +548,7 @@ async function handleRefresh (resetWindow )
 
       const task_response = await send_get(`/order/task/symbol`,{"symbol":currentSymbol.value ,"onlyReady":true});
       //console.log("task list",task_response.data)
-      let _task_datas = task_response.data;
+      let _task_live_datas = task_response.data;
 
       // TRADE MARKER
 
@@ -527,7 +556,7 @@ async function handleRefresh (resetWindow )
       
       if (_trade_marker_data.data!=null)
           _trade_marker_data.data = JSON.parse(_trade_marker_data.data)
-    //  console.debug("trade marker",_trade_marker_data)
+      //console.log("trade marker",_trade_marker_data)
    //     
 
       if (data && data.length > 0) {
@@ -610,14 +639,6 @@ async function handleRefresh (resetWindow )
       //  } );
  
 
-        // TRADE MARKER
-        if (_trade_marker_data.data!=null)
-        {
-            tradeMarkerData = _trade_marker_data.data;
-            //updateTradeMarker(context(),tradeMarkerData)
-            liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
-                
-        }
         //console.log("_task_datas",_task_datas)
      
 
@@ -674,35 +695,46 @@ async function handleRefresh (resetWindow )
           await updateStrategyIndicators( context(),
             currentSymbol.value, currentTimeframe.value
           )
+        
+          // TRADE MARKER
+          if (_trade_marker_data.data!=null)
+          {
+              tradeMarkerData = _trade_marker_data.data;
+              painter.updateTradeMarker(tradeMarkerData)
+              liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+                  
+          }
 
-            // TRADE MARKER
-           if (_task_datas!=null){
+            // TRADE LIVE MARKER
+           if (_task_live_datas!=null){
 
               // taskData={}
-                _task_datas.forEach( (task)=>
+                _task_live_datas.forEach( (task)=>
                 {
                   const next_step_idx = task.step;
                   const data = JSON.parse(task.data)
 
-                  
+       
                   // prendo i passi prima
                   const tradeBox = painter.getTradeBox()
-                  //console.log("..",tradeBox,next_step_idx,data)
+                 // console.log("_task_live_datas",tradeBox,next_step_idx,data)
 
                   if (tradeBox)
                   {
-                      tradeBox.clearMarkerMode()
+                      tradeBox.clearLiveMarkerMode()
+                     // console.log("tradeBox",tradeBox)
+
                       data.forEach( (step)=>
                       {
                           if (step["step"]== next_step_idx)
                           {
                               console.log("step.",step)
-                              if (step["desc"] == "MARKER")
-                                  tradeBox.setMarkerMode("price")
+                              if (step["desc"] == "MARKER" || step["desc"] == "BUY >" || step["desc"] == "BUY <")
+                                  tradeBox.setLiveMarkerMode("price")
                               if (step["desc"] == "SL")
-                                  tradeBox.setMarkerMode("sl")
+                                  tradeBox.setLiveMarkerMode("sl")
                               if (step["desc"] == "TP")
-                                  tradeBox.setMarkerMode("tp")
+                                  tradeBox.setLiveMarkerMode("tp")
                           }
                       });
                     }
@@ -713,7 +745,8 @@ async function handleRefresh (resetWindow )
         //;
           
       }
-     //console.log("handleRefresh DONE")
+      initialized=true;
+     console.log("handleRefresh DONE")
     }
     else
         console.log("empty ");
@@ -731,11 +764,14 @@ async function set_marker_trade(){
        alert("Trade box non trovato");
     }
 
+
     tradeMarkerData.price =   tradeBox.buy_price()
     tradeMarkerData.take_profit = tradeBox.tp_price()
     tradeMarkerData.stop_loss = tradeBox.sl_price()
+
     tradeMarkerData.quantity =tradeBox.quantity()
-    tradeMarkerData.type="bracket"
+    tradeMarkerData.price_op=tradeBox.buy_price_op()
+    tradeMarkerData.type=tradeBox.buy_type();//"bracket"
     
     await send_post("/api/trade/marker/add",
         {
@@ -748,6 +784,17 @@ async function set_marker_trade(){
 
     liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
     handleRefresh (false);
+}
+async function delete_marker_trade(){
+     let ret = await send_delete("/api/trade/marker/delete", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value}); 
+     console.log("trade delete",ret)  
+
+     liveStore.set('trade.tradeData.'+currentSymbol.value, null);
+
+     tradeMarkerData = {};
+     painter.updateTradeMarker(tradeMarkerData)
+     //updateTradeMarker(context(),tradeMarkerData)
+     handleRefresh (false);
 }
 
 async function onTradeBoxChanged(){
@@ -763,6 +810,8 @@ async function onTradeBoxChanged(){
     tradeMarkerData.take_profit = tradeBox.tp_price()
     tradeMarkerData.stop_loss = tradeBox.sl_price()
     tradeMarkerData.quantity =tradeBox.quantity()
+    tradeMarkerData.price_op=tradeBox.buy_price_op()
+    tradeMarkerData.type=tradeBox.buy_type();//"bracket"
 
     let ret = await send_post("/api/trade/marker/update",
     {
@@ -798,6 +847,7 @@ async function onTradeBoxDeleted(){
      liveStore.set('trade.tradeData.'+currentSymbol.value, null);
 
      tradeMarkerData = {};
+     painter.updateTradeMarker(tradeMarkerData)
      //updateTradeMarker(context(),tradeMarkerData)
      handleRefresh (false);
 }
@@ -1124,7 +1174,7 @@ const resize =  () => {
     {
       old_size = [ width, height ]
 
-      chartWidth = width-10
+      chartWidth = width-10-32-32
       chart.resize(chartWidth,height-40);
 
       handleRefresh(true);
@@ -1133,8 +1183,16 @@ const resize =  () => {
 };
 
 
-function onTickerReceived(){
+function onTickerReceived(ticker){
+    if (lastMainCandle)
+    {
+      lastMainCandle.c = ticker.last
+      lastMainCandle.h = ticker.high
+      lastMainCandle.l = ticker.low
+     // console.log("ticker",currentSymbol.value,currentTimeframe.value,ticker,lastMainCandle)
 
+      series.update(lastMainCandle);
+    }
 }
 
 let last_time = null;
@@ -1144,7 +1202,7 @@ function on_candle(c)
   //
   if (c.tf !== currentTimeframe.value) return;  
 
-  //console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
+ // console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
 
   const new_value = {
     time: window.db_localTime(c.ts),
@@ -1202,8 +1260,8 @@ defineExpose({
   resize,
   setSymbol,
   on_candle,
-  onTickerReceived
-//  delete_marker_trade
+  onTickerReceived,
+  delete_marker_trade
 
 });
 
@@ -1258,7 +1316,6 @@ defineExpose({
 }
 
 .chart-panel{
-  
   /*height: calc(100% - 45px);*/
   flex: 1;
   overflow: hidden;
@@ -1283,8 +1340,8 @@ defineExpose({
 }
 
 .chart-legend-left-ind  {
-  left:  3px;
-  top: 60px;
+  left:  1px;
+  top: 34px;
   text-align: left;
   background: rgba(50, 59, 85, 0.7);
   border-bottom-right-radius: 4px;
@@ -1329,13 +1386,19 @@ defineExpose({
   padding: 3px;
 }
 .button_bar{
-  position:absolute;
-  top:0px;
-  left:400px;
-  z-index: 20 !important;
-  font-weight: 300;
-  font-size: medium;
-  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;   /* forza partenza dall’alto */
+  align-items: flex-start;
+
+  padding: 0px;
+  background: rgba(78, 78, 78, 0.6);
+  border-radius: 6px;
+}
+.button_bar button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
 }
 .trade_bar{
   border: solid 1px white;

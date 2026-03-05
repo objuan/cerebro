@@ -10,6 +10,17 @@ export async function order_bracket(symbol, timeframe,qty, price){
       //  "price" : price
     })
 }
+export async function order_single(symbol, timeframe,qty, price){
+    console.log("single", symbol,timeframe,qty, price)
+
+     send_get("/order/single", {
+        "symbol" : symbol,
+        "timeframe" : timeframe,
+       // "qty": qty,
+      //  "price" : price
+    })
+}
+
 
 export async function order_tp_sl(symbol, timeframe, tp,sl){
     console.log("order_tp_sl", symbol,timeframe, tp,sl)
@@ -41,6 +52,7 @@ export async function order_limit(symbol, qty){
         "qty": qty,
     })
 }
+
 
 export async function clear_all_orders(symbol){
     console.log("clear_all_orders", symbol,)

@@ -39,7 +39,6 @@ class OrderTaskManager:
     async def bootstrap():
         logger.info("ORDER BOOT")
 
-   
         cur.execute("""UPDATE task_orders set status='BOOT_CANC' 
             WHERE id IN (
                 SELECT MAX(o.id)
@@ -237,6 +236,53 @@ class OrderTaskManager:
             return data
     
     ################################
+
+    async def single(symbol,timeframe):
+        df = pd.read_sql_query(f"""
+            SELECT  symbol, timeframe,  data
+            FROM trade_marker
+            WHERE symbol = '{symbol}' AND timeframe = '{timeframe}'
+        """, conn)
+        if (len(df) == 0):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Trade marker not found: {symbol}  {timeframe}"
+        )
+
+        data = json.loads(df.iloc[0]["data"])
+        logger.info(f"ADD single {data}")
+
+        price = data["price"]
+        quantity = data["quantity"]
+        price_op = data["price_op"]
+  
+        logger.info(f"ADD single p:{price} q:{quantity} price_op:{price_op}")
+
+        if (price_op ==">"):
+            actions = [
+            {
+                "step" : 1,
+                "side" : "BUY",
+                "op" : "last >",
+                "price" : price,
+                "quantity" : quantity,
+                "desc" : "BUY >"
+            }]
+        else:
+            actions = [
+            
+            {
+                "step" : 1,
+                "side" : "BUY",
+                "op" : "last <",
+                "price" : price,
+                "quantity" : quantity,
+                "desc" : "BUY <"
+            }
+        ]
+
+        task = await OrderTaskManager.create_task(symbol, actions)
+
     async def tp_sl(symbol,timeframe):
         df = pd.read_sql_query(f"""
             SELECT  symbol, timeframe,  data
@@ -250,14 +296,14 @@ class OrderTaskManager:
         )
 
         data = json.loads(df.iloc[0]["data"])
-        logger.info(f"ADD bracket {data}")
+        logger.info(f"ADD tp_sl {data}")
 
         price = data["price"]
         quantity = data["quantity"]
         stop_loss = data["stop_loss"]
         take_profit = data["take_profit"]
 
-        logger.info(f"ADD bracket p:{price} q:{quantity} sl:{stop_loss} tp:{take_profit}")
+        logger.info(f"ADD tp_sl p:{price} q:{quantity} sl:{stop_loss} tp:{take_profit}")
 
         actions = [
             {

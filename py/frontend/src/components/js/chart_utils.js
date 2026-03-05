@@ -202,7 +202,7 @@ export async  function updateStrategyIndicators(context,
               //console.log("dddd",strat.legends)
               strat.legends.forEach( (data) =>
                 {
-                  console.log(data)
+               //   console.log(data)
 
                   const legend_data={
                     type:"legend", name: data.label,value : data.value,params : {color : data.color}

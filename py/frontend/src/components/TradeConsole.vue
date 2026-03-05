@@ -135,7 +135,7 @@ import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il p
 import { staticStore } from '@/components/js/staticStore.js';
 import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
-import {order_limit,clear_all_orders,order_bracket,order_tp_sl} from "@/components/js/orderManager";
+import {order_limit,clear_all_orders,order_bracket,order_tp_sl,order_single} from "@/components/js/orderManager";
 import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
 import { tradeStore } from "@/components/js/tradeStore";
 
@@ -147,8 +147,8 @@ const props = defineProps({
   symbol: { type: String, required: true },
   liveMode : { type: Boolean, required: true },
 });
-watch(() => props.symbol, () => {
-  //console.log("symbol cambiato:", newValue);
+
+watch(() => props.symbol, () => {  //console.log("symbol cambiato:", newValue);
 
     quantity.value = staticStore.get(get_key("quantity"),100);  
     tradeMode.value = staticStore.get(get_key("mode"),"DIRECT");  
@@ -223,7 +223,9 @@ function send_order_marker(){
 
   console.log("send_order_marker", tradeData.value);  
 
-  if (tradeData.value.type == "tp_sl") 
+  if (tradeData.value.type == "single") 
+     order_single(props.symbol,tradeData.value.timeframe,quantity.value,ticker.value.last  )
+  else if (tradeData.value.type == "tp_sl") 
     order_tp_sl(props.symbol,tradeData.value.timeframe,tradeData.value.take_profit, tradeData.value.stop_loss )
   else
     order_bracket(props.symbol,tradeData.value.timeframe,quantity.value,ticker.value.last )
@@ -328,6 +330,7 @@ function onOrderReceived(msg) {
 }
 */
 function onTickerReceived(_ticker) {
+  // console.log("TradeConsole → ticker:", _ticker);
   if (_ticker.symbol == props.symbol)
   {
    // console.log("TradeConsole → ticker:", _ticker);
@@ -355,8 +358,8 @@ function onTradeUpdated(msg){
 */
 
 onMounted( async () => {
-  
-  if (props.liveMode.value)
+   
+  if (props.liveMode)
   {
     eventBus.on("task-order-received", onTaskOrderReceived);
     //eventBus.on("order-received", onOrderReceived);
@@ -374,8 +377,11 @@ onMounted( async () => {
 });
 
 onBeforeUnmount(() => {
- if (props.liveMode.value)
+
+ if (props.liveMode)
   {
+   
+
     eventBus.off("task-order-received", onTaskOrderReceived);
   // eventBus.off("order-received", onOrderReceived);
     eventBus.off("ticker-received", onTickerReceived);

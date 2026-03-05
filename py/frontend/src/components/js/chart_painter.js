@@ -1,7 +1,9 @@
 import { send_get,localUnixToUtc,timeframeToSeconds } from '@/components/js/utils.js'; // Usa il percorso corretto
 //formatUnixDate
 import { ref,computed} from 'vue';
-import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci } from '@/components/js/chart_primitives.js'
+import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci,
+  BuyAbove,BuyBelow
+ } from '@/components/js/chart_primitives.js'
 import { liveStore } from '@/components/js/liveStore.js';
 
 
@@ -94,7 +96,7 @@ export class ChartWatcher
       },this.pollingTime)
     }
   destroy(){
-    console.log("ChartWatcher destroy",this.intervalId)
+  //  console.log("ChartWatcher destroy",this.intervalId)
 
     if (this.intervalId)
       clearInterval(this.intervalId)
@@ -310,7 +312,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
 
     }
     ,async load(){
-      // console.log( "load")
+      console.log( "load")
       try
       {
         const ind_response = await send_get(`/api/chart/painter/read`,
@@ -469,7 +471,30 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     }
     ,getTradeBox()
     {
-        return this.primitives.find(p => p.type === "trade-box");
+        return this.primitives.find(p => p.type === "trade-box"
+          ||  p.type === "buy-above"  ||  p.type === "buy-below"
+        );
+    }
+    ,updateTradeMarker(tradeMarkerData)
+    {
+       
+       const box = this.getTradeBox()
+
+       console.log("updateTradeMarker",tradeMarkerData,box)
+
+       if (box)
+       {
+         // if (!tradeMarkerData.type)
+          //  box.delete()
+
+        //else
+       // {
+            box.tradeMarkerData=tradeMarkerData
+            console.log("tradeMarkerData")
+      //  }
+      }
+      this.redraw()
+       
     }
     ,createVirtualVLine(timeIndex,color){
         const line = this.create("vline")
@@ -503,6 +528,10 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
             return new PriceLine(this)   
        if (type  == "fibonacci")
             return new Fibonacci(this)   
+      if (type  == "buy-above")
+            return new BuyAbove(this)   
+      if (type  == "buy-below")
+            return new BuyBelow(this)   
       if (type =="trade-box"){
         // controllo se cè gia
 

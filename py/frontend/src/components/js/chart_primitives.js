@@ -351,7 +351,9 @@ export  class PriceLine  extends Primitive{
   drag(p2){
     this.p.set(p2)
   }
-
+  getText(){
+    return  `${this.p.val.y.toFixed(2)}`
+  }
   draw(ctx){
 
     const a = this.painter.chartToPixel(this.p.val)
@@ -359,7 +361,7 @@ export  class PriceLine  extends Primitive{
     const to = {x:this.painter.getPriceBand().max, y: a.y}
     drawLine(ctx,from,to,this.color, this.isHover)
 
-    drawTextOnLine(ctx, from, to , `${this.p.val.y.toFixed(2)}`,
+    drawTextOnLine(ctx, from, to , this.getText(),
     "black", 6, "right" , this.color, 1,"13px Arial")
 
     if(this.isHover){
@@ -387,6 +389,7 @@ export  class PriceLine  extends Primitive{
     return null
   }
 }
+
 /*
 export  class AlarmLine  extends PriceLine{
     constructor(painter){
@@ -652,7 +655,15 @@ export  class  TradeBox  extends SplitBox{
     this.tp_txt = ".."
     this.sl_txt = ".."
     this.risk_txt = ".."
-    this.clearMarkerMode()
+    this.tradeMarkerData={}
+    this.trade_mode={}
+    this.clearLiveMarkerMode()
+  }
+   buy_price_op(){
+    return ">"
+  }
+  buy_type(){
+    return "bracket"
   }
   quantity(){
     return this.trade_quantity_ref.value
@@ -666,15 +677,16 @@ export  class  TradeBox  extends SplitBox{
   sl_price(){
     return this.bottom_right.val.y
   }
-  clearMarkerMode(){
+  clearLiveMarkerMode(){
      this.trade_mode = {"price": false, "tp" : false , "sl" : false}
   }
-  setMarkerMode(mode){
+  setLiveMarkerMode(mode){
      this.trade_mode[mode] =true
   }
   onEnd(){
      //console.log("end")
      this.save()
+     
      this.painter.tradeBoxHandler.change(this);
   }
 
@@ -746,23 +758,23 @@ export  class  TradeBox  extends SplitBox{
     const mid_e=  {x: pixel_band.max, y :m_l.y }
 
     //console.log("mM",min,max)
-    drawRect(ctx, min_s, max_e, "rgba(187, 187, 187, 0.1)", "rgba(187, 187, 187, 0.1)")
+    drawRect(ctx, min_s, max_e, "rgba(187, 187, 187, 0.1)", "rgba(187, 187, 187, 0.0)")
 
-    const buy_price_txt = `${this.trade_mode["price"] ? "🏁": ""} ${this.buy_price_txt}`
-    const tp_price_txt = `${this.trade_mode["tp"] ? "🏁": ""} ${this.tp_price_txt}`
-    const sl_price_txt = `${this.trade_mode["sl"] ? "🏁": ""} ${this.sl_price_txt}`
+    const buy_price_txt = `${this.trade_mode["sl"] ? "🔥": ""}${this.tradeMarkerData["price"] ? "📌": ""} ${this.buy_price_txt}`
+    const tp_price_txt = `${this.trade_mode["sl"] ? "🔥": ""}${this.tradeMarkerData["price"] ? "📌": ""} ${this.tp_price_txt}`
+    const sl_price_txt = `${this.trade_mode["sl"] ? "🔥": ""}${this.tradeMarkerData["price"] ? "📌": ""} ${this.sl_price_txt}`
 
     drawTextOnLine(ctx, min_s, min_e , tp_price_txt, "white", 11, "right" , "green")
     drawTextOnLine(ctx, mid_s, mid_e , buy_price_txt, "white", -11, "right" , buy_color)
     drawTextOnLine(ctx, max_s, max_e , sl_price_txt, "white", -11, "right" , "red")
 
       //  console.log(t_l, m_l,m_r,b_r  ) 
-    drawRect(ctx,  t_l, m_r,"rgba(0,255,0,0.3)","rgba(0,255,0,0.1)")
-    drawRect(ctx,  m_l, b_r,"rgba(255,0,0,0.3)","rgba(255,0,0,0.1)")
+    drawRect(ctx,  t_l, m_r,"rgba(0,255,0,0.3)","rgba(0,255,0,0.05)")
+    drawRect(ctx,  m_l, b_r,"rgba(255,0,0,0.3)","rgba(255,0,0,0.05)")
 
-    drawLine(ctx, t_l,t_r , "green",this.isHover, 2)
-    drawLine(ctx, m_l,m_r , "blue",this.isHover, 2)
-    drawLine(ctx, b_l,b_r , "red",this.isHover, 2)
+    drawLine(ctx, t_l,t_r , "green",this.isHover, 1)
+    drawLine(ctx, m_l,m_r , "blue",this.isHover, 1)
+    drawLine(ctx, b_l,b_r , "red",this.isHover, 1)
 
     if(this.isHover){
       this.top_left.draw(ctx)
@@ -777,6 +789,77 @@ export  class  TradeBox  extends SplitBox{
 
    }
 }
+
+// ==========
+
+export class TradeSingle extends PriceLine{
+  constructor(painter){
+    super(painter)
+    this.trade_quantity_ref=painter.trade_quantity_ref
+    this.tradeMarkerData={}
+    this.clearLiveMarkerMode()
+    console.log("TradeSingle")
+  }
+    onEnd(){
+     this.save()
+     this.painter.tradeBoxHandler.change(this);
+  }
+
+   clearLiveMarkerMode(){
+     this.trade_live_mode = {"price": false, "tp" : false , "sl" : false}
+  }
+  setLiveMarkerMode(mode){
+     this.trade_live_mode[mode] =true
+  }
+
+   quantity(){
+    return this.trade_quantity_ref.value
+  }
+  buy_type(){
+    return "single"
+  }
+   tp_price(){
+    return 0
+  }
+  sl_price(){
+    return 0
+  }
+  getText(){
+   // console.log("getText",this.trade_live_mode,  this.tradeMarkerData)
+    return `${this.trade_live_mode["price"] ? "🔥": ""} ${this.tradeMarkerData["price"] ? "📌": ""} ${this.buy_price_op()} ${this.p.val.y.toFixed(2)}`
+  }
+
+  buy_price(){
+    return this.p.val.y
+  }
+  buy_price_op(){
+    return ""
+  }
+}
+
+
+export class BuyAbove extends TradeSingle{
+  constructor(painter){
+    super(painter)
+    this.type = "buy-above"
+    this.color ="#2f9934"
+  }
+  buy_price_op(){
+    return ">"
+  }
+}
+
+export class BuyBelow extends TradeSingle{
+  constructor(painter){
+    super(painter)
+    this.type = "buy-below"
+    this.color ="#ac3709"
+  }
+  buy_price_op(){
+    return "<"
+  }
+}
+
 
 // ======================================================
 

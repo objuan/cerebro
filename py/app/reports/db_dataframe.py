@@ -150,7 +150,7 @@ class DBDataframe_TimeFrame:
 
         if symbol not in self.last_index_by_symbol:
             # 
-            logger.info(f"SKIP BOOT {symbol} {self.timeframe}")
+            #logger.info(f"SKIP BOOT {symbol} {self.timeframe}")
             '''
             logger.info(f"SYMBOL BOOT {symbol} {self.timeframe}")
 

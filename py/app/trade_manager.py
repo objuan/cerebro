@@ -23,6 +23,7 @@ class TradeOrder:
     type: str
     # chart setup
     price: float
+    priceOP: str
     stop_loss: float
     take_profit: float
     # ui setup
@@ -39,12 +40,13 @@ class TradeOrder:
             self.timeframe=data["timeframe"]
             self.type=data["type"]
             self.price=float(data["price"])
+            self.price_op=data["price_op"]
             self.stop_loss=float(data["stop_loss"])
             self.take_profit=float(data["take_profit"])
             self.quantity=float(data["quantity"])
-    
-            
-        
+            self.total_price_usd=None
+            self.loss_usd=None
+            self.profit_usd=None
     
     def to_dict(self) -> dict:
         return {
@@ -52,12 +54,13 @@ class TradeOrder:
             "timeframe": self.timeframe,
             "type": self.type,
             "price": self.price,
+            "price_op": self.price_op,
             "stop_loss": self.stop_loss,
             "take_profit": self.take_profit,
             "quantity": self.quantity,
 
             "total_price_usd" : self.total_price_usd,
-            "loss_usd" : self.loss_usd,
+            "loss_usd" : self.loss_usd ,
             "profit_usd" : self.profit_usd
         }
     
@@ -108,9 +111,11 @@ class TradeManager:
             pass
     
     def fill_computed(self, order: TradeOrder):
-         order.total_price_usd  = order.quantity * order.price
-         order.loss_usd  = order.quantity * order.stop_loss-order.total_price_usd
-         order.profit_usd  =order.quantity * order.take_profit- order.total_price_usd
+        order.total_price_usd  = order.quantity * order.price
+        if (order.stop_loss!=0):
+            order.loss_usd  = order.quantity * order.stop_loss-order.total_price_usd
+        if order.take_profit!=0:
+             order.profit_usd  =order.quantity * order.take_profit- order.total_price_usd
 
     '''
     '''
@@ -145,7 +150,9 @@ class TradeManager:
              order = await self.add_order_bracket(symbol, timeframe,data,"bracket")
         if data["type"] =="tp_sl":
              order = await self.add_tp_sl(symbol, timeframe,data)
-        
+        if data["type"] =="single":
+             order = await self.add_single(symbol, timeframe,data)
+
         if order:     
             self.client.execute("""
                 INSERT INTO trade_marker (symbol, timeframe,  data)
@@ -157,6 +164,25 @@ class TradeManager:
             ))
         return order
     
+    async def  add_single(self,symbol, timeframe,data)-> TradeOrder:
+    
+        logger.info(f"add_single {symbol} {timeframe} {data} ")       
+        type = data["type"]
+        order = TradeOrder({
+             "symbol" : symbol,
+             "timeframe" : timeframe,
+             "type" :type,
+             "stop_loss" : data["stop_loss"],
+             "take_profit" : data["take_profit"],
+             "price" : data["price"],
+             "price_op" :data["price_op"], # ">" if type =="buy-above" else "<",
+             "quantity" : data["quantity"]
+        })             
+        self.fill_computed(order)
+        return order
+         #return await self.add_order_bracket(symbol, timeframe,price,"sl_tp")    
+    ###
+
     ###
     async def  add_tp_sl(self,symbol, timeframe,data)-> TradeOrder:
         #TODO
@@ -180,6 +206,7 @@ class TradeManager:
              "timeframe" : timeframe,
              "type" : "tp_sl",
              "price" : data["price"],
+             "price_op" : ">",
              "stop_loss" : data["stop_loss"],
              "take_profit" : data["take_profit"],
              "quantity" : data["quantity"]
@@ -218,6 +245,7 @@ class TradeManager:
              "timeframe" : timeframe,
              "type" : stype,
              "price" : data["price"],
+             "price_op" : data["price_op"],
              "stop_loss" : data["stop_loss"],
              "take_profit" : data["take_profit"],
               "quantity" : data["quantity"]

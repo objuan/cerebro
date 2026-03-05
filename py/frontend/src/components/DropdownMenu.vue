@@ -1,7 +1,7 @@
 <template>
   <div class="dropdown" ref="root">
     <button class="btn btn-sm btn-primary" @click="toggle">
-      {{ label }} ▾
+      {{ label }}▾
     </button>
 
     <div v-if="open" class="dropdown-menu">
@@ -69,14 +69,14 @@ onBeforeUnmount(() => {
   background: white;
   border: 1px solid #ccc;
   border-radius: 6px;
-  min-width: 180px;
+  min-width: 100px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.15);
   z-index: 1000;
-    display: block;
+  display: block;
 }
 
 .dropdown-item {
-  padding: 8px 12px;
+  padding: 4px 8px;
   cursor: pointer;
   display: block;
 }

@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "EDSA",
+      "symbol": "AIFF",
       "indicator": {
         "1m": "aa",
         "10s": "aa",
@@ -42,7 +42,7 @@
     },
     "2": {
       "grid": "1_2",
-      "symbol": "BYAH",
+      "symbol": "JZXN",
       "indicator": {
         "1m": "aa",
         "10s": "aa"
@@ -60,14 +60,14 @@
     },
     "4": {
       "grid": "1_1",
-      "symbol": "RRGB",
+      "symbol": "EOLS",
       "indicator": {
         "1m": "aa"
       }
     },
     "3": {
       "grid": "1_1",
-      "symbol": "HIT",
+      "symbol": "EDSA",
       "indicator": {
         "1m": "aa"
       }
@@ -265,6 +265,19 @@
     },
     "": {
       "mode": "DIRECT"
+    },
+    "DFSC": {
+      "mode": "DIRECT"
+    },
+    "DLXY": {
+      "mode": "DIRECT"
+    },
+    "AIFF": {
+      "quantity": 300,
+      "mode": "MARKER"
+    },
+    "JZXN": {
+      "mode": "MARKER"
     }
   },
   "back": {

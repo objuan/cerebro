@@ -721,7 +721,25 @@ async def do_tp_sl(symbol:str,timeframe:str):
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
-    
+
+@app.get("/order/single")
+async def do_single(symbol:str,timeframe:str):
+    try:
+        logger.info(f"single {symbol} {timeframe}")
+        order_mode = config["order"]["mode"]
+
+        zone = client.getCurrentZone()
+        if zone != MarketZone.LIVE or order_mode=="task_all":
+            await OrderTaskManager.single(symbol,timeframe)
+        else:
+            pass
+            #orderManager.buy_at_level(symbol, qty,price)
+            
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+
 @app.get("/order/sell_at_level")
 async def do_sell_at_level(symbol:str, qty:float,price:float,desc:str):
     try:
