@@ -24,14 +24,26 @@
     <table >
       <tr style="height: 100%;">
         <td >
-             <!-- BUTTON BAR -->
+          <table>
+            <tr>
+              <td colspan="2">
+                  <DropdownMenu
+                    label="="
+                    :items="menuItems"
+                    @select="handleMenu"
+                  />
 
+                  <DropdownMenu
+                    :label="profileName"
+                    :items="menu_indicatorList"
+                    @select="selectProfile"
+                  />
+              </td>
+            </tr>
+            <tr>
+              <td>
             <div class="button_bar">
-              <DropdownMenu
-              label="="
-              :items="menuItems"
-              @select="handleMenu"
-            />
+            
                       
 
               <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
@@ -63,6 +75,10 @@
                   @click="painter?.setMode('fibonacci')">
                 F
               </button>
+               <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
+                  @click="painter?.setMode('misure-box')">
+                M
+              </button>
               <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
                 @click="setDrawMode('delete')">
                 D
@@ -74,15 +90,12 @@
               </button>
             
             </div>
-            </td>
-           <td>
-         <div class="button_bar">
 
-              <DropdownMenu
-              :label="profileName"
-              :items="menu_indicatorList"
-              @select="selectProfile"
-             />
+              </td>
+              <td>
+                     <div class="button_bar">
+
+           
               <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
                   @click="painter?.setMode('trade-box')">
                 T
@@ -109,10 +122,15 @@
         
               
             </div>
-        
-        </td>
-    
-      <td colspan="2">
+
+              </td>
+            </tr>
+          </table>
+         
+         
+       </td>
+
+      <td>
     <!---   -->
     <div class="position-relative p-0 chart-panel">
       <div class="chart-legend-up  small" v-html="legendHtml"></div>
@@ -212,7 +230,7 @@ import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawHorizontalLine,clearDrawings,
     // setTradeMarker,updateTradeMarker,updateTaskMarker,clearLine,updateVerticalLineData
-   findLastCandleOfEachDay,findOpenDate,updateStrategyIndicators,clearStrategyIndicators,
+   updateStrategyIndicators,clearStrategyIndicators,
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
 import { tradeStore } from "@/components/js/tradeStore";
@@ -625,10 +643,11 @@ async function handleRefresh (resetWindow )
         }
           
         // chart.timeScale().scrollToPosition(0, false);
-       // nextTick( ()=>
-      //{
+    // nextTick( ()=>
+      {
+         //chart.timeScale().scrollToPosition(0, false);
                          //let panes = chart.panes();
-                
+               // chart.timeScale().scrollToRealTime();
                 indicatorList.value.forEach((ind) => {
                   if (ind.refresh != null)   
                       ind.refresh ()
@@ -636,7 +655,7 @@ async function handleRefresh (resetWindow )
                 
                 }); 
 
-      //  } );
+       }// );
  
 
         //console.log("_task_datas",_task_datas)
@@ -680,7 +699,9 @@ async function handleRefresh (resetWindow )
         {
           await painter.load()
           painter.setData(formattedData)
+          
           // OPEN DATE
+          /*
           const first = findLastCandleOfEachDay(formattedData)
           const openDate = findOpenDate(formattedData)
 
@@ -689,6 +710,9 @@ async function handleRefresh (resetWindow )
 
           const idx1 = formattedData.findIndex(p => p.time === openDate);
           painter.createVirtualVLine(idx1, "yellow")
+*/
+          painter.createMarketZoneBand()
+          painter.createGapZone()
 
             // STATEGY
          
@@ -1340,7 +1364,7 @@ defineExpose({
 }
 
 .chart-legend-left-ind  {
-  left:  1px;
+  left:  20px;
   top: 34px;
   text-align: left;
   background: rgba(50, 59, 85, 0.7);

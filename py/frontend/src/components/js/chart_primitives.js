@@ -3,7 +3,7 @@ import {  drawHandle,hitHandle,drawTextOnLine,hitLine,handleSize,drawLine,drawRe
 
 
 
-class Primitive {
+export class Primitive {
   constructor(painter){
        this.painter=painter
        this.guid = generateGUID()
@@ -20,6 +20,10 @@ class Primitive {
   }
   hasAlarm(){
     return this.alarms.length>0
+  }
+  pick(){
+   
+    return null
   }
   onEnd(){
 
@@ -45,6 +49,10 @@ class Primitive {
   }
   onChange(){
   }
+  onDataChanged(){
+
+  }
+
   save(){
       if (this.virtual)
         return
@@ -643,6 +651,42 @@ export  class SplitBox  extends Box{
    }
 }
 
+/// ======================================
+
+
+export  class MisureBox  extends Box{
+   constructor(painter){
+    super(painter)
+    this.type = "misure-box"
+  }
+   props(){
+    return [
+      "color"
+    ]
+  }
+  onChange(){
+    this.update()
+  }
+ 
+  update(){
+      
+  }
+   draw(ctx){
+      super.draw(ctx)
+
+      
+      const rect = this.points()
+
+      const p_from = this.top_left.val.y
+      const p_to = this.bottom_right.val.y
+      const  gain = 100 * ((p_to - p_from) / p_from)
+
+      const a = { x: rect.t_l.x, y : rect.t_r.y - 20}
+      drawRect(ctx,a, rect.t_r, this.color,this.color)
+
+      drawTextOnLine(ctx,rect.t_l, rect.t_r, `Gain:  ${gain.toFixed(1)}%` )
+   }
+}
 /// ======================================
 
 export  class  TradeBox  extends SplitBox{

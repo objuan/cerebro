@@ -136,6 +136,14 @@ class MuloLiveClient:
                                         "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
                                         "ts":new_ticker["ts"] })
                             
+                            
+                            if (not "open_price" in t):
+                                if self.market.isLiveZone():
+                                    #logger.info("GAPPPPP")
+                                    open_price, ts_open =  await self.last_open(new_ticker["s"])
+
+                                    t.update({"open_price" : open_price, "ts_open_price":int(ts_open)})
+                            
                             #logger.info(f"..  {t}")
                             # send event 
                             await self.on_ticker_receive(t)
@@ -235,7 +243,7 @@ class MuloLiveClient:
                 t.gain = 0
                 self.tickers[s] =t
                 '''
-                last_close=  await self.last_close(ticker["symbol"])
+                last_close, ts_last_close=  await self.last_close(ticker["symbol"])
                 if (last_close == 0): last_close = 0.000001
                 gain =  ((ticker["last"] - last_close) / last_close) * 100
               
@@ -249,7 +257,8 @@ class MuloLiveClient:
                                     "ask" : 0, 
                                     "bid":0,
                                     "day_volume" : ticker["last_volume"],
-                                    "last_close": last_close}
+                                    "last_close": last_close,
+                                    "ts_last_close": ts_last_close}
             
             
             
@@ -461,18 +470,49 @@ class MuloLiveClient:
      
 
     #######################
-
- 
     #######################
     
-    async def last_close(self,symbol: str)-> float:
+    async def last_open(self,symbol: str):
+        if not self.sym_mode:
+            #await self._align_data(symbol,"1m")
+
+            oggi_apertura = (
+                (datetime.now())
+                .replace(hour=15, minute=30, second=0, microsecond=0)
+                
+            )
+        else:
+            
+            oggi_apertura = (
+                    (self.sym_time)
+                    .replace(hour=15, minute=30, second=0, microsecond=0)
+                    
+                )
+    
+        unix_time = int(oggi_apertura.timestamp()) * 1000
+        #print("Last close time ", unix_time)
+        df = self.get_df(f"""
+                SELECT open 
+                FROM ib_ohlc_history
+                WHERE symbol='{symbol}' AND timeframe='1m'
+                AND timestamp <= {unix_time}
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """)
+
+        if len(df)>0:
+            return  (float(df.iloc[0]["open"]),unix_time)
+        else:
+            return (0.01,0)
+        
+    async def last_close(self,symbol: str):
         if not self.sym_mode:
             #await self._align_data(symbol,"1m")
 
             ieri_mezzanotte = (
                 (datetime.now()
                 - timedelta(days=1))
-                .replace(hour=23, minute=59, second=59, microsecond=0)
+                .replace(hour=22, minute=0, second=0, microsecond=0)
                 
             )
         else:
@@ -480,7 +520,7 @@ class MuloLiveClient:
             ieri_mezzanotte = (
                     (self.sym_time
                     - timedelta(days=1))
-                    .replace(hour=23, minute=59, second=59, microsecond=0)
+                    .replace(hour=22, minute=0, second=0, microsecond=0)
                     
                 )
         unix_time = int(ieri_mezzanotte.timestamp()) * 1000
@@ -489,15 +529,15 @@ class MuloLiveClient:
                 SELECT close 
                 FROM ib_ohlc_history
                 WHERE symbol='{symbol}' AND timeframe='1m'
-                AND timestamp < {unix_time}
+                AND timestamp <= {unix_time}
                 ORDER BY timestamp DESC
                 LIMIT 1
             """)
 
         if len(df)>0:
-            return  float(df.iloc[0]["close"])
+            return  (float(df.iloc[0]["close"]),unix_time)
         else:
-            return 0.01
+            return (0.01,0)
         
     ################################
 

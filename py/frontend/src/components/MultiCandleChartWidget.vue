@@ -321,7 +321,8 @@ function onTickerReceived(msg)
   {
       let color = msg["gain"]>=0 ? '#4bffb5' : '#ff4976';  
       //console.log("MultiCandleChartWidget on_ticker",msg) 
-      ticker.value= ` Last: <span style='color:yellow'><b> ${msg["last"]} </b></span>  Gain: <span style='color:${color}'><b>${msg["gain"].toFixed(2)} %</b></span>  Vol: ${window.formatValue(msg["day_volume"])}`  ;
+      ticker.value= ` Last: <span style='color:yellow'><b> ${msg["last"]} </b></span>  Gain: <span style='color:${color}'><b>${msg["gain"].toFixed(2)} %</b></span>  
+          Vol: ${window.formatValue(msg["day_volume"])} GAP: ${tickerRef.value.summary.gap.value?.toFixed(1)}%`  ;
 
       for (const id in widgetRefs.value) {
         const comp = widgetRefs.value[id]

@@ -33,6 +33,13 @@ TIMEFRAME_SECONDS = {
     "1d": 86400,
 }
 
+def lerp_color(c1, c2, t):
+    return tuple(
+        int(c1[i] + (c2[i] - c1[i]) * t)
+        for i in range(3)
+    )
+def rgb_to_hex(rgb):
+    return '#%02x%02x%02x' % rgb
 
 def candles_from_seconds(period_seconds: int, timeframe: str) -> int:
     tf_sec = TIMEFRAME_SECONDS[timeframe]

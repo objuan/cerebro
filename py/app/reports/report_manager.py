@@ -165,7 +165,7 @@ class ReportManager:
         self.invalidate=False
         try:
             
-            logger.debug("TICK")
+            #logger.debug("TICK")
 
             await self.scheduler.tick()
 
@@ -175,7 +175,7 @@ class ReportManager:
 
             #  symbol  last_close  last   volume  ask  bid  gain  ts   datetime
             df_tickers = self.job.getTickersDF()
-            #logger.info(f"Tickers \n{df_tickers}")
+            logger.info(f"Tickers \n{df_tickers}")
         
 
             df_5m = self.db.dataframe("5m")
@@ -245,6 +245,7 @@ class ReportManager:
             #logger.info(f"CLOSE \n{last_close.to_string(index=False)}")
             #df = df.merge(  last_close[["symbol","last_close"]], on="symbol",    how="left")
             
+            '''
             if isLiveZone:
                 if len ( self.first_open) == 0:
                     self.first_open = self.open_by_symbols(df_1m) 
@@ -252,7 +253,7 @@ class ReportManager:
                     logger.debug(f"OPEN \n{self.first_open.to_string(index=False)}")
          
                 df = df.merge(  self.first_open[["symbol","first_open"]], on="symbol",    how="left")
-            
+            '''
             #logger.info(f"df \n{df.to_string(index=False)}")
 
             ## GAIN 
@@ -260,11 +261,46 @@ class ReportManager:
              #df["gain"] =  ((df['last'] - df['last_close'] ) / df['last_close'])  * 100
 
             ## GAP
-            if isLiveZone:
-                df["gap"] =  ((df['first_open'] - df['last_close'] ) /df['last_close'])  * 100
+            #if isLiveZone:
+            #    df["gap"] =  ((df['first_open'] - df['last_close'] ) /df['last_close'])  * 100
+            #else:
+            def calc_range(g):
+                    #g["ts_open_price"] = g["ts_open_price"].astype("int64")
+
+                    start = g["ts_last_close"].iloc[0]
+                    end = g["ts_open_price"].iloc[0]
+
+                   
+                    if pd.isna(end):
+                        end = g["ts"].max()
+                    else:
+                        end=int(end)
+                        logger.info(f"start {start} end {end}")
+
+                    logger.info(f"rows group {len(g)}")
+
+                    w = g[(g.ts >= start) & (g.ts <= end)]
+
+                    logger.info(f"rows window {len(w)}")
+
+                    print(g.dtypes)
+                    return pd.Series({
+                        "max_high": w.high.max(),
+                        "min_low": w.low.min()
+                    })
+
+            if "ts_open_price" in df_tickers.columns:# and isLiveZone:
+                logger.info("open_price")
+                df["gap"] =  df_tickers["gain"]
+
+                result = df_tickers.groupby("symbol").apply(calc_range).reset_index()
+                logger.info(f"result \n{result}")
+                #df["gap"] = ((df['open_price'] - df['last_close'] ) / df['last_close'])  * 100
+                #calc
             else:
                 df["gap"] =  df["gain"] 
-            #logger.info(f"result {df}")
+            
+           # logger.info(f"result \n{df}")
 
             #logger.info(f"df \n{df.to_string(index=False)}")
    
@@ -357,22 +393,26 @@ class ReportManager:
 
     ##################
 
-    def add_last_close(self,df)-> pd.DataFrame:
-        close = self.close_by_symbols(df) 
-        logger.debug(f"CLOSE {close}")
-        df = df.merge(  close, on="symbol",    how="left")
+    def open_by_symbols11(self,df_1m)-> pd.DataFrame:
 
-    def open_by_symbols(self,df_1m)-> pd.DataFrame:
-            '''
-            use df_1m
-            '''
-            #last_date = datetime.fromtimestamp(df_1m.iloc[-1]["timestamp"]/1000)
- 
-            #prev_close = prev_day_before_24(last_date)
-            #_prev_close = datetime_to_unix_ms(prev_close)
+        if not self.sym_mode:
+            #await self._align_data(symbol,"1m")
 
-            #logger.info(f"First date {last_date} close {prev_close} ")
-
+            oggi_apertura = (
+                (datetime.now()
+                - timedelta(days=1))
+                .replace(hour=15, minute=30, second=0, microsecond=0)
+                
+            )
+        else:
+            
+            oggi_apertura = (
+                    (self.sym_time
+                    - timedelta(days=1))
+                    .replace(hour=15, minute=30, second=0, microsecond=0)
+                    
+                )
+    
             win = self.get_day_window(df_1m)
 
             open_by_symbol = (
@@ -381,11 +421,17 @@ class ReportManager:
                 .groupby("symbol", as_index=False)
                 .head(1)                            # 3️⃣ ultima riga per symbol
             )
-            #logger.info(f"open_by_symbol {open_by_symbol}")
+            logger.info(f"open_by_symbol {open_by_symbol}")
             open_by_symbol.rename(columns={"open": "first_open"}, inplace=True)
             return open_by_symbol[["symbol","timestamp", "first_open"]]
 
-    def close_by_symbols(self,df_1m)-> pd.DataFrame:
+    
+    def add_last_close1(self,df)-> pd.DataFrame:
+        close = self.close_by_symbols(df) 
+        logger.debug(f"CLOSE {close}")
+        df = df.merge(  close, on="symbol",    how="left")
+
+    def close_by_symbols1(self,df_1m)-> pd.DataFrame:
             
             '''
             use df_1d
@@ -421,14 +467,14 @@ class ReportManager:
             return close_by_symbol[["symbol","timestamp","last_close"]]
             
     
-    def get_window(self,df,minutes, timeframe)-> pd.DataFrame:
+    def get_window1(self,df,minutes, timeframe)-> pd.DataFrame:
          
         n = numero_candele(minutes,timeframe)
         logger.debug(f"win  {minutes}-> #{n}")
         return (df.tail(n))
     
     
-    def get_day_window(self,df)-> pd.DataFrame:
+    def get_day_window1(self,df)-> pd.DataFrame:
          
         ##df["date"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True).dt.date
 

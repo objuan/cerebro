@@ -128,13 +128,17 @@ export function  drawLine(ctx, a,b,color, hover=false, size=1, style = "solid"  
       ctx.lineWidth = hover ? 2 : size
       ctx.stroke()
 }
-export function drawRect(ctx, a, b,color, fillColor,hover=false){
+export function drawRect(ctx, a, b,color, fillColor,hover=false, style="solid"){
     const x = Math.min(a.x, b.x)
     const y = Math.min(a.y, b.y)
     const w = Math.abs(b.x - a.x)
     const h = Math.abs(b.y - a.y)
 
     ctx.beginPath()
+    if (style === "dotted") ctx.setLineDash([2, 4]);
+    else if (style === "dashed") ctx.setLineDash([8, 6]);
+    else ctx.setLineDash([]);
+
     ctx.rect(x, y, w, h)
 
     // riempimento

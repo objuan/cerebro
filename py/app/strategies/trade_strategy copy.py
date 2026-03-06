@@ -39,59 +39,7 @@ class VWAP_PERC(Indicator):
 
         dataframe.loc[group.index, self.target_col + "_var"] = variance
 
-############
 
-class SMA_INT(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-        self.slope_col = f"{target_col}_slope"
-
-    def compute(self, dataframe, group, start_pos):
-        
-        warmup = max(0, start_pos - self.window + 1)
-
-        sub = group.iloc[warmup:].copy()
-
-        sma = sub[self.source_col].rolling(window=self.window).mean()
-
-         # derivata discreta (pendenza)
-        #slope = sma.diff()
-        
-
-        #logger.info(f"sub {sub}")
-
-        idx_slice = sub.index[start_pos - warmup:]
-
-        #logger.info(f"idx_slice {idx_slice}")
-
-        dataframe.loc[idx_slice, self.target_col] = \
-            sma.iloc[start_pos - warmup:].values
-            
-
-        #dataframe.loc[idx_slice, self.slope_col] = \
-        #    slope.iloc[start_pos - warmup:].values
-
-class DIFF(Indicator):
-  
-    def __init__(self,target_col, source1_col:str, source2_col:str):
-        super().__init__([target_col])
-        self.source1_col=source1_col
-        self.target_col=target_col
-        self.source2_col=source2_col
-
-    def compute(self, dataframe, group, start_pos):
-        
-        diff = group[self.source1_col] + group[self.source2_col] 
-
-        if start_pos == 0:
-            dataframe.loc[group.index, self.target_col] = diff.values
-        else:
-            dataframe.loc[group.index[start_pos:], self.target_col] = \
-                diff.iloc[start_pos:].values
 
 ########################
 
@@ -111,17 +59,11 @@ class TradeStrategy(SmartStrategy):
 
         atr = self.addIndicator("1d",ATR_SMA("atr",14))
 
-        sma_20= self.addIndicator(self.timeframe,SMA_INT("SMA_20","close",20))
-
-        sma_20_gain= self.addIndicator(self.timeframe,GAIN("SMA_20_G","SMA_20",1))
-        #sma_200= self.addIndicator(self.timeframe,SMA("SMA_200","close",200))
-
-        #i = self.addIndicator(self.timeframe,VWAP_OPEN("vwap",1))
-        #i1 = self.addIndicator(self.timeframe,VWAP_PERC("vwap_perc"))
+         i = self.addIndicator(self.timeframe,VWAP_OPEN("vwap",1))
+        i1 = self.addIndicator(self.timeframe,VWAP_PERC("vwap_perc"))
 
         #self.addIndicator(self.timeframe, VWAP_DIFF("diff"))
        
-        '''
         self.add_plot(i, "vwap","#15ff00", "main", source="vwap",style="SparseDotted", lineWidth=2)
         self.add_plot(i, "vwap_up","#15ff00", "main", source="vwap_up",style="SparseDotted", lineWidth=2)
         self.add_plot(i, "vwap_down","#15ff00", "main", source="vwap_down",style="SparseDotted", lineWidth=2)
@@ -129,46 +71,10 @@ class TradeStrategy(SmartStrategy):
         self.add_plot(i1, "vwap_perc","#034cd3", "sub1", source="vwap_perc",style="Solid", lineWidth=2)
 
         self.add_legend(i1, "vwap_perc_var","var","#ffffff" )
-        
-        '''
-
-        self.add_plot(sma_20, "SMA_20","#034cd3", "main", source="SMA_20",style="SparseDotted", lineWidth=2)
-
-        self.add_plot(sma_20_gain, "SMA_20_G","#034cd3", "sub1", source="SMA_20_G",style="Solid", lineWidth=2)
-
 
     ######################################
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
-        
-        #if not self.bootstrapMode:
-        #    logger.info(f"DO {symbol} {global_index} \n{dataframe.tail(5)}" )
-
-        #df_symbols = dataframe[dataframe["symbol"]== symbol ]
-        low =  dataframe.loc[global_index]["low"]
-        SMA_20 =  dataframe.loc[global_index]["SMA_20"]
-        SMA_20_G =  dataframe.loc[global_index]["SMA_20_G"]
-        if symbol =="BTAI":
-             logger.info(f">> {symbol} {global_index} {low} {SMA_20_G} {SMA_20}" )
-
-        diff = abs(low - SMA_20)
-        #if (abs(SMA_20_G)> 0.5  and diff < 0.1):
-        if abs(SMA_20_G)>0.5:
-            RED = (255, 0, 0)
-            GREEN = (49, 211, 17)
-
-            max_abs = 1
-            t = ( diff/max_abs)
-            t = max(0, min(1, 1-t))
-
-            color_rgb = lerp_color(RED, GREEN, t)
-            color = rgb_to_hex(color_rgb)
-
-            self.spot(symbol, f"0.5,{diff:.1f}", color, "SMA_20")
-
-        
-
-    async def trade_symbol_at1(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
 
         try:
             atr = self.df("1d",symbol).iloc[-1]["atr"]
@@ -215,3 +121,53 @@ class TradeStrategy(SmartStrategy):
         except:
             logger.error(f"trade_symbol_at   {symbol} index {global_index} \n {dataframe.tail(1)}", exc_info=True )
             #exit(0)
+
+    ######################################
+
+    async def trade_symbol_at_old(self, isLive:bool, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
+        if not isLive:
+            return
+            #logger.info(f"trade_symbol_at   {symbol} \n {dataframe.tail(1)}" )
+        try:
+            df_symbols = dataframe[dataframe["symbol"]== symbol ]
+            #close = dataframe.loc[global_index]["close"]
+            #vwap = dataframe.loc[global_index]["vwap"]
+            #diff_perc = ((close - vwap) / vwap) * 100
+
+            diff_perc_prec =  df_symbols.iloc[-2]["diff"]
+            diff_perc =  df_symbols.iloc[-1]["diff"]
+
+            logger.info(f"df_symbols   {symbol} \n {df_symbols.tail(2)}" )
+
+            #dataframe.loc[global_index]["diff_perc"] = diff_perc
+
+            if isLive and diff_perc>1:
+                await self.send_event(symbol, "vwap",
+                     f"""<span :style="my_ramp_perc({diff_perc},'#FF0000')"> vwap {diff_perc:.1f}%</span>""",
+                     f"vwap {diff_perc:.1f}%",color="#E4D61A")
+
+                if isLive and diff_perc_prec* diff_perc<0:
+                    await self.send_event(symbol, "vwap sign", f"vwap sign {diff_perc:.1f}%",f"vwap {diff_perc_prec:.1f}%->{diff_perc:.1f}% ",color="#B90AFF")
+
+            pass
+            #if (gain > 0):
+            #    self.buy(symbol,f"BUY")
+                #logger.info(f"trade_symbol_at   {symbol} index {global_index} {gain} " )
+        except:
+            logger.error(f"trade_symbol_at   {symbol} index {global_index} \n {dataframe.tail(1)}", exc_info=True )
+            #exit(0)
+
+    
+    '''
+    async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
+        
+        #logger.info(f"on_symbol_candles   {symbol} \n {dataframe.tail(1)}" )
+
+        
+        gain = dataframe.iloc[-1]["gain"]
+
+        if (gain > -1):
+            #logger.info(f"FIND {gain} > {self.min_gain}")
+            self.buy(symbol,f"buy1 gain {gain}")
+    '''        
+  

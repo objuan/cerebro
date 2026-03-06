@@ -11,12 +11,14 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "AIFF",
+      "symbol": "TURB",
       "indicator": {
-        "1m": "aa",
-        "10s": "aa",
+        "1m": "SMA",
+        "10s": "SMA",
         "30s": "vwap",
-        "5m": ""
+        "5m": "SMA",
+        "1d": "SMA",
+        "15m": "SMA"
       },
       "1_1": {
         "1": {
@@ -278,6 +280,12 @@
     },
     "JZXN": {
       "mode": "MARKER"
+    },
+    "CDTG": {
+      "quantity": 500
+    },
+    "TURB": {
+      "quantity": 100
     }
   },
   "back": {

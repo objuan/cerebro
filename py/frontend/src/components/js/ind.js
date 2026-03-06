@@ -14555,6 +14555,7 @@ class SeriesMarkersPaneView {
         return this._private__renderer;
     }
     _internal_setMarkers(markers) {
+       // console.log("_internal_setMarkers", markers)
         this._private__markers = markers;
         this._internal_update('data');
     }
@@ -14575,6 +14576,8 @@ class SeriesMarkersPaneView {
         const timeScale = this._private__chart.timeScale();
         const seriesMarkers = this._private__markers;
         if (this._private__dataInvalidated) {
+            //console.log("_internal__makeValid", seriesMarkers)
+
             this._private__data._internal_items = seriesMarkers.map((marker) => ({
                 _internal_time: marker.time,
                 _internal_x: 0,
@@ -14780,6 +14783,8 @@ class SeriesMarkersPrimitive {
             const seriesDataByIndex = ensureNotNull(this._private__series).dataByIndex(timePointIndex, searchMode);
             const finalIndex = timeScale.timeToIndex(ensureNotNull(seriesDataByIndex).time, false);
             // You must explicitly define the types so that the minification build processes the field names correctly
+            
+           // console.log("_private__recalculateMarkers", marker)
             const baseMarker = {
                 time: finalIndex,
                 position: marker.position,
@@ -14796,7 +14801,8 @@ class SeriesMarkersPrimitive {
                 marker.position === 'atPriceBottom' ||
                 marker.position === 'atPriceMiddle') {
                 if (marker.price === undefined) {
-                    throw new Error(`Price is required for position ${marker.position}`);
+                    //throw new Error(`Price is required for position ${marker.position}`);
+                    marker.price =0
                 }
                 return {
                     ...baseMarker,
@@ -14836,6 +14842,7 @@ class SeriesMarkersPrimitiveWrapper extends SeriesPrimitiveAdapter {
         }
     }
     setMarkers(markers) {
+         
         this._internal__primitive._internal_setMarkers(markers);
     }
     markers() {
@@ -14898,6 +14905,7 @@ class ExpiringMarkerManager {
                 _internal_timeoutId: timeoutId,
                 _internal_expiresAt: Date.now() + timeout,
             };
+            console.log("_internal_setMarker", markerWithTimeout)
             this._private__markers.set(key, markerWithTimeout);
         }
         else {
@@ -15060,6 +15068,7 @@ class UpDownMarkersPrimitive {
         this._internal_requestUpdate();
     }
     _internal_setMarkers(markers) {
+        //console.log("_internal_setMarkers",markers)
         this._private__markersManager._internal_clearAllMarkers();
         const horzBehaviour = this._private__horzScaleBehavior;
         if (!horzBehaviour) {

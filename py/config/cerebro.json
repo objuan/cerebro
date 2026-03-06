@@ -245,7 +245,7 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :20,
+				"max_symbols" :10,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
@@ -263,16 +263,10 @@
 						"name" : "GAIN",
 						"update_time" : 600,
 						"live_mode" : "MERGE",
-						"merge_weight" :"70%",
+						"merge_weight" :"100%",
 						"discard_rule" : "LESS_GAIN"
-					},
-					{
-						"name" : "VOLR",
-						"update_time" : 300,
-						"live_mode" : "MERGE",
-						"merge_weight" :"39%",
-						"discard_rule" : "IMMEDIATE"
 					}
+
 			
 				],
 				"types": "TOP_PERC_GAIN|TOP_PERC_LOSE|HOT_BY_PRICE_RANGE|TOP_VOLUME_RATE|HIGH_OPEN_GAP|LOW_OPEN_GAP|TOP_TRADE_RATE|MOST_ACTIVE|HIGH_OPEN_GAP|HIGH_PRICE",
@@ -335,14 +329,14 @@
 				"TIMEFRAME_LEN_CANDLES" : {
 					"10s": 30,
 					"30s": 30,
-					"1m": "7d",
-					"5m": "15d",
-					"15m": "15d",
-					"30m": "15d",
-					"1h": "30d",
-					"2h": "30d",
-					"4h": "30d",
-					"1d": "120d"
+					"1m": "15d",
+					"5m": "30d",
+					"15m": "60d",
+					"30m": "60d",
+					"1h": "60d",
+					"2h": "60d",
+					"4h": "120d",
+					"1d": "365d"
 				}
 	}
 

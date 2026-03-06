@@ -45,7 +45,7 @@ export async  function updateStrategyIndicators(context,
     // console.log("task strat_response",strat_response)
     strat_response.forEach( (strat) =>
     {
-         //onsole.log("task strat_response",strat)
+          //console.log("task strat_response",strat)
           const strat_name = strat.strategy
 
           if(!strategy_index_map[strat_name])
@@ -63,6 +63,7 @@ export async  function updateStrategyIndicators(context,
                   markers.push(
                   {
                     time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker
+                    price :  marker.price ?? 0,
                     position: marker.position,                    // posizione rispetto barra
                     color: marker.color,                        // colore
                     shape:marker.shape,                         // forma
@@ -75,7 +76,7 @@ export async  function updateStrategyIndicators(context,
                storage["markers_last"] = markers.at(-1)
                storage["markers"] = markers;
                storage["marker_series"]  = _m;
-               console.log("markers",markers,  storage["markers"])
+             //  console.log("markers",markers)
             }
            
           }
@@ -99,7 +100,7 @@ export async  function updateStrategyIndicators(context,
 
               if (markers.length>0)
               {
-                console.log("UPDATE MARKER", markers)
+               // console.log("UPDATE MARKER", markers)
                 //createSeriesMarkers(context.series, markers);
                  storage["marker_series"] .setMarkers(markers)
                 storage["markers_last"] = markers.at(-1)

@@ -30,8 +30,9 @@ class Strategy:
         self.trade_index=None
         self.trade_dataframe = None
         self.scope = ""
+        self.backtestMode=False
+        self.bootstrapMode=False
     
-        
     def load(self,strat_def):
         #strat.handler = find_method_local(EventManager,code)
         self.params= strat_def["params"]
@@ -79,10 +80,11 @@ class Strategy:
 
         pass
 
-    async def bootstrap(self, liveMode):
+    async def bootstrap(self, backtestMode):
         
-        self.liveMode=liveMode
-        logger.info(f"bootstrap {self.__class__} tf:{self.timeframe }")
+        self.backtestMode=backtestMode
+        self.bootstrapMode=True
+        logger.info(f"bootstrap {self.__class__} tf:{self.timeframe } backtestMode:{backtestMode}")
 
         await self.on_start()
 
@@ -114,7 +116,8 @@ class Strategy:
                     await self.trade_symbol_at(symbol, group,idx,{})
                 except:
                     logger.error(f"trade_symbol_at  {symbol} index {idx}" , exc_info=True)
-                   
+        self.bootstrapMode=False
+        logger.info(f"bootstrap {self.__class__} tf:{self.timeframe } DONE")   
 
     ########
 
@@ -270,9 +273,8 @@ class Strategy:
     #######################
 
     async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str,color):
-        if self.liveMode:
+        if not self.backtestMode and not self.bootstrapMode:
             await self.client.send_event("strategy",symbol,name,small_desc,full_desc,{"color":color})
-
 
     def __str__(self):
         return f"{self.__class__} params:{self.params}"
@@ -281,3 +283,157 @@ class Strategy:
     #######
 #############
 
+
+#from strategy.order_strategy import *
+class SmartStrategy(Strategy):
+    
+    
+    def __init__(self, manager):
+        super().__init__(manager)
+        self.plots = []
+        self.legend = []
+        self.marker_map= {}
+
+    def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
+        if timeframe in self.marker_map:
+            if not symbol:
+                return self.marker_map[timeframe]
+            else:
+                return self.marker_map[timeframe][self.marker_map[timeframe]["symbol"] == symbol]
+        else:
+            return  pd.DataFrame()
+
+    def spot(self,  symbol, label,color, sourceField):
+        #logger.info(f"SPOT {symbol} {label}")
+        self.add_marker(symbol,"SPOT",label,color,"circle", position ="atPriceMiddle" , sourceField=sourceField)
+
+    def buy(self,  symbol, label):
+        logger.info(f"BUY {symbol} {label}")
+        self.add_marker(symbol,"BUY",label,"#060806","arrowUp")
+
+
+    #shapes : arrowUp, arrowDown, circle
+    #atPriceTop,atPriceBottom,atPriceMiddle
+    def add_marker(self, symbol,type, label,color,shape, position ="atPriceTop",
+                    _timeframe=None, sourceField = "close"):
+        timeframe = self.timeframe if _timeframe==None else _timeframe
+        
+        #logger.info(f"self.trade_index {self.trade_index}")
+        candle =  self.trade_dataframe.loc[self.trade_index]
+        
+        timestamp =  candle["timestamp"]
+        value = candle[sourceField]
+
+       # logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
+
+        if not timeframe in self.marker_map:
+            self.marker_map[timeframe] = pd.DataFrame(
+                    columns=["symbol","timeframe","type", "timestamp", "price", "desc","color","shape","position"]
+                )
+
+        self.marker_map[timeframe].loc[len(self.marker_map[timeframe])] = [
+                symbol,               # symbol
+                timeframe,                # type
+                type,               # symbol
+                timestamp,       # timestamp
+                value,              # price
+                label,           # desc
+                color,
+                shape,
+                position
+            ]
+
+       # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
+     
+    def live_markers(self,symbol,timeframe,since):
+        if not timeframe:
+            timeframe = self.timeframe
+        if since:
+            df = self.marker(timeframe,symbol)
+            if not df.empty:
+                df = df[df["timestamp"]>= since]
+        else:
+            df = self.marker(timeframe,symbol)
+        if df.empty:
+            return []
+        else:
+            #logger.info(f"live_markers since:{since}\n{df}")
+            return df.to_dict(orient="records")
+       
+    def live_legend(self,symbol,timeframe,since):
+        if not timeframe:
+            timeframe = self.timeframe
+
+        if since:
+            df = self.df(timeframe,symbol)
+            if not df.empty:
+                df = df[df["timestamp"]>= since]
+            #logger.info(f"since {since}\n{df}")
+        else:
+            df = self.df(timeframe,symbol)
+        arr = []
+        for leg in self.legend:
+            d = leg.copy()
+            del d["ind"]
+            try:
+                d["value"] =   df.iloc[-1] [d["source"]]
+            except:
+                d["value"] =0
+            arr.append(d)
+         #logger.info(f"live_markers since:{since}\n{df}")
+        return arr
+        
+    def live_indicators(self,symbol,timeframe,since):
+     
+        if not timeframe:
+            timeframe = self.timeframe
+
+        if since:
+            df = self.df(timeframe,symbol)
+            if not df.empty:
+                df = df[df["timestamp"]>= since]
+            #logger.info(f"since {since}\n{df}")
+        else:
+            df = self.df(timeframe,symbol)
+
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df.dropna()
+    
+        if df.empty:
+            return{"strategy": __name__ 
+                   ,"legends" : []
+                   ,"markers": self.live_markers(symbol,timeframe,since)}
+        
+        #logger.info(f"out \n{df}")
+        o = {"strategy": __name__ ,
+             "markers": self.live_markers(symbol,timeframe,since), 
+             "legends": self.live_legend(symbol,timeframe,since), 
+             "list" : []}
+
+        #logger.info(f"process1 {self.plots}")
+        for p in  self.plots:
+            for col in p["ind"].target_cols:
+                if (col ==p["source"] or not p["source"]):
+                    #logger.info(f"process {col}")
+                    d = p.copy()
+                    del d["ind"]
+                    d["symbol"] = symbol
+                    d["timeframe"] = timeframe
+                    df_data = p["ind"].get_render_data(df,col)
+                    if symbol:
+                            df_data = df_data[["time","value"]]
+                    d["data"] = df_data.to_dict(orient="records")
+                        
+                    o["list"].append(d)
+
+        return o
+    
+    #######
+    # style in ['Solid','Dotted','Dashed','LargeDashed','SparseDotted']
+    def add_plot(self,ind : Indicator ,name :str,  color:str,panel: str ='main',source = None, style="Solid",lineWidth=1):
+        self.plots.append({"ind": ind ,"name" : name ,"source" : source, "color" : color, "panel" : panel,"style":style,"lineWidth": lineWidth})
+        pass
+    
+    def add_legend(self, ind:Indicator, source:str,label:str, color:str):
+        self.legend.append( {"ind": ind ,"source" : source ,"label" : label, "color" : color})
+        pass

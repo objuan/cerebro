@@ -2,8 +2,9 @@ import { send_get,localUnixToUtc,timeframeToSeconds } from '@/components/js/util
 //formatUnixDate
 import { ref,computed} from 'vue';
 import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci,
-  BuyAbove,BuyBelow
+  BuyAbove,BuyBelow,MisureBox
  } from '@/components/js/chart_primitives.js'
+ import {MarketZoneBand,GapZone } from '@/components/js/chart_primitives_ex.js'
 import { liveStore } from '@/components/js/liveStore.js';
 
 
@@ -252,7 +253,12 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     }
     ,pushData(candle){
       if (this.data)
+      {
         this.data.push(candle)
+       this.primitives.forEach((p)=>{
+            p.onDataChanged(this.data)
+        })
+    }
     }
     /*
     , pushLastDataTime(time, dataLen){
@@ -368,6 +374,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     ,chartToPixel(pos){
       if (!pos) return {x:0,y:0}
 
+      //console.log("chartToPixel",pos)
     
       const ts = this.chart.timeScale();
 
@@ -461,6 +468,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       return a;
     }
      // =========
+
     ,subscribeTradeBoxChanged(handler)
     {
        this.tradeBoxHandler.change=handler
@@ -504,7 +512,19 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         line.p.set({x:timeIndex , y:0})
         this.primitives.push(line)
     }
+    ,createMarketZoneBand(){
+         const line = new MarketZoneBand(this,this.data)
+        line.virtual=true
+        this.primitives.push(line)
+    }
+     ,createGapZone(){
+         const line = new GapZone(this,this.data)
+        line.virtual=true
+        this.primitives.push(line)
+    }
+ 
     // =========================================
+
     , create(type){
         if (type == "line"){
           return new Line(this)
@@ -523,6 +543,9 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       }
       if (type == "split-box"){
           return new SplitBox(this)
+      }
+       if (type == "misure-box"){
+          return new MisureBox(this)
       }
        if (type  == "alarm-line")
             return new PriceLine(this)   

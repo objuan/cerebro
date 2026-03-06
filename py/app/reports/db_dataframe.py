@@ -194,19 +194,21 @@ class DBDataframe_TimeFrame:
 
         # ---- CASO NORMALE ----
         if ts > last_ts:
+            try:
+                new_row = self.df.loc[last_idx].copy()
+                new_row.update(row_data)
+
+                #logger.info(f"========== APPEND {self.timeframe} ")# \n{new_row}==========")
             
-            new_row = self.df.loc[last_idx].copy()
-            new_row.update(row_data)
 
-            #logger.info(f"========== APPEND {self.timeframe} ")# \n{new_row}==========")
-          
+                new_idx = self.df.index.max() + 1
+                self.df.loc[new_idx] = new_row
+                self.last_index_by_symbol[symbol] = new_idx
 
-            new_idx = self.df.index.max() + 1
-            self.df.loc[new_idx] = new_row
-            self.last_index_by_symbol[symbol] = new_idx
-
-            await self.on_row_added(row_data)
-            await self.on_df_last_added(self.timeframe,self.get_last_rows())
+                await self.on_row_added(row_data)
+                await self.on_df_last_added(self.timeframe,self.get_last_rows())
+            except:
+                logger.error(f"ERR", exc_info=True)
             return
 
         # ---- UPDATE CANDELA CORRENTE ----
@@ -261,7 +263,7 @@ class DBDataframe_TimeFrame:
                     '''
                             
         except:
-            logger.error("ERROR", exc_info=True)
+            logger.error(f"ERROR {ticker}", exc_info=True)
 
     async def _on_symbols_update(self, symbols,to_add,to_remove):
         #logger.info(f"DB reset symbols {symbols} {self.timeframe}")

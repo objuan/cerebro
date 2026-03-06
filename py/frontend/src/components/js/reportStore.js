@@ -107,7 +107,7 @@ export const reportStore = reactive({
          //console.log("rep",rep)
           return {
             "day_volume": new Rank("day_volume", "vol", rep.day_volume,[500000,9999999999], [500000,2_000_000]),//this.gain_map(rep.rel_vol_24,5,10), //rep.rel_vol_24 > 5, // 1)	Volume scambio > 500% alla media (5 volte) a 50 giorni
-            "gap" :  new Rank("gap", "perc", rep.gain,[5,9999], [5,100]),//this.gain_map(rep.gap,2,10), // rep.gap > 2, // 2)	Gain > 2% nel trading pre mercato
+            "gap" :  new Rank("gap", "perc", rep.gap,[5,9999], [5,100]),//this.gain_map(rep.gap,2,10), // rep.gap > 2, // 2)	Gain > 2% nel trading pre mercato
             "rel_vol_24": new Rank("rel_vol_24", "vol", rep.rel_vol_24,[5,9999], [5,20]),//this.gain_map(rep.rel_vol_24,5,10), //rep.rel_vol_24 > 5, // 1)	Volume scambio > 500% alla media (5 volte) a 50 giorni
             "gain" :  new Rank("gain", "perc", rep.gain,[5,9999], [5,100]), //this.gain_map(rep.gain,10,20) , // rep.gain > 10 , 
             "last" : new Rank("last", "price", rep.last,[0.5,5], [0.5,2]),// this.value_map(rep.last, 1, 20, 3, 8),//rep.last>=1 &&  rep.last < 20, 
