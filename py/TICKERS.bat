@@ -11,7 +11,7 @@ call .\venv\Scripts\activate.bat
 
 REM Avvia script
 echo Starting ...
-C:/Lavoro/cerebro/py/.venv/Scripts/python.exe c:/Lavoro/cerebro/py/app/mulo/mulo_batch_live.py
+C:/Lavoro/cerebro/py/.venv/Scripts/python.exe c:/Lavoro/cerebro/py/app/mulo/mulo_service.py
 
 REM Se crasha, logga
 echo Process exited at %date% %time% >> "%LOGFILE%"

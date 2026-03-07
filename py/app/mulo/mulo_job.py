@@ -25,7 +25,9 @@ warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
-intervals = [10, 30, 60, 300] 
+#intervals = [10, 30, 60, 300] 
+def date():
+        return datetime.utcnow().date().isoformat()  # es. "2026-03-06"
 
 #Legal ones are: 1 secs, 5 secs, 10 secs, 15 secs, 30 secs, 1 min, 2 mins, 3 mins, 
 #4 mins, 5 mins, 10 mins, 15 mins, 20 mins, 30 mins, 1 hour, 2 hours, 3 hours, 4 hours, 8 hours, 1 day, 1W, 1M,
@@ -108,6 +110,8 @@ def now_ms():
 def week_ago_ms():
     return ms(time.time() - RETENTION_DAYS * 86400)
 
+#########################
+
 class MuloJob:
 
     def __init__(self,db_file, config):
@@ -127,28 +131,52 @@ class MuloJob:
         self.TIMEFRAME_UPDATE_SECONDS =config["live_service"]["TIMEFRAME_UPDATE_SECONDS"]  
         self.TIMEFRAME_LEN_CANDLES =config["live_service"]["TIMEFRAME_LEN_CANDLES"]  
         self.history_provider = config["live_service"]["history_provider"]
-        self.useHistoryYahoo = self.history_provider=="yahoo"
+        #self.useHistoryYahoo = self.history_provider=="yahoo"
         self.market = MarketService(config).getMarket("AUTO")
         self.marketZone = None
 
         self.conn_exe=sqlite3.connect(db_file, isolation_level=None)
+        self.conn = sqlite3.connect(db_file, isolation_level=None, check_same_thread=False)
+
         self.cur_exe = self.conn_exe.cursor()
         self.cur_exe.execute("PRAGMA journal_mode=WAL;")
         self.cur_exe.execute("PRAGMA synchronous=NORMAL;")
         self.update_ts={}
         self.symbol_to_exchange_map={}
 
-        
     def getCurrentZone(self):
         return self.market.getCurrentZone()
     
+    # aggiorna il ticker corrente
+
+    def db_clear_live(self, symbol,timeframe="1m"):
+        m = self.get_df(f"""
+                    SELECT min(timestamp) as min
+                    FROM ib_ohlc_history
+                    WHERE symbol = ? and timeframe=? and source = 'live'
+                    """, (symbol,timeframe))
+
+        min_ts = m.iloc[0][0]
+        if min_ts:
+            logger.info(f"Clear from {symbol} {timeframe} ts:{min_ts}")
+            q = f"""
+                        DELETE  FROM ib_ohlc_history 
+                                 WHERE symbol = '{symbol}' and timeframe='{timeframe}' and timestamp>={min_ts}
+                                  """
+            logger.info(q)
+            self.conn.execute(q)
+            self.conn.commit()
+
     async def db_updateTicker(self,new_ticker):
         #print(new_ticker)
         symbol = new_ticker["s"]
         #if not symbol  in self.symbol_to_exchange_map:
         #    return
     
-        run_time = int(_time.time() * 1000)
+        #run_time = int(_time.time() * 1000)
+        dt = datetime.fromtimestamp(new_ticker["ts"] / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S%z")
+        dt = dt[:-2] + ":" + dt[-2:]
+
         ds_run_time  = datetime.utcnow().isoformat()
         ex = self.get_exchange(symbol)
         tf = TF_SEC_TO_DESC[new_ticker["tf"]]
@@ -167,7 +195,8 @@ class MuloJob:
                             quote_volume,
                             day_volume,
                             source,
-                            updated_at,
+                            datetime,
+                            --updated_at,
                             ds_updated_at
                         )
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
@@ -180,7 +209,7 @@ class MuloJob:
                             base_volume = excluded.base_volume,
                             quote_volume = excluded.quote_volume,
                             source = excluded.source,
-                            updated_at = excluded.updated_at,
+                            datetime = excluded.datetime,
                             ds_updated_at = excluded.ds_updated_at
  
                     """
@@ -189,7 +218,7 @@ class MuloJob:
                                               new_ticker["h"],new_ticker["l"],new_ticker["c"],
                                                new_ticker["v"],new_ticker["v"]* new_ticker["c"],
                                                new_ticker["day_v"]
-                                                 , "live",  run_time, ds_run_time))
+                                                 , "live",  dt, ds_run_time))
         
         if int(new_ticker["tf"])>30:
             key = symbol+"_"+tf
@@ -213,8 +242,9 @@ class MuloJob:
                     self.update_ts[key] = new_ticker["ts"]
                 #print("last_update_delta_min" , last_update_delta_min)
  
-    async def on_update_symbols(self,new_symbols,liveMode=True):
-        logger.error(f"UPDATE SYMBOLS .. {new_symbols}")#MAX:{self.max_symbols}")
+    ### 
+    async def on_update_live_symbols(self,new_symbols,liveMode=True):
+        logger.info(f"UPDATE SYMBOLS .. {new_symbols}")#MAX:{self.max_symbols}")
 
         set_new = set(new_symbols)
         set_old = set(self.symbols)
@@ -237,6 +267,8 @@ class MuloJob:
 
         logger.info(f"LISTEN SYMBOLS {self.symbols}")
 
+       
+
         '''
         self.symbol_to_exchange_map = {}
         for _, row in self.df_fundamentals.iterrows():
@@ -244,11 +276,13 @@ class MuloJob:
         '''
       
         # startup 
+        '''
         if liveMode:
             for symbol in to_add:
                 for k,interval in TF_SEC_TO_DESC.items():
                     #if int(k) > 30:
                         await self._align_data(symbol,interval)
+        '''
 
     ##############
 
@@ -259,22 +293,22 @@ class MuloJob:
                     self.symbol_to_exchange_map[symbol] = df.iloc[0]["exchange"]
         return self.symbol_to_exchange_map[symbol]
     
-    async def _fetch_missing_history(self,cursor, symbol, timeframe, since):
+    async def _fetch_missing_history(self,cursor, symbol, timeframe, since, useYahoo):
         #since = week_ago_ms()
 
         try:
             update_delta_min = datetime.now() - datetime.fromtimestamp(float(since)/1000)
             candles= candles_from_seconds(update_delta_min.total_seconds(),timeframe)
 
-            logger.info(f">> Fetching history s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
+            logger.info(f">> Fetching history y:{useYahoo} s:{symbol} tf:{timeframe} s:{since} d:{update_delta_min} #{candles}")
             
             #dt_start =  datetime.fromtimestamp(float(since)/1000)
 
             exchange = self.get_exchange(symbol)
 
-            if timeframe == "1m" or not self.useHistoryYahoo:
+            if timeframe == "1m" and not  useYahoo: #or not self.useHistoryYahoo:
                 dt_end = datetime.utcnow()
-                dt_start = dt_end - timedelta(days=6)
+                dt_start = dt_end - timedelta(days=15)
                 #logger.info(f">> Fetching LAST WEEK only for 1m  {symbol} {dt_start} -> {dt_end}")
                
 
@@ -282,13 +316,14 @@ class MuloJob:
                     #logger.info(f"durationStr {since_to_durationStr(int(update_delta_min.total_seconds() ))}")
                             
                 
-                    if self.useHistoryYahoo:
+                    if False:#self.useHistoryYahoo:
                         
                         df = yf.download(
                             tickers=symbol,
                             start=dt_start.strftime("%Y-%m-%d"),
                             interval="1m",
                             auto_adjust=False,
+                             prepost=True,        # include premarket + afterhours
                             progress=False,
                         )
                     else:
@@ -301,7 +336,7 @@ class MuloJob:
 
                         logger.info(f">> durationStr {since_to_durationStr(int(update_delta_min.total_seconds()))}")
 
-                        bars =  self.ib.reqHistoricalData(
+                        bars =  await self.ib.reqHistoricalDataAsync(
                             contract,
                             endDateTime=end,
                             durationStr=since_to_durationStr(int(update_delta_min.total_seconds()) ),#tf_to_ib_period[timeframe],      # period back: 2 giorni
@@ -331,7 +366,7 @@ class MuloJob:
                             #df.drop(columns=["index"], inplace=True)
                             #logger.info(f"\n{df.tail(5)}")
 
-                            await self.process_data(exchange,symbol, timeframe, cursor, df)
+                            await self.process_data(exchange,symbol, timeframe, cursor, df,useYahoo)
                             
                         except:
                             logger.error("ERROR", exc_info=True)
@@ -362,12 +397,13 @@ class MuloJob:
                             end=dt_end.strftime("%Y-%m-%d"),
                             interval=timeframe,
                             auto_adjust=False,
+                             prepost=True,        # include premarket + afterhours
                             progress=False,
                         )
                    
                         
 
-                    if not await self.process_data(exchange,symbol, timeframe, cursor, df):
+                    if not await self.process_data(exchange,symbol, timeframe, cursor, df,useYahoo):
                         break
 
                     # AVANZA IL CURSORE DI 7 GIORNI
@@ -378,33 +414,113 @@ class MuloJob:
 
     ########
 
-    async def process_data(self,exchange,symbol,timeframe,cursor,df):
+    async def process_data_batch(self, exchange, symbol, timeframe, cursor, df, useYahoo):
+
+        if df.empty:
+            return False
+
+        if useYahoo:
+            df = df.reset_index()
+
+        df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
+
+        if useYahoo:
+            dateName = "Date" if "Date" in df.columns else "Datetime"
+            df[dateName] = df[dateName].astype("int64") // 10**9
+        else:
+            if timeframe == "1d":
+                df["timestamp"] = (
+                    pd.to_datetime(df["Datetime"], utc=True)
+                    .view("int64") // 10**9
+                ).astype("int64")
+            else:
+                df["timestamp"] = df["Datetime"].astype("int64") // 10**9
+
+        ohlcv = [
+            (b.timestamp * 1000, b.Open, b.High, b.Low, b.Close, b.Volume, str(b.Datetime))
+            for b in df.itertuples(index=False)
+        ]
+
+        # rimuove ultima candela parziale
+        ohlcv = ohlcv[:-1]
+
+        if not ohlcv:
+            return False
+
+        provider = "yahoo" if useYahoo else "ib"
+
+        rows = [
+            (
+                exchange,
+                symbol,
+                timeframe,
+                ts,
+                open_,
+                high,
+                low,
+                close,
+                vol,
+                vol * close,
+                provider,
+                dt,
+                datetime.utcnow().isoformat()
+            )
+            for ts, open_, high, low, close, vol, dt in ohlcv
+        ]
+
+        sql = """
+            INSERT INTO ib_ohlc_history (
+                exchange, symbol, timeframe, timestamp,
+                open, high, low, close,
+                base_volume, quote_volume,
+                source, datetime, ds_updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(exchange, symbol, timeframe, timestamp)
+            DO UPDATE SET
+                open = excluded.open,
+                high = excluded.high,
+                low = excluded.low,
+                close = excluded.close,
+                base_volume = excluded.base_volume,
+                quote_volume = excluded.quote_volume,
+                source = excluded.source,
+                datetime = excluded.datetime,
+                ds_updated_at = excluded.ds_updated_at
+        """
+
+        cursor.executemany(sql, rows)
+        cursor.commit()
+
+        return True
+
+    async def process_data(self,exchange,symbol,timeframe,cursor,df, useYahoo):
                 
                 if df.empty:
                     #logger.info("No data returned, stopping.")
                     return False
 
-                if self.useHistoryYahoo:
+                if useYahoo:
                     df = df.reset_index()
 
                 df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
 
                 #logger.info(f"\n{df}")
 
-                if self.useHistoryYahoo:
+                if useYahoo:
                     dateName = "Date" if "Date" in df.columns else "Datetime"
                     df[dateName] = df[dateName].astype("int64") // 10**9
                 else:
                     if timeframe == "1d":
-                        df["Datetime"] = (
+                        df["timestamp"] = (
                             pd.to_datetime(df["Datetime"], utc=True)
                             .view("int64") // 10**9
                         ).astype("int64")
                     else:
-                        df["Datetime"] = df["Datetime"].astype("int64") // 10**9
+                        df["timestamp"] = df["Datetime"].astype("int64") // 10**9
 
                 ohlcv = [
-                    (b[0] * 1000, b.Open, b.High, b.Low, b.Close, b.Volume, b.VWAP)
+                    (b.timestamp * 1000, b.Open, b.High, b.Low, b.Close, b.Volume,str(b.Datetime))
                     for b in df.itertuples(index=False)
                 ]
 
@@ -413,20 +529,20 @@ class MuloJob:
 
                 logger.debug(f"Rows fetched: {len(ohlcv)}")
 
-                provider = "yahoo" if self.useHistoryYahoo else "ib"
+                provider = "yahoo" if useYahoo else "ib"
 
                 if not ohlcv:
                     return False
 
-                for ts, open_, high, low, close, vol , vwap,in ohlcv:
+                for ts, open_, high, low, close, vol,dt ,in ohlcv:
                     cursor.execute("""
                         INSERT INTO ib_ohlc_history (
                             exchange, symbol, timeframe, timestamp,
                             open, high, low, close,
                             base_volume, quote_volume,
-                            source, updated_at, ds_updated_at,vwap
+                            source, datetime, ds_updated_at
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(exchange, symbol, timeframe, timestamp)
                         DO UPDATE SET
                             open = excluded.open,
@@ -436,9 +552,9 @@ class MuloJob:
                             base_volume = excluded.base_volume,
                             quote_volume = excluded.quote_volume,
                             source = excluded.source,
-                            updated_at = excluded.updated_at,
-                            ds_updated_at = excluded.ds_updated_at,
-                            vwap = excluded.vwap
+                            datetime = excluded.datetime,
+                            ds_updated_at = excluded.ds_updated_at
+                     
                     """, (
                         exchange,
                         symbol,
@@ -451,15 +567,18 @@ class MuloJob:
                         vol,
                         vol * close,
                         provider,
-                        int(time.time() * 1000),
-                        datetime.utcnow().isoformat(),
-                        vwap
+                        dt,
+                        #int(time.time() * 1000),
+                        datetime.utcnow().isoformat()
+                      
                     ))
 
                 cursor.commit()
                 return True
 
     async def _align_data(self, symbol, timeframe):
+        return
+
         if not self.historyActive:
             return
 
@@ -472,7 +591,7 @@ class MuloJob:
                 WHERE symbol = ? and timeframe=? and source != 'live'
                 """
 
-            conn = sqlite3.connect(self.db_file)
+            conn = self.conn#sqlite3.connect(self.db_file)
             
             #for symbol in self.live_symbols():
             if True:
@@ -529,12 +648,13 @@ class MuloJob:
                             #logger.debug(f"MAX.. {max_dt}")
                             logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
 
-                            await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000)
+                            useYahoo = timeframe =="1d"
+                            await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000,useYahoo)
                             #self.cache.addCache_str(cache_key,cache_key)
                         else:
                             pass
                         
-            conn.close()     
+            #conn.close()     
         except: 
             logger.error("ERROR",exc_info=True)
 
@@ -548,11 +668,11 @@ class MuloJob:
             ORDER BY timestamp DESC
             LIMIT ?"""
              
-        conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
+        #conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, self.conn, params= (symbol, timeframe, limit))
         df = df.iloc[::-1].reset_index(drop=True)
       
-        conn.close()     
+        #conn.close()     
         return df
     
     ########## tutti insieme
@@ -566,7 +686,7 @@ class MuloJob:
 
         sql_symbols = str(symbols)[1:-1]
      
-        conn = sqlite3.connect(self.db_file)
+        #conn = sqlite3.connect(self.db_file)
         if since:
             #since = int(dt_from.timestamp()) * 1000
             query = f"""
@@ -578,7 +698,7 @@ class MuloJob:
                 LIMIT {limit}"""
                 
             #print("since",since)
-            df = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(query, self.conn)
         else:
             query = f"""
                 SELECT *
@@ -587,41 +707,20 @@ class MuloJob:
                 ORDER BY timestamp DESC
                 LIMIT {limit}"""
           
-            df = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(query, self.conn)
             #print(query)
 
         df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()     
+        #conn.close()     
         return df
 
 
         
     #######################
 
-    '''
-    def getTicker(self,symbol):
-        if symbol in self.tickers:
-            return self.tickers[symbol]
-        else:
-            return None
-        
-    def getTickersDF(self):
-        if not self.tickers:
-            return pd.DataFrame(
-                columns=["symbol", "timestamp", "price", "bid", "ask", "volume_day"]
-            )
-  
-        df = pd.DataFrame( [ t for k,t in self.tickers.items()])
-    
-        # sicurezza: timestamp come datetime
-        #df["datetime"] = pd.to_datetime(df["timestamp"]/1000, utc=True, errors="coerce")
-        df["datetime"] = pd.to_datetime(df["ts"], unit="ms", utc=True)
-        return df
-    '''
     async def last_close(self,symbol: str,sym_start_time:datetime = None)-> float:
         if not sym_start_time:
-            await self._align_data(symbol,"1m")
-
+          
             ieri_mezzanotte = (
                 (datetime.now()
                 - timedelta(days=1))
@@ -637,6 +736,23 @@ class MuloJob:
                     
                 )
         unix_time = int(ieri_mezzanotte.timestamp()) * 1000
+
+        ### 
+        '''
+        last = self.get_df(f"""
+                SELECT max(timestamp) as t
+                FROM ib_ohlc_history
+                WHERE symbol=? AND timeframe=?""", (symbol,"1m"))
+        if len(last>0):
+                lastTime = last.iloc[0]["t"]
+                logger.info(f"Last time lastTime:{lastTime}  unix_time:{unix_time}")
+                if (not lastTime or lastTime <unix_time):
+                    await self._align_data(symbol,"1m")
+        else:
+        '''
+
+        #await self._align_data(symbol,"1m")
+
         #print("Last close time ", unix_time)
         df = self.get_df(f"""
                 SELECT close 
@@ -652,6 +768,7 @@ class MuloJob:
         else:
             return 0
     #######################
+
     def get_day_white_list(self):
         dt_day = str(datetime.now().date())
         sql = f"""
@@ -770,19 +887,40 @@ class MuloJob:
                     )
 
             self.conn_exe.commit()
-   
+    
+    #########
+
+    def get_day_symbols(self):
+        df = self.get_df("SELECT symbol from ib_day_watch where date = ? and enabled=1", (date(),))
+        symbols = df["symbol"].tolist()
+        return symbols
+
+    def add_day_symbol(self, profile, symbol):
+        today = date() # es. "2026-03-06"
+        self.conn_exe.execute("""
+                        INSERT INTO ib_day_watch (
+                            profile,  symbol, date,count, enabled
+                        )
+                        VALUES (?, ?, ?, ?,1)
+                        ON CONFLICT(date,symbol)
+                        DO UPDATE SET
+                            count = excluded.count+1
+                    """, (
+                        profile,symbol,today,1)
+                    )
+        
         
     #######################
     
     def get_df(self,query, params=()):
-        conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(query, conn, params=params)
-        conn.close()
+        #conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, self.conn, params=params)
+        #conn.close()
         return df
     
     def get_disct(self,query, params=()):
-        conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(query, conn, params=params)
-        conn.close()
+        #conn = sqlite3.connect(self.db_file)
+        df = pd.read_sql_query(query, self.conn, params=params)
+        #conn.close()
         return df
     

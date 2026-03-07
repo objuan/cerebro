@@ -1210,10 +1210,10 @@ const resize =  () => {
 function onTickerReceived(ticker){
     if (lastMainCandle)
     {
-      lastMainCandle.c = ticker.last
-      lastMainCandle.h = ticker.high
-      lastMainCandle.l = ticker.low
-     // console.log("ticker",currentSymbol.value,currentTimeframe.value,ticker,lastMainCandle)
+      lastMainCandle.close = ticker.last
+      //lastMainCandle.h = ticker.high
+      //lastMainCandle.l = ticker.low
+      //console.log("ticker",currentSymbol.value,currentTimeframe.value,ticker,lastMainCandle)
 
       series.update(lastMainCandle);
     }

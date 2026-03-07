@@ -277,13 +277,13 @@ class ReportManager:
                         end=int(end)
                         logger.info(f"start {start} end {end}")
 
-                    logger.info(f"rows group {len(g)}")
+                    ##logger.info(f"rows group {len(g)}")
 
                     w = g[(g.ts >= start) & (g.ts <= end)]
 
-                    logger.info(f"rows window {len(w)}")
+                    ##logger.info(f"rows window {len(w)}")
 
-                    print(g.dtypes)
+                    ##print(g.dtypes)
                     return pd.Series({
                         "max_high": w.high.max(),
                         "min_low": w.low.min()

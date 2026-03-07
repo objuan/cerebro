@@ -188,7 +188,7 @@ class Scanner:
                              discard = (f"DISCARD FLOAT MAX : {row['symbol']}")
 
                     if discard!="":
-                        logger.warning(discard)
+                        #logger.warning(discard)
 
                         for i,m in  enumerate(symbols):
                             #e = self.monitor[row['symbol']]

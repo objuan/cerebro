@@ -83,7 +83,7 @@ class MuloLiveClient:
                 
                 async def updateTickers(new_ticker):
                     #logger.info(f"new_ticker {new_ticker}")
- 
+                    '''
                     if "ticker" in new_ticker:
                         symbol =  new_ticker["ticker"]
                       
@@ -100,11 +100,11 @@ class MuloLiveClient:
                                   "ts" : int(new_ticker["ts"]*1000)
                                   })
                             
-                         #logger.info(f"..  {t}")
+                        logger.info(f"..  {t}")
                          # send event 
                         await self.on_ticker_receive(t)
-
-                    elif self.sym_mode and "sym" in new_ticker:
+                    '''
+                    if self.sym_mode and "sym" in new_ticker:
                         self.sym_time = new_ticker["sym"]
                         self.sym_speed = new_ticker["speed"]
 
@@ -120,33 +120,39 @@ class MuloLiveClient:
                         #print(new_ticker)
                         # send to UI
                         if mode =="full":
+                            logger.info(f"full {new_ticker}")
+
+                            
                             await self.on_full_candle_receive(new_ticker)
+                            
+
                             if self.sym_mode:
                                 await self.on_partial_candle_receive(new_ticker)
+
                         else:
                             await self.on_partial_candle_receive(new_ticker)
                        
                         
-                        if new_ticker["tf"]=="10s" and new_ticker["s"] in self.tickers:
-                            
-                            t = self.tickers[new_ticker["s"]]
-                            t.update({"last": new_ticker["c"],"volume": new_ticker["v"],"day_volume": new_ticker["day_v"],
-                                      "ask": new_ticker["ask"],"bid": new_ticker["bid"],
-                                      "low": new_ticker["l"],"high": new_ticker["h"],
-                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
-                                        "ts":new_ticker["ts"] })
-                            
-                            
-                            if (not "open_price" in t):
-                                if self.market.isLiveZone():
-                                    #logger.info("GAPPPPP")
-                                    open_price, ts_open =  await self.last_open(new_ticker["s"])
+                            if new_ticker["tf"]=="10s" and new_ticker["s"] in self.tickers:
+                                
+                                t = self.tickers[new_ticker["s"]]
+                                t.update({"last": new_ticker["c"],"volume": new_ticker["v"],"day_volume": new_ticker["day_v"],
+                                        "ask": new_ticker["ask"],"bid": new_ticker["bid"],
+                                        "low": new_ticker["l"],"high": new_ticker["h"],
+                                            "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
+                                            "ts":new_ticker["ts"] })
+                                
+                                
+                                if (not "open_price" in t):
+                                    if self.market.isLiveZone():
+                                        #logger.info("GAPPPPP")
+                                        open_price, ts_open =  await self.last_open(new_ticker["s"])
 
-                                    t.update({"open_price" : open_price, "ts_open_price":int(ts_open)})
-                            
-                            #logger.info(f"..  {t}")
-                            # send event 
-                            await self.on_ticker_receive(t)
+                                        t.update({"open_price" : open_price, "ts_open_price":int(ts_open)})
+                                
+                                #logger.info(f"..  {t}")
+                                # send event 
+                                await self.on_ticker_receive(t)
                            # logger.info(f"new_ticker {t}")
                         #self.render_page.send({"type":"candle","data":new_ticker}) 
                         
@@ -378,13 +384,22 @@ class MuloLiveClient:
                 LIMIT ?"""
              
         conn = sqlite3.connect(self.db_file)
-        if timeframe in ['15m']:
+        
+        if timeframe in ['10s','1m']:
+            # sono nel DB
+            df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
+            df = df.iloc[::-1].reset_index(drop=True)
+        else:
+            # li prendo dalle candele di 1m
             df = pd.read_sql_query(query, conn, params= (symbol, "1m", limit))
 
             df["dt"] = pd.to_datetime(df["t"], unit="ms")
             df = df.set_index("dt")
 
-            df = df.resample("15T").agg({
+            secs = TIMEFRAME_SECONDS[timeframe]
+            rule = f"{int(secs/60)}T"   # es: 5T, 15T, 30T
+
+            df = df.resample(rule).agg({
                 "o": "first",
                 "h": "max",
                 "l": "min",
@@ -400,9 +415,7 @@ class MuloLiveClient:
             # opzionale: rimuovi dt se non ti serve
             df = df.drop(columns=["dt"])
 
-        else:
-            df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
-            df = df.iloc[::-1].reset_index(drop=True)
+     
       
         conn.close()     
         return df

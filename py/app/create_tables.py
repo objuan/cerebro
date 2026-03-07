@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS ib_ohlc_history (
         vwap REAL,
 
         source TEXT,        -- ib | live
-        updated_at INTEGER,          
+        --updated_at INTEGER,          
+        datetime TEXT,
         ds_updated_at TEXT,
 
         PRIMARY KEY (exchange, symbol, timeframe, timestamp)
@@ -134,14 +135,20 @@ cur.execute("""
     """)
 
 cur.execute("""
-       CREATE TABLE IF NOT EXISTS ib_live_watch (
-        ts_exec  INTEGER,
-        symbol TEXT ,
-        mode TEXT,
-        PRIMARY KEY(ts_exec)
+       CREATE TABLE IF NOT EXISTS ib_day_watch (
+        profile TEXT,
+        symbol TEXT,
+        date  DATE,
+        count INT,
+        enabled INT,
+        ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY(ds_timestamp)
         )
     """)
-
+cur.execute("""
+   CREATE UNIQUE INDEX IF NOT EXISTS idx_ib_day_watch_unique
+        ON ib_day_watch(symbol, date);
+    """)
 
 # Crea la tabella ib_orders se non esiste
 cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
