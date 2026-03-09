@@ -366,7 +366,7 @@ class MuloJob:
                             #df.drop(columns=["index"], inplace=True)
                             #logger.info(f"\n{df.tail(5)}")
 
-                            await self.process_data(exchange,symbol, timeframe, cursor, df,useYahoo)
+                            await self.process_data_batch(exchange,symbol, timeframe, cursor, df,useYahoo)
                             
                         except:
                             logger.error("ERROR", exc_info=True)
@@ -426,7 +426,8 @@ class MuloJob:
 
         if useYahoo:
             dateName = "Date" if "Date" in df.columns else "Datetime"
-            df[dateName] = df[dateName].astype("int64") // 10**9
+            df["Datetime"] = df[dateName] 
+            df["timestamp"] = df[dateName].astype("int64") // 10**6 # // 10**9
         else:
             if timeframe == "1d":
                 df["timestamp"] = (
@@ -509,7 +510,8 @@ class MuloJob:
 
                 if useYahoo:
                     dateName = "Date" if "Date" in df.columns else "Datetime"
-                    df[dateName] = df[dateName].astype("int64") // 10**9
+                    df["Datetime"] = df[dateName] 
+                    df["timestamp"] = df[dateName].astype("int64") // 10**9 # // 10**9
                 else:
                     if timeframe == "1d":
                         df["timestamp"] = (
@@ -519,6 +521,9 @@ class MuloJob:
                     else:
                         df["timestamp"] = df["Datetime"].astype("int64") // 10**9
 
+
+                #logger.info(f"{df}")
+          
                 ohlcv = [
                     (b.timestamp * 1000, b.Open, b.High, b.Low, b.Close, b.Volume,str(b.Datetime))
                     for b in df.itertuples(index=False)
@@ -575,10 +580,60 @@ class MuloJob:
 
                 cursor.commit()
                 return True
+    
+    def get_max_time(self,symbol, timeframe):
+        m = self.get_df(f"""
+                    SELECT max(timestamp) as max
+                    FROM ib_ohlc_history
+                    WHERE symbol = ? and timeframe=? and source != 'live'
+                    """, (symbol,timeframe,))
 
+        return m.iloc[0][0]
+        
+    async def align_data(self,symbol):
+                self.db_clear_live(symbol,"1m")
+                end = datetime.now(timezone.utc).strftime('%Y%m%d-%H:%M:%S')
+
+                max_ts = self.get_max_time(symbol, "1m")
+
+                logger.info(f"Prev ts {symbol} {max_ts}")
+
+                if not max_ts:
+                    time = since_to_durationStr(int(60 * 60 * 24*7 ))
+                else:
+                    update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_ts)/1000)
+                    candles= candles_from_seconds(update_delta_min.total_seconds(),'1m')
+                    time = since_to_durationStr(int(update_delta_min.total_seconds()) )
+                
+                
+                    logger.info(f">> Fetching history {symbol} delta:{time} d:{update_delta_min} #{candles}")
+           
+                contract =   Stock(symbol, 'SMART', 'USD')
+               
+                bars =  await self.ib.reqHistoricalDataAsync(
+                            contract,
+                            endDateTime=end,
+                            durationStr=time,#tf_to_ib_period[timeframe],      # period back: 2 giorni
+                            barSizeSetting='1 min', #'1 min', # 1 minuto
+                            whatToShow='TRADES',
+                            useRTH=False,           # includi orari estesi
+                            formatDate=2 #unixtime
+                        )
+                df = util.df(bars)
+
+                df = df.rename(columns={
+                                "open": "Open",
+                                "high": "High",
+                                "low": "Low",
+                                "close": "Close",
+                                "volume": "Volume",
+                                "date" :"Datetime",
+                                "average" : "VWAP"
+                            })
+                return symbol, df
+          
     async def _align_data(self, symbol, timeframe):
-        return
-
+        
         if not self.historyActive:
             return
 
@@ -609,7 +664,7 @@ class MuloJob:
                         #    max_dt = int(df_min.iloc[0]["min"]/1000) # ultima data in unix time 
                     
 
-                    #logger.info(f"max_dt {max_dt}")
+                    logger.info(f"max_dt {max_dt}")
                     if max_dt:
                         #if  self.marketZone == MarketZone.LIVE:
         

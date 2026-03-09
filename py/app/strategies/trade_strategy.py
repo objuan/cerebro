@@ -13,87 +13,7 @@ from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
 
-class VWAP_PERC(Indicator):
-  
-  def __init__(self,target_col):
-        super().__init__([target_col])
-        self.target_col=target_col
-    
-  def compute(self, dataframe, group, start_pos):
-        
-        close = group["close"]
-        vwap = group["vwap"]
-        vwap_up = group["vwap_up"]
-        vwap_down = group["vwap_down"]
 
-        band_h = vwap_up-vwap_down
-        close_perc = 100* (close - vwap_down) / band_h
-
-        dataframe.loc[group.index, self.target_col] = close_perc
-
-        gain = close_perc - close_perc.shift(1)
-
-        dataframe.loc[group.index, self.target_col + "_gain"] = gain
-
-        variance = ((band_h) / vwap_down) * 100
-
-        dataframe.loc[group.index, self.target_col + "_var"] = variance
-
-############
-
-class SMA_INT(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-        self.slope_col = f"{target_col}_slope"
-
-    def compute(self, dataframe, group, start_pos):
-        
-        warmup = max(0, start_pos - self.window + 1)
-
-        sub = group.iloc[warmup:].copy()
-
-        sma = sub[self.source_col].rolling(window=self.window).mean()
-
-         # derivata discreta (pendenza)
-        #slope = sma.diff()
-        
-
-        #logger.info(f"sub {sub}")
-
-        idx_slice = sub.index[start_pos - warmup:]
-
-        #logger.info(f"idx_slice {idx_slice}")
-
-        dataframe.loc[idx_slice, self.target_col] = \
-            sma.iloc[start_pos - warmup:].values
-            
-
-        #dataframe.loc[idx_slice, self.slope_col] = \
-        #    slope.iloc[start_pos - warmup:].values
-
-class DIFF(Indicator):
-  
-    def __init__(self,target_col, source1_col:str, source2_col:str):
-        super().__init__([target_col])
-        self.source1_col=source1_col
-        self.target_col=target_col
-        self.source2_col=source2_col
-
-    def compute(self, dataframe, group, start_pos):
-        
-        diff = group[self.source1_col] + group[self.source2_col] 
-
-        if start_pos == 0:
-            dataframe.loc[group.index, self.target_col] = diff.values
-        else:
-            dataframe.loc[group.index[start_pos:], self.target_col] = \
-                diff.iloc[start_pos:].values
-
-########################
 
 ########################
 
@@ -108,7 +28,8 @@ class TradeStrategy(SmartStrategy):
         return ['1d']
 
     def populate_indicators(self) :
-
+   
+ 
         atr = self.addIndicator("1d",ATR_SMA("atr",14))
 
         sma_20= self.addIndicator(self.timeframe,SMA_INT("SMA_20","close",20))
@@ -141,6 +62,8 @@ class TradeStrategy(SmartStrategy):
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
         
+  
+    
         #if not self.bootstrapMode:
         #    logger.info(f"DO {symbol} {global_index} \n{dataframe.tail(5)}" )
 

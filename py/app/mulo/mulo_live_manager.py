@@ -347,89 +347,54 @@ class LiveManager:
         '''
        
 
-
-    async def fetch_bars(self, contract, end, duration, timeframe):
-        
-        #await self.fetcher._fetch_missing_history(self.fetcher.conn,contract.symbol, "1m",1,False )
-
-        bars = await self.ib.reqHistoricalDataAsync(
-            contract,
-            endDateTime=end,
-            durationStr="1 day",
-            barSizeSetting='1 min',
-            whatToShow="TRADES",
-            useRTH=False,
-            formatDate=2
-        )
-
-        return bars
-        
-
     async def align_symbols(self, symbols):
         
+        for symbol in symbols:
+
+            #await self.fetcher._align_data(symbol, "1d")
+            
+            max_ts = self.fetcher.get_max_time(symbol, "1d")
+            if not max_ts:
+                dt_end = datetime.utcnow()
+                dt_start = dt_end - timedelta(365)
+            else:
+                dt_start =  datetime.utcfromtimestamp(max_ts/1000)
+            
+            logger.info(f"1D dt_start {dt_start}")
+            df = yf.download(
+                            tickers=symbol,
+                            start=dt_start.strftime("%Y-%m-%d"),
+                            interval="1d",
+                            auto_adjust=False,
+                            prepost=True,        # include premarket + afterhours
+                            progress=False,
+                        )
+            if len(df>0):
+                await self.fetcher.process_data("exchange",symbol, "1d", self.fetcher.conn, df,True)
+            
+
+        ############
+
         sem = asyncio.Semaphore(20)
-        end = datetime.now(timezone.utc).strftime('%Y%m%d-%H:%M:%S')
+        #end = datetime.now(timezone.utc).strftime('%Y%m%d-%H:%M:%S')
                                        
         async def task(symbol):
 
             async with sem:
-                
-                self.fetcher.db_clear_live(symbol,"1m")
-
-                m = self.fetcher.get_df(f"""
-                    SELECT max(timestamp) as max
-                    FROM ib_ohlc_history
-                    WHERE symbol = ? and timeframe='1m' and source != 'live'
-                    """, (symbol,))
-
-                max_ts = m.iloc[0][0]
-
-                logger.info(f"Prev ts {symbol} {max_ts}")
-
-                if not max_ts:
-                    time = since_to_durationStr(int(60 * 60 * 24*7 ))
-                else:
-                    update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_ts)/1000)
-                    candles= candles_from_seconds(update_delta_min.total_seconds(),'1m')
-                    time = since_to_durationStr(int(update_delta_min.total_seconds()) )
-                
-                
-                    logger.info(f">> Fetching history {symbol} delta:{time} d:{update_delta_min} #{candles}")
-           
-                contract =   Stock(symbol, 'SMART', 'USD')
-               
-                bars =  await self.ib.reqHistoricalDataAsync(
-                            contract,
-                            endDateTime=end,
-                            durationStr=time,#tf_to_ib_period[timeframe],      # period back: 2 giorni
-                            barSizeSetting='1 min', #'1 min', # 1 minuto
-                            whatToShow='TRADES',
-                            useRTH=False,           # includi orari estesi
-                            formatDate=2 #unixtime
-                        )
-                df = util.df(bars)
-
-                df = df.rename(columns={
-                                "open": "Open",
-                                "high": "High",
-                                "low": "Low",
-                                "close": "Close",
-                                "volume": "Volume",
-                                "date" :"Datetime",
-                                "average" : "VWAP"
-                            })
-
-                return symbol, df
-
+                return await self.fetcher.align_data(symbol)
+            
         tasks = [task(s) for s in symbols]
 
         results = await asyncio.gather(*tasks)
 
+        # id 
+      
+        
         for symbol, data in dict(results).items():
             logger.info(f"{symbol} \n{data}")
 
-            #exchange = self.get_exchange(symbol)
-            await self.fetcher.process_data_batch("",symbol, "1m",self.fetcher.conn_exe, data,False)
+            exchange = self.fetcher.get_exchange(symbol)
+            await self.fetcher.process_data_batch(exchange,symbol, "1m",self.fetcher.conn_exe, data,False)
         #logger.info(dict(results))
 
         '''

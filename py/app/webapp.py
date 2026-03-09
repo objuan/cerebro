@@ -1241,9 +1241,17 @@ async def set_sym_speed(value:float):
 
 ####################
 
+@app.get("/back/enabled")
+async def back_enabled(enable:bool):
+    back_manager.setEnabled(enable)
+    return {"status": "ok"}
+
 @app.get("/back/ohlc_chart")
 async def back_ohlc_chart(symbol: str, timeframe: str, backTime):
     try:
+        if not back_manager.db:
+              return JSONResponse({})
+        
         df1 = back_manager.db.full_dataframe(timeframe, symbol)
         #logger.info(f"backTime {backTime}")
 
@@ -1278,6 +1286,7 @@ async def back_ohlc_chart(symbol: str, timeframe: str, backTime):
         logger.error("Error", exc_info=True)
         return HTMLResponse("error", 500)
     
+
 @app.get("/back/profiles")
 async def back_get_profiles():
     df = back_manager.back_profiles(  )
@@ -1355,9 +1364,17 @@ async def back_currentTime(current):
 ###########################################
 
 @app.get("/live/strategy/indicators")
-async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Optional[str] = None,since: Optional[int] = None):
+async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Optional[str] = None,
+                                   from_ts: Optional[int] = None,to_ts: Optional[int] = None):
     try:
-        all = strategy.live_indicators(symbol,timeframe,since)
+        #logger.info(f"BACK LAST TS {back_manager.enabled} {to_ts}")
+
+        if back_manager.enabled and not to_ts:
+            to_ts = back_manager.db.full_dataframe(timeframe, symbol).iloc[-1]["timestamp"]
+           #logger.info(f"BACK LAST TS {to_ts}")
+            
+
+        all = strategy.live_indicators(symbol,timeframe,from_ts,to_ts)
         #logger.info(f"\n {all}")
         return JSONResponse(all)
     except:

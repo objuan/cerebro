@@ -51,162 +51,7 @@ from reports.db_dataframe import *
 from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
-
-class BacktestIn:
-    badgetUSD : int
-    symbols: List[str]
-    dt_from : str
-    dt_to: str
-    strategy : List[ Dict]
-
-    def __init__(self, data: Dict[str, Any]):
-        self.badgetUSD: int = data.get("badgetUSD", 0)
-        self.symbols: List[str] = data.get("symbols", [])
-        self.dt_from: str = data.get("dt_from", 0)
-        self.dt_to: str = data.get("dt_to", 0)
-        self.strategy: List[Dict] = data.get("strategy", [])
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "badgetUSD": self.badgetUSD,
-            "symbols": self.symbols,
-            "dt_from": self.dt_from,
-            "dt_to": self.dt_to,
-            "strategy": self.strategy,
-        }
-
-###############################
-
-class Back_DBDataframe_TimeFrame:
-
-    def __init__(self,main_df, timeframe,inData:BacktestIn ):
-        self.main_df=main_df
-        self.inData=inData
-        self.timeframe = timeframe
-        self.map={}
-        self.last_index_by_symbol={}
-        self.on_row_added = MyEvent()
-        self.on_df_last_added = MyEvent()
-        self.time_tick = TIMEFRAME_SECONDS[timeframe] * 1000
-        self.symbols = inData.symbols
-        #for symbol in inData.symbols:
-        #    self.main_df.back_manager.client.history_data()
-       
-        since = 1000*int(datetime.strptime(str(inData.dt_from), "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Rome")).timestamp())
-     
-        to = 1000*int(datetime.strptime(str(inData.dt_to), "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Rome")).timestamp())
-
-        self.all_df = self.main_df.back_manager.back_data(inData.symbols,self.timeframe,since, to)
-
-        self.all_df["local_time"] = pd.to_datetime(self.all_df["timestamp"], unit="ms") \
-                        .dt.tz_localize("UTC") \
-                        .dt.tz_convert("Europe/Rome") \
-                        .dt.tz_localize(None)  # opzionale: rimuove info timezone
-        
-        #self.all_df["timestamp"] = pd.to_datetime(self.all_df["timestamp"], unit="ms", utc=True)
-        #self.all_df["i_timestamp"] = self.all_df["timestamp"]
-
-        self.all_df = self.all_df.set_index("timestamp", drop=False).sort_index()
-    
-        logger.info(f"BACK_DF \n{self.all_df }")
-
-        self.min_time = self.all_df.index.min()
-        self.max_time = self.all_df.index.max()
-
-        self.goTo(self.min_time)
-
-    def goTo(self, begin_time):
-        self.current_time = begin_time
-
-        self.filtered_df =  self.all_df [ self.all_df.index<= self.current_time]
-
-        '''
-        for symbol in  self.symbols:
-            symbol_rows = self.filtered_df[self.filtered_df["symbol"].eq(symbol)]
-            print("...",symbol_rows)
-            if len(symbol_rows)>0:
-                self.last_index_by_symbol[symbol] = symbol_rows[-1]
-        '''
-
-        logger.info(f"START FROM {self.timeframe} { begin_time}")
- 
-    def full_dataframe(self,symbol="") -> pd.DataFrame:
-        #logger.info(f"{self.tim} {self.last_timestamp} {self.df}")
-        if symbol=="":
-            return self.all_df
-        else:
-            cp =  self.all_df.copy()
-            return cp[cp["symbol"]== symbol]
-        
-    def dataframe(self,symbol="") -> pd.DataFrame:
-        #logger.info(f"{self.tim} {self.last_timestamp} {self.df}")
-        if symbol=="":
-            return self.filtered_df
-        else:
-            cp =  self.filtered_df.copy()
-            return cp[cp["symbol"]== symbol]
-        
-    async def tick(self,time):
-        if time >= self.current_time + self.time_tick:
-            previous_time = self.current_time
-            current_time = self.current_time + self.time_tick
-
-            #logger.info(f"tick {current_time} {datetime.fromtimestamp(current_time/1000)}")
-
-            new_rows = self.all_df.loc[(self.all_df.index > previous_time) & (self.all_df.index <= current_time)]
-            if not new_rows.empty:
-                self.filtered_df = pd.concat([self.filtered_df, new_rows])
-
-                await self.on_df_last_added(self.timeframe,new_rows)
-                #logger.info(f"NEW \n{ new_rows.tail(5) }")
-
-            #logger.info(f"\n{ self.filtered_df.tail(10) }")
-
-            self.current_time=current_time
-    
-########
-
-class Back_DatabaseManager:
-    def __init__(self,back_manager,inData:BacktestIn ):
-        self.back_manager=back_manager
-        self.inData=inData
-        self.map={}
-           
-    def db_dataframe(self,timeframe)-> Back_DBDataframe_TimeFrame:
-        if not timeframe in self.map :
-            self.map[timeframe] = Back_DBDataframe_TimeFrame(self,timeframe,self.inData) 
-        # min max
-        return self.map[timeframe]
-    
-    def full_dataframe(self,timeframe,symbol="")-> pd.DataFrame:
-        return self.db_dataframe(timeframe).full_dataframe(symbol)
-
-    def dataframe(self,timeframe,symbol="")-> pd.DataFrame:
-        return self.db_dataframe(timeframe).dataframe(symbol)
-
-    def begin(self):
-        _min = 999999999999999
-        _max =0
-        tf = 9999000
-        for timeframe,db in self.map.items():
-            _min= min(_min,db.min_time)
-            _max= max(_max,db.max_time)
-            tf = min(tf , TIMEFRAME_SECONDS[timeframe]*1000 )
-
-        logger.info(f"TEST PERIOD : {ts_to_local_str(_min)} {ts_to_local_str(_max)} tf: {tf}")
-
-        self.start_ts = _min
-        self.end_ts = _max
-        self.min_tf = tf
-
-        for timeframe,db in self.map.items():
-            db.goTo(_min)
-
-    async def tick(self,time):
-        for x in self.map.values():
-            await x.tick(time)
-
-###############################
+from bot.backtest_db import *
 
 class BacktestManager:
     params : Dict
@@ -217,12 +62,19 @@ class BacktestManager:
         self.render_page = render_page
         self.strategy_folder = self.config["live_service"]["strategy_folder"]
         self.strategies=[]
+        self.back_strategies=[]
+        self.enabled=False
+        self.db=None
 
         if "stategies" in self.config:
             for strat_def in self.config["stategies"]:
                 if strat_def["scope"] =="BACK" if "scope" in strat_def else False:
                     self.strategies.append(strat_def)
-    
+
+    def setEnabled(self,enabled):
+        logger.info(f"BACK MODE {enabled}")
+        self.enabled=enabled
+
     async def loadStrategy(self,module_name, class_name,strat_def):
         logger.info(f"LOAD STRATEGY module: {module_name} class:{class_name}")
         try:
@@ -234,7 +86,7 @@ class BacktestManager:
         strategy = instance(self)
 
         strategy.load(strat_def)
-
+        self.back_strategies.append(strategy)
         await strategy.bootstrap(False)
 
     def get_strategy_list(self):
@@ -246,6 +98,8 @@ class BacktestManager:
 
     async def start(self, strat_def):
         #self.db = Back_DatabaseManager(self,inData)
+        logger.info(f"BACK START")
+        self.back_strategies=[]
         for s in self.inData.strategy:
             await self.loadStrategy(s["module"], s["class"],strat_def)
 
@@ -257,7 +111,11 @@ class BacktestManager:
         while(time < self.db.end_ts):
             time= time + time_delta
             await self.db.tick(time)
-        pass
+        
+        for s in self.back_strategies:
+            s.onBackEnd()
+        logger.info(f"BACK END")
+
     ##############
 
     def setCurrentTime(self,current):
@@ -360,13 +218,13 @@ if __name__ =="__main__":
         propManager = PropertyManager()
         client = MuloLiveClient(DB_FILE,config,propManager)
 
-        manager = BacktestManager(client,render_page)
+        manager = BacktestManager(config,client,render_page)
 
         data = {
             "badgetUSD": 100,
-            "symbols": ["ATOM","CRSR"],
-            "dt_from": "2026-02-13 16:00:00",
-            "dt_to": "2026-02-13 18:00:00",
+            "symbols": ["PRSO"],
+            "dt_from": "2026-03-06 01:00:00", # UTC format
+            "dt_to": "2026-03-06 23:59:00",
             "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
         }
 

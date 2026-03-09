@@ -136,13 +136,13 @@ cur.execute("""
 
 cur.execute("""
        CREATE TABLE IF NOT EXISTS ib_day_watch (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         profile TEXT,
         symbol TEXT,
         date  DATE,
         count INT,
         enabled INT,
-        ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY(ds_timestamp)
+        ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
 cur.execute("""

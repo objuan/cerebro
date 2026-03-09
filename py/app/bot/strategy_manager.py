@@ -220,10 +220,10 @@ class StrategyManager:
          for strat in self.strategies:
             await strat["instance"].on_symbols_update(df, [], [symbol])
 
-    def live_indicators(self,symbol,timeframe,since):
+    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
         list = []
         for strat in self.strategies:
-            i = strat["instance"].live_indicators(symbol,timeframe,since)
+            i = strat["instance"].live_indicators(symbol,timeframe,from_ts,to_ts)
             if i:
                 list.append(i)
         return list

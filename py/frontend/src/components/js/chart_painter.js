@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import { send_get,localUnixToUtc,timeframeToSeconds } from '@/components/js/utils.js'; // Usa il percorso corretto
 //formatUnixDate
 import { ref,computed} from 'vue';
@@ -318,7 +319,8 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
 
     }
     ,async load(){
-      console.log( "load")
+      //console.log( "load")
+      /*
       try
       {
         const ind_response = await send_get(`/api/chart/painter/read`,
@@ -346,7 +348,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       }catch(e){
         console.error(e)
       }
-    
+    */
     }
     ,clear(){
       this.primitives.forEach((p)=>{

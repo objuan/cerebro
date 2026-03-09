@@ -624,7 +624,6 @@ async function handleRefresh (resetWindow)
         
         //console.log("_task_datas",_task_datas)
      
-
         // INDICATORS
 
           let ind_profile = staticStore.get(get_indicator_key(),null)
@@ -663,21 +662,16 @@ async function handleRefresh (resetWindow)
        // nextTick( async ()=>
         {
           await painter.load()
-          painter.setData(formattedData)
-          // OPEN DATE
-          const first = findLastCandleOfEachDay(formattedData)
-          const openDate = findOpenDate(formattedData)
 
-          const idx = formattedData.findIndex(p => p.time === first);
-          painter.createVirtualVLine(idx, "white")
-
-          const idx1 = formattedData.findIndex(p => p.time === openDate);
-          painter.createVirtualVLine(idx1, "yellow")
+            painter.setData(formattedData)
+            painter.createMarketZoneBand()
+            painter.createGapZone()
 
             // STATEGY
-         
+
           await updateStrategyIndicators( context(),
-            currentSymbol.value, currentTimeframe.value
+            currentSymbol.value, currentTimeframe.value, null,  
+            backTime.value ? backTime.value *1000: null
           )
 
             // TRADE MARKER
@@ -1146,10 +1140,13 @@ function on_candle(c)
 // =====================================
 // BACK
 
-function setBackTime(time){
+async function setBackTime(time){
   //console.log("setBackTime",time)
-  backTime.value=time
-   handleRefresh(false);
+   backTime.value=time
+   await handleRefresh(false);
+  chart.timeScale().scrollToRealTime();
+
+  
 }
 
 // ==========================

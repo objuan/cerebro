@@ -13,7 +13,7 @@
       "grid": "1_1",
       "symbol": "PRSO",
       "indicator": {
-        "1m": "SMA",
+        "1m": "aa",
         "10s": "SMA",
         "30s": "vwap",
         "5m": "SMA",
@@ -22,7 +22,7 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "5m"
+          "timeframe": "1m"
         }
       },
       "2_2": {
@@ -285,6 +285,9 @@
       "quantity": 500
     },
     "TURB": {
+      "quantity": 100
+    },
+    "PRSO": {
       "quantity": 100
     }
   },

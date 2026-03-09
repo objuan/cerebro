@@ -53,6 +53,7 @@ import BackStrategyWidget from '@/components/back/BackStrategyWidget.vue'
 //import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { initProps } from "@/components/js/common";
 import MultiBackChartWidget from '@/components/back/MultiBackChartWidget.vue'
+import { send_get } from '@/components/js/utils';
 
 const history = ref(null)
 const symbolList = ref(null)
@@ -93,6 +94,7 @@ window.addEventListener('resize', resizeAllCharts)
 
 onMounted( async () => {
   
+  await send_get("/back/enabled",{enable:true})
   await initProps();
 });
 

@@ -79,7 +79,7 @@ export  class MarketZoneBand  extends Primitive{
 
       this.zoneIndex.push({from:old_idx,to:idx, zone:old_zone})
 
-      console.log(this.zoneIndex,this.lastOpen)
+     //console.log(this.zoneIndex,this.lastOpen)
     }
 
     draw(ctx){

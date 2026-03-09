@@ -28,7 +28,7 @@ export function clearStrategyIndicators(context){
 }
 
 export async  function updateStrategyIndicators(context,
-    symbol, timeframe,since=null){
+    symbol, timeframe,from_ts=null, to_ts=null){
    //console.log("updateStrategyIndicators",context,symbol,timeframe,since)
 
   try
@@ -37,10 +37,11 @@ export async  function updateStrategyIndicators(context,
     let strategy_index_map = context.strategy_index_map;
 
     let strat_response =null;
-    if (since==null)
-      strat_response = await send_get(`/live/strategy/indicators`,{"symbol":symbol,"timeframe":timeframe  });
-    else
-      strat_response = await send_get(`/live/strategy/indicators`,{"symbol":symbol,"timeframe":timeframe , "since": since });
+    let params = {"symbol":symbol,"timeframe":timeframe  }
+    if (from_ts!=null)  params["from_ts"] = from_ts
+    if (to_ts!=null)  params["to_ts"] = to_ts
+
+    strat_response = await send_get(`/live/strategy/indicators`,params);
 
     // console.log("task strat_response",strat_response)
     strat_response.forEach( (strat) =>

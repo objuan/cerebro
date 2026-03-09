@@ -66,7 +66,7 @@ class Strategy:
                     except:
                         logger.error("error",exc_info=True)
 
-    def live_indicators(self,symbol,timeframe,since):
+    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
         return None
 
     async def on_start(self):
@@ -345,25 +345,31 @@ class SmartStrategy(Strategy):
 
        # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
      
-    def live_markers(self,symbol,timeframe,since):
+    def live_markers(self,symbol,timeframe,from_ts,to_ts):
         if not timeframe:
             timeframe = self.timeframe
+        '''
         if since:
             df = self.marker(timeframe,symbol)
             if not df.empty:
                 df = df[df["timestamp"]>= since]
         else:
             df = self.marker(timeframe,symbol)
+        '''
+        df = self.get_df_windows( self.marker(timeframe,symbol),from_ts,to_ts)
+
         if df.empty:
             return []
         else:
             #logger.info(f"live_markers since:{since}\n{df}")
             return df.to_dict(orient="records")
        
-    def live_legend(self,symbol,timeframe,since):
+    def live_legend(self,symbol,timeframe,from_ts,to_ts):
         if not timeframe:
             timeframe = self.timeframe
 
+        df = self.get_df_windows( self.df(timeframe,symbol),from_ts,to_ts)
+        '''
         if since:
             df = self.df(timeframe,symbol)
             if not df.empty:
@@ -371,6 +377,8 @@ class SmartStrategy(Strategy):
             #logger.info(f"since {since}\n{df}")
         else:
             df = self.df(timeframe,symbol)
+        '''
+
         arr = []
         for leg in self.legend:
             d = leg.copy()
@@ -382,32 +390,55 @@ class SmartStrategy(Strategy):
             arr.append(d)
          #logger.info(f"live_markers since:{since}\n{df}")
         return arr
+    
+    def get_df_windows(self,source_df,from_ts,to_ts):
+        if from_ts or to_ts:
+            df = source_df
+            if not df.empty:
+                if from_ts:
+                    df = df[df["timestamp"]>= from_ts]
+                else:
+                    df = df[df["timestamp"]<= to_ts]
+            #logger.info(f"since {since}\n{df}")
+        else:
+            df = source_df
+
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df.dropna()
+        return df
         
-    def live_indicators(self,symbol,timeframe,since):
+    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
      
         if not timeframe:
             timeframe = self.timeframe
 
-        if since:
+        '''
+        if from_ts or to_ts:
             df = self.df(timeframe,symbol)
             if not df.empty:
-                df = df[df["timestamp"]>= since]
+                if from_ts:
+                    df = df[df["timestamp"]>= from_ts]
+                else:
+                    df = df[df["timestamp"]<= to_ts]
             #logger.info(f"since {since}\n{df}")
         else:
             df = self.df(timeframe,symbol)
+        '''
 
-        df = df.replace([np.inf, -np.inf], np.nan)
-        df.dropna()
-    
+        #df = df.replace([np.inf, -np.inf], np.nan)
+        #df.dropna()
+        df = self.get_df_windows(self.df(timeframe,symbol),from_ts,to_ts)
+
+        
         if df.empty:
             return{"strategy": __name__ 
                    ,"legends" : []
-                   ,"markers": self.live_markers(symbol,timeframe,since)}
+                   ,"markers": self.live_markers(symbol,timeframe,from_ts,to_ts)}
         
         #logger.info(f"out \n{df}")
         o = {"strategy": __name__ ,
-             "markers": self.live_markers(symbol,timeframe,since), 
-             "legends": self.live_legend(symbol,timeframe,since), 
+             "markers": self.live_markers(symbol,timeframe,from_ts,to_ts), 
+             "legends": self.live_legend(symbol,timeframe,from_ts,to_ts), 
              "list" : []}
 
         #logger.info(f"process1 {self.plots}")

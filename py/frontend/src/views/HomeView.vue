@@ -508,6 +508,7 @@ const initWebSocket = () => {
 
 onMounted( async () => {
 
+  await send_get("/back/enabled",{enable:false})
   //console.log("main onMounted")
 
   initWebSocket();

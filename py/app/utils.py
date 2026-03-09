@@ -1,5 +1,6 @@
 import time
 from datetime import datetime, timedelta
+import pytz
 import re
 import logging
 import asyncio
@@ -132,6 +133,18 @@ def duration_to_seconds(value):
     amount, unit = match.groups()
     return int(amount) * TIME_MULTIPLIERS[unit]
 
+
+
+def convert_to_local(ts_str, tz_str='Europe/Rome'):
+    # Parse il timestamp originale in UTC
+    utc_dt = datetime.strptime(ts_str, '%Y-%m-%d %H:%M:%S')
+    utc_dt = utc_dt.replace(tzinfo=pytz.utc)
+    
+    # Converti in timezone locale
+    local_tz = pytz.timezone(tz_str)
+    local_dt = utc_dt.astimezone(local_tz)
+    
+    return local_dt.strftime('%Y-%m-%d %H:%M:%S')
 
 def convert_json(obj):
     """
@@ -324,16 +337,3 @@ def dict_to_paths(data, prefix=""):
 
     return result
 
-from datetime import datetime
-import pytz
-
-def convert_to_local(ts_str, tz_str='Europe/Rome'):
-    # Parse il timestamp originale in UTC
-    utc_dt = datetime.strptime(ts_str, '%Y-%m-%d %H:%M:%S')
-    utc_dt = utc_dt.replace(tzinfo=pytz.utc)
-    
-    # Converti in timezone locale
-    local_tz = pytz.timezone(tz_str)
-    local_dt = utc_dt.astimezone(local_tz)
-    
-    return local_dt.strftime('%Y-%m-%d %H:%M:%S')
