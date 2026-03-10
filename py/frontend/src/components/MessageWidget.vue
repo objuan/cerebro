@@ -228,8 +228,12 @@ const checkNew = () => {
 
 onMounted( async () => {
    checkNew();
+  // console.log(props.title)
    if (props.title =="ALARM")
       playSound()
+    if (props.title.startsWith("NEW"))
+      playSound()
+    
 });
 
 onBeforeUnmount(() => {

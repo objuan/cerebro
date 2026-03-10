@@ -1,7 +1,14 @@
 <template>
 <div style="width: 100%">
   <div class="sort-bar">
-    <span></span>
+    <span>
+    {{count_sum}}</span>
+  <button
+
+      @click="toggleShowAll()"
+    >
+      .
+    </button>
 
     <button
       :class="{ active: sortBy === 'gain' }"
@@ -38,7 +45,7 @@
 
   <header class="py-1 mb-1 border-bottom bg-light">
  
-     <div class="d-flex flex-wrap gap-1 items-container">
+     <div class="items-container">
 
       <div
         v-for="item in sortedTickers"
@@ -341,6 +348,9 @@ const showNews = ref(false)
 const selectedSymbol= ref(null)
 const sortBy = ref('gain'); // 'gain' | 'gap'
 const now = ref(Date.now())
+const showAll = ref(false)
+const sortedTickers = ref([])
+
 let timer = null
 
 const orderedKeys = [
@@ -354,7 +364,55 @@ const progress = (item) => {
   const f =  Math.min(10, item.secs_from-10)/10
   return 100 - f * 100;
 }
+//const sortedTickers = computed(() => {
+function updateTickers()
+{
+  const list = tickerList.get_sorted();
 
+  //console.log("tickerList",list.length)
+
+   sortedTickers.value=  [...list].sort((a, b) => {
+      const aMissing = !a.secs_from;
+      const bMissing = !b.secs_from;
+
+      if (aMissing !== bMissing) return aMissing - bMissing;
+
+      return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
+    });
+
+   
+  if (showAll.value)
+  {
+    sortedTickers.value= [...list].sort((a, b) => {
+      const aMissing = !a.secs_from;
+      const bMissing = !b.secs_from;
+
+      if (aMissing !== bMissing) return aMissing - bMissing;
+
+      return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
+    });
+  }
+  else
+  {
+    sortedTickers.value= [...list]
+      .filter(t => t.secs_from)   // tiene solo quelli con secs_from
+      .sort((a, b) => {
+        return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
+      });
+    }
+      
+//});
+  }
+
+const count_sum = computed(() => {
+  return tickerList.get_list().length
+});
+
+function toggleShowAll(){
+  showAll.value = !showAll.value
+  updateTickers()
+}
+/*
 const sortedTickers = computed(() => {
   const list = tickerList.get_sorted();
 
@@ -367,6 +425,7 @@ const sortedTickers = computed(() => {
     return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
   });
 });
+*/
 /*
 const isTrue = (v) =>
 {
@@ -429,6 +488,7 @@ function onSymbolClick(symbol) {
 }
 
 function onTickerReceived() {
+  updateTickers()
   //console.log("Summary → ticker:", ticker);
   //updateSymbol(ticker);
 }
@@ -453,6 +513,7 @@ function onReportReceived(data){
       tickerList.push({"symbol": symbol, "summary" : report.get_sum_rank(symbol)})
       tickerList.push({"symbol": symbol, "report" : report.get_report(symbol)})
    }
+   updateTickers()
 
 }
 

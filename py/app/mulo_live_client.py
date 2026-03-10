@@ -120,7 +120,7 @@ class MuloLiveClient:
                         #print(new_ticker)
                         # send to UI
                         if mode =="full":
-                            logger.info(f"full {new_ticker}")
+                            #logger.info(f"full {new_ticker}")
 
                             
                             await self.on_full_candle_receive(new_ticker)
@@ -216,7 +216,9 @@ class MuloLiveClient:
             _mule_tickers = await self.send_cmd("tickers/info")
 
             #new_symbols = [ t["symbol"] for t in _mule_tickers] 
-        
+            logger.info(f"_mule_tickers {_mule_tickers}")
+
+
             set_new = set(new_symbols)
             set_old = set(self.symbols)
 
@@ -234,7 +236,7 @@ class MuloLiveClient:
                 self.df_fundamentals
                     .set_index("symbol")
                     .to_dict(orient="index")
-    )
+            )
             #logger.debug(f"Fundamentals \n{self.df_fundamentals}")
                                                 
             self.sql_symbols = str(self.symbols)[1:-1]
@@ -518,7 +520,37 @@ class MuloLiveClient:
         else:
             return (0.01,0)
         
-    async def last_close(self,symbol: str):
+    async def last_close(self, symbol: str):
+        if not self.sym_mode:
+            base_time = datetime.now()
+        else:
+            base_time = self.sym_time
+
+        ieri = base_time - timedelta(days=1)
+
+        # salta sabato e domenica
+        while ieri.weekday() >= 5:  # 5=sabato, 6=domenica
+            ieri -= timedelta(days=1)
+
+        ieri_mezzanotte = ieri.replace(hour=22, minute=0, second=0, microsecond=0)
+
+        unix_time = int(ieri_mezzanotte.timestamp()) * 1000
+
+        df = self.get_df(f"""
+            SELECT close
+            FROM ib_ohlc_history
+            WHERE symbol='{symbol}' AND timeframe='1m'
+            AND timestamp <= {unix_time}
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """)
+
+        if len(df) > 0:
+            return (float(df.iloc[0]["close"]), unix_time)
+        else:
+            return (0.01, 0)
+
+    async def last_close1(self,symbol: str):
         if not self.sym_mode:
             #await self._align_data(symbol,"1m")
 

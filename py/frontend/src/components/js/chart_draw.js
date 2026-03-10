@@ -2,6 +2,8 @@
 
 export const handleSize=6
 
+const HOVER_COLOR =  '#948d2ab7' 
+
 function parseColoredText(text, defaultColor){
   const regex = /<color:(#[0-9a-fA-F]{3,6}|[a-zA-Z]+)>|<\/color>/g;
   let result = [];
@@ -41,7 +43,7 @@ export function drawTextOnLine(
   a,
   b,
   text,
-  color = "white",
+  color = "black",
   offset = 10,
   anchor = "center",
   bgColor = null,
@@ -124,7 +126,7 @@ export function  drawLine(ctx, a,b,color, hover=false, size=1, style = "solid"  
 
       ctx.moveTo(a.x,a.y)
       ctx.lineTo(b.x,b.y)
-      ctx.strokeStyle = hover ? 'yellow' : color
+      ctx.strokeStyle = hover ? HOVER_COLOR : color
       ctx.lineWidth = hover ? 2 : size
       ctx.stroke()
 }
@@ -146,7 +148,7 @@ export function drawRect(ctx, a, b,color, fillColor,hover=false, style="solid"){
     ctx.fill()
 
     // bordo
-    ctx.strokeStyle = hover ? 'yellow' : color
+    ctx.strokeStyle = hover ? HOVER_COLOR : color
     ctx.lineWidth = hover ? 2 : 1
     ctx.stroke()
 }
@@ -154,7 +156,7 @@ export function drawRect(ctx, a, b,color, fillColor,hover=false, style="solid"){
 export function drawHandle(ctx,p,hover=false){
       ctx.beginPath()
       ctx.arc(p.x, p.y, handleSize, 0, Math.PI*2)
-      ctx.fillStyle = hover ? 'green' : 'yellow'
+      ctx.fillStyle = hover ? 'green' : HOVER_COLOR
       ctx.fill()
   }
 

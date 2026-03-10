@@ -175,7 +175,7 @@ class ReportManager:
 
             #  symbol  last_close  last   volume  ask  bid  gain  ts   datetime
             df_tickers = self.job.getTickersDF()
-            logger.info(f"Tickers \n{df_tickers}")
+            #logger.info(f"Tickers \n{df_tickers}")
         
 
             df_5m = self.db.dataframe("5m")
@@ -243,8 +243,13 @@ class ReportManager:
             
             #last_close = self.close_by_symbols(df_1m) 
             #logger.info(f"CLOSE \n{last_close.to_string(index=False)}")
-            #df = df.merge(  last_close[["symbol","last_close"]], on="symbol",    how="left")
+
+            #df_1m = df_1m.merge(  df_tickers[["symbol","ts_last_close"]], on="symbol",   how="left")
             
+            #logger.info(f"CLOSE \n{df_1m.tail(19)}")
+
+    
+
             '''
             if isLiveZone:
                 if len ( self.first_open) == 0:
@@ -290,11 +295,11 @@ class ReportManager:
                     })
 
             if "ts_open_price" in df_tickers.columns:# and isLiveZone:
-                logger.info("open_price")
+                #logger.info("open_price")
                 df["gap"] =  df_tickers["gain"]
 
-                result = df_tickers.groupby("symbol").apply(calc_range).reset_index()
-                logger.info(f"result \n{result}")
+                #result = df_1m.groupby("symbol").apply(calc_range).reset_index()
+                #logger.info(f"result \n{result}")
                 #df["gap"] = ((df['open_price'] - df['last_close'] ) / df['last_close'])  * 100
                 #calc
             else:

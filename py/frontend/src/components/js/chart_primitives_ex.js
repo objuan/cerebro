@@ -18,69 +18,91 @@ export  class MarketZoneBand  extends Primitive{
     this.colors = {
         close: "rgba(255, 0, 0, 0.5)",
         pre: "rgba(248, 115, 5, 0.5)",
-        open: "rgba(255, 255, 255, 0.5)",
+        open: "rgba(103, 212, 0, 0.92)",
         after: "rgba(41, 99, 173, 0.5)"
       };
     }
-    onDataChanged(){
-      const TIME_ZONE_OFFSET = 6*60
+  onDataChanged() {
 
-      //console.log("onDataChanged")
-      //const min_pre = 2 *60 // 15:30 UTC
-      const min_open = 9 * 60 + 30; // 15:30 UTC
-      const min_close = 16 *60  // 15:30 UTC
+    if (!this.data || this.data.length === 0)
+      return
+try{
+    const TIME_ZONE_OFFSET = 6 * 60
+    const DAY_MINUTES = 1440
 
-      let zone=""
-      let old_zone = "close"
-      let idx=-1
-      let old_idx = -1
-      this.zoneIndex.length=0
-      this.lastClose = null;
-      this.lastOpen = null;
-      for (const d of this.data) {
-          idx=idx+1
-          const dt = new Date((d.time) * 1000);
-        
-          let minutes = dt.getUTCHours() * 60 + dt.getUTCMinutes()-TIME_ZONE_OFFSET;
-          if (minutes<0)
-            minutes+= 24*60
-          
-          if (minutes < min_open)
-                zone = "pre"
-            else if (minutes < min_close)
-                zone = "open"
-            else
-                zone = "after"
+    const min_open = 9 * 60 + 30
+    const min_close = 16 * 60
 
-            if (zone != old_zone ){
-              if (old_idx!=-1)
-              {
-                  if (old_zone =="after")
-                      this.lastClose = old_idx
-                  if (old_zone =="open")
-                  {
-                        //console.log("kkk",old_idx)
-                      this.lastOpen = old_idx
-                  }
+    let zone = ""
+    let old_zone = "close"
+    let idx = -1
+    let old_idx = -1
 
-                 this.zoneIndex.push({from:old_idx,to:idx, zone:old_zone})
-              }
-              old_zone=zone
-              old_idx=idx
-              
-            }
+    this.zoneIndex = []
+    this.lastClose = null
+    this.lastOpen = null
 
+    for (let i = 0; i < this.data.length; i++) {
+
+      const t = this.data[i].time
+
+      if (!t) continue
+
+      idx++
+
+      // minuti UTC senza Date()
+      let minutes = Math.floor(t / 60) % DAY_MINUTES
+      minutes -= TIME_ZONE_OFFSET
+
+      if (minutes < 0)
+        minutes += DAY_MINUTES
+
+      if (minutes < min_open)
+        zone = "pre"
+      else if (minutes < min_close)
+        zone = "open"
+      else
+        zone = "after"
+
+      if (zone !== old_zone) {
+
+        if (old_idx !== -1) {
+
+          if (old_zone === "after")
+            this.lastClose = old_idx
+
+          if (old_zone === "open")
+            this.lastOpen = old_idx
+
+          this.zoneIndex.push({
+            from: old_idx,
+            to: idx,
+            zone: old_zone
+          })
+        }
+
+        old_zone = zone
+        old_idx = idx
       }
-      if (old_zone =="pre")
-        //console.log("kkprek")
-          this.lastOpen = idx-1
-      else if ( old_zone =="open" )
-          this.lastOpen = this.zoneIndex[this.zoneIndex.length-1].to
-
-      this.zoneIndex.push({from:old_idx,to:idx, zone:old_zone})
-
-     //console.log(this.zoneIndex,this.lastOpen)
     }
+
+    if (old_zone === "pre")
+      this.lastOpen = idx - 1
+    else if (old_zone === "open" && this.zoneIndex.length > 0)
+      this.lastOpen = this.zoneIndex[this.zoneIndex.length - 1].to
+
+    this.zoneIndex.push({
+      from: old_idx,
+      to: idx,
+      zone: old_zone
+    })
+  }
+     catch (ex){
+        console.error(ex)
+        console.trace()
+    }
+  }
+
 
     draw(ctx){
         //console.log(this.data)
@@ -116,7 +138,7 @@ export  class GapZone  extends MarketZoneBand{
    constructor(painter,data){
     super(painter,data)
     this.type = "gap-zone"
-    this.color =  "rgba(241, 206, 2, 0.5)"
+    this.color =  "rgba(170, 145, 6, 0.9)"
    }
    onDataChanged(){
       super.onDataChanged()
@@ -156,11 +178,11 @@ export  class GapZone  extends MarketZoneBand{
       //console.log(p1,p2,c,o,  l, h)
 
        drawRect(ctx,p1,p2,this.color ,this.color ,false,"solid")
-       drawLine(ctx,  {x:10, y: l.y}, {x:10, y: c.y}, "yellow")
-       drawLine(ctx,  {x:10, y: h.y}, {x:10, y: o.y}, "yellow")
+       drawLine(ctx,  {x:10, y: l.y}, {x:10, y:  Math.max(o.y,c.y)}, this.color)
+       drawLine(ctx,  {x:10, y: h.y}, {x:10, y: Math.min(o.y,c.y)},this.color)
 
-       drawLine(ctx,  {x:20, y: m.y}, {x:25, y: m.y}, "yellow")
-       drawTextOnLine(ctx,{x:10, y: p2.y}, {x:10, y: p1.y}, `${gap.toFixed(0)} (${gapH.toFixed(0)}) %`, "white" , 0 )
+       drawLine(ctx,  {x:20, y: m.y}, {x:30, y: m.y},"black")
+       drawTextOnLine(ctx,{x:10, y: p2.y}, {x:10, y: p1.y}, `${gap.toFixed(0)} (${gapH.toFixed(0)}) %`, "black" , 0 )
     
   }
 }

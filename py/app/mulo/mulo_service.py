@@ -100,11 +100,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 @app.middleware("http")
 async def add_referrer_policy(request, call_next):
-    response = await call_next(request)
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    return response
+    try:
+        response = await call_next(request)
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+    except Exception:
+        logger.error("ERR", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal Server Error"}
+        )
 
 if use_yahoo:
     ws_yahoo = yf.AsyncWebSocket()
@@ -141,37 +149,52 @@ async def get_tickers():
         "data":list,
     }
 
+def safe_float(value):
+    try:
+        f =  float(value)
+        if math.isnan(f): f= 0
+        return f
+    except (TypeError, ValueError):
+        logger.error(f"ERR {value}")
+        return 0.0
+
 @app.get("/tickers/info")
 async def get_tickers_info():
-    tickers = live.ordered_tickers()
-    logger.info(f"get_tickers info {tickers}")
+    try:
+        tickers = live.ordered_tickers()
+        logger.info(f"get_tickers info {tickers}")
 
-    response_data = []
-    for x in tickers:
-        # Troviamo i nomi degli scanner che contengono questo simbolo
-        # Assumiamo che il controllo avvenga su 'actual_df' (se è un DataFrame) 
-        # o su 'symbol_map' (se è un dizionario/lista)
-        scanners_found = [
-            scanner.name 
-            for scanner in live.scanner_map.values() 
-            if scanner.actual_df is not None 
-            and "symbol" in scanner.actual_df.columns
-            and x.symbol in scanner.actual_df["symbol"].values
-        ]
+        response_data = []
+        for x in tickers:
+            # Troviamo i nomi degli scanner che contengono questo simbolo
+            # Assumiamo che il controllo avvenga su 'actual_df' (se è un DataFrame) 
+            # o su 'symbol_map' (se è un dizionario/lista)
+            scanners_found = [
+                scanner.name 
+                for scanner in live.scanner_map.values() 
+                if scanner.actual_df is not None 
+                and "symbol" in scanner.actual_df.columns
+                and x.symbol in scanner.actual_df["symbol"].values
+            ]
 
-        response_data.append({
-            "symbol": x.symbol,
-            "last": getattr(x, "last", None), 
-            "last_volume": getattr(x, "volume", None),
-            "scan": scanners_found  # Restituisce una lista di nomi, es: ["GAP_UP", "HIGH_VOL"]
-        })
-    logger.info(f"list {response_data}")
+            response_data.append({
+                "symbol": x.symbol,
+                "last": safe_float(getattr(x, "last", None)), 
+                "last_volume": safe_float(getattr(x, "volume", None)),
+                "scan": scanners_found  # Restituisce una lista di nomi, es: ["GAP_UP", "HIGH_VOL"]
+            })
+        logger.info(f"list {response_data}")
 
-    return {
-        "status": "ok",
-        "data":response_data,
-    }
-
+        return {
+            "status": "ok",
+            "data":response_data,
+        }
+    except:
+        logger.error("",exc_info=True)
+        return {
+            "status": "ok",
+            "data":[]
+        }
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -179,7 +202,7 @@ async def favicon():
 
 @app.get("/admin/add_to_black")
 async def add_to_black(mode,symbol):
-    fetcher.add_blacklist(symbol,"USER SETTING", mode)
+    await live.add_to_black(mode,symbol)
     return {"status": "ok"}
     
 @app.get("/admin/add_to_watch")

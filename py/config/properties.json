@@ -10,8 +10,8 @@
   },
   "chart": {
     "1": {
-      "grid": "1_1",
-      "symbol": "PRSO",
+      "grid": "1_2",
+      "symbol": "AZI",
       "indicator": {
         "1m": "aa",
         "10s": "SMA",
@@ -22,7 +22,8 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "1m"
+          "timeframe": "1m",
+          "legend": false
         }
       },
       "2_2": {
@@ -38,7 +39,11 @@
       },
       "1_2": {
         "2": {
-          "timeframe": "10s"
+          "timeframe": "10s",
+          "legend": false
+        },
+        "1": {
+          "legend": false
         }
       }
     },
@@ -78,7 +83,7 @@
   "event": {
     "filter_events": "[\"trade\",\"order\",\"task-order\",\"error\",\"message\"]",
     "filter_strategy": {
-      "sources": "[\"strategy\"]",
+      "sources": "[\"strategy\",\"mule\"]",
       "names": "[]",
       "symbols": "[]"
     }
@@ -288,6 +293,22 @@
       "quantity": 100
     },
     "PRSO": {
+      "quantity": 100
+    },
+    "CIIT": {
+      "quantity": 300
+    },
+    "NVVE": {
+      "quantity": 100
+    },
+    "AZI": {
+      "quantity": 400,
+      "mode": "MARKER"
+    },
+    "ANTX": {
+      "quantity": 100
+    },
+    "CAMP": {
       "quantity": 100
     }
   },

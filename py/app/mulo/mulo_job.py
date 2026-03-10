@@ -219,7 +219,7 @@ class MuloJob:
                                                new_ticker["v"],new_ticker["v"]* new_ticker["c"],
                                                new_ticker["day_v"]
                                                  , "live",  dt, ds_run_time))
-        
+        '''
         if int(new_ticker["tf"])>30:
             key = symbol+"_"+tf
        
@@ -241,6 +241,7 @@ class MuloJob:
 
                     self.update_ts[key] = new_ticker["ts"]
                 #print("last_update_delta_min" , last_update_delta_min)
+        '''
  
     ### 
     async def on_update_live_symbols(self,new_symbols,liveMode=True):
@@ -522,7 +523,7 @@ class MuloJob:
                         df["timestamp"] = df["Datetime"].astype("int64") // 10**9
 
 
-                #logger.info(f"{df}")
+                logger.info(f"..\n{df}")
           
                 ohlcv = [
                     (b.timestamp * 1000, b.Open, b.High, b.Low, b.Close, b.Volume,str(b.Datetime))
@@ -530,7 +531,8 @@ class MuloJob:
                 ]
 
                 # ultima candela parziale
-                ohlcv = ohlcv[:-1]
+                if timeframe != "1d":
+                    ohlcv = ohlcv[:-1]
 
                 logger.debug(f"Rows fetched: {len(ohlcv)}")
 
@@ -946,8 +948,15 @@ class MuloJob:
     #########
 
     def get_day_symbols(self):
-        df = self.get_df("SELECT symbol from ib_day_watch where date = ? and enabled=1", (date(),))
+        df = self.get_df(
+            "SELECT symbol FROM ib_day_watch WHERE date = ? AND enabled = 1",
+            (date(),)
+        )
+
         symbols = df["symbol"].tolist()
+
+        symbols = [s for s in symbols if not self.is_in_blacklist(s)]
+
         return symbols
 
     def add_day_symbol(self, profile, symbol):

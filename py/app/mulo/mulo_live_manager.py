@@ -263,6 +263,18 @@ class LiveManager:
         return scanners_found
     '''
 
+    def remove_ticker(self,symbol):
+        contract = self.ticker_contracts[symbol]# Stock(symbol, exchange, 'USD')
+        logger.info(f">> Close  feeds {contract}")
+        try:
+            self.ib.cancelMktData(contract)
+        except:
+            logger.error("CANCEL ERROR", exc_info=True)
+        self.ib.sleep(1)
+
+        if symbol in self.tickers:
+            del  self.tickers[symbol]
+
     async def discard_last(self)-> bool:
         return False
         logger.info(f"========== DISCARD LAST ========== ")
@@ -346,33 +358,50 @@ class LiveManager:
             self.fetcher._align_data(symbol,"1m")
         '''
        
+    def need_update(self,symbol):
+        toupdate=True
+        df = self.fetcher.get_df("SELECT * FROM ib_ohlc_history WHERE SYMBOL = ? and timeframe ='1d' order by timestamp desc limit 1",(symbol,))
+        if not df.empty:
+            if df.iloc[0]["ds_updated_at"]:
+                                           
+                last_date = datetime.fromisoformat( df.iloc[0]["ds_updated_at"])
+                time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
 
+                logger.info(f"time to update {symbol} {time_to_update_days}")
+
+                toupdate=time_to_update_days > 1 
+            else:
+                toupdate=True
+        return toupdate
+    
     async def align_symbols(self, symbols):
         
         for symbol in symbols:
 
             #await self.fetcher._align_data(symbol, "1d")
-            
-            max_ts = self.fetcher.get_max_time(symbol, "1d")
-            if not max_ts:
-                dt_end = datetime.utcnow()
-                dt_start = dt_end - timedelta(365)
-            else:
-                dt_start =  datetime.utcfromtimestamp(max_ts/1000)
-            
-            logger.info(f"1D dt_start {dt_start}")
-            df = yf.download(
-                            tickers=symbol,
-                            start=dt_start.strftime("%Y-%m-%d"),
-                            interval="1d",
-                            auto_adjust=False,
-                            prepost=True,        # include premarket + afterhours
-                            progress=False,
-                        )
-            if len(df>0):
-                await self.fetcher.process_data("exchange",symbol, "1d", self.fetcher.conn, df,True)
-            
+            if self.need_update(symbol):
 
+                max_ts = self.fetcher.get_max_time(symbol, "1d")
+                if not max_ts:
+                    dt_end = datetime.utcnow()
+                    dt_start = dt_end - timedelta(365)
+                else:
+                    dt_start =  datetime.utcfromtimestamp(max_ts/1000)
+                
+                logger.info(f"1D dt_start {dt_start}")
+                df = yf.download(
+                                tickers=symbol,
+                                start=dt_start.strftime("%Y-%m-%d"),
+                                interval="1d",
+                                auto_adjust=False,
+                                prepost=True,        # include premarket + afterhours
+                                progress=False,
+                            )
+
+                logger.info(f"df \n{df}")
+                if not df.empty:
+                    await self.fetcher.process_data("exchange",symbol, "1d", self.fetcher.conn, df,True)
+                
         ############
 
         sem = asyncio.Semaphore(20)
@@ -542,14 +571,28 @@ class LiveManager:
             del self.tickers[s]
 
                                   
-        #if self.ws_manager:
-        #    await self.ws_manager.broadcast({"evt":"on_update_symbols"})
+        if len(to_add)>0 and self.ws_manager:
+            await self.ws_manager.broadcast({"evt":"on_update_symbols"})
         
     async def on_tick(self,ticker):
         ##logger.info(f"on_tick {ticker}")
 
         await self.add_ticker(ticker.symbol,ticker,None)
         #logger.info(f"on_tick {ticker}")
+
+
+    async def add_to_black(self,mode,symbol):
+        self.fetcher.add_blacklist(symbol,"USER SETTING", mode)
+
+        changed=False
+        for s,ticker in self.tickers.items():
+            if s == symbol:
+                changed=True
+                self.remove_ticker(symbol)
+                break
+        if changed:
+            await self.ws_manager.broadcast({"evt":"on_update_symbols"})
+
 
     ##########################################################
 
@@ -581,7 +624,8 @@ class LiveManager:
                 #    logger.info(f" onTicker{ticker.volume}")
 
                 volume = ticker.volume
-                volume = max(0,0 if math.isnan(volume) else volume)
+              
+                volume = max(0, 0 if math.isnan(volume) else volume)
 
                 if ticker.last_close>0:
                     ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
@@ -630,10 +674,10 @@ class LiveManager:
                                     "m": "full",
                                     "s": symbol,
                                     "tf": interval,
-                                    "o": candle["open"],
-                                    "c": candle["close"],
-                                    "h": candle["high"],
-                                    "l": candle["low"],
+                                    "o": ticker.last if candle["open"] == 0 else candle["open"],
+                                    "c": ticker.last if candle["close"] == 0 else candle["close"],
+                                    "h":  ticker.last if candle["high"] == 0 else candle["high"],
+                                    "l":  ticker.last if candle["low"] == 0 else candle["low"],
                                     "v": v if use_yahoo else v * 100,
                                     "ts": int(candle["start"]) * 1000,
                                     "dts": start_time,
@@ -723,13 +767,14 @@ class LiveManager:
                                    f"{ticker.last_close:.6f}", f"{ticker.gain:.1f}%",hls[0], hls[1], hls[2], hls[3])           
                     #live_display.update(table)
           
-    '''
+    
     async def ib_tick_tickers(self):
            
         while True:
                     try:
                         #ts = _time.time()
                         #data=[]
+                        '''
                         if self.on_display:
                             table = Table("Symbol", "Last", "Ask", "Bid","Last Close", "Gain","10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
                         else:
@@ -743,12 +788,12 @@ class LiveManager:
 
                         if self.on_display:
                             self.on_display(table)
-
+                        '''
                         await self.scheduler.tick()
                     except:
                         logger.error("ERR", exc_info=True)
                     await asyncio.sleep(0.1)
-    '''
+    
 
     async def yahoo_tick_tickers(self):
                 pass
@@ -930,10 +975,7 @@ class LiveManager:
             if use_yahoo:
                 _tick_tickers = asyncio.create_task(self.yahoo_tick_tickers())
             else:
-              
-                _tick_tickers=None
-            #else:
-            #   _tick_tickers = asyncio.create_task(self.ib_tick_tickers())
+               _tick_tickers = asyncio.create_task(self.ib_tick_tickers())
         else:
             _tick_tickers = asyncio.create_task(self.sym_tick_tickers())
 
@@ -980,8 +1022,7 @@ class LiveManager:
                 #self.candle_updater = MuloCandleUpdater(self.ib,config,self.fetcher)
                 #self.candle_updater.start()
 
-                
-                    
+
                 await self.manage_live(None,self.fetcher.get_day_symbols() , [])
 
                 sched_data = self.config["live_service"]["scheduler"]
@@ -1018,7 +1059,7 @@ class LiveManager:
                 last_key = items[-1][0]
                 self.scanner_map[last_key].max_symbols = max_symbols - total_allocated
 
-                logger.info(f"{ self.scanner_map}")
+                logger.info(f"scanner_map { self.scanner_map}")
 
                 for name,scan in self.scanner_map.items():
                    
@@ -1034,6 +1075,7 @@ class LiveManager:
 
                 async def on_scan(scan):
                     try:
+                        logger.info(f"on_scan ")
                         if await self.scanData(scan):
                             if self.ws_manager:
                                 await self.ws_manager.broadcast({"evt":"on_update_symbols"})

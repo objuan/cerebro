@@ -155,7 +155,7 @@ class Text  extends Primitive{
       this.parent=parent
       this.value=null;
       this.align = "center"
-      this.color = "white"
+      this.color = "black"
       this.bgColor = null
    }
    set(p1,p2){
@@ -250,7 +250,7 @@ export  class Line  extends Primitive{
     this.p2 = new Handle(painter, this)
     this.isHover = false
 
-    this.color = "white"
+    this.color = "black"
     this.text = new Text(painter,this)
     this.text.set(this.p1, this.p2)
     //this.text.value = "pippo"
@@ -420,7 +420,7 @@ export  class Box  extends Primitive{
     this.bottom_right = new Handle(painter, this)
 
     this.isHover = false
-    this.color ='rgba(255,255,255,0.1)'
+    this.color ='rgba(92, 92, 92, 0.6)'
     this.text = new Text(painter,this)
     this.text.set(this.top_left, this.top_right)
   }
@@ -472,7 +472,7 @@ export  class Box  extends Primitive{
     const a = this.painter.chartToPixel(this.top_left.val)
     const b = this.painter.chartToPixel(this.bottom_right.val)
 
-    drawRect(ctx, a, b,"white",this.color,  this.isHover)
+    drawRect(ctx, a, b, this.color,this.color,  this.isHover)
 
     if(this.isHover){
       this.top_left.draw(ctx)
@@ -511,6 +511,7 @@ export  class HLine extends Line {
   constructor(painter){
     super(painter)
     this.type = "hline"
+    this.color = "#00FF00"
   }
 
   filter(p, new_pos){
@@ -682,7 +683,7 @@ export  class MisureBox  extends Box{
       const  gain = 100 * ((p_to - p_from) / p_from)
 
       const a = { x: rect.t_l.x, y : rect.t_r.y - 20}
-      drawRect(ctx,a, rect.t_r, this.color,this.color)
+      drawRect(ctx,a, rect.t_r, this.color,"#33333313")
 
       drawTextOnLine(ctx,rect.t_l, rect.t_r, `Gain:  ${gain.toFixed(1)}%` )
    }
@@ -914,7 +915,7 @@ export  class Fibonacci  extends Box{
    constructor(painter){
     super(painter)
     this.type = "fibonacci"
-    this.color = '#ffffff'
+    this.color = '#747474'
   }
   props(){
     return [

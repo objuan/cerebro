@@ -22,6 +22,7 @@ class TradeStrategy(SmartStrategy):
     async def on_start(self):
         self.eta= self.params["eta"]
         self.min_gain= self.params["min_gain"]
+        self.metaInfo = {}
         pass
 
     def extra_dataframes(self)->List[str]:
@@ -61,9 +62,42 @@ class TradeStrategy(SmartStrategy):
     ######################################
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
-        
-  
-    
+        if self.bootstrapMode:
+            return
+            
+        if not symbol in self.metaInfo:
+            
+            last_close, ts_last_close=  await self.client.last_close(symbol)
+            self.metaInfo[symbol] = {"last_close": last_close,"ts_last_close" : ts_last_close}
+
+            #logger.info(f"DO {symbol} {  self.metaInfo[symbol] }")
+
+        #logger.info(f"DO {symbol} {global_index} \n{dataframe.tail(5)}" )
+
+        if not "last_open" in self.metaInfo[symbol]:
+            if self.client.market.isLiveZone():
+                last_open, ts_last_open=  await self.client.last_open(symbol)
+                self.metaInfo[symbol]["last_open"]=  last_open
+                self.metaInfo[symbol]["ts_last_open"] = ts_last_open
+
+                mask = (
+                        (dataframe["timestamp"] >= self.metaInfo[symbol]["ts_last_close"]) &
+                        (dataframe["timestamp"] <= self.metaInfo[symbol]["ts_last_open"])
+                    )
+                self.metaInfo[symbol]["low"] = dataframe.loc[mask, "low"].min()
+                self.metaInfo[symbol]["high"] = dataframe.loc[mask, "high"].max()
+
+                self.metaInfo[symbol]["pre_gain"]= 100 * (last_open -  self.metaInfo[symbol]["last_close"]) /  self.metaInfo[symbol]["last_close"]
+                self.metaInfo[symbol]["pre_gain_LH"]= float(100 * ( self.metaInfo[symbol]["high"] -  self.metaInfo[symbol]["low"]) /  self.metaInfo[symbol]["low"])
+                logger.info(f"OPEN {symbol} {  self.metaInfo[symbol] }")
+               
+            else:
+                mask = dataframe["timestamp"] >= self.metaInfo[symbol]["ts_last_close"]
+                self.metaInfo[symbol]["low"] = dataframe.loc[mask, "low"].min()
+                self.metaInfo[symbol]["high"] = dataframe.loc[mask, "high"].max()
+
+                logger.info(f"PRE {symbol} {  self.metaInfo[symbol] }")
+
         #if not self.bootstrapMode:
         #    logger.info(f"DO {symbol} {global_index} \n{dataframe.tail(5)}" )
 
@@ -88,6 +122,10 @@ class TradeStrategy(SmartStrategy):
             color = rgb_to_hex(color_rgb)
 
             self.spot(symbol, f"0.5,{diff:.1f}", color, "SMA_20")
+
+        ############ OPEN TRADE
+
+        
 
         
 

@@ -320,7 +320,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     }
     ,async load(){
       //console.log( "load")
-      /*
+      
       try
       {
         const ind_response = await send_get(`/api/chart/painter/read`,
@@ -344,11 +344,11 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
               }
               
         })  
-        this.redraw()
+        this.safeRedraw()
       }catch(e){
         console.error(e)
       }
-    */
+    
     }
     ,clear(){
       this.primitives.forEach((p)=>{

@@ -95,6 +95,7 @@ const props = defineProps({
 
 const showHistory = ref(false)
 
+
 function toggleHistory() {
   showHistory.value = !showHistory.value
 }

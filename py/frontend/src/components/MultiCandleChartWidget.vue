@@ -317,7 +317,7 @@ function on_candle(msg)
 }
 function onTickerReceived(msg)
 {
-  if (msg["symbol"] == currentSymbol.value)
+  if (msg["symbol"] == currentSymbol.value && tickerRef.value)
   {
       let color = msg["gain"]>=0 ? '#4bffb5' : '#ff4976';  
       //console.log("MultiCandleChartWidget on_ticker",msg) 

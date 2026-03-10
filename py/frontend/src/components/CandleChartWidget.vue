@@ -3,7 +3,7 @@
     
 
     <div  class="bulk_header" >
-      <div style="display: grid;grid-template-columns: 80px 1fr;">
+      <div style="display: grid;grid-template-columns: 80px 30px 30px;">
         <select 
           v-model="currentTimeframe" 
           @change="onTimeFrameChange" 
@@ -17,7 +17,8 @@
           <option value="1h">1h</option>
           <option value="1d">1d</option>
         </select>
-        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh(false)" >🔄 </button>
+        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh(false)" >🔄</button>
+        <button   class="btn p-0 ms-2" title="Legend"   @click="toggleLegend()" >📊</button>
       </div>
     </div>
 
@@ -143,7 +144,7 @@
            <!-- TODO aggiungere FLOAT, MARKETCAP -->
            <!-- INDICATOR MENU -->
 
-          <div class="chart-legend-left-ind">
+          <div class="chart-legend-left-ind" v-if="left_legend">
 
 
             <!-- INDICATOR LEGENDS -->
@@ -183,7 +184,7 @@
               </div>
             </div>
           </div>
-
+          
         </div>
 
         <!-- TRADE BAR -->
@@ -258,6 +259,7 @@ const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
 //const symbolList = ref([]);
 const container = ref(null);
+const left_legend = ref(false)
 /*
 const price_marker= ref(null);
 const price_marker_tp= ref(null);
@@ -536,6 +538,10 @@ function linkClearIndicators(){
     clearIndicators();
 }
 
+function toggleLegend(){
+  left_legend.value = !  left_legend.value
+   staticStore.set(get_layout_key("legend"), left_legend.value)
+}
 //  ---------
 /*
  --- LOGICA REFRESH DATI ---
@@ -966,7 +972,8 @@ onMounted(  () => {
         trade_quantity.value = value.data;
   });
   trade_quantity.value = staticStore.get(get_key("quantity"),100)
-    
+
+  left_legend.value = staticStore.get(get_layout_key("legend"),100)
 
   buildChart();
  // handleRefresh();
@@ -1014,27 +1021,57 @@ const buildChart =  () => {
 
   // 1. Main Chart
   try{
-  chart = createChart(mainChartRef.value, {
-    layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
-    grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
-    crosshair: { 
-      mode: CrosshairMode.Normal,
-      horzLine: {
-            visible: false,
-        }, 
+ chart = createChart(mainChartRef.value, {
+    layout: {
+      background: { color: '#ffffff' },
+      textColor: '#131722',
+      fontSize: 12
     },
-    timeScale: { timeVisible: true, borderColor: '#485c7b' },
+
+    grid: {
+      vertLines: { color: '#f0f3fa' },
+      horzLines: { color: '#f0f3fa' }
+    },
+
+    crosshair: {
+      mode: CrosshairMode.Normal,
+      vertLine: {
+        color: '#758696',
+        width: 1,
+        style: 3,
+        labelBackgroundColor: '#758696'
+      },
+      horzLine: {
+        color: '#758696',
+        width: 1,
+        style: 3,
+        labelBackgroundColor: '#758696'
+      }
+    },
+
     rightPriceScale: {
+      borderColor: '#d1d4dc',
       autoScale: true
+    },
+
+    timeScale: {
+      borderColor: '#d1d4dc',
+      timeVisible: true,
+      secondsVisible: false
     }
-    
   });
 
   series = chart.addSeries(CandlestickSeries, {
-    upColor: '#4bffb5', downColor: '#ff4976',
-     borderUpColor: '#4bffb5', borderDownColor: '#ff4976',
-    wickUpColor: '#838ca1', wickDownColor: '#838ca1',
-    priceScaleId : "right"
+    upColor: '#26a69a',
+    downColor: '#ef5350',
+
+    borderUpColor: '#26a69a',
+    borderDownColor: '#ef5350',
+
+    wickUpColor: '#26a69a',
+    wickDownColor: '#ef5350',
+
+    priceScaleId: "right"
   });
 
   painter.setChart(chart,series)
