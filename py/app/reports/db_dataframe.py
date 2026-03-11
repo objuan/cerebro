@@ -1,6 +1,7 @@
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +65,48 @@ class DBDataframe_TimeFrame:
 
         self.on_row_added = MyEvent()
         self.on_df_last_added = MyEvent()
+        self._meta = {}
+        #if timeframe =="5m":
+        #    self.db_1m = main_df.db_dataframe("1m")
+        #    self.db_1m.on_row_added+= self.on_1m_row_added
        #self.update_symbols()
         #self.update()
+
+        self.executor = ThreadPoolExecutor(max_workers=4)
+
+    def submit_df_event(self,strategy, tf, new_df):
+        loop = asyncio.get_running_loop()
+
+        loop.run_in_executor(
+            self.executor,
+            strategy._run_async_task,
+            tf,
+            new_df
+        )
+    
+    def get_all_meta(self,symbol=None):
+        if symbol and not symbol in self._meta: return {}
+        if symbol:
+            return self._meta[symbol]
+        else:
+            return self._meta
+        
+    def get_df_meta(self):
+        return pd.DataFrame.from_dict(self._meta , orient="index")
+
+    def has_meta(self,symbol,fieldName):
+        if not symbol in self._meta: return False
+        return fieldName in self._meta[symbol]
+
+    def get_meta(self,symbol,fieldName, default=None):
+        if not symbol in self._meta: return default
+        return self._meta[symbol].get(fieldName,default)
+
+    def set_meta(self,symbol,meta: dict):
+        if not symbol in self._meta:
+            self._meta[symbol] = {}
+        for k,v in meta.items():
+             self._meta[symbol][k] = v
 
     async def load_symbols(self, symbols): 
         async def fetch(symbol):
@@ -144,43 +185,11 @@ class DBDataframe_TimeFrame:
                 "day_volume":  ticker.get("day_v", 0) or 0,
                 "datetime": pd.to_datetime(ts, unit="ms", utc=True)
             }
-        
-        #if ticker['tf'] == "1m" and symbol=="MRNO":
-        #    logger.info(f"receive {ticker['tf']} {self.last_index_by_symbol} < {row_data}")
-
         if symbol not in self.last_index_by_symbol:
-            # 
-            #logger.info(f"SKIP BOOT {symbol} {self.timeframe}")
-            '''
-            logger.info(f"SYMBOL BOOT {symbol} {self.timeframe}")
-
-            df_h = await self.load_symbols([symbol])
-        
-            #adfd
-            if not self.last_timestamp:
-                self.df = df_h
-                logger.info(f"boot first {symbol}")
-                self.last_timestamp=datetime.now()
-            else:
-                if self.timeframe == "1m":
-                    logger.info(f"boot new {symbol} #{len(df_h)}")
-                #start_len = len(self.df)
-                self.df = pd.concat([self.df, df_h], ignore_index=True)
-
-            for symbol in self.symbols:
-                symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
-                self.last_index_by_symbol[symbol] = symbol_rows[-1]
-
-            await self.main_df.on_symbol_added(self,symbol)
-            #df.loc[len(df)] = row_data
-            #self.last_index_by_symbol[symbol] = self.df.index[-1]
-
-            if self.timeframe == "1m":
-                logger.info(f"SYMBOL BOOT \n{self.df }")
-            '''
             return
         
         last_idx = self.last_index_by_symbol[symbol]
+        
         try:
             last_ts = int(self.df.at[last_idx, "timestamp"])
         except:
@@ -206,7 +215,9 @@ class DBDataframe_TimeFrame:
                 self.last_index_by_symbol[symbol] = new_idx
 
                 await self.on_row_added(row_data)
-                await self.on_df_last_added(self.timeframe,self.get_last_rows())
+                #for s in self.on_df_last_added._handlers:
+                #    await self.submit_df_event(s,self.timeframe,self.get_last_rows())
+                await self.on_df_last_added(self.timeframe,symbol,new_row)#self.get_last_rows())
             except:
                 logger.error(f"ERR", exc_info=True)
             return
@@ -243,7 +254,11 @@ class DBDataframe_TimeFrame:
                 self.df.loc[new_idx] = new_row
                 self.last_index_by_symbol[symbol] = new_idx
                 await self.on_row_added(row_data)
-                await self.on_df_last_added(self.timeframe,self.get_last_rows())
+                #await self.on_df_last_added(self.timeframe,self.get_last_rows())
+                await self.on_df_last_added(self.timeframe,symbol)#self.get_last_rows())
+
+                #for s in self.on_df_last_added._handlers:
+                #    await self.submit_df_event(s,self.timeframe,self.get_last_rows())
 
     async def mulo_on_candle_receive(self, ticker):
         try:
@@ -260,10 +275,53 @@ class DBDataframe_TimeFrame:
                         "last 5 per symbol\n%s",
                         self.df.groupby("symbol", group_keys=False).tail(5)
                     )
-                    '''
-                            
+                    '''                            
         except:
             logger.error(f"ERROR {ticker}", exc_info=True)
+
+    '''
+    async def on_1m_row_added(self,row):
+   
+        #logger.info(f"ALIGN 5m {row}")
+        
+        dt  = row["datetime"] #1773142920000
+             
+        minuti = dt.minute
+        if minuti % 5 == 4:
+            logger.info(f"minuti 5m {minuti}")
+
+            df_full  = self.db_1m.dataframe(row["symbol"])
+            end_time = row["datetime"]
+            start_time = end_time - timedelta(minutes=4)
+
+            df = df_full[
+                    (df_full["datetime"] >= start_time) &
+                    (df_full["datetime"] <= end_time)
+                ]
+
+            logger.info(f"align\n{df}")
+
+            if len(df) == 0:
+                return
+            ts= int(start_time.timestamp())
+            candle_5m = {
+                "s": row["symbol"],
+                "ts": ts,
+                "o": df["open"].iloc[0],
+                "h": df["high"].max(),
+                "l": df["low"].min(),
+                "c": df["close"].iloc[-1],
+                "base_volume": df["base_volume"].sum(),
+                "quote_volume": df["quote_volume"].sum(),
+                "day_volume": df["day_volume"].iloc[-1],
+                 "datetime": pd.to_datetime(ts, unit="ms", utc=True)
+            }
+
+            logger.info(f"5m candle {candle_5m}")
+
+            await self._on_candle_receive(candle_5m)
+
+    '''
 
     async def _on_symbols_update(self, symbols,to_add,to_remove):
         #logger.info(f"DB reset symbols {symbols} {self.timeframe}")

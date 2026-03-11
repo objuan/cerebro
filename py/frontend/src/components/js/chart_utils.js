@@ -29,13 +29,14 @@ export function clearStrategyIndicators(context){
 
 export async  function updateStrategyIndicators(context,
     symbol, timeframe,from_ts=null, to_ts=null){
-   //console.log("updateStrategyIndicators",context,symbol,timeframe,since)
+    //console.log("updateStrategyIndicators",context,symbol,timeframe)
 
   try
   //if (Object.keys(strategy_index_map).length==0)
   {
     let strategy_index_map = context.strategy_index_map;
 
+    context.legend_index_list.value.length=0
     let strat_response =null;
     let params = {"symbol":symbol,"timeframe":timeframe  }
     if (from_ts!=null)  params["from_ts"] = from_ts
@@ -128,15 +129,15 @@ export async  function updateStrategyIndicators(context,
                   if (data.panel == 'main')
                   {
                   // creo indice
-                  line =  context.chart.addSeries(LineSeries, {
-                      color: data.color,
-                      lineWidth: data.lineWidth,
-                      lineStyle:LineStyle[data.style],
-                      priceLineVisible: false,
-                      lastValueVisible: false,
-                      crosshairMarkerVisible: false,
-                    });
-                  data.line = line
+                    line =  context.chart.addSeries(LineSeries, {
+                        color: data.color,
+                        lineWidth: data.lineWidth,
+                        lineStyle:LineStyle[data.style],
+                        priceLineVisible: false,
+                        lastValueVisible: false,
+                        crosshairMarkerVisible: false,
+                      });
+                    data.line = line
                   }
                   else
                   {
@@ -200,7 +201,7 @@ export async  function updateStrategyIndicators(context,
             // LEGENTS
             if (strat.legends)
             {
-              context.legend_index_list.value.length=0
+             
               //console.log("dddd",strat.legends)
               strat.legends.forEach( (data) =>
                 {

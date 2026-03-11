@@ -35,14 +35,15 @@ class Indicator:
         )
 
 
-    def compute(self, dataframe, group, start_pos):
+    def compute(self, symbol, dataframe: pd.DataFrame, df_symbol: pd.DataFrame, from_local_index):
         pass
 
-    def apply(self, dataframe: pd.DataFrame, from_global_index=0):
+    def apply(self, symbol, dataframe: pd.DataFrame,df_symbol: pd.DataFrame, from_local_index=0):
+        self.compute(symbol, dataframe,df_symbol, from_local_index)
+
+    def applyAll(self, dataframe: pd.DataFrame, from_global_index=0):
 
         for symbol, group in dataframe.groupby("symbol"):
-
-            group = group.sort_values("timestamp")
 
             if from_global_index == -1:
                 start_pos = 0
@@ -52,8 +53,8 @@ class Indicator:
                     continue
                 start_pos = group.index.get_indexer(group[mask].index)[0]
 
-            self.compute(dataframe, group, start_pos)
-
+            self.compute(symbol, dataframe, group, start_pos)
+        
  
  #################################
 

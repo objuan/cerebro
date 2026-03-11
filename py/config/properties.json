@@ -6,14 +6,14 @@
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "1_1"
+    "grid": "2_1"
   },
   "chart": {
     "1": {
       "grid": "1_2",
-      "symbol": "AZI",
+      "symbol": "MRNO",
       "indicator": {
-        "1m": "aa",
+        "1m": "SMA",
         "10s": "SMA",
         "30s": "vwap",
         "5m": "SMA",
@@ -40,19 +40,21 @@
       "1_2": {
         "2": {
           "timeframe": "10s",
-          "legend": false
+          "legend": true
         },
         "1": {
-          "legend": false
+          "legend": true,
+          "timeframe": "1m"
         }
       }
     },
     "2": {
       "grid": "1_2",
-      "symbol": "JZXN",
+      "symbol": "LGVN",
       "indicator": {
-        "1m": "aa",
-        "10s": "aa"
+        "1m": "SMA",
+        "10s": "aa",
+        "5m": "SMA"
       },
       "1_1": {
         "1": {
@@ -62,6 +64,10 @@
       "1_2": {
         "2": {
           "timeframe": "10s"
+        },
+        "1": {
+          "legend": true,
+          "timeframe": "1m"
         }
       }
     },
@@ -309,6 +315,33 @@
       "quantity": 100
     },
     "CAMP": {
+      "quantity": 100
+    },
+    "MDCX": {
+      "quantity": 300
+    },
+    "COOT": {
+      "quantity": 100
+    },
+    "SKYE": {
+      "quantity": 300
+    },
+    "BIYA": {
+      "quantity": 100
+    },
+    "CAPS": {
+      "quantity": 100
+    },
+    "BEAT": {
+      "quantity": 100
+    },
+    "CELU": {
+      "quantity": 100
+    },
+    "LGVN": {
+      "quantity": 100
+    },
+    "MRNO": {
       "quantity": 100
     }
   },

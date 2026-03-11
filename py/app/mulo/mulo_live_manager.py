@@ -36,7 +36,7 @@ from mulo.mulo_job import MuloJob,since_to_durationStr
 from mulo.mulo_scanner import Scanner
 from mulo.mulo_candle_updater import MuloCandleUpdater
 
-intervals = [10,  60]  # seconds for 10s, 30s, 1m, 5m
+intervals = [10,  60, 300]  # seconds for 10s, 30s, 1m, 5m
 #intervals = [10]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
@@ -681,13 +681,14 @@ class LiveManager:
                                     "v": v if use_yahoo else v * 100,
                                     "ts": int(candle["start"]) * 1000,
                                     "dts": start_time,
-                                    "bid": ticker.bid,
-                                    "ask": ticker.ask, #bidSize,askSize,minTick
+                                    "bid": ticker.bid if ticker.bid  else 0,
+                                    "ask": ticker.ask if ticker.ask  else 0, #bidSize,askSize,minTick
                                     "day_v": volume if use_yahoo else volume * 100
                                 }
 
                                 #logger.info(f"add {data} \n{ticker}")
-                                await self.fetcher.db_updateTicker(data)
+                                if (intervals != 300):
+                                    await self.fetcher.db_updateTicker(data)
 
                                 if self.ws_manager  :
                                     #logger.info(f"NEW CANDLE {data}")

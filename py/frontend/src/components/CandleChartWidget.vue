@@ -720,11 +720,13 @@ async function handleRefresh (resetWindow )
           painter.createMarketZoneBand()
           painter.createGapZone()
 
-            // STATEGY
-         
-          await updateStrategyIndicators( context(),
-            currentSymbol.value, currentTimeframe.value
-          )
+            // STATEGY  
+      //   if (resetWindow)
+          {
+            await updateStrategyIndicators( context(),
+              currentSymbol.value, currentTimeframe.value
+            )
+          }
         
           // TRADE MARKER
           if (_trade_marker_data.data!=null)

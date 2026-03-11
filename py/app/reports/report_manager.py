@@ -175,7 +175,12 @@ class ReportManager:
 
             #  symbol  last_close  last   volume  ask  bid  gain  ts   datetime
             df_tickers = self.job.getTickersDF()
+
+            meta_info = self.db.db_dataframe("1m").get_df_meta()
+
             #logger.info(f"Tickers \n{df_tickers}")
+
+            #logger.info(f"meta_info \n {meta_info}")
         
 
             df_5m = self.db.dataframe("5m")
@@ -232,7 +237,7 @@ class ReportManager:
             
             #self.ind_vwap.apply(df)
             
-            df = df[["symbol","last_close","last","gain","ask","bid","day_volume","scan"]]#self.get_last(df_1m)#.drop(columns=["quote_volume"])
+            df = df[["symbol","last","gain","ask","bid","day_volume","scan"]]#self.get_last(df_1m)#.drop(columns=["quote_volume"])
 
             #logger.info(f"df1 \n{df_1m.to_string(index=False)}")
 
@@ -269,39 +274,12 @@ class ReportManager:
             #if isLiveZone:
             #    df["gap"] =  ((df['first_open'] - df['last_close'] ) /df['last_close'])  * 100
             #else:
-            def calc_range(g):
-                    #g["ts_open_price"] = g["ts_open_price"].astype("int64")
-
-                    start = g["ts_last_close"].iloc[0]
-                    end = g["ts_open_price"].iloc[0]
-
-                   
-                    if pd.isna(end):
-                        end = g["ts"].max()
-                    else:
-                        end=int(end)
-                        logger.info(f"start {start} end {end}")
-
-                    ##logger.info(f"rows group {len(g)}")
-
-                    w = g[(g.ts >= start) & (g.ts <= end)]
-
-                    ##logger.info(f"rows window {len(w)}")
-
-                    ##print(g.dtypes)
-                    return pd.Series({
-                        "max_high": w.high.max(),
-                        "min_low": w.low.min()
-                    })
-
-            if "ts_open_price" in df_tickers.columns:# and isLiveZone:
+  
+            if "gap" in meta_info:# and isLiveZone:
                 #logger.info("open_price")
-                df["gap"] =  df_tickers["gain"]
 
-                #result = df_1m.groupby("symbol").apply(calc_range).reset_index()
-                #logger.info(f"result \n{result}")
-                #df["gap"] = ((df['open_price'] - df['last_close'] ) / df['last_close'])  * 100
-                #calc
+                df = df.merge(  meta_info[["symbol","gap"]], on="symbol",    how="left")
+
             else:
                 df["gap"] =  df["gain"] 
             

@@ -194,6 +194,9 @@ class AlarmStrategy(Strategy):
         pass
 
     async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
+        ##logger.info(f"alam {symbol} \n{dataframe}")
+        ##return
+    
         #devo controllare tutti i timeframe
         for timeframe in ["10s","30s","1m","5m","15m","1h"]:
             key = get_key(symbol,timeframe)
@@ -215,6 +218,7 @@ class AlarmStrategy(Strategy):
                                     small_desc=f"{timeframe} {alarm.desc}",
                                     full_desc=f"{timeframe} {alarm.desc}",
                                     color = "#C1FFCE")
+        #logger.info(f"alerm {symbol} END")
         #logger.info(f"on_symbol_candles   {symbol} {self.timeframe} \n {dataframe.tail(2)}" )
   
 

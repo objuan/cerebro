@@ -114,20 +114,23 @@ class MuloLiveClient:
                              await self._on_update_symbols()
 
                     else:
+                     
                         mode = new_ticker["m"]
                         new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
+                        new_ticker["ask"] = new_ticker["ask"] if new_ticker["ask"] else 0
                         #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
                         #print(new_ticker)
                         # send to UI
                         if mode =="full":
                             #logger.info(f"full {new_ticker}")
-
+                           
                             
                             await self.on_full_candle_receive(new_ticker)
                             
 
                             if self.sym_mode:
                                 await self.on_partial_candle_receive(new_ticker)
+                            
 
                         else:
                             await self.on_partial_candle_receive(new_ticker)

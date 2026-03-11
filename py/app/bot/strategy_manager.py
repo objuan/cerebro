@@ -12,6 +12,7 @@ import asyncio
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from bot.indicators import Indicator
+from bot.strategy import Strategy
 #from strategy.strategies import *
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,8 @@ class StrategyManager:
         self.package_name = strategy_folder
 
         self.strategies = []
+
+        Strategy.Boot()
 
     def get_list(self):
         return self.strategies

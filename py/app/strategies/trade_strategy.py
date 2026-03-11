@@ -15,6 +15,31 @@ from reports.report_manager import ReportManager
 
 
 
+class MAX_LIMIT(Indicator):
+  
+    def __init__(self,target_col, timeperiod:int, outlier_std=2):
+        super().__init__([target_col])
+        self.target_col=target_col
+        self.window=timeperiod
+        self.outlier_std = outlier_std
+
+    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
+
+        warmup = max(0, from_local_index - self.window + 1)
+
+        #gli indici restano quelli del dataframe originale.
+        sub = group.iloc[warmup:]
+
+        m = sub["high"].rolling(window=self.window).max()
+
+        start = from_local_index - warmup
+
+        idx = sub.index[start:]
+
+        logger.info(f"{symbol} idx {idx}" )
+
+        dataframe.loc[idx, self.target_col] = m.iloc[start:].values   
+
 ########################
 
 class TradeStrategy(SmartStrategy):
@@ -29,87 +54,79 @@ class TradeStrategy(SmartStrategy):
         return ['1d']
 
     def populate_indicators(self) :
-   
- 
-        atr = self.addIndicator("1d",ATR_SMA("atr",14))
+     
+
+        #gain= self.addIndicator(self.timeframe,GAIN("GAIN","close",1))
+
+        '''
+        sma_200= self.addIndicator(self.timeframe,SMA_INT("SMA_200","close",200))
+      
+      
+        sma_200_gain= self.addIndicator(self.timeframe,GAIN("SMA_200_G","SMA_200",1))
 
         sma_20= self.addIndicator(self.timeframe,SMA_INT("SMA_20","close",20))
-
         sma_20_gain= self.addIndicator(self.timeframe,GAIN("SMA_20_G","SMA_20",1))
-        #sma_200= self.addIndicator(self.timeframe,SMA("SMA_200","close",200))
 
-        #i = self.addIndicator(self.timeframe,VWAP_OPEN("vwap",1))
-        #i1 = self.addIndicator(self.timeframe,VWAP_PERC("vwap_perc"))
+        sma_9= self.addIndicator(self.timeframe,SMA_INT("SMA_9","close",9))
+        sma_9_gain= self.addIndicator(self.timeframe,GAIN("SMA_9_G","SMA_9",1))
 
-        #self.addIndicator(self.timeframe, VWAP_DIFF("diff"))
-       
+        max= self.addIndicator(self.timeframe,MAX_LIMIT("MAX",60))
         '''
-        self.add_plot(i, "vwap","#15ff00", "main", source="vwap",style="SparseDotted", lineWidth=2)
-        self.add_plot(i, "vwap_up","#15ff00", "main", source="vwap_up",style="SparseDotted", lineWidth=2)
-        self.add_plot(i, "vwap_down","#15ff00", "main", source="vwap_down",style="SparseDotted", lineWidth=2)
-
-        self.add_plot(i1, "vwap_perc","#034cd3", "sub1", source="vwap_perc",style="Solid", lineWidth=2)
-
-        self.add_legend(i1, "vwap_perc_var","var","#ffffff" )
+        max= self.addIndicator(self.timeframe,MAX_LIMIT("MAX",60))
         
-        '''
 
-        self.add_plot(sma_20, "SMA_20","#034cd3", "main", source="SMA_20",style="SparseDotted", lineWidth=2)
+        #self.add_legend(sma_9_gain,"SMA_9_G", "sma9 G", "#034cd3")
+        #self.add_legend(sma_20_gain,"SMA_20_G", "sma20 G", "#034cd3")
+        
+        #self.add_plot(sma_200, "SMA_200","#034cd3", "main", source="SMA_200",style="SparseDotted", lineWidth=2)
+        #self.add_plot(sma_20, "SMA_20","#03d31f", "main", source="SMA_20",style="SparseDotted", lineWidth=2)
+        #self.add_plot(sma_9, "SMA_9","#d30303", "main", source="SMA_9",style="SparseDotted", lineWidth=2)
 
-        self.add_plot(sma_20_gain, "SMA_20_G","#034cd3", "sub1", source="SMA_20_G",style="Solid", lineWidth=2)
+       # self.add_plot(sma_20_gain, "SMA_20_G","#034cd3", "sub1", source="SMA_20_G",style="Solid", lineWidth=2)
+      
+        #self.add_plot(sma_200_gain, "SMAG_200","#034cd3", "sub1", source="SMA_200_G",style="SparseDotted", lineWidth=2)
+        self.add_plot(max, "MAX","#FFE600FF", "main", source="MAX",style="Solid", lineWidth=1)
+    
 
 
     ######################################
 
-    async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
-        if self.bootstrapMode:
-            return
-            
-        if not symbol in self.metaInfo:
-            
-            last_close, ts_last_close=  await self.client.last_close(symbol)
-            self.metaInfo[symbol] = {"last_close": last_close,"ts_last_close" : ts_last_close}
+    async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
+       
+        logger.info(f">> {symbol} {local_index} \n{dataframe.tail(2)}" )  
+        return
+    
+        #if self.bootstrapMode:
+        #    return
+        #if symbol =="SKYE":
+        #     logger.info(f">> {symbol} {local_index} \n{dataframe.tail(10)}" )
 
-            #logger.info(f"DO {symbol} {  self.metaInfo[symbol] }")
-
-        #logger.info(f"DO {symbol} {global_index} \n{dataframe.tail(5)}" )
-
-        if not "last_open" in self.metaInfo[symbol]:
-            if self.client.market.isLiveZone():
-                last_open, ts_last_open=  await self.client.last_open(symbol)
-                self.metaInfo[symbol]["last_open"]=  last_open
-                self.metaInfo[symbol]["ts_last_open"] = ts_last_open
-
-                mask = (
-                        (dataframe["timestamp"] >= self.metaInfo[symbol]["ts_last_close"]) &
-                        (dataframe["timestamp"] <= self.metaInfo[symbol]["ts_last_open"])
-                    )
-                self.metaInfo[symbol]["low"] = dataframe.loc[mask, "low"].min()
-                self.metaInfo[symbol]["high"] = dataframe.loc[mask, "high"].max()
-
-                self.metaInfo[symbol]["pre_gain"]= 100 * (last_open -  self.metaInfo[symbol]["last_close"]) /  self.metaInfo[symbol]["last_close"]
-                self.metaInfo[symbol]["pre_gain_LH"]= float(100 * ( self.metaInfo[symbol]["high"] -  self.metaInfo[symbol]["low"]) /  self.metaInfo[symbol]["low"])
-                logger.info(f"OPEN {symbol} {  self.metaInfo[symbol] }")
-               
-            else:
-                mask = dataframe["timestamp"] >= self.metaInfo[symbol]["ts_last_close"]
-                self.metaInfo[symbol]["low"] = dataframe.loc[mask, "low"].min()
-                self.metaInfo[symbol]["high"] = dataframe.loc[mask, "high"].max()
-
-                logger.info(f"PRE {symbol} {  self.metaInfo[symbol] }")
-
+        
         #if not self.bootstrapMode:
         #    logger.info(f"DO {symbol} {global_index} \n{dataframe.tail(5)}" )
+        last = dataframe.iloc[local_index]
+        prev = dataframe.iloc[local_index-1]
+        #if symbol =="SKYE":
+        #     logger.info(f">> {symbol} l:{last['datetime']} p:{prev['datetime']}" )
 
         #df_symbols = dataframe[dataframe["symbol"]== symbol ]
-        low =  dataframe.loc[global_index]["low"]
-        SMA_20 =  dataframe.loc[global_index]["SMA_20"]
-        SMA_20_G =  dataframe.loc[global_index]["SMA_20_G"]
-        if symbol =="BTAI":
-             logger.info(f">> {symbol} {global_index} {low} {SMA_20_G} {SMA_20}" )
+        low =  last["low"]
+        high =  last["high"]
+        close =  last["close"]
 
+        SMA_200 =  last["SMA_200"]
+        SMA_200_G = last["SMA_200_G"]
+        SMA_20 =  last["SMA_20"]
+        SMA_20_PREV =  prev["SMA_20"]
+        SMA_9 =  last["SMA_9"]
+        SMA_20_G = last["SMA_20_G"]
+        SMA_9_G =  last["SMA_9_G"]
+        GAIN =  last["GAIN"]
+        
+        return
         diff = abs(low - SMA_20)
         #if (abs(SMA_20_G)> 0.5  and diff < 0.1):
+
         if abs(SMA_20_G)>0.5:
             RED = (255, 0, 0)
             GREEN = (49, 211, 17)
@@ -121,11 +138,33 @@ class TradeStrategy(SmartStrategy):
             color_rgb = lerp_color(RED, GREEN, t)
             color = rgb_to_hex(color_rgb)
 
-            self.spot(symbol, f"0.5,{diff:.1f}", color, "SMA_20")
+            self.spot(symbol, f"", color, "SMA_20")
 
+        m = min (SMA_200,SMA_20_PREV ) 
+        M = max (SMA_200,SMA_20_PREV ) 
+
+        delta = 100 * (M - m) / m
+        if  abs(delta) <5 and abs(SMA_200_G) < 0.1:
+            self.spot(symbol, f"={delta:.1f}", "#2B272952", "SMA_200")
+
+            if  GAIN > 5 and close > SMA_20:
+                await self.send_event(symbol, "PLANE_UP",f"PLANE_UP {GAIN}",f"PLANE_UP {GAIN}","#FF0000" )
+
+        #p_9 = 100 * (SMA_9 - SMA_200) / SMA_200
+        #p_20 = 100 * (SMA_20 - SMA_200) / SMA_200
+
+        #if  abs(p_20) < 2:
+        #     self.spot(symbol, f"^", "#FF0000", "close")
         ############ OPEN TRADE
-
+        #logger.info(f"{SMA_20_G} {SMA_9_G} {GAIN}")
         
+        '''
+        if abs(SMA_20_G)<0.5 and abs(SMA_9_G)<0.5 and abs(SMA_200_G)<0.5 and GAIN > 5 and close > SMA_9:
+            # tutto piatto, ho un balzo
+            await self.send_event(symbol, "PLANE_UP",f"PLANE_UP {GAIN}",f"PLANE_UP {GAIN}","#FF0000" )
+
+            self.spot(symbol, f"^", "#FF0000", "close")
+        '''
 
         
 

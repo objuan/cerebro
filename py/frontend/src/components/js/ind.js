@@ -16760,10 +16760,10 @@ function applyVWAP(series, chart, options = {}) {
             minMove: 0.01,
         },
     }, 0);
-    const upperSeries = chart.addSeries(lineSeries, { color: '#ffffff', lineWidth: 1  ,
+    const upperSeries = chart.addSeries(lineSeries, { color: '#000000', lineWidth: 1  ,
         lineStyle : 1,
         priceLineVisible: false,lastValueVisible: false, crosshairMarkerVisible: false}, 0);
-    const lowerSeries = chart.addSeries(lineSeries, { color: '#ffffff', lineWidth: 1  ,
+    const lowerSeries = chart.addSeries(lineSeries, { color: '#000000', lineWidth: 1  ,
         lineStyle : 1,
         priceLineVisible: false,lastValueVisible: false, crosshairMarkerVisible: false}, 0);
           

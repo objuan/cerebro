@@ -52,7 +52,7 @@ from bot.backtest_manager import BacktestManager,BacktestIn
 
 print(" STAT FROM ",os.getcwd())
 
-#DEF_LAYOUT = "app/layouts/default_layout.json"
+#DEFOUT = "app/layouts/default_layout.json"
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
@@ -96,7 +96,7 @@ with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     config = json.load(f)
 config = convert_json(config)
 
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s")
+formatter = logging.Formatter("%(asctime)s - %(levelname)s -  Th:%(thread)d " "[%(filename)s:%(lineno)d] \t%(message)s")
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
@@ -302,11 +302,14 @@ def health():
 
 
 @app.get("/api/ohlc_chart")
-async def ohlc_chart(symbol: str, timeframe: str, limit: int = 1000):
+async def ohlc_chart(symbol: str, timeframe: str,  limit: Optional[int] = None):
     
     try:
         if True:#not timeframe in ["1m","5m"]:
             # live test
+            if not limit:
+                limit =config["live_service"]["TIMEFRAME_CHART_CANDLES"][timeframe]
+                logger.info(f"limit {limit}")
             df:pd.DataFrame = await client.ohlc_data(symbol,timeframe,limit)
             df = df.dropna()
             #logger.info(df)
