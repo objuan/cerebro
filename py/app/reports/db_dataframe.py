@@ -47,6 +47,7 @@ class DBDataframe_TimeFrame:
     def __init__(self,main_df, timeframe):
         #self.symbols=fetcher.live_symbols()
         self.main_df=main_df
+        self.config= main_df.config
         self.timeframe = timeframe
         self.client=main_df.client
         self.lastTime = datetime.now()
@@ -56,6 +57,7 @@ class DBDataframe_TimeFrame:
         
         self.TIMEFRAME_UPDATE_SECONDS =main_df.config["live_service"]["TIMEFRAME_UPDATE_SECONDS"]  
         self.TIMEFRAME_LEN_CANDLES =main_df.config["live_service"]["TIMEFRAME_LEN_CANDLES"]  
+        self.TIMEFRAME_CHART_CANDLES =main_df.config["live_service"]["TIMEFRAME_CHART_CANDLES"]  
 
         self.client.on_symbols_update += self._on_symbols_update
         self.client.on_full_candle_receive += self.mulo_on_candle_receive
@@ -110,7 +112,7 @@ class DBDataframe_TimeFrame:
 
     async def load_symbols(self, symbols): 
         async def fetch(symbol):
-            df = await self.client.history_data([symbol],  self.timeframe, limit=600)
+            df = await self.client.history_data([symbol],  self.timeframe, limit=self.TIMEFRAME_CHART_CANDLES[self.timeframe])
             df["symbol"] = symbol  # utile dopo per filtri
             return df
                     

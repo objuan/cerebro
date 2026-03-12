@@ -6,12 +6,12 @@
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "2_1"
+    "grid": "1_1"
   },
   "chart": {
     "1": {
       "grid": "1_2",
-      "symbol": "MRNO",
+      "symbol": "ACXP",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -23,7 +23,7 @@
       "1_1": {
         "1": {
           "timeframe": "1m",
-          "legend": false
+          "legend": true
         }
       },
       "2_2": {
@@ -39,7 +39,7 @@
       },
       "1_2": {
         "2": {
-          "timeframe": "10s",
+          "timeframe": "5m",
           "legend": true
         },
         "1": {
@@ -50,7 +50,7 @@
     },
     "2": {
       "grid": "1_2",
-      "symbol": "LGVN",
+      "symbol": "CVGI",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -63,7 +63,7 @@
       },
       "1_2": {
         "2": {
-          "timeframe": "10s"
+          "timeframe": "5m"
         },
         "1": {
           "legend": true,
@@ -342,6 +342,12 @@
       "quantity": 100
     },
     "MRNO": {
+      "quantity": 100
+    },
+    "GXAI": {
+      "quantity": 100
+    },
+    "SXTP": {
       "quantity": 100
     }
   },

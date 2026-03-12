@@ -117,7 +117,8 @@ class MuloLiveClient:
                      
                         mode = new_ticker["m"]
                         new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
-                        new_ticker["ask"] = new_ticker["ask"] if new_ticker["ask"] else 0
+                        new_ticker["ask"] = new_ticker["ask"] if not pd.isna(new_ticker["ask"]) else 0
+                        new_ticker["bid"] = new_ticker["bid"] if not pd.isna(new_ticker["bid"]) else 0
                         #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
                         #print(new_ticker)
                         # send to UI
@@ -139,11 +140,15 @@ class MuloLiveClient:
                             if new_ticker["tf"]=="10s" and new_ticker["s"] in self.tickers:
                                 
                                 t = self.tickers[new_ticker["s"]]
-                                t.update({"last": new_ticker["c"],"volume": new_ticker["v"],"day_volume": new_ticker["day_v"],
-                                        "ask": new_ticker["ask"],"bid": new_ticker["bid"],
-                                        "low": new_ticker["l"],"high": new_ticker["h"],
-                                            "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
-                                            "ts":new_ticker["ts"] })
+                                t.update({"last": new_ticker["c"],
+                                        "volume": new_ticker["v"],
+                                        "day_volume": new_ticker["day_v"],
+                                        "ask":  new_ticker["ask"],
+                                        "bid":  new_ticker["bid"],
+                                        "low": new_ticker["l"],
+                                        "high": new_ticker["h"],
+                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
+                                        "ts":new_ticker["ts"] })
                                 
                                 
                                 if (not "open_price" in t):
@@ -712,6 +717,24 @@ class MuloLiveClient:
                     "name" : name,
                     "timestamp" :  int(time.time() * 1000),
                     "data" : data
+                }
+            )
+            #logger.info(f"SEND DONE")
+        except:
+            logger.error("SEND ERROR", exc_info=True)
+
+    async def send_strategy_prop(self,source:str,symbol:str,timeframe:str,  value):
+       
+        try:
+    
+            await self.render_page.send(
+                {
+                    "type" : "strategy-prop",
+                    "source" : source,
+                    "symbol": symbol,
+                    "timeframe" : timeframe,
+                    "timestamp" :  int(time.time() * 1000),
+                    "data" : value
                 }
             )
             #logger.info(f"SEND DONE")

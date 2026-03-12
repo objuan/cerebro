@@ -680,7 +680,13 @@ export  class MisureBox  extends Box{
 
       const p_from = this.top_left.val.y
       const p_to = this.bottom_right.val.y
-      const  gain = 100 * ((p_to - p_from) / p_from)
+      let gain=0;
+      if (p_to< p_from)
+        gain = -100 * ((p_from - p_to) / p_to)
+      else
+        gain = 100 * ((p_to - p_from) / p_from)
+
+      console.log("MISURE",p_from,p_to)
 
       const a = { x: rect.t_l.x, y : rect.t_r.y - 20}
       drawRect(ctx,a, rect.t_r, this.color,"#33333313")

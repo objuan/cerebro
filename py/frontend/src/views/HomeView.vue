@@ -413,7 +413,7 @@ const initWebSocket = () => {
 
         case "candle":
           {
-            // console.log("WS CANDLE",msg) 
+             //console.log("WS CANDLE",msg) 
 
               for (const id in widgetRefs.value) {
                 const comp = widgetRefs.value[id]
@@ -445,10 +445,18 @@ const initWebSocket = () => {
 
         }
           break;
+         case "strategy-prop":
+          {
+          //  console.log("event",msg);
+            
+           
+            tickerStore.pushStrategy( msg)
+         }
+          break;
         case "event":
           {
            // console.log("event",msg);
-            
+
             if (msg.source =="strategy" || msg.source =="mule")
                 strategyStore.push(msg);
             else 

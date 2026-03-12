@@ -125,7 +125,7 @@ market = ms.getMarket("AUTO")
 ws_manager = WSManager()
 ws_manager_orders = WSManager()
 
-#OrderTaskManager.ws = ws_manager_orders
+#OrdskManager.ws = ws_manager_orders
 Balance.ws = ws_manager_orders
 propManager = PropertyManager()
 
@@ -183,6 +183,22 @@ async def _on_partial_candle_receive(candle):
                })
 
 client.on_partial_candle_receive += _on_partial_candle_receive
+
+async def _on_partial_candle_receive(candle):
+    #logger.info(f"candle {candle}")
+    await render_page.send({
+                   "type" : "candle",
+                   "data": candle
+               })
+
+async def _on_full_candle_receive(candle):
+    #logger.info(f"candle {candle}")
+    await render_page.send({
+                   "type" : "candle",
+                   "data": candle
+               })
+
+client.on_full_candle_receive += _on_full_candle_receive
 
 async def _on_ticker_receive(ticker):
     await OrderTaskManager.onTicker(ticker)

@@ -70,24 +70,16 @@ class Strategy:
 
     def _fill_symbol_indicators(self,symbol, timeframe, from_local_index:int):
         #logger.info(f"_fill_indicators {symbol} {timeframe} {from_local_index} ")
+        g_df = self.df(timeframe)
+        _df = self.df(timeframe,symbol)
 
         for tf, inds in self.indicators.items():  
             if tf == timeframe:
-                #logger.info(f"_fill_indicators {from_local_index}")
-                g_df = self.df(tf)
-                _df = self.df(timeframe,symbol)
-                   
+                #logger.info(f"_fill_indicators {from_local_index}") 
                 for ind in inds:
                     try:
                        # logger.info(f"_fill_indicators {from_local_index}")
                         ind.apply(symbol, g_df, _df,from_local_index)
-                        '''
-                        if allMode:
-                            ind.apply(self.df(tf))    
-                        else:
-
-                            ind.apply(df)
-                        '''
                     except:
                         logger.error("error",exc_info=True)
 
@@ -122,11 +114,11 @@ class Strategy:
 
         pass
 
-    async def bootstrap(self, backtestMode):
+    async def bootstrap(self):
         
-        self.backtestMode=backtestMode
+        self.backtestMode=False #TODO
         self.bootstrapMode=True
-        logger.info(f"bootstrap {self.__class__} tf:{self.timeframe } backtestMode:{backtestMode}")
+        logger.info(f"bootstrap {self.__class__} tf:{self.timeframe } backtestMode:{self.backtestMode}")
 
         await self.on_start()
 
@@ -224,7 +216,7 @@ class Strategy:
     async def on_df_last_added(self, tf, new_symbol, new_row):
 
 
-        logger.info(f"=== {self.__class__} >> on_df_last_added {tf} {new_symbol}")
+        #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} {new_symbol}")
  
         async with self.sem:
             df_tf = self.df_map[tf]
@@ -316,6 +308,20 @@ class Strategy:
                 return self.df_map[timeframe]
             else:
                 return self.df_map[timeframe][self.df_map[timeframe]["symbol"] == symbol]
+        else:
+            return  pd.DataFrame()
+
+    def df_view(self,timeframe:str, symbol:str, column:str)-> pd.DataFrame:
+        if timeframe in self.df_map:
+            df = self.df_map[timeframe]
+            mask = df["symbol"].to_numpy() == symbol
+            idx = np.where(mask)[0]
+
+            cc = df[column].to_numpy()
+            sub_cc = cc[idx]  # vista indiretta
+            return sub_cc
+        
+           #return self.df_map[timeframe][self.df_map[timeframe]["symbol"] == symbol]
         else:
             return  pd.DataFrame()
     
@@ -543,6 +549,8 @@ class SmartStrategy(Strategy):
     #######
     # style in ['Solid','Dotted','Dashed','LargeDashed','SparseDotted']
     def add_plot(self,ind : Indicator ,name :str,  color:str,panel: str ='main',source = None, style="Solid",lineWidth=1):
+        if not source:
+            source = ind.target_cols[0]
         self.plots.append({"ind": ind ,"name" : name ,"source" : source, "color" : color, "panel" : panel,"style":style,"lineWidth": lineWidth})
         pass
     

@@ -1246,15 +1246,15 @@ const resize =  () => {
 };
 
 
-function onTickerReceived(ticker){
+function onTickerReceived(){
     if (lastMainCandle)
     {
-      lastMainCandle.close = ticker.last
+      //lastMainCandle.close = ticker.last
       //lastMainCandle.h = ticker.high
       //lastMainCandle.l = ticker.low
       //console.log("ticker",currentSymbol.value,currentTimeframe.value,ticker,lastMainCandle)
 
-      series.update(lastMainCandle);
+      //series.update(lastMainCandle);
     }
 }
 
@@ -1265,7 +1265,7 @@ function on_candle(c)
   //
   if (c.tf !== currentTimeframe.value) return;  
 
- // console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
+  //console.log("on_candle",currentSymbol.value,currentTimeframe.value,c) 
 
   const new_value = {
     time: window.db_localTime(c.ts),
@@ -1275,8 +1275,21 @@ function on_candle(c)
   if (lastMainCandle !=null && new_value.time >= lastMainCandle.time )
   {
     lastMainCandle =new_value;
+
+      // series
+    if (last_time != c.ts)
+    {
+      //console.log("update inds")
+
+      //painter.pushLastDataTime(c.ts,painter.dataLen+1)
+      updateStrategyIndicators(context(),
+          currentSymbol.value, currentTimeframe.value,c.ts- 1000*100);
+
+          painter.redraw()
+    }
+
     
-    //console.log("new_value",c)
+   // console.log("new_value",c)
 
     updateVolumeData(series,{
                 time: window.db_localTime(c.ts),
@@ -1285,11 +1298,7 @@ function on_candle(c)
 
     series.update(new_value);
     
-    // series
-    if (last_time != c.ts)
-    {
-      //painter.pushLastDataTime(c.ts,painter.dataLen+1)
-      painter.pushData(new_value)
+        painter.pushData(new_value)
 
       last_time = c.ts
      
@@ -1299,11 +1308,6 @@ function on_candle(c)
         //console.log("update ind",ind.name,ind.refresh)
         
       }); 
-      updateStrategyIndicators(context(),
-          currentSymbol.value, currentTimeframe.value,c.ts- 1000*100);
-
-          painter.redraw()
-    }
    // console.log(c)
    // TEST
     //updateStrategyIndicators(c.ts- 1000*100);

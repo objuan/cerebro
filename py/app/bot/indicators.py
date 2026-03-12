@@ -20,7 +20,12 @@ class Indicator:
     
     def __init__(self,target_cols):
         self.target_cols=target_cols
+        self.init=False
         pass
+
+    def initialize(self,df : pd.DataFrame):
+        for col in self.target_cols:
+            df[col] = 0.0
 
     def get_render_data(self, dataframe,target_col) -> pd.DataFrame:
         if not target_col in self.target_cols:
@@ -34,13 +39,42 @@ class Indicator:
             })
         )
 
+    def df_view(symbol, df: pd.DataFrame, column:str)-> pd.DataFrame:
+      
+        mask = df["symbol"].to_numpy() == symbol
+        idx = np.where(mask)[0]
 
+        cc = df[column].to_numpy()
+        sub_cc = cc[idx]  # vista indiretta
+        return sub_cc
+        
+
+    def _compute_fast(self, symbol, dataframe: pd.DataFrame, idx,from_local_index ):
+
+        pass
+    
     def compute(self, symbol, dataframe: pd.DataFrame, df_symbol: pd.DataFrame, from_local_index):
         pass
 
     def apply(self, symbol, dataframe: pd.DataFrame,df_symbol: pd.DataFrame, from_local_index=0):
-        self.compute(symbol, dataframe,df_symbol, from_local_index)
+        
+        if not self.init:
+            self.init=True
+            self.initialize(dataframe)
 
+        #logger.info(f"!! indicator {self.__class__.__name__}")
+        if from_local_index == -1:
+            from_local_index = len(df_symbol)-1
+            
+        if hasattr(self,"compute_fast"):
+            mask = dataframe["symbol"].to_numpy() == symbol
+            idx = np.where(mask)[0]
+            self.compute_fast(symbol,dataframe,idx,from_local_index)
+
+        else:
+            self.compute(symbol, dataframe,df_symbol, from_local_index)
+
+    # solo per tutto 
     def applyAll(self, dataframe: pd.DataFrame, from_global_index=0):
 
         for symbol, group in dataframe.groupby("symbol"):
@@ -48,12 +82,14 @@ class Indicator:
             if from_global_index == -1:
                 start_pos = 0
             else:
-                mask = group.index >= from_global_index
-                if not mask.any():
-                    continue
-                start_pos = group.index.get_indexer(group[mask].index)[0]
+                if from_global_index != 0:
+                    raise Exception("AAAAAAAAAAAAA")
+                #mask = group.index >= from_global_index
+                #if not mask.any():
+                #    continue
+                #start_pos = group.index.get_indexer(group[mask].index)[0]
 
-            self.compute(symbol, dataframe, group, start_pos)
+            self.apply(symbol, dataframe, group, from_global_index)
         
  
  #################################
@@ -251,32 +287,6 @@ class EMA(Indicator):
 
         dataframe.loc[group.index[start_pos:],self.target_col] = ema_values
 
-class GAIN(Indicator):
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.timeperiod=timeperiod
-
-    def compute(self, dataframe, group, start_pos):
-
-        close = group[self.source_col]
-
-        if start_pos == 0:
-            gain = (close - close.shift(self.timeperiod)) / close.shift(self.timeperiod) * 100
-            dataframe.loc[group.index, self.target_col] = gain.values
-            return
-
-        warmup = max(0, start_pos - self.timeperiod)
-
-        sub = group.iloc[warmup:].copy()
-
-        gain = (sub[self.source_col] - sub[self.source_col].shift(self.timeperiod)) / \
-            sub[self.source_col].shift(self.timeperiod) * 100
-
-        dataframe.loc[sub.index[start_pos - warmup:], self.target_col] = \
-            gain.iloc[start_pos - warmup:].values       
-        
 
 class VWAP(Indicator):
     def __init__(self,target_col, price_name="close"):
@@ -452,39 +462,6 @@ class VWAP_PERC(Indicator):
 
 ############
 
-class SMA_INT(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-        self.slope_col = f"{target_col}_slope"
-
-    def compute(self, dataframe, group, start_pos):
-        
-        warmup = max(0, start_pos - self.window + 1)
-
-        sub = group.iloc[warmup:].copy()
-
-        sma = sub[self.source_col].rolling(window=self.window).mean()
-
-         # derivata discreta (pendenza)
-        #slope = sma.diff()
-        
-
-        #logger.info(f"sub {sub}")
-
-        idx_slice = sub.index[start_pos - warmup:]
-
-        #logger.info(f"idx_slice {idx_slice}")
-
-        dataframe.loc[idx_slice, self.target_col] = \
-            sma.iloc[start_pos - warmup:].values
-            
-
-        #dataframe.loc[idx_slice, self.slope_col] = \
-        #    slope.iloc[start_pos - warmup:].values
 
 class DIFF(Indicator):
   
@@ -503,3 +480,111 @@ class DIFF(Indicator):
         else:
             dataframe.loc[group.index[start_pos:], self.target_col] = \
                 diff.iloc[start_pos:].values
+############
+
+
+class GAIN(Indicator):
+    def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
+        self.source_col=source_col
+        self.target_col=target_col
+        self.timeperiod=timeperiod
+
+    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
+
+        close = group[self.source_col]
+
+        if from_local_index == 0:
+            gain = (close - close.shift(self.timeperiod)) / close.shift(self.timeperiod) * 100
+            dataframe.loc[group.index, self.target_col] = gain.values
+            return
+
+        warmup = max(0, from_local_index - self.timeperiod)
+
+        sub = group.iloc[warmup:].copy()
+
+        gain = (sub[self.source_col] - sub[self.source_col].shift(self.timeperiod)) / \
+            sub[self.source_col].shift(self.timeperiod) * 100
+
+        dataframe.loc[sub.index[from_local_index - warmup:], self.target_col] = \
+            gain.iloc[from_local_index - warmup:].values       
+        
+class SMA_INT(Indicator):
+  
+    def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
+        self.source_col=source_col
+        self.target_col=target_col
+        self.window=timeperiod
+        self.slope_col = f"{target_col}_slope"
+
+
+    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
+        
+        warmup = max(0, from_local_index - self.window + 1)
+
+        sub = group.iloc[warmup:].copy()
+
+        sma = sub[self.source_col].rolling(window=self.window).mean()
+
+         # derivata discreta (pendenza)
+        #slope = sma.diff()
+        
+
+        #logger.info(f"sub {sub}")
+
+        idx_slice = sub.index[from_local_index - warmup:]
+
+        #logger.info(f"idx_slice {idx_slice}")
+
+        dataframe.loc[idx_slice, self.target_col] = \
+            sma.iloc[from_local_index - warmup:].values
+            
+        #dataframe.loc[idx_slice, self.slope_col] = \
+        #    slope.iloc[start_pos - warmup:].values
+
+class MAX_LIMIT(Indicator):
+  
+    def __init__(self,target_col, timeperiod:int, outlier_std=2):
+        super().__init__([target_col])
+        self.target_col=target_col
+        self.window=timeperiod
+        self.outlier_std = outlier_std
+
+    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
+
+        #logger.info(f"compute {symbol} idx {from_local_index} #{len(group)}" )
+
+        warmup = max(0, from_local_index - self.window + 1)
+
+        #gli indici restano quelli del dataframe originale.
+        sub = group.iloc[warmup:]
+
+        m = sub["high"].rolling(window=self.window).max()
+
+        start = from_local_index - warmup
+
+        idx = sub.index[start:]
+
+        #logger.info(f"{symbol} idx {idx}" )
+
+        dataframe.loc[idx, self.target_col] = m.iloc[start:].values   
+
+class DIFF_PERC(Indicator):
+  
+    def __init__(self,target_col, source_base:str, source_signal:str):
+        super().__init__([target_col])
+        self.source_base=source_base
+        self.target_col=target_col
+        self.source_signal=source_signal
+
+    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
+        
+        warmup = max(0, from_local_index )
+        sub = group.iloc[warmup:]
+
+        diff = 100 * (sub[self.source_signal] - sub[self.source_base] ) / sub[self.source_base]
+
+        start = from_local_index - warmup
+        idx = sub.index[start:]
+        dataframe.loc[idx, self.target_col] = diff.iloc[start:].values  

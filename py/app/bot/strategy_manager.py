@@ -100,7 +100,7 @@ class StrategyManager:
         self.load_strategies()
         self.start_watcher()
         for strat in self.strategies:
-            await strat["instance"].bootstrap(True)
+            await strat["instance"].bootstrap()
 
     def start_watcher(self):
         root = self.config["live_service"]["root_folder"]
@@ -208,7 +208,7 @@ class StrategyManager:
 
                     self.logger.info(f"RELOADED {class_name}")
 
-                    await new_instance.bootstrap(True)
+                    await new_instance.bootstrap()
 
                 except Exception as e:
                     self.logger.error(f"Reload failed for {class_name}: {e}", exc_info=True)

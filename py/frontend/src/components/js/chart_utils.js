@@ -47,7 +47,7 @@ export async  function updateStrategyIndicators(context,
     // console.log("task strat_response",strat_response)
     strat_response.forEach( (strat) =>
     {
-          //console.log("task strat_response",strat)
+         // console.log("task strat_response",strat)
           const strat_name = strat.strategy
 
           if(!strategy_index_map[strat_name])
@@ -156,7 +156,7 @@ export async  function updateStrategyIndicators(context,
                       time: window.db_localTime ? window.db_localTime(d.time) : d.time,
                       value: d.value
                     }));
-                    //console.log("formattedData",formattedData)
+                   // console.log("formattedData",formattedData)
 
                     data.data.forEach( (d)=>{
                         storage[name].data_cache[String(window.db_localTime ? window.db_localTime(d.time) : d.time)] =  d.value

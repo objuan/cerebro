@@ -46,6 +46,9 @@ export class Rank{
         return Math.round(mapped)
   }
 }
+
+// =================================================
+
 export const reportStore = reactive({
   items: {},
 

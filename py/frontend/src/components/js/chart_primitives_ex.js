@@ -21,12 +21,14 @@ export  class MarketZoneBand  extends Primitive{
         open: "rgba(103, 212, 0, 0.92)",
         after: "rgba(41, 99, 173, 0.5)"
       };
-    }
+  }
   onDataChanged() {
 
-    if (!this.data || this.data.length === 0)
-      return
+
 try{
+      if (!this.data || this.data.length === 0)
+      return
+    
     const TIME_ZONE_OFFSET = 6 * 60
     const DAY_MINUTES = 1440
 
@@ -99,7 +101,6 @@ try{
   }
      catch (ex){
         console.error(ex)
-        console.trace()
     }
   }
 
@@ -142,20 +143,25 @@ export  class GapZone  extends MarketZoneBand{
    }
    onDataChanged(){
       super.onDataChanged()
+
       let m = 99999999
       let M = -99999999
-      for (var i = this.lastClose ; i<= this.lastOpen;i++)
+      if (this.lastClose)
       {
-          m = Math.min(m, this.data[i].low)
-          M = Math.max(M, this.data[i].high)
-      }
-      self.low = m
-      self.hi = M
-      self.middle = self.low + (self.hi-self.low)/2 
+        for (var i = this.lastClose ; i<= this.lastOpen;i++)
+        {
+            m = Math.min(m, this.data[i].low)
+            M = Math.max(M, this.data[i].high)
+        }
+        self.low = m
+        self.hi = M
+        self.middle = self.low + (self.hi-self.low)/2 
+    }
 
   }
 
   draw(ctx){
+      if (!this.lastClose) return
       const _lastClose = this.data[this.lastClose].close
       const _lastOpen = this.data[this.lastOpen].close
       

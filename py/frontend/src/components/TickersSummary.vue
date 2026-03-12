@@ -3,44 +3,77 @@
   <div class="sort-bar">
     <span>
     {{count_sum}}</span>
-  <button
-
-      @click="toggleShowAll()"
-    >
+     <button @click="toggleShowAll()">
       .
     </button>
 
-    <button
-      :class="{ active: sortBy === 'gain' }"
-      @click="sortBy = 'gain'"
-    >
-      Gain
-    </button>
 
-    <button
-      :class="{ active: sortBy === 'gap' }"
-      @click="sortBy = 'gap'"
-    >
-      Gap
+    <button style="flex-grow: 1;" class="btn btn-sm btn-dark" @click="menuOpen = !menuOpen">
+             {{sortBy}} ⚙️
     </button>
- <button
-      :class="{ active: sortBy === 'day_volume' }"
-      @click="sortBy = 'day_volume'"
-    >
-      V
-    </button>
-     <button
-      :class="{ active: sortBy === 'rel_vol_5m' }"
-      @click="sortBy = 'rel_vol_5m'"
-    >
-      Vol5
-    </button>
-     <button
-      :class="{ active: sortBy === 'rel_vol_24' }"
-      @click="sortBy = 'rel_vol_24'"
-    >
-      VolD
-    </button>
+    
+    <div v-if="menuOpen" class="filter-popup">
+        <table>
+          <tr>
+            <td>
+                <button
+                  :class="{ active: sortBy === 'gain' }"
+                  @click="sortBy = 'gain';menuOpen=false"
+                >
+                  Gain
+                </button>
+
+                <button
+                  :class="{ active: sortBy === 'gap' }"
+                  @click="sortBy = 'gap';menuOpen=false"
+                >
+                  Gap
+                </button>
+                <button
+                  :class="{ active: sortBy === 'day_volume' }"
+                  @click="sortBy = 'day_volume';menuOpen=false"
+                >
+                  V
+                </button>
+                <button
+                  :class="{ active: sortBy === 'rel_vol_5m' }"
+                  @click="sortBy = 'rel_vol_5m';menuOpen=false"
+                >
+                  Vol5
+                </button>
+                <button
+                  :class="{ active: sortBy === 'rel_vol_24' }"
+                  @click="sortBy = 'rel_vol_24';menuOpen=false"
+                >
+                  VolD
+                </button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+                <button
+                  :class="{ active: sortBy === 'trend_perc' }"
+                  @click="sortBy = 'trend_perc';menuOpen=false"
+                >
+                  Trend %
+                </button>
+                 <button
+                  :class="{ active: sortBy === 'trend_perc_all' }"
+                  @click="sortBy = 'trend_perc_all';menuOpen=false"
+                >
+                  Trend All %
+                </button>
+                <button
+                  :class="{ active: sortBy === 'trend_len' }"
+                  @click="sortBy = 'trend_len';menuOpen=false"
+                >
+                  Trend #
+                </button>
+            </td>
+          </tr>
+        </table>
+       
+      </div>
   </div>
 
   <header class="py-1 mb-1 border-bottom bg-light">
@@ -56,8 +89,8 @@
             <div class="time-bar">
             <div class="time-bar-fill" :style="{ width: progress(item) + '%' }"></div>
           </div>
-            <table style="width: 100%; height: 100%;">
-              <tr style="height : 60%">
+            <table style="width: 100%; height: 100%;" class="mini-table">
+              <tr style="height : 40%">
                 <td>
                    <div class="fw-bold">
                         <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item.symbol)">
@@ -75,7 +108,7 @@
                     </div>
                 </td>
               </tr>
-            <tr style="height : 40%">
+            <tr style="height : 30%">
               <td class="volume">
                 <span :style="{ color: rankColor(item.summary?.day_volume,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 170, b: 90 }) }">
                     {{ formatValue(item.report?.day_volume) }}
@@ -86,9 +119,15 @@
                   {{item.report?.rel_vol_5m.toFixed(1)}}%
               </td>
             </tr>
-        
+          <tr style="height : 30%">
+              <td class="volume" :style="{ color: rangeColor(item.strategy.get(item.symbol,'1m','TRADE')?.trend_perc*10,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 0, b: 255 }) }">
+                  {{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc.toFixed(1)}}({{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc_all.toFixed(1)}})%
+              </td>
+              <td class="volume" :style="{ color: rangeColor(item.strategy.get(item.symbol,'1m','TRADE')?.trend_len,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 0, b: 255 }) }">
+                  #{{item.strategy.get(item.symbol,"1m","TRADE")?.trend_len}}
+              </td>
+            </tr>
 
-     
           </table>
            <!-- STARS-->
           <div class="star-wrapper" v-if="item.summary">
@@ -139,6 +178,7 @@
                 </span>
               </div>
             </div>
+
             <!-- TOOLTIP -->
             <div class="report" v-if="item.report">
               <div class="title">{{ item.symbol }}</div>
@@ -233,6 +273,8 @@
                     {{ item.summary.news-1 }} Day(s)
                 </div>
               </div>
+
+             
 
             </div>
 
@@ -338,7 +380,7 @@
 import {  ref, computed, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import { send_get,formatValue,newsColor,rankColor } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_get,formatValue,newsColor,rankColor,rangeColor } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { eventBus } from "@/components/js/eventBus";
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { reportStore as report } from "@/components/js/reportStore";
@@ -350,6 +392,7 @@ const sortBy = ref('gain'); // 'gain' | 'gap'
 const now = ref(Date.now())
 const showAll = ref(false)
 const sortedTickers = ref([])
+const menuOpen = ref(false)
 
 let timer = null
 
@@ -370,17 +413,7 @@ function updateTickers()
   const list = tickerList.get_sorted();
 
   //console.log("tickerList",list.length)
-
-   sortedTickers.value=  [...list].sort((a, b) => {
-      const aMissing = !a.secs_from;
-      const bMissing = !b.secs_from;
-
-      if (aMissing !== bMissing) return aMissing - bMissing;
-
-      return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
-    });
-
-   
+ //  console.log(sortBy.value )
   if (showAll.value)
   {
     sortedTickers.value= [...list].sort((a, b) => {
@@ -388,7 +421,7 @@ function updateTickers()
       const bMissing = !b.secs_from;
 
       if (aMissing !== bMissing) return aMissing - bMissing;
-
+      
       return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
     });
   }
@@ -397,7 +430,17 @@ function updateTickers()
     sortedTickers.value= [...list]
       .filter(t => t.secs_from)   // tiene solo quelli con secs_from
       .sort((a, b) => {
-        return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
+        if (sortBy.value == "trend_perc")
+          return  b.strategy.get(b.symbol,"1m","TRADE")?.trend_perc - 
+                  a.strategy.get(a.symbol,"1m","TRADE")?.trend_perc;
+        else  if (sortBy.value == "trend_perc_all")
+          return  b.strategy.get(b.symbol,"1m","TRADE")?.trend_perc_all - 
+                  a.strategy.get(a.symbol,"1m","TRADE")?.trend_perc_all;
+        else  if (sortBy.value == "trend_len")
+          return  b.strategy.get(b.symbol,"1m","TRADE")?.trend_len - 
+                  a.strategy.get(a.symbol,"1m","TRADE")?.trend_len;
+        else
+          return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
       });
     }
       
@@ -686,7 +729,8 @@ defineExpose({
 
 .ticket-card {
  width: 100%;
-  max-height:50px
+  min-height:60px;
+   max-height:60px
 }
 .star-wrapper {
   position: relative;
@@ -778,5 +822,56 @@ defineExpose({
 .value {
   text-align: right;
   justify-self: end;    /* valori ben allineati a destra */
+}
+.mini-table {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+}
+
+.mini-table td {
+  padding: 0px 2px;
+  line-height: 1;
+  vertical-align: middle;
+}
+.mini-table tr {
+  height: 18px;
+}
+
+
+.filter-popup-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.filter-popup {
+  position: absolute;
+  top: 80px;
+  right: 100;
+  background: #1b1b1b;
+  border: 1px solid #444;
+  padding: 8px 10px;
+  border-radius: 6px;
+  z-index: 1000;
+  min-width: 140px;
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.filter-bar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:1px;
+  background:#111;
+  color:white;
+  font-size:13px;
+  border-bottom:2px solid #333;
+}
+
+.filter-item{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
 }
 </style>
