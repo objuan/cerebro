@@ -73,8 +73,8 @@ class Alarm:
                 return val < price
        
         if self.line_type =="line":
-            t1 = int(self.line_data["p1"]["time"])
-            t2 = int(self.line_data["p2"]["time"])
+            t1 = int(self.line_data["p1"]["val"]["t"])
+            t2 = int(self.line_data["p2"]["val"]["t"])
             p1 = self.line_data["p1"]["val"]["y"]
             p2 = self.line_data["p2"]["val"]["y"]
             if t2 < t1:
@@ -87,10 +87,12 @@ class Alarm:
             
             dt1 = datetime.fromtimestamp(t1/1000)
             dt2 = datetime.fromtimestamp(t2/1000)
-            #print("LINE",p1,p2,t1,t2, "ts",ts,dt1,dt2)
+           # print("LINE",t1,t2,p1,p2,t1,t2, "ts",ts,dt1,dt2)
 
             ret = point_above_line({"x":t1,"y":p1 },{"x":t2,"y":p2 },{"x":ts,"y":val })
             self.desc=f"{val:.4f} {self.type} line"
+
+            #print("RET" ,ret)
             return ret ==self.type
             #print("RET" ,ret)
             #return ret
@@ -217,7 +219,7 @@ class AlarmStrategy(Strategy):
                             name= f"ALARM",
                                     small_desc=f"{timeframe} {alarm.desc}",
                                     full_desc=f"{timeframe} {alarm.desc}",
-                                    color = "#C1FFCE")
+                                    color = "#C1FFCE", ring="alarm")
         #logger.info(f"alerm {symbol} END")
         #logger.info(f"on_symbol_candles   {symbol} {self.timeframe} \n {dataframe.tail(2)}" )
   

@@ -25,9 +25,9 @@
     <table >
       <tr style="height: 100%;">
         <td >
-          <table>
-            <tr>
-              <td colspan="2">
+          <table style="table-layout: fixed">
+            <tr >
+              <td colspan="2" style="height: 20px;">
                   <DropdownMenu
                     label="="
                     :items="menuItems"
@@ -41,59 +41,59 @@
                   />
               </td>
             </tr>
-            <tr>
-              <td>
-            <div class="button_bar">
-            
-                      
+            <tr style="height: 100%;">
+            <td style="vertical-align: top;">
+                <div class="button_bar" >
+                
+                          
 
-              <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
-              @click="painter?.setMode('price-line')">
-                ─
-              </button>
+                  <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
+                  @click="painter?.setMode('price-line')">
+                    ─
+                  </button>
 
-              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-                  @click="painter?.setMode('line')">
-                ／
-              </button>
-              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-                  @click="painter?.setMode('hline')">
-                H
-              </button>
-              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-                  @click="painter?.setMode('vline')">
-                V
-              </button>
-              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-                  @click="painter?.setMode('box')">
-                B
-              </button>
-              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-                  @click="painter?.setMode('split-box')">
-                S
-              </button>
-              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
-                  @click="painter?.setMode('fibonacci')">
-                F
-              </button>
-               <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
-                  @click="painter?.setMode('misure-box')">
-                M
-              </button>
-              <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-                @click="setDrawMode('delete')">
-                D
-              </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('line')">
+                    ／
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('hline')">
+                    H
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('vline')">
+                    V
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('box')">
+                    B
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('split-box')">
+                    S
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
+                      @click="painter?.setMode('fibonacci')">
+                    F
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
+                      @click="painter?.setMode('misure-box')">
+                    M
+                  </button>
+                  <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                    @click="setDrawMode('delete')">
+                    D
+                  </button>
 
-              <button  class="btn btn-sm btn-danger ms-1"  title="Clear drawings"
-                @click="painter_delete_all()">
-                ✕
-              </button>
-            
-            </div>
+                  <button  class="btn btn-sm btn-danger ms-1"  title="Clear drawings"
+                    @click="painter_delete_all()">
+                    ✕
+                  </button>
+                
+                </div>
 
               </td>
-              <td>
+              <td style="vertical-align: top;">
                  <div class="button_bar">
 
               
@@ -175,12 +175,10 @@
                   <button v-if="ind.type != 'strategy'"
                     class="btn btn-sm btn-outline-danger ms-0 p-0 b-0" 
                     
-                    style="width:20px;height:20px"
+                    style="width:16px;height:16px"
                     @click="removeIndicator(i)"
                     title="Rimuovi indicatore"
-                  >
-                    ✕
-                  </button>
+                  >✕</button>
               </div>
             </div>
           </div>
@@ -558,7 +556,7 @@ async function handleRefresh (resetWindow )
     const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
     const data = await response.json();
-   // console.log("response",data)
+    //console.log("response",data)
 
     if (data.length>0)
     {
@@ -706,23 +704,13 @@ async function handleRefresh (resetWindow )
           await painter.load()
           painter.setData(formattedData)
           
-          // OPEN DATE
-          /*
-          const first = findLastCandleOfEachDay(formattedData)
-          const openDate = findOpenDate(formattedData)
-
-          const idx = formattedData.findIndex(p => p.time === first);
-          painter.createVirtualVLine(idx, "white")
-
-          const idx1 = formattedData.findIndex(p => p.time === openDate);
-          painter.createVirtualVLine(idx1, "yellow")
-*/
           painter.createMarketZoneBand()
           painter.createGapZone()
 
             // STATEGY  
       //   if (resetWindow)
           {
+
             await updateStrategyIndicators( context(),
               currentSymbol.value, currentTimeframe.value
             )
@@ -1426,16 +1414,17 @@ defineExpose({
   position: absolute;
   display: flex;
   flex-direction: column  !important;  /* ← verticale */
-  gap: 6px;                /* spazio tra elementi */
+  gap: 2px;                /* spazio tra elementi */
   align-items: flex-start;              /* spazio tra elementi */
 }
 
 .chart-legend-left-ind-item {
-  font-size: 0.8em;
+  font-size: 0.7em;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 2px;
 }
 
 .legend-remove-btn {
@@ -1463,6 +1452,7 @@ defineExpose({
   padding: 3px;
 }
 .button_bar{
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;   /* forza partenza dall’alto */

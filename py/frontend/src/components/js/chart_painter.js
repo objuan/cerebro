@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import { send_get,localUnixToUtc,timeframeToSeconds } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_get,localUnixToUtc,timeframeToSeconds,utcToLocalUnix } from '@/components/js/utils.js'; // Usa il percorso corretto
 //formatUnixDate
 import { ref,computed} from 'vue';
 import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci,
@@ -249,7 +249,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     // ==========================
     ,setData(data){
       this.data=data
-      console.log("setData",data)
+   //   console.log("setData",data)
     }
     ,getData(){
       return this.data;
@@ -258,7 +258,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       if (this.data)
       {
         this.data.push(candle)
-        console.log("pushData",this.data)
+     //   console.log("pushData",this.data)
 
        this.primitives.forEach((p)=>{
             p.onDataChanged(this.data)
@@ -364,7 +364,66 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       this.clearMode()
       this.redraw();
     }
-    ,pixelToChart(pos){
+    // =========
+    ,pixelToLogical(pos){
+        const p = this._pixelToChart(pos)
+        return {"t": this._chartToTime(p),"y":p.y }
+     }
+    ,logicalToPixel(pos){
+         if (!pos) return { x: 0, y: 0 };
+
+          const ts = this.chart.timeScale();
+
+          let time = utcToLocalUnix(pos.t)
+          time=time/1000
+          let x = ts.timeToCoordinate(time);
+
+          if (x==null)
+          {
+              //x = this._timeToChart(t_l).x
+                const vr = ts.getVisibleLogicalRange();
+                const barSpacing = ts.options().barSpacing;
+        
+                const dt = timeframeToSeconds(this.context.currentTimeframe.value);
+
+                const last = this.data[this.data.length-1];
+                const first = this.data[0];
+
+                const lastTime = last.time;
+                const firstTime = first.time;
+
+                let logical;
+
+                if (time > lastTime) {
+                  
+                  // proiezione a destra
+                  const factor = (time - lastTime) / dt;
+
+                 //  console.log("time",time,"lastTime",lastTime,"f",factor,dt)
+
+                  logical = (this.data.length - 1) + factor;
+                }
+                else {
+                  // proiezione a sinistra
+                  const factor = (firstTime - time) / dt;
+                  logical = 0 - factor;
+                }
+
+                //const xFrom = ts.logicalToCoordinate(vr.from);
+                x = ts.logicalToCoordinate(vr.from) + (logical - vr.from) * barSpacing;
+
+              
+          }
+          
+        //  console.log("logicalToPixel",pos.t,x)  
+        
+          const y = this.series.priceToCoordinate(pos.y);
+       // console.log("logicalToPixel", pos , "_>", { x, y })
+
+          return { x, y };
+     }
+    // =========
+    ,_pixelToChart(pos){
 
 
       const logical = this.chart.timeScale().coordinateToLogical(pos.x)
@@ -378,7 +437,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       */
       return { x: logical, y: price }
     }
-    ,chartToPixel(pos){
+    ,_chartToPixel(pos){
       if (!pos) return {x:0,y:0}
 
       //console.log("chartToPixel",pos)
@@ -398,12 +457,60 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       //console.log(pos,x,y)
 
       return { x, y };
-    }
-    ,chartToTime(pos){
+    },
+    _timeToChart(t){
+
+        const ts = this.chart.timeScale();
+        const vr = ts.getVisibleLogicalRange();
+        const barSpacing = ts.options().barSpacing;
+
+        // UTC -> local
+        let local = utcToLocalUnix(t);
+
+        // lightweight charts usa secondi
+        const time = Math.floor(local / 1000);
+
+        let x = ts.timeToCoordinate(time);
+
+        if (x == null) {
+
+          const dt = timeframeToSeconds(this.context.currentTimeframe.value);
+
+          const last = this.data[this.data.length-1];
+          const first = this.data[0];
+
+          const lastTime = last.time;
+          const firstTime = first.time;
+
+          let logical;
+
+          if (time > lastTime) {
+            // proiezione a destra
+            const factor = (time - lastTime) / dt;
+            logical = (this.data.length - 1) + factor;
+          }
+          else {
+            // proiezione a sinistra
+            const factor = (firstTime - time) / dt;
+            logical = 0 - factor;
+          }
+
+          //const xFrom = ts.logicalToCoordinate(vr.from);
+          const xProj = ts.logicalToCoordinate(vr.from) + (logical - vr.from) * barSpacing;
+
+          return { x: logical, px: xProj };
+        }
+
+        const xFrom = ts.logicalToCoordinate(vr.from);
+        const logical = vr.from + (x - xFrom) / barSpacing;
+
+        return { x: logical, px: x };
+      }
+    ,_chartToTime(pos){
       //console.log("chartToTime",pos)
       
       const ts = this.chart.timeScale();
-       const vr = ts.getVisibleLogicalRange();
+      const vr = ts.getVisibleLogicalRange();
 
       const barSpacing = ts.options().barSpacing;
       const  x = ts.logicalToCoordinate(vr.from) + (pos.x-vr.from ) * barSpacing;
@@ -430,11 +537,11 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
        // console.log("...",dt,xLast, tickPx,"factor", factor )  
       }
       else
-        t=t*1000
+          t=t*1000
+
       t = localUnixToUtc(t)
       //console.log("chartToTime",x,t, formatUnixDate(t))
       return t;
-      
     }
     ,begin(){
         //console.log("begin")
@@ -588,7 +695,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       this.edit=null
       this.selected=null
       this.new_primitive=null;
-      this.start =  this.pixelToChart(this.getMouse(e))
+      this.start =  this.pixelToLogical(this.getMouse(e))
       
       this.new_primitive = this.create(this.drawMode.value )
      
@@ -603,11 +710,11 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       if (!this.drawing) return
 
       if ( this.edit ){
-        this.edit.drag( this.pixelToChart(this.getMouse(e)))
+        this.edit.drag( this.pixelToLogical(this.getMouse(e)))
       }
       else{
           if (this.new_primitive) 
-            this.new_primitive.drag( this.pixelToChart(this.getMouse(e)))
+            this.new_primitive.drag( this.pixelToLogical(this.getMouse(e)))
       }
        this.redraw()
     }

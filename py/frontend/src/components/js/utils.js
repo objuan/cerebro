@@ -1,7 +1,9 @@
 export const audioMap = {
   default : new Audio("/media/alert1.mp3"),
+  alarm : new Audio("/media/alert1.mp3"),
   chime : new Audio("/media/Notification-alert-chime.mp3"),
   alert1 : new Audio("/media/dragon-studio-alert-444816.mp3"),
+  new_symbol : new Audio("/media/universfield-new-notification-026-380249.mp3"),
   news : new Audio("/media/universfield-new-notification-026-380249.mp3")
 } 
 
@@ -53,6 +55,17 @@ export const localUnixToUtc = (unixLocal) => {
   const utcMs = ms + date.getTimezoneOffset() * 60000;
 
   return unixLocal < 1e12 ? Math.floor(utcMs / 1000) : utcMs;
+};
+export const utcToLocalUnix = (unixUtc) => {
+  if (!unixUtc) return null;
+
+  const ms = unixUtc < 1e12 ? unixUtc * 1000 : unixUtc;
+
+  const date = new Date(ms);
+
+  const localMs = ms - date.getTimezoneOffset() * 60000;
+
+  return unixUtc < 1e12 ? Math.floor(localMs / 1000) : localMs;
 };
 
 export const formatUnixTimeOnly = (unixTime) => {

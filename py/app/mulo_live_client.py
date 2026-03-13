@@ -289,7 +289,7 @@ class MuloLiveClient:
             })
 
             for symbol in to_add:
-                await self.send_event("mule",symbol,"NEW ", "","", {"color": "#00b627"})
+                await self.send_event("mule",symbol,"NEW ", "","", {"color": "#00b627","ring":"new_symbol"})
 
             #newss
             

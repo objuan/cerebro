@@ -272,12 +272,16 @@ class TradeStrategy(SmartStrategy):
         #self.add_legend(sma_9_gain,"SMA_9_G", "sma9 G", "#034cd3")
         #self.add_legend(sma_20_gain,"SMA_20_G", "sma20 G", "#034cd3")
         
+        
         self.add_plot(sma_20, "SMA_20","#a70000", "main", style="SparseDotted", lineWidth=2)
         self.add_plot(sma_200, "SMA_200","#034cd3", "main", style="SparseDotted", lineWidth=2)
         self.add_plot(max, "MAX","#926B00FF", "main", source="MAX",style="Solid", lineWidth=1)
 
         #self.add_plot(day, "day","#d30303", "sub1", style="Solid", lineWidth=1)
         self.add_plot(day_perc, "day_perc","#0318d3", "sub1", style="Solid", lineWidth=1)
+        
+
+
 
         '''
         self.add_plot(sma_200, "SMA_200","#034cd3", "main", source="SMA_200",style="SparseDotted", lineWidth=2)

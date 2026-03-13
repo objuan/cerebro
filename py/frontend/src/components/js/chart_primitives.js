@@ -81,6 +81,9 @@ export class Primitive {
   fromSerial(data){
       this.alarms = data.alarms
   }
+  draw(){
+
+  }
 }
 
 // =======================================
@@ -98,6 +101,7 @@ export class Handle  extends Primitive{
   }
 
   set(p){
+  //  console.log("Set",p)
     this.val = p
   }
   end(){
@@ -112,7 +116,7 @@ export class Handle  extends Primitive{
   }
   draw(ctx){
     if (!this.enabled) return
-    const a = this.painter.chartToPixel(this.val)
+    const a = this.painter.logicalToPixel (this.val)
     drawHandle(ctx, a, this.isHover)
   }
 
@@ -120,9 +124,9 @@ export class Handle  extends Primitive{
     if (!this.enabled) return
     //console.log(pos)
     if (this.direction=="H")
-        pos = {x: pos.x, y : this.val.y}
+        pos = {t: pos.t, y : this.val.y}
     if (this.direction=="V")
-        pos = {x: this.val.x, y : pos.y}
+        pos = {t: this.val.t, y : pos.y}
     pos = this.parent.filter(this, pos)
     this.val = pos
     this.parent.onChange(this)
@@ -130,12 +134,12 @@ export class Handle  extends Primitive{
 
   pick(pos){
     if (!this.enabled) return
-    const a = this.painter.chartToPixel(this.val)
+    const a = this.painter.logicalToPixel (this.val)
     this.isHover = hitHandle(pos, a)
     return this.isHover ? this : null
   }
   serialize(){
-    return {"val" : this.val,"time": this.painter.chartToTime(this.val)}
+    return {"val" : this.val}//,"time": this.painter.chartToTime(this.val)}
   }
   fromSerial(ser){
     
@@ -182,8 +186,8 @@ class Text  extends Primitive{
       if(!this.value) return null
 
       // punti linea
-      const a = this.painter.chartToPixel(this.p1.val)
-      const b = this.painter.chartToPixel(this.p2.val)
+      const a = this.painter.logicalToPixel (this.p1.val)
+      const b = this.painter.logicalToPixel (this.p2.val)
 
       // midpoint
       const midX = (a.x + b.x) / 2
@@ -239,8 +243,8 @@ class Text  extends Primitive{
    draw(ctx, parentIsHover){
     if (this.value || parentIsHover)
     {
-      const a = this.painter.chartToPixel(this.p1.val)
-      const b = this.painter.chartToPixel(this.p2.val)
+      const a = this.painter.logicalToPixel (this.p1.val)
+      const b = this.painter.logicalToPixel (this.p2.val)
       if (parentIsHover & !this.value)
       {
         drawTextOnLine(ctx,a,b,"click to add ..", "gray", 10, this.align )
@@ -302,8 +306,8 @@ export  class Line  extends Primitive{
   }
 
   draw(ctx){
-    const a = this.painter.chartToPixel(this.p1.val)
-    const b = this.painter.chartToPixel(this.p2.val)
+    const a = this.painter.logicalToPixel (this.p1.val)
+    const b = this.painter.logicalToPixel (this.p2.val)
 
    // console.log(a,b,this.color)
     drawLine(ctx, a, b,this.color, this.isHover)
@@ -318,8 +322,8 @@ export  class Line  extends Primitive{
   }
 
   pick(pos){
-    const a = this.painter.chartToPixel(this.p1.val)
-    const b = this.painter.chartToPixel(this.p2.val)
+    const a = this.painter.logicalToPixel (this.p1.val)
+    const b = this.painter.logicalToPixel (this.p2.val)
 
     this.isHover = false
 
@@ -375,7 +379,7 @@ export  class PriceLine  extends Primitive{
   }
   draw(ctx){
 
-    const a = this.painter.chartToPixel(this.p.val)
+    const a = this.painter.logicalToPixel (this.p.val)
     const from = {x:0, y: a.y}
     const to = {x:this.painter.getPriceBand().max, y: a.y}
     drawLine(ctx,from,to,this.color, this.isHover)
@@ -393,7 +397,7 @@ export  class PriceLine  extends Primitive{
   }
 
   pick(pos){
-    const a = this.painter.chartToPixel(this.p.val)
+    const a = this.painter.logicalToPixel (this.p.val)
     const from = {x:0, y: a.y}
     const to = {x:this.painter.getPriceBand().max, y: a.y}
 
@@ -444,8 +448,8 @@ export  class Box  extends Primitive{
     ]
   }
   points(){
-    const a = this.painter.chartToPixel(this.top_left.val)
-    const b = this.painter.chartToPixel(this.bottom_right.val)
+    const a = this.painter.logicalToPixel (this.top_left.val)
+    const b = this.painter.logicalToPixel (this.bottom_right.val)
 
     return {t_l : a, t_r : {x:b.x, y:a.y},  b_r : b, b_l : {x:a.x, y:b.y}}
   }
@@ -478,13 +482,13 @@ export  class Box  extends Primitive{
 
   drag(p2){
     this.bottom_right.set(p2)
-    this.top_right.val = {x:this.bottom_right.val.x, y : this.top_left.val.y }
-    this.bottom_left.val = {x:this.top_left.val.x, y : this.bottom_right.val.y }
+    this.top_right.val = {t:this.bottom_right.val.t, y : this.top_left.val.y }
+    this.bottom_left.val = {t:this.top_left.val.t, y : this.bottom_right.val.y }
   }
 
   draw(ctx){
-    const a = this.painter.chartToPixel(this.top_left.val)
-    const b = this.painter.chartToPixel(this.bottom_right.val)
+    const a = this.painter.logicalToPixel (this.top_left.val)
+    const b = this.painter.logicalToPixel (this.bottom_right.val)
 
     drawRect(ctx, a, b, this.color,this.color,  this.isHover)
 
@@ -498,8 +502,8 @@ export  class Box  extends Primitive{
     this.isHover = false
 
     // rettangolo in pixel
-    const a = this.painter.chartToPixel(this.top_left.val)
-    const b = this.painter.chartToPixel(this.bottom_right.val)
+    const a = this.painter.logicalToPixel (this.top_left.val)
+    const b = this.painter.logicalToPixel (this.bottom_right.val)
 
     const x1 = Math.min(a.x, b.x)
     const x2 = Math.max(a.x, b.x)
@@ -549,7 +553,7 @@ export  class VLine  extends PriceLine{
   }
   draw(ctx){
    
-    const a = this.painter.chartToPixel(this.p.val)
+    const a = this.painter.logicalToPixel (this.p.val)
     const from = {x:a.x, y: 0}
     const to = {x:a.x,y:this.painter.geHeight()}
 
@@ -563,7 +567,7 @@ export  class VLine  extends PriceLine{
   }
 
   pick(pos){
-    const a = this.painter.chartToPixel(this.p.val)
+    const a = this.painter.logicalToPixel (this.p.val)
     const from = {x:a.x, y: 0}
     const to = {x:a.x,y:this.painter.geHeight()}
 
@@ -612,46 +616,45 @@ export  class SplitBox  extends Box{
   }
   drag(p2){
     super.drag(p2)
-    this.center_left.set({ x: this.top_left.val.x , y:this.compute_middleY()} )
-    this.bottom_left.set({ x: this.top_left.val.x , y:p2.y} )
+    this.center_left.set({ t: this.top_left.val.t , y:this.compute_middleY()} )
+    this.bottom_left.set({ t: this.top_left.val.t , y:p2.y} )
     this.update()
   }
   onChange(handle){
   //  console.log("onChange",handle )
     if (handle == this.top_left){
         this.center_left.set( 
-          { x: this.top_left.val.x ,
-           y:this.center_left.val.y} )
+          { t: this.top_left.val.t ,   y:this.center_left.val.y} )
         this.bottom_left.set( 
-          { x: this.center_left.val.x , y:this.bottom_right.val.y} )
+          { t: this.center_left.val.t , y:this.bottom_right.val.y} )
 
     }
      if (handle == this.bottom_right){
         this.center_right.set(
-        { x: this.bottom_right.val.x , y:this.center_left.val.y} )   
+        { t: this.bottom_right.val.t , y:this.center_left.val.y} )   
 
          this.bottom_left.set(
-        { x: this.bottom_left.val.x , y:this.bottom_right.val.y} )  
+        { t: this.bottom_left.val.t , y:this.bottom_right.val.y} )  
     }
     if (handle == this.bottom_left){
        this.bottom_right.set( 
-          { x: this.bottom_right.val.x , y:this.bottom_left.val.y} )
+          { t: this.bottom_right.val.t, y:this.bottom_left.val.y} )
 
     }
      if (handle == this.center_left){
         this.top_left.set( 
-          { x: this.center_left.val.x , y:this.top_left.val.y} )
+          { t: this.center_left.val.t , y:this.top_left.val.y} )
 
         this.center_right.set(
-        { x: this.bottom_right.val.x , y:this.center_left.val.y} )   
+        { t: this.bottom_right.val.t , y:this.center_left.val.y} )   
 
         this.bottom_left.set( 
-          { x: this.center_left.val.x , y:this.bottom_right.val.y} )
+          { t: this.center_left.val.t , y:this.bottom_right.val.y} )
 
     }
     if (handle == this.center_right){
         this.bottom_right.set( 
-          { x: this.center_right.val.x , y:this.bottom_right.val.y} )
+          { t: this.center_right.val.t , y:this.bottom_right.val.y} )
 
        
     }
@@ -668,9 +671,9 @@ export  class SplitBox  extends Box{
   update(){
    // console.log("update")
       this.center_right.set(
-        { x: this.bottom_right.val.x , y:this.center_left.val.y} )    
+        { t: this.bottom_right.val.t , y:this.center_left.val.y} )    
       this.bottom_left.set(
-        { x: this.top_left.val.x , y:this.bottom_right.val.y} )     
+        { t: this.top_left.val.t , y:this.bottom_right.val.y} )     
   }
   pick(pos){
     //console.log("bottom_left" , this.bottom_left.val, this.bottom_right.val)
@@ -694,11 +697,14 @@ export  class SplitBox  extends Box{
       const y_min = Math.min(p1.val.y, p2.val.y)
       const y_max = Math.max(p1.val.y, p2.val.y)
 
-      const m_l = this.painter.chartToPixel(this.center_left.val)
-      const m_r = this.painter.chartToPixel(this.center_right.val)
+     // console.log("center_left",this.center_left.val)
+      const m_l = this.painter.logicalToPixel (this.center_left.val)
+      const m_r = this.painter.logicalToPixel (this.center_right.val)
 
       const delta = y_max- y_min;
       const p =   100 * ((this.center_left.val.y - y_min) / delta)
+
+      //console.log("ds",m_l,m_r)
 
       drawTextOnLine(ctx, m_l, m_r ,`${p.toFixed(1)}%`, "white", -11, "right" , this.color)
       drawLine(ctx,m_l,m_r,"white",this.isHover )
@@ -845,10 +851,10 @@ export  class  TradeBox  extends SplitBox{
   }
 
   draw(ctx){
-    const t_l = this.painter.chartToPixel(this.top_left.val)
-    const m_l = this.painter.chartToPixel(this.center_left.val)
-    const m_r = this.painter.chartToPixel(this.center_right.val)
-    const b_r = this.painter.chartToPixel(this.bottom_right.val)
+    const t_l = this.painter.logicalToPixel (this.top_left.val)
+    const m_l = this.painter.logicalToPixel (this.center_left.val)
+    const m_r = this.painter.logicalToPixel (this.center_right.val)
+    const b_r = this.painter.logicalToPixel (this.bottom_right.val)
 
     const t_r = {x:b_r.x, y: t_l.y}
     const b_l = {x:t_l.x, y: b_r.y}
@@ -1029,9 +1035,9 @@ export  class Fibonacci  extends Box{
     const fibo_50 = this.top_left.val.y  - H * (50 / 100)
     // 33.20 , 61.80
 
-    const px_fibo_1 = this.painter.chartToPixel({x: points.t_l.x ,  y : fibo_1})
-    const px_fibo_2 = this.painter.chartToPixel({x: points.t_l.x ,  y : fibo_2})
-    const px_fibo_50 = this.painter.chartToPixel({x: points.t_l.x ,  y : fibo_50})
+    const px_fibo_1 = this.painter.logicalToPixel ({x: points.t_l.x ,  y : fibo_1})
+    const px_fibo_2 = this.painter.logicalToPixel ({x: points.t_l.x ,  y : fibo_2})
+    const px_fibo_50 = this.painter.logicalToPixel ({x: points.t_l.x ,  y : fibo_50})
 
     points.first_l = {x: points.t_l.x ,  y : px_fibo_1.y}//H * (33.2 / 100)}
     points.first_r = {x: points.t_r.x ,  y :px_fibo_1.y}
@@ -1049,8 +1055,8 @@ export  class Fibonacci  extends Box{
     const rect = this.points()
 
    // console.log(rect)
-    //const a = this.painter.chartToPixel(this.top_left.val)
-    //const b = this.painter.chartToPixel(this.bottom_right.val)
+    //const a = this.painter.logicalToPixel (this.top_left.val)
+    //const b = this.painter.logicalToPixel (this.bottom_right.val)
 
     drawTextOnLine(ctx,rect.t_l,rect.t_r,"0%", this.color)
     drawLine(ctx, rect.t_l,rect.t_r, this.color,this.isHover, 1)

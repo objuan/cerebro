@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "QNTM",
+      "symbol": "VEEE",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -43,7 +43,7 @@
           "legend": false
         },
         "1": {
-          "legend": false,
+          "legend": true,
           "timeframe": "1m"
         }
       }
@@ -383,6 +383,9 @@
     },
     "RIME": {
       "quantity": 100
+    },
+    "VEEE": {
+      "quantity": 300
     }
   },
   "back": {

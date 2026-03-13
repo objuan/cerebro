@@ -240,12 +240,7 @@ onMounted( async () => {
         if (props.ring!='' && props.ring!=null){
           playSound(props.ring)
         }
-        else{
-          if (props.title =="ALARM")
-              playSound()
-            if (props.title.startsWith("NEW"))
-              playSound()
-        }
+       
   }
     
 });

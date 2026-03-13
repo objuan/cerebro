@@ -1,4 +1,4 @@
-
+/* eslint-disable no-unused-vars */
 import {  Primitive} from '@/components/js/chart_primitives.js'; // Usa il percorso corretto
 import { drawLine, drawRect, drawTextOnLine } from './chart_draw';
 //import {  drawHandle,hitHandle,drawTextOnLine,hitLine,handleSize,drawLine,drawRect} from '@/components/js/chart_draw.js'; // Usa il percorso corretto
@@ -32,33 +32,33 @@ try{
     const TIME_ZONE_OFFSET = 0
     const DAY_MINUTES = 1440
 
-    const min_open = 15* 60 + 30
-    const min_close = 22 * 60
+    // LOCAL UTC
+    const min_open = 14* 60 + 30
+    const min_close = 21 * 60
 
     let zone = ""
     let old_zone = "close"
-    let idx = -1
-    let old_idx = -1
+    let time = -1
+    let old_time = -1
+    let idx=0
 
     this.zoneIndex = []
     this.lastClose = null
     this.lastOpen = null
 
     for (let i = 0; i < this.data.length; i++) {
+      
+      // UTC TIME
+      time = this.data[i].time 
 
-      const t = this.data[i].time 
-
-      if (!t) continue
-
-     
-      idx++
+      if (!time) continue
 
       // minuti UTC senza Date()
-      let minutes = Math.floor(t / 60) % DAY_MINUTES
+      let minutes = Math.floor(time / 60) % DAY_MINUTES
       minutes -= TIME_ZONE_OFFSET
 
       // console.log(minutes,minutes/60)
-
+      time=time*1000
 
       if (minutes < 0)
         minutes += DAY_MINUTES
@@ -72,38 +72,41 @@ try{
 
       if (zone !== old_zone) {
 
-        if (old_idx !== -1) {
+        if (old_time !== -1) {
 
-          if (old_zone === "after")
-            this.lastClose = old_idx
+          if (zone === "after")
+            this.lastClose = i
 
-          if (old_zone === "open")
-            this.lastOpen = old_idx
+          if (zone === "open")
+            this.lastOpen = i
 
           this.zoneIndex.push({
-            from: old_idx,
-            to: idx,
+            from: old_time,
+            to: time,
             zone: old_zone
           })
         }
 
         old_zone = zone
-        old_idx = idx
+        old_time = time
       }
     }
 
     if (old_zone === "pre")
-      this.lastOpen = idx - 1
-    else if (old_zone === "open" && this.zoneIndex.length > 0)
-      this.lastOpen = this.zoneIndex[this.zoneIndex.length - 1].to
+    {
+      //console.log("kk")
+      this.lastOpen = this.data.length-1// - 1
+    }
+    //else if (old_zone === "open" && this.zoneIndex.length > 0)
+   //   this.lastOpen = this.zoneIndex[this.zoneIndex.length - 1].to
 
     this.zoneIndex.push({
-      from: old_idx,
-      to: idx,
+      from: old_time,
+      to: time,
       zone: old_zone
     })
 
-    console.log("zoneIndex",this.zoneIndex)
+    //console.log("zoneIndex",this.zoneIndex)
   }
      catch (ex){
         console.error(ex)
@@ -112,15 +115,17 @@ try{
 
 
     draw(ctx){
+    
         //console.log(this.data)
       const from = {x:0, y: this.painter.geHeight()-10}
       const to = {x:this.painter.getPriceBand().max, y: this.painter.geHeight()}
 
       this.zoneIndex.forEach( (zone)=>{
-      //  console.log("zone",zone)
+       // console.log("zone",zone)
 
-          const f = this.painter.chartToPixel({x: zone.from, y:0})
-          const t = this.painter.chartToPixel({x: zone.to, y:0})
+          const f = this.painter.logicalToPixel({t: zone.from, y:0})
+          const t = this.painter.logicalToPixel({t: zone.to, y:0})
+
           const p1 = {x:f.x, y: from.y}
           const p2 = {x:t.x, y: to.y}
           
@@ -133,6 +138,7 @@ try{
     
       //console.log(from,to, log_from,log_to)
     }
+      
     rebuild(){
 
     }
@@ -149,7 +155,7 @@ export  class GapZone  extends MarketZoneBand{
    }
    onDataChanged(){
       super.onDataChanged()
-
+      
       let m = 99999999
       let M = -99999999
       if (this.lastClose)
@@ -163,6 +169,7 @@ export  class GapZone  extends MarketZoneBand{
         self.hi = M
         self.middle = self.low + (self.hi-self.low)/2 
     }
+        
 
   }
 
@@ -177,11 +184,11 @@ export  class GapZone  extends MarketZoneBand{
       //const p1 = {x:0, y: _lastClose}
      // const p2 = {x:20, y: _lastOpen}
 
-      const c = this.painter.chartToPixel({x: this.lastClose, y:_lastClose})
-      const o = this.painter.chartToPixel({x: this.lastOpen, y:_lastOpen})
-      const l = this.painter.chartToPixel({x: this.lastOpen, y:self.low })
-      const h = this.painter.chartToPixel({x: this.lastOpen, y:self.hi })
-      const m = this.painter.chartToPixel({x: this.lastOpen, y:self.middle })
+      const c = this.painter._chartToPixel({x: this.lastClose, y:_lastClose})
+      const o = this.painter._chartToPixel({x: this.lastOpen, y:_lastOpen})
+      const l = this.painter._chartToPixel({x: this.lastOpen, y:self.low })
+      const h = this.painter._chartToPixel({x: this.lastOpen, y:self.hi })
+      const m = this.painter._chartToPixel({x: this.lastOpen, y:self.middle })
       
        const p1 = {x:0, y: c.y}
        const p2 = {x:20, y: o.y}
@@ -197,4 +204,5 @@ export  class GapZone  extends MarketZoneBand{
        drawTextOnLine(ctx,{x:10, y: p2.y}, {x:10, y: p1.y}, `${gap.toFixed(0)} (${gapH.toFixed(0)}) %`, "black" , 0 )
     
   }
+       
 }

@@ -325,6 +325,7 @@ async def ohlc_chart(symbol: str, timeframe: str,  limit: Optional[int] = None):
             # live test
             if not limit:
                 limit =config["live_service"]["TIMEFRAME_CHART_CANDLES"][timeframe]
+             
                 logger.info(f"limit {limit}")
             df:pd.DataFrame = await client.ohlc_data(symbol,timeframe,limit)
             df = df.dropna()
