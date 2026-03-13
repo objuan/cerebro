@@ -1,3 +1,9 @@
+export const audioMap = {
+  default : new Audio("/media/alert1.mp3"),
+  chime : new Audio("/media/Notification-alert-chime.mp3"),
+  alert1 : new Audio("/media/dragon-studio-alert-444816.mp3"),
+  news : new Audio("/media/universfield-new-notification-026-380249.mp3")
+} 
 
 export const formatUnixDate = (unixTime) => {
   if (!unixTime) return '...';

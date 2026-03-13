@@ -1,6 +1,7 @@
 //import {  send_post,generateGUID ,send_delete} from '@/components/js/utils.js'; // Usa il percorso corretto
 
-export const handleSize=6
+export const handleSize=7
+export const hitSize=10
 
 const HOVER_COLOR =  '#948d2ab7' 
 
@@ -186,5 +187,5 @@ export function hitLine(mouse, a, b, tolerance = 6){
     }
 
   export function hitHandle(mouse,p){
-      return Math.hypot(mouse.x-p.x, mouse.y-p.y) <= handleSize+2
+      return Math.hypot(mouse.x-p.x, mouse.y-p.y) <= handleSize+4
     }

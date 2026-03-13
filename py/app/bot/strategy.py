@@ -357,9 +357,9 @@ class Strategy:
     
     #######################
 
-    async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str,color):
+    async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str,color, ring=""):
         if not self.backtestMode and not self.bootstrapMode:
-            await self.client.send_event("strategy",symbol,name,small_desc,full_desc,{"color":color})
+            await self.client.send_event("strategy",symbol,name,small_desc,full_desc,{"color":color,"ring": ring})
         else:
             self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
 

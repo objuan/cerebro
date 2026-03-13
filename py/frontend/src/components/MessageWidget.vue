@@ -10,6 +10,7 @@
                 {{ getDate() }}
               </div>
               <div class="title">{{ props.title }}</div>
+              <div v-if="props.ring!='' && props.ring!=null">🔔</div>
             
     </div>
 
@@ -86,7 +87,7 @@ import { ref,onMounted, onUnmounted ,onBeforeUnmount,watch } from 'vue';
 
 //import { send_get } from '@/components/js/utils';
 import { reportStore as report } from "@/components/js/reportStore";
-import { formatValue,priceColor,newsColor,volumeRelColor,color_ramp} from "@/components/js/utils";// scaleColor
+import { formatValue,priceColor,newsColor,volumeRelColor,color_ramp,audioMap} from "@/components/js/utils";// scaleColor
 import { eventBus } from "@/components/js/eventBus";
 
 const props = defineProps({
@@ -98,22 +99,27 @@ const props = defineProps({
 
   text: { type: String, required: false },
   detail: { type: String, required: false },
+  ring: { type: String, required: false ,default:"" },
 });
 
 
 let reportDetails = null // key -> result
 const isNew = ref(true)
 const open = ref(false)
-const audio = ref(null);
-
-audio.value = new Audio("/media/alert1.mp3");
 
 
-const playSound = () => {
-  audio.value.muted = true;
-  audio.value.currentTime = 0;
-  audio.value.play().catch(()=>{});
-  audio.value.muted = false;
+
+const playSound = (ringName) => {
+  console.log("PLAY",ringName)
+
+  let idx = ringName
+  if (ringName== null || ringName =="")
+      idx="default"
+
+  audioMap[idx].muted = true;
+  audioMap[idx].currentTime = 0;
+  audioMap[idx].play().catch(()=>{});
+  audioMap[idx].muted = false;
 };
 
 
@@ -222,17 +228,25 @@ const checkNew = () => {
   } else {
     isNew.value = false
   }
+  return   isNew.value 
 }
 
 
 
 onMounted( async () => {
-   checkNew();
-  // console.log(props.title)
-   if (props.title =="ALARM")
-      playSound()
-    if (props.title.startsWith("NEW"))
-      playSound()
+   const _isNew = checkNew();
+  if (_isNew== true)
+  {
+        if (props.ring!='' && props.ring!=null){
+          playSound(props.ring)
+        }
+        else{
+          if (props.title =="ALARM")
+              playSound()
+            if (props.title.startsWith("NEW"))
+              playSound()
+        }
+  }
     
 });
 

@@ -62,6 +62,7 @@
           :text="event.data.small_desc"
           :detail="event.data.full_desc"
           :color="event.data.color"
+          :ring="event.data.ring"
         >
       </MessageWidget>
     </div>

@@ -13,6 +13,20 @@ from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
 
+class COPY(Indicator):
+  
+    def __init__(self,target_col, source:str):
+        super().__init__([target_col])
+        self.source=source
+        self.target_col=target_col
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+        
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source].to_numpy()
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            dest[symbol_idx[i_idx]] = source[symbol_idx[i_idx]]
 
 class GAIN(Indicator):
   
@@ -181,11 +195,40 @@ class TradeStrategy(SmartStrategy):
         self.eta= self.params["eta"]
         self.min_gain= self.params["min_gain"]
         self.metaInfo = {}
+
+        self.buyMap = {}
         pass
 
     def extra_dataframes(self)->List[str]:
         return ['1d']
 
+    def buy(self,symbol,price, quantity,time,label=""):
+        if not symbol in self.buyMap :
+             self.buyMap[symbol] = {}
+
+        if not self.buyMap[symbol]:
+            super().buy(symbol,label)
+            self.buyMap[symbol] = {"price": price, "quantity": quantity,"time": time}
+
+    def buyGain(self,symbol,close):
+        if symbol in self.buyMap and self.buyMap[symbol]:   
+            buy_price = self.buyMap[symbol]["price"]
+            return 100.0 * (close- buy_price) / buy_price
+        else:
+            return 0
+
+    def sell(self,symbol,price, quantity,time,label=""):
+
+        if symbol in self.buyMap and self.buyMap[symbol]:
+            buy_data =  self.buyMap[symbol]
+            #logger.info(f"SELL .. {buy_data}")
+            logger.info(f"SELL {symbol} time{time} gain {self.buyGain(symbol, price)}" )
+            self.buyMap[symbol] = {}
+            self.add_marker(symbol, "SPOT", label, "#FF0000", "square")
+
+            
+
+            
     def populate_indicators(self) :
      
         sma_20= self.addIndicator(self.timeframe,SMA("SMA_20","close",20))
@@ -201,7 +244,9 @@ class TradeStrategy(SmartStrategy):
 
         max_perc= self.addIndicator(self.timeframe,MAX_ALL("DIFF_ALL","DIFF"))
 
-   
+        day_perc= self.addIndicator(self.timeframe,GAIN("DGAIN","day_volume",1))
+        #day= self.addIndicator(self.timeframe,COPY("D","day_volume"))
+
 
         '''
         gain= self.addIndicator(self.timeframe,GAIN("GAIN","close",1))
@@ -231,7 +276,8 @@ class TradeStrategy(SmartStrategy):
         self.add_plot(sma_200, "SMA_200","#034cd3", "main", style="SparseDotted", lineWidth=2)
         self.add_plot(max, "MAX","#926B00FF", "main", source="MAX",style="Solid", lineWidth=1)
 
-        self.add_plot(diff, "diff","#d30303", "sub1", style="Solid", lineWidth=1)
+        #self.add_plot(day, "day","#d30303", "sub1", style="Solid", lineWidth=1)
+        self.add_plot(day_perc, "day_perc","#0318d3", "sub1", style="Solid", lineWidth=1)
 
         '''
         self.add_plot(sma_200, "SMA_200","#034cd3", "main", source="SMA_200",style="SparseDotted", lineWidth=2)
@@ -263,6 +309,8 @@ class TradeStrategy(SmartStrategy):
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
+        #if not self.backtestMode and not self.bootstrapMode:
+        #     logger.info(f">> {symbol} {local_index} \n{dataframe.columns}" )  
         #if symbol != "ASNS":
         #    return
         if local_index<5:
@@ -276,12 +324,20 @@ class TradeStrategy(SmartStrategy):
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]
 
+   
         #low =  last["low"]
         #high =  last["high"]
+        day_volume = last["day_volume"] # va solo per LIVE
+        day_volume_gain=0
+        if prev["day_volume"]!=0:
+            day_volume_gain = 100.0 * (day_volume -  prev["day_volume"] ) /  prev["day_volume"]
+
         close =  last["close"]
         prev_close =  prev["close"]
 
-        #SMA_200 =  last["SMA_200"]
+      
+
+        SMA_200 =  last["SMA_200"]
         SMA_20 =  last["SMA_20"]
 
         MAX =  prev["MAX"] 
@@ -289,7 +345,13 @@ class TradeStrategy(SmartStrategy):
         diff_perc =  last["DIFF"] 
         trend =  last["TREND"]
         trend_prev =  prev["TREND"]
-        
+
+        close_sma_gain = 100.0 * ((close - SMA_20 ) /  SMA_20)
+  
+        break_max = close > MAX and prev_close <= MAX
+
+        if abs(self.buyGain(symbol,close))>10:
+            self.sell(symbol,close,100,last["datetime"],"SELL")
         #trend_norm = 1 - np.exp(-trend / 20)
         #slope = (SMA_20 - dataframe.iloc[local_index-5]["SMA_20"]) / SMA_20
         #slope_norm = np.tanh(slope * 20)
@@ -311,6 +373,28 @@ class TradeStrategy(SmartStrategy):
                 if (diff_perc< 5):
                    self.buy(symbol,f"{trend_strength:.1f}")
         '''
+
+        if day_volume_gain>10 and day_volume > 100000:
+            if (SMA_20 > SMA_200 and prev["SMA_20"]
+                and close > SMA_20 and diff_perc < 5  ):
+                    self.buy(symbol,close, 100,last["datetime"] ,"VOL")
+
+        #####
+        if day_volume_gain>10 and day_volume > 100000:
+             await self.send_event(symbol, "VOL", f"VOL 10",f"VOL 10%",color="#10A02F", ring="news")
+
+        #SMA CROSS
+        if day_volume > 1_000_000:
+            if (SMA_20 > SMA_200 and prev["SMA_20"] <= prev["SMA_200"]
+                and   SMA_200 > prev["SMA_200"]):
+                await self.send_event(symbol, "SMA", f"SMA CR",f"SMA over ",color="#0A6FF3", ring="news")
+
+            if (break_max ):
+                if close < SMA_200:
+                    await self.send_event(symbol, "MAX", f"max cross <",f"max over ",color="#31F30A", ring="alert1")
+                else:
+                    await self.send_event(symbol, "MAX", f"max cross >",f"max over ",color="#F3A90A", ring="chime")
+
         await self.send_property(symbol,self.timeframe , 
                                  {"trend_len": trend if  not pd.isna(trend) else 0,
                                 "trend_perc" :diff_perc if  not pd.isna(diff_perc) else 0,

@@ -1,5 +1,5 @@
 import {  send_post,generateGUID ,send_delete} from '@/components/js/utils.js'; // Usa il percorso corretto
-import {  drawHandle,hitHandle,drawTextOnLine,hitLine,handleSize,drawLine,drawRect} from '@/components/js/chart_draw.js'; // Usa il percorso corretto
+import {  drawHandle,hitHandle,drawTextOnLine,hitLine,hitSize,drawLine,drawRect} from '@/components/js/chart_draw.js'; // Usa il percorso corretto
 
 
 
@@ -10,6 +10,7 @@ export class Primitive {
        this.virtual=false
        this.style ="solid"
        this.alarms=[]
+       this.isTradeMarker = false
   }
   end(){
      this.onEnd()
@@ -86,12 +87,14 @@ export class Primitive {
 
 export class Handle  extends Primitive{
 
-  constructor(painter, parent){
+  constructor(painter, parent, direction=""){
     super(painter)
     this.type = "handle"
+    this.direction=direction
     this.parent = parent
     this.val = null
     this.isHover = false
+    this.enabled=true
   }
 
   set(p){
@@ -108,17 +111,25 @@ export class Handle  extends Primitive{
     return true
   }
   draw(ctx){
+    if (!this.enabled) return
     const a = this.painter.chartToPixel(this.val)
     drawHandle(ctx, a, this.isHover)
   }
 
   drag(pos){
+    if (!this.enabled) return
+    //console.log(pos)
+    if (this.direction=="H")
+        pos = {x: pos.x, y : this.val.y}
+    if (this.direction=="V")
+        pos = {x: this.val.x, y : pos.y}
     pos = this.parent.filter(this, pos)
     this.val = pos
     this.parent.onChange(this)
   }
 
   pick(pos){
+    if (!this.enabled) return
     const a = this.painter.chartToPixel(this.val)
     this.isHover = hitHandle(pos, a)
     return this.isHover ? this : null
@@ -372,9 +383,9 @@ export  class PriceLine  extends Primitive{
     drawTextOnLine(ctx, from, to , this.getText(),
     "black", 6, "right" , this.color, 1,"13px Arial")
 
-    if(this.isHover){
+    //if(this.isHover){
       this.p.draw(ctx)
-    }
+    //}
 
      if (this.hasAlarm()){
       drawTextOnLine(ctx,from,to,"🔔","white",10,"center")
@@ -389,7 +400,10 @@ export  class PriceLine  extends Primitive{
     this.isHover = false
 
     if(hitLine(pos, from,to))
+    {
+    
       this.isHover = true
+    }
 
     if(this.p.pick(pos)) return this.p
     if(this.isHover) return this
@@ -492,8 +506,10 @@ export  class Box  extends Primitive{
     const y1 = Math.min(a.y, b.y)
     const y2 = Math.max(a.y, b.y)
 
-    if(pos.x >= x1-handleSize && pos.x <= x2+handleSize 
-      && pos.y >= y1-handleSize && pos.y <= y2+handleSize){
+   // console.log(x1,x2,y1,y2)
+
+    if(pos.x >= x1-hitSize && pos.x <= x2+hitSize 
+      && pos.y >= y1-hitSize && pos.y <= y2+hitSize){
       this.isHover = true
     }
 
@@ -569,8 +585,10 @@ export  class SplitBox  extends Box{
    constructor(painter){
     super(painter)
     this.type = "split-box"
+    this.top_left.direction="V"
     this.center_left = new Handle(painter, this)
-    this.center_right = new Point(painter, this)
+    this.center_right = new Handle(painter, this,"H")
+    this.bottom_left = new Handle(painter, this,"V")
   }
    props(){
     return [
@@ -581,31 +599,63 @@ export  class SplitBox  extends Box{
    serialize(){
      let ser = super.serialize()
      ser.center_left = this.center_left.val
-      return ser;
+     ser.bottom_left = this.bottom_left.val
+     ser.center_right = this.center_right.val
+     return ser;
   }
   fromSerial(data){
       super.fromSerial(data)
       this.center_left.val = data.center_left
+      this.bottom_left.val = data.bottom_left
+      this.center_right.val = data.center_right
       this.update()
   }
   drag(p2){
     super.drag(p2)
     this.center_left.set({ x: this.top_left.val.x , y:this.compute_middleY()} )
+    this.bottom_left.set({ x: this.top_left.val.x , y:p2.y} )
     this.update()
   }
   onChange(handle){
-    //console.log("onChange",handle )
+  //  console.log("onChange",handle )
     if (handle == this.top_left){
         this.center_left.set( 
           { x: this.top_left.val.x ,
            y:this.center_left.val.y} )
+        this.bottom_left.set( 
+          { x: this.center_left.val.x , y:this.bottom_right.val.y} )
+
+    }
+     if (handle == this.bottom_right){
+        this.center_right.set(
+        { x: this.bottom_right.val.x , y:this.center_left.val.y} )   
+
+         this.bottom_left.set(
+        { x: this.bottom_left.val.x , y:this.bottom_right.val.y} )  
+    }
+    if (handle == this.bottom_left){
+       this.bottom_right.set( 
+          { x: this.bottom_right.val.x , y:this.bottom_left.val.y} )
+
     }
      if (handle == this.center_left){
         this.top_left.set( 
-          { x: this.center_left.val.x ,
-           y:this.top_left.val.y} )
+          { x: this.center_left.val.x , y:this.top_left.val.y} )
+
+        this.center_right.set(
+        { x: this.bottom_right.val.x , y:this.center_left.val.y} )   
+
+        this.bottom_left.set( 
+          { x: this.center_left.val.x , y:this.bottom_right.val.y} )
+
     }
-    this.update()
+    if (handle == this.center_right){
+        this.bottom_right.set( 
+          { x: this.center_right.val.x , y:this.bottom_right.val.y} )
+
+       
+    }
+    //this.update()
   }
   compute_middleY(){
     const p1 = this.top_left
@@ -616,13 +666,24 @@ export  class SplitBox  extends Box{
     return y_min+ (y_max-y_min)/2
   }
   update(){
+   // console.log("update")
       this.center_right.set(
-        { x: this.bottom_right.val.x , y:this.center_left.val.y} )     
+        { x: this.bottom_right.val.x , y:this.center_left.val.y} )    
+      this.bottom_left.set(
+        { x: this.top_left.val.x , y:this.bottom_right.val.y} )     
   }
   pick(pos){
-    if(this.center_left.pick(pos)) return this.center_left
-
-    return super.pick(pos)
+    //console.log("bottom_left" , this.bottom_left.val, this.bottom_right.val)
+    const h = super.pick(pos)
+    if (h == this) 
+    {
+        if(this.center_left.pick(pos)) return this.center_left
+        if(this.center_right.pick(pos)) return this.center_right
+        if(this.bottom_left.pick(pos))  return this.bottom_left
+        return h;
+    }
+    return h;
+    
   }
    draw(ctx){
       super.draw(ctx)
@@ -644,6 +705,9 @@ export  class SplitBox  extends Box{
 
      if(this.isHover){
       this.center_left.draw(ctx)
+      this.bottom_left.draw(ctx)
+      this.center_right.draw(ctx)
+      
     }
       if (this.hasAlarm()){
       drawTextOnLine(ctx,m_l,m_r,"🔔","white",10,"center")
@@ -686,7 +750,7 @@ export  class MisureBox  extends Box{
       else
         gain = 100 * ((p_to - p_from) / p_from)
 
-      console.log("MISURE",p_from,p_to)
+     // console.log("MISURE",p_from,p_to)
 
       const a = { x: rect.t_l.x, y : rect.t_r.y - 20}
       drawRect(ctx,a, rect.t_r, this.color,"#33333313")
@@ -708,6 +772,7 @@ export  class  TradeBox  extends SplitBox{
     this.risk_txt = ".."
     this.tradeMarkerData={}
     this.trade_mode={}
+    this.isTradeMarker = true
     this.clearLiveMarkerMode()
   }
    buy_price_op(){
@@ -831,6 +896,8 @@ export  class  TradeBox  extends SplitBox{
       this.top_left.draw(ctx)
       this.bottom_right.draw(ctx)
       this.center_left.draw(ctx)
+      this.center_right.draw(ctx)
+      this.bottom_left.draw(ctx)
     }
 
    if (this.hasAlarm()){
@@ -849,6 +916,7 @@ export class TradeSingle extends PriceLine{
     this.trade_quantity_ref=painter.trade_quantity_ref
     this.tradeMarkerData={}
     this.clearLiveMarkerMode()
+     this.isTradeMarker = true
     console.log("TradeSingle")
   }
     onEnd(){

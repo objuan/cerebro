@@ -126,7 +126,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     chartCanvas:null,
     running:false,
 
-    tradeBoxHandler: {change : null, delete : null},
+    tradeBoxHandler: {add: null, change : null, delete : null},
     //
     trade_quantity_ref : trade_quantity_ref,
     trade_RR_ref : trade_rr
@@ -144,6 +144,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     ,_private__mouseMoveHandler(e){
          if (!this.isPaintEvent())
           {
+            //console.log("MOVE")
              const _new_selected = this.pick(this.getMouse(e));
              if (_new_selected != this.selected){
                 this.selected = _new_selected
@@ -248,6 +249,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     // ==========================
     ,setData(data){
       this.data=data
+      console.log("setData",data)
     }
     ,getData(){
       return this.data;
@@ -256,9 +258,12 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       if (this.data)
       {
         this.data.push(candle)
+        console.log("pushData",this.data)
+
        this.primitives.forEach((p)=>{
             p.onDataChanged(this.data)
         })
+        this.safeRedraw()
     }
     }
     /*
@@ -390,7 +395,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       const  x = tickPx/2 + ts.logicalToCoordinate(vr.from) + (pos.x-vr.from ) * barSpacing;
       const y = this.series.priceToCoordinate(pos.y);
 
-     // console.log(pos)
+      //console.log(pos,x,y)
 
       return { x, y };
     }
@@ -469,8 +474,15 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       const a =  {min: rect.width -40 ,      max : rect.width} 
       return a;
     }
-     // =========
-
+     // =========================================
+    , onTradeBoxAdded(tradeBox){
+        //console.log("tradeBox",tradeBox)
+         this.tradeBoxHandler.add(tradeBox)
+    }
+    ,subscribeTradeBoxAdded(handler)
+    {
+       this.tradeBoxHandler.add=handler
+    }
     ,subscribeTradeBoxChanged(handler)
     {
        this.tradeBoxHandler.change=handler
@@ -481,9 +493,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     }
     ,getTradeBox()
     {
-        return this.primitives.find(p => p.type === "trade-box"
-          ||  p.type === "buy-above"  ||  p.type === "buy-below"
-        );
+        return this.primitives.find(p => p.isTradeMarker  );
     }
     ,updateTradeMarker(tradeMarkerData)
     {
@@ -506,6 +516,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       this.redraw()
        
     }
+    // =========================================
     ,createVirtualVLine(timeIndex,color){
         const line = this.create("vline")
         line.color=color
@@ -602,10 +613,16 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     }
     ,onMouseUp(){
       this.drawing=false
+      let newTradeBox=null;
+      let delTradeBox=null;
       if (this.new_primitive) 
       {
+        if (this.new_primitive.isTradeMarker)
+        {
+            delTradeBox = this.getTradeBox()
+            newTradeBox = this.new_primitive.isTradeMarker
+        }
         this.new_primitive.end()
-        console.log("ADD")
         this.primitives.push(this.new_primitive)
       }
       this.new_primitive=null
@@ -614,9 +631,14 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       }
       this.edit =null
       this.end()
-      this.redraw()
-      this.redraw()
-    
+
+      if (newTradeBox){
+          if (delTradeBox)
+            delTradeBox.delete()
+
+          this.onTradeBoxAdded(newTradeBox)
+      }
+      this.safeRedraw()    
     }
     ,onDelete(guid){
       //console.log( this.primitives)

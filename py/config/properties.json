@@ -10,8 +10,8 @@
   },
   "chart": {
     "1": {
-      "grid": "1_2",
-      "symbol": "ACXP",
+      "grid": "1_1",
+      "symbol": "QNTM",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -40,10 +40,10 @@
       "1_2": {
         "2": {
           "timeframe": "5m",
-          "legend": true
+          "legend": false
         },
         "1": {
-          "legend": true,
+          "legend": false,
           "timeframe": "1m"
         }
       }
@@ -283,7 +283,7 @@
       "mode": "DIRECT"
     },
     "DLXY": {
-      "mode": "DIRECT"
+      "mode": "MARKER"
     },
     "AIFF": {
       "quantity": 300,
@@ -296,7 +296,8 @@
       "quantity": 500
     },
     "TURB": {
-      "quantity": 100
+      "quantity": 300,
+      "mode": "DIRECT"
     },
     "PRSO": {
       "quantity": 100
@@ -321,7 +322,7 @@
       "quantity": 300
     },
     "COOT": {
-      "quantity": 100
+      "quantity": 300
     },
     "SKYE": {
       "quantity": 300
@@ -348,6 +349,39 @@
       "quantity": 100
     },
     "SXTP": {
+      "quantity": 100
+    },
+    "SAFX": {
+      "mode": "MARKER",
+      "quantity": 100
+    },
+    "POLA": {
+      "mode": "MARKER",
+      "quantity": 100
+    },
+    "AGRZ": {
+      "quantity": 300,
+      "mode": "DIRECT"
+    },
+    "FOSL": {
+      "quantity": 100
+    },
+    "LCUT": {
+      "quantity": 100
+    },
+    "VRA": {
+      "quantity": 100
+    },
+    "TTGT": {
+      "quantity": 100
+    },
+    "QNTM": {
+      "quantity": 100
+    },
+    "IBG": {
+      "quantity": 100
+    },
+    "RIME": {
       "quantity": 100
     }
   },

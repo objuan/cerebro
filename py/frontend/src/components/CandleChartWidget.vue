@@ -94,32 +94,32 @@
 
               </td>
               <td>
-                     <div class="button_bar">
+                 <div class="button_bar">
 
-           
-              <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-                  @click="painter?.setMode('trade-box')">
-                T
-              </button>
-               <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-                  @click="painter?.setMode('buy-above')">
-                U
-              </button>
-                <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-                  @click="painter?.setMode('buy-below')">
-                D
-              </button>
-                <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-                @click="painter.redraw()">
-                refresh
-              </button>
-                <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-                @click="clearStrategyIndicators(context())">
-                Clear
-              </button>
-              <span>
-                mode {{  painter?.drawMode }}
-              </span>
+              
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('trade-box')">
+                    📈
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Buy Above" 
+                      @click="painter?.setMode('buy-above')">
+                    🛒⬆
+                  </button>
+                    <button  class="btn btn-sm btn-outline-warning ms-1"  title="Buy Below" 
+                      @click="painter?.setMode('buy-below')">
+                    🛒⬇
+                  </button>
+                    <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                    @click="painter.redraw()">
+                    🔄
+                  </button>
+                    <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                    @click="clearStrategyIndicators(context())">
+                    Clear
+                  </button>
+                  <span>
+                    mode {{  painter?.drawMode }}
+                  </span>
         
               
             </div>
@@ -817,6 +817,7 @@ async function set_marker_trade(){
     liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
     handleRefresh (false);
 }
+
 async function delete_marker_trade(){
      let ret = await send_delete("/api/trade/marker/delete", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value}); 
      console.log("trade delete",ret)  
@@ -827,6 +828,13 @@ async function delete_marker_trade(){
      painter.updateTradeMarker(tradeMarkerData)
      //updateTradeMarker(context(),tradeMarkerData)
      handleRefresh (false);
+}
+
+// ==================================
+
+async function onTradeBoxAdded(tradeBox){
+  console.log("onTradeBoxAdded", tradeBox)
+  set_marker_trade()
 }
 
 async function onTradeBoxChanged(){
@@ -948,6 +956,7 @@ onMounted(  () => {
  // console.log("onMounted")
 
   painter =  createPainter(context(),mainChartRef,overlay, trade_quantity)
+  painter.subscribeTradeBoxAdded(onTradeBoxAdded)
   painter.subscribeTradeBoxChanged(onTradeBoxChanged)
   painter.subscribeTradeBoxDeleted(onTradeBoxDeleted)
 
@@ -1283,22 +1292,22 @@ function on_candle(c)
 
       //painter.pushLastDataTime(c.ts,painter.dataLen+1)
       updateStrategyIndicators(context(),
-          currentSymbol.value, currentTimeframe.value,c.ts- 1000*100);
-
-          painter.redraw()
+            currentSymbol.value, currentTimeframe.value,c.ts- 1000*100);
     }
 
-    
    // console.log("new_value",c)
+  series.update(new_value);
 
     updateVolumeData(series,{
                 time: window.db_localTime(c.ts),
                 volume: c.v
     })
 
-    series.update(new_value);
     
-        painter.pushData(new_value)
+    
+    if (last_time != c.ts)
+    {
+      painter.pushData(new_value)
 
       last_time = c.ts
      
@@ -1308,6 +1317,7 @@ function on_candle(c)
         //console.log("update ind",ind.name,ind.refresh)
         
       }); 
+    }
    // console.log(c)
    // TEST
     //updateStrategyIndicators(c.ts- 1000*100);
@@ -1463,8 +1473,8 @@ defineExpose({
   border-radius: 6px;
 }
 .button_bar button {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
 }
 .trade_bar{

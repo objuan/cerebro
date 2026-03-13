@@ -29,11 +29,11 @@ try{
       if (!this.data || this.data.length === 0)
       return
     
-    const TIME_ZONE_OFFSET = 6 * 60
+    const TIME_ZONE_OFFSET = 0
     const DAY_MINUTES = 1440
 
-    const min_open = 9 * 60 + 30
-    const min_close = 16 * 60
+    const min_open = 15* 60 + 30
+    const min_close = 22 * 60
 
     let zone = ""
     let old_zone = "close"
@@ -46,15 +46,19 @@ try{
 
     for (let i = 0; i < this.data.length; i++) {
 
-      const t = this.data[i].time
+      const t = this.data[i].time 
 
       if (!t) continue
 
+     
       idx++
 
       // minuti UTC senza Date()
       let minutes = Math.floor(t / 60) % DAY_MINUTES
       minutes -= TIME_ZONE_OFFSET
+
+      // console.log(minutes,minutes/60)
+
 
       if (minutes < 0)
         minutes += DAY_MINUTES
@@ -98,6 +102,8 @@ try{
       to: idx,
       zone: old_zone
     })
+
+    console.log("zoneIndex",this.zoneIndex)
   }
      catch (ex){
         console.error(ex)
@@ -118,7 +124,7 @@ try{
           const p1 = {x:f.x, y: from.y}
           const p2 = {x:t.x, y: to.y}
           
-        // console.log(".:",p1,p2)
+      //   console.log(".:",zone.from,zone.to,p1,p2)
 
           drawRect(ctx,p1,p2, this.colors[zone.zone],
             this.colors[zone.zone],false,"solid"

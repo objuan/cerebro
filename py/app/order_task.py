@@ -455,7 +455,7 @@ class OrderTaskManager:
 
                             rules = [x for x in actions if x["step"] == step]
 
-                            logger.info(f"VALID {rules}" )
+                            logger.info(f"VALID {symbol} {rules}" )
 
                             for rule in rules:
                                 op = rule["op"]

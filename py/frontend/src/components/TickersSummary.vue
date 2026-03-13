@@ -121,7 +121,7 @@
             </tr>
           <tr style="height : 30%">
               <td class="volume" :style="{ color: rangeColor(item.strategy.get(item.symbol,'1m','TRADE')?.trend_perc*10,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 0, b: 255 }) }">
-                  {{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc.toFixed(1)}}({{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc_all.toFixed(1)}})%
+                  {{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc.toFixed(0)}}({{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc_all.toFixed(0)}})%
               </td>
               <td class="volume" :style="{ color: rangeColor(item.strategy.get(item.symbol,'1m','TRADE')?.trend_len,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 0, b: 255 }) }">
                   #{{item.strategy.get(item.symbol,"1m","TRADE")?.trend_len}}
