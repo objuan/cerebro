@@ -2,7 +2,17 @@
 import {  Primitive} from '@/components/js/chart_primitives.js'; // Usa il percorso corretto
 import { drawLine, drawRect, drawTextOnLine } from './chart_draw';
 //import {  drawHandle,hitHandle,drawTextOnLine,hitLine,handleSize,drawLine,drawRect} from '@/components/js/chart_draw.js'; // Usa il percorso corretto
+import { localUnixToUtc } from '@/components/js/utils.js'; // Usa il percorso corretto
 
+function getTimeZoneOffsetNY() {
+    const now = new Date()
+
+    const ny = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }))
+    const local = new Date(now.toLocaleString("en-US"))
+
+    const offsetMinutes = (local - ny) / 60000
+    return offsetMinutes  // ?? ?
+}
 
 export  class MarketZoneBand  extends Primitive{
 
@@ -29,17 +39,20 @@ try{
       if (!this.data || this.data.length === 0)
       return
     
-    const TIME_ZONE_OFFSET = 0
+    const TIME_ZONE_OFFSET = getTimeZoneOffsetNY()
+    //console.log("TIME_ZONE_OFFSET",TIME_ZONE_OFFSET)
     const DAY_MINUTES = 1440
 
     // LOCAL UTC
-    const min_open = 14* 60 + 30
-    const min_close = 21 * 60
+    const min_open = 9* 60 + 30
+    const min_close = 16 * 60
 
     let zone = ""
     let old_zone = "close"
-    let time = -1
+    let local_time = -1
+    let ny_time = -1
     let old_time = -1
+    let utc_time = -1;
     let idx=0
 
     this.zoneIndex = []
@@ -49,17 +62,17 @@ try{
     for (let i = 0; i < this.data.length; i++) {
       
       // UTC TIME
-      time = this.data[i].time 
+      local_time = this.data[i].time 
+      ny_time = local_time-TIME_ZONE_OFFSET*60
 
-      if (!time) continue
+      if (!local_time) continue
 
       // minuti UTC senza Date()
-      let minutes = Math.floor(time / 60) % DAY_MINUTES
-      minutes -= TIME_ZONE_OFFSET
-
+      let minutes = Math.floor(ny_time / 60) % DAY_MINUTES
+      local_time = local_time *1000
+      
       // console.log(minutes,minutes/60)
-      time=time*1000
-
+    
       if (minutes < 0)
         minutes += DAY_MINUTES
 
@@ -71,24 +84,30 @@ try{
         zone = "after"
 
       if (zone !== old_zone) {
-
+        utc_time = localUnixToUtc(local_time)
         if (old_time !== -1) {
 
           if (zone === "after")
+          {
             this.lastClose = i
+          // console.log("after", this.data[i],local_time,ny_time)
+          }
 
           if (zone === "open")
+          {
             this.lastOpen = i
+          //  console.log("OPEN", this.data[i],local_time,ny_time)
+          }
 
           this.zoneIndex.push({
             from: old_time,
-            to: time,
+            to: utc_time,
             zone: old_zone
           })
         }
 
         old_zone = zone
-        old_time = time
+        old_time = utc_time
       }
     }
 
@@ -102,7 +121,7 @@ try{
 
     this.zoneIndex.push({
       from: old_time,
-      to: time,
+      to: local_time,
       zone: old_zone
     })
 
@@ -121,7 +140,7 @@ try{
       const to = {x:this.painter.getPriceBand().max, y: this.painter.geHeight()}
 
       this.zoneIndex.forEach( (zone)=>{
-       // console.log("zone",zone)
+        // console.log("zone",zone)
 
           const f = this.painter.logicalToPixel({t: zone.from, y:0})
           const t = this.painter.logicalToPixel({t: zone.to, y:0})
@@ -160,6 +179,9 @@ export  class GapZone  extends MarketZoneBand{
       let M = -99999999
       if (this.lastClose)
       {
+       // console.log("close",this.data[this.lastClose])
+       // console.log("open",this.data[this.lastOpen])
+
         for (var i = this.lastClose ; i<= this.lastOpen;i++)
         {
             m = Math.min(m, this.data[i].low)

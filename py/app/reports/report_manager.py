@@ -176,7 +176,7 @@ class ReportManager:
             #  symbol  last_close  last   volume  ask  bid  gain  ts   datetime
             df_tickers = self.job.getTickersDF()
 
-            meta_info = self.db.db_dataframe("1m").get_df_meta()
+            meta_info = MetaInfo.get_df()
 
             #logger.info(f"Tickers \n{df_tickers}")
 
@@ -278,8 +278,8 @@ class ReportManager:
             if "gap" in meta_info:# and isLiveZone:
                 #logger.info("open_price")
 
-                df = df.merge(  meta_info[["symbol","gap"]], on="symbol",    how="left")
-
+                #df = df.merge(  meta_info[["symbol","gap"]], on="symbol",    how="left")
+                df["gap"] =  df["gain"] 
             else:
                 df["gap"] =  df["gain"] 
             

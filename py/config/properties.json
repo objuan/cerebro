@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "VEEE",
+      "symbol": "AGRZ",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -39,7 +39,7 @@
       },
       "1_2": {
         "2": {
-          "timeframe": "5m",
+          "timeframe": "15m",
           "legend": false
         },
         "1": {
@@ -84,6 +84,9 @@
       "indicator": {
         "1m": "aa"
       }
+    },
+    "start_len": {
+      "1m": 1431.7272727272725
     }
   },
   "event": {
@@ -386,6 +389,18 @@
     },
     "VEEE": {
       "quantity": 300
+    },
+    "CJMB": {
+      "quantity": 100
+    },
+    "CYN": {
+      "quantity": 100
+    },
+    "WNW": {
+      "quantity": 100
+    },
+    "DFLI": {
+      "quantity": 100
     }
   },
   "back": {

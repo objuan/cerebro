@@ -6,6 +6,7 @@ from bot.indicators import *
 from bot.strategy import SmartStrategy
 from company_loaders import *
 from collections import deque
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -109,13 +110,13 @@ class OrderBook:
         self.orders = []
         self.trades = []
         self.position = position
-        self.currentOrder=None
+        self.currentOrder={}
 
     def lastOrder(self):
         return self.orders[-1] if self.orders else None
     
-    def hasCurrentTrade(self):
-        return self.currentOrder
+    def hasCurrentTrade(self,symbol):
+        return symbol in self.currentOrder
 
     def long(self, symbol, price, quantity, label):
 
@@ -123,7 +124,7 @@ class OrderBook:
 
             order = Order(symbol, "long", price, quantity, label)
             self.orders.append(order)
-            self.currentOrder = order
+            self.currentOrder[symbol] = order
             return order
 
     def short(self, symbol, price, quantity, label):
@@ -150,7 +151,7 @@ class OrderBook:
 
         self.position.close(symbol, price)
 
-        self.currentOrder = None
+        del self.currentOrder[symbol]
 
     def report(self):
 
@@ -170,6 +171,7 @@ class OrderBook:
             if losses else 0
         )
 
+        # -------- REPORT GLOBALE --------
         report = {
             "start_budget": self.position.start_budget,
             "final_equity": self.position.equity(),
@@ -182,6 +184,38 @@ class OrderBook:
             "avg_loss": avg_loss,
             "profit_factor": profit_factor
         }
+
+        # -------- REPORT PER SYMBOL --------
+        trades_by_symbol = defaultdict(list)
+
+        for t in self.trades:
+            trades_by_symbol[t.symbol].append(t)
+
+        symbol_report = {}
+
+        for symbol, trades in trades_by_symbol.items():
+
+            wins = [t for t in trades if t.pnl() > 0]
+            losses = [t for t in trades if t.pnl() <= 0]
+
+            pnl_total = sum(t.pnl() for t in trades)
+
+            symbol_report[symbol] = {
+                "trades": len(trades),
+                "wins": len(wins),
+                "losses": len(losses),
+                "win_rate": len(wins) / len(trades) if trades else 0,
+                "total_pnl": pnl_total,
+                "avg_gain": sum(t.pnl() for t in wins) / len(wins) if wins else 0,
+                "avg_loss": sum(t.pnl() for t in losses) / len(losses) if losses else 0,
+                "profit_factor": (
+                    sum(t.pnl() for t in wins) /
+                    abs(sum(t.pnl() for t in losses))
+                    if losses else 0
+                )
+            }
+
+        report["by_symbol"] = symbol_report
 
         return report
 ##################################
@@ -226,15 +260,20 @@ class BackStrategy(_BackStrategy):
         pass
 
     def populate_indicators(self) :
+        
         self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=self.eta))
 
-        self.addIndicator(self.timeframe,SMA_INT("sma_9","close",timeperiod=9))
-        self.addIndicator(self.timeframe,SMA_INT("sma_20","close",timeperiod=20))
+        self.addIndicator(self.timeframe,SMA("sma_9","close",timeperiod=9))
+        self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
 
 
     async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
-        
+
+       
+    
         #logger.info(f"on_symbol_candles   {symbol} \n {dataframe.tail(2)}" )
+
+    
         time = dataframe.iloc[-1]["timestamp"]
         close = dataframe.iloc[-1]["close"]
         sma_9 = dataframe.iloc[-1]["sma_9"]
@@ -242,10 +281,10 @@ class BackStrategy(_BackStrategy):
 
         #logger.info(f"{symbol} {sma_9} {sma_20}")
 
-        if (sma_9 > sma_20 and not self.book.hasCurrentTrade()):
+        if (sma_9 > sma_20 and not self.book.hasCurrentTrade(symbol)):
             self.buy(symbol, close, "BUY")
 
-        if (sma_9 < sma_20 and self.book.hasCurrentTrade()):
+        if (sma_9 < sma_20 and self.book.hasCurrentTrade(symbol)):
             self.sell(symbol, close, "SELL")
 
         #gain = dataframe.iloc[-1]["gain"]

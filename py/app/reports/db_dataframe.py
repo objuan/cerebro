@@ -43,6 +43,38 @@ class DBDataframe_Symbol:
 
 ######################################
 
+class MetaInfo:
+    _meta = {}
+
+    def clear(sybol):
+        MetaInfo._meta={}
+
+    def get_all(symbol=None):
+        if symbol and not symbol in MetaInfo._meta: return {}
+        if symbol:
+            return MetaInfo._meta[symbol]
+        else:
+            return MetaInfo._meta
+        
+    def get_df():
+        return pd.DataFrame.from_dict(MetaInfo._meta , orient="index")
+
+    def has(symbol,fieldName):
+        if not symbol in MetaInfo._meta: return False
+        return fieldName in MetaInfo._meta[symbol]
+
+    def get(symbol,fieldName, default=None):
+        if not symbol in MetaInfo._meta: return default
+        return MetaInfo._meta[symbol].get(fieldName,default)
+
+    def set(symbol,meta: dict):
+        if not symbol in MetaInfo._meta:
+            MetaInfo._meta[symbol] = {}
+        for k,v in meta.items():
+             MetaInfo._meta[symbol][k] = v
+
+##############
+
 class DBDataframe_TimeFrame:
     def __init__(self,main_df, timeframe):
         #self.symbols=fetcher.live_symbols()
@@ -60,17 +92,24 @@ class DBDataframe_TimeFrame:
         self.TIMEFRAME_CHART_CANDLES =main_df.config["live_service"]["TIMEFRAME_CHART_CANDLES"]  
 
         self.client.on_symbols_update += self._on_symbols_update
-        self.client.on_full_candle_receive += self.mulo_on_candle_receive
+        if timeframe in ["1m", "5m", "10s"]:
+            self.client.on_full_candle_receive += self.mulo_on_candle_receive
 
         #self.on_symbol_added = MyEvent()
         #self.on_symbol_removed = MyEvent()
 
         self.on_row_added = MyEvent()
         self.on_df_last_added = MyEvent()
-        self._meta = {}
+        #self._meta = {}
+
         #if timeframe =="5m":
         #    self.db_1m = main_df.db_dataframe("1m")
         #    self.db_1m.on_row_added+= self.on_1m_row_added
+
+        if timeframe =="15m":
+            self.db_1m = main_df.db_dataframe("5m")
+            self.db_1m.on_row_added+= self.on_1m_row_added
+
        #self.update_symbols()
         #self.update()
 
@@ -85,32 +124,9 @@ class DBDataframe_TimeFrame:
             tf,
             new_df
         )
-    
-    def get_all_meta(self,symbol=None):
-        if symbol and not symbol in self._meta: return {}
-        if symbol:
-            return self._meta[symbol]
-        else:
-            return self._meta
-        
-    def get_df_meta(self):
-        return pd.DataFrame.from_dict(self._meta , orient="index")
-
-    def has_meta(self,symbol,fieldName):
-        if not symbol in self._meta: return False
-        return fieldName in self._meta[symbol]
-
-    def get_meta(self,symbol,fieldName, default=None):
-        if not symbol in self._meta: return default
-        return self._meta[symbol].get(fieldName,default)
-
-    def set_meta(self,symbol,meta: dict):
-        if not symbol in self._meta:
-            self._meta[symbol] = {}
-        for k,v in meta.items():
-             self._meta[symbol][k] = v
 
     async def load_symbols(self, symbols): 
+        logger.info(f"load_symbols {symbols}")
         async def fetch(symbol):
             df = await self.client.history_data([symbol],  self.timeframe, limit=self.TIMEFRAME_CHART_CANDLES[self.timeframe])
             df["symbol"] = symbol  # utile dopo per filtri
@@ -172,9 +188,7 @@ class DBDataframe_TimeFrame:
         return self.df.loc[idxs]
 
     async def _on_candle_receive(self, ticker):
-        symbol = ticker["s"]
         ts = int(ticker["ts"])
-
         row_data = {
                 "symbol": ticker["s"],
                 "timestamp": ts,
@@ -187,6 +201,25 @@ class DBDataframe_TimeFrame:
                 "day_volume":  ticker.get("day_v", 0) or 0,
                 "datetime": pd.to_datetime(ts, unit="ms", utc=True)
             }
+        await self._on_candle_receive_raw(row_data)
+         
+    async def _on_candle_receive_raw(self, row_data):
+        symbol = row_data["symbol"]
+        ts = int(row_data["timestamp"])
+        '''
+        row_data = {
+                "symbol": ticker["s"],
+                "timestamp": ts,
+                "open": ticker["o"],
+                "high": ticker["h"],
+                "low": ticker["l"],
+                "close": ticker["c"],
+                "base_volume":  ticker.get("v", 0) or 0,
+                "quote_volume": (ticker.get("c", 0) or 0) * (ticker.get("v", 0) or 0),
+                "day_volume":  ticker.get("day_v", 0) or 0,
+                "datetime": pd.to_datetime(ts, unit="ms", utc=True)
+            }
+        '''
         if symbol not in self.last_index_by_symbol:
             return
         
@@ -209,16 +242,17 @@ class DBDataframe_TimeFrame:
                 new_row = self.df.loc[last_idx].copy()
                 new_row.update(row_data)
 
-                #logger.info(f"========== APPEND {self.timeframe} ")# \n{new_row}==========")
+                #logger.info(f"========== APPEND {self.timeframe} \n{row_data} \n{new_row}==========")
             
 
                 new_idx = self.df.index.max() + 1
                 self.df.loc[new_idx] = new_row
                 self.last_index_by_symbol[symbol] = new_idx
 
+                #logger.info(f">>  {self.df}")
+
                 await self.on_row_added(row_data)
-                #for s in self.on_df_last_added._handlers:
-                #    await self.submit_df_event(s,self.timeframe,self.get_last_rows())
+                
                 await self.on_df_last_added(self.timeframe,symbol,new_row)#self.get_last_rows())
             except:
                 logger.error(f"ERR", exc_info=True)
@@ -266,64 +300,62 @@ class DBDataframe_TimeFrame:
         try:
             #logger.info(f"DB on_candle_receive {ticker} {self.timeframe}")
             if ticker["tf"] == self.timeframe:
-               
-                #if self.timeframe =="1m":#and ticker["s"] == 'XTKG':
-                if True:
-                    await self._on_candle_receive(ticker)
-
-                    #logger.info(f"last XTKG\n{self.df[self.df['symbol'] == 'XTKG'].tail()}")
-                    '''
-                    logger.info(
-                        "last 5 per symbol\n%s",
-                        self.df.groupby("symbol", group_keys=False).tail(5)
-                    )
-                    '''                            
+                await self._on_candle_receive(ticker)
+                                    
         except:
             logger.error(f"ERROR {ticker}", exc_info=True)
 
-    '''
+    
     async def on_1m_row_added(self,row):
-   
-        #logger.info(f"ALIGN 5m {row}")
-        
-        dt  = row["datetime"] #1773142920000
-             
-        minuti = dt.minute
-        if minuti % 5 == 4:
-            logger.info(f"minuti 5m {minuti}")
+        symbol = row['symbol']
+        df1 = self.db_1m.dataframe(symbol)
+        #logger.info(f"on_1m_row_added {symbol} \n {df1}")
 
-            df_full  = self.db_1m.dataframe(row["symbol"])
-            end_time = row["datetime"]
-            start_time = end_time - timedelta(minutes=4)
+        last = df1.iloc[-1]
+        datetime  = last["datetime"]
+        minute = datetime.minute
+       #logger.info(f"ALIGN {self.timeframe} {row} \n{datetime} minute:{minute}")
+#        if (minute % 5 == 1):
+        if True:
+            secs = TIMEFRAME_SECONDS[self.timeframe]
+            rule = f"{int(secs/60)}min"
 
-            df = df_full[
-                    (df_full["datetime"] >= start_time) &
-                    (df_full["datetime"] <= end_time)
-                ]
+            df = (
+                    df1.set_index("datetime")
+                    .resample(rule)
+                    .agg({
+                        "symbol": "first",
+                        "open": "first",
+                        "high": "max",
+                        "low": "min",
+                        "close": "last",
+                        "quote_volume": "sum",
+                        "base_volume": "sum",
+                        "date": "first",
+                    })
+                    .dropna()
+                    .reset_index()
+                )
+            df["timestamp"] = df["datetime"].astype("int64") // 10**6
+            d = self.df[self.df['symbol']==symbol]
+           # logger.info(f"ALIGN PRIMA \n{d.tail(5)}")
+            #logger.info(f"ALIGN DOPO \n{df.tail(5)}")
 
-            logger.info(f"align\n{df}")
+            if (df.iloc[-1]["timestamp"]> d.iloc[-1]["timestamp"]) : 
+                #logger.info("UPDATE")
 
-            if len(df) == 0:
-                return
-            ts= int(start_time.timestamp())
-            candle_5m = {
-                "s": row["symbol"],
-                "ts": ts,
-                "o": df["open"].iloc[0],
-                "h": df["high"].max(),
-                "l": df["low"].min(),
-                "c": df["close"].iloc[-1],
-                "base_volume": df["base_volume"].sum(),
-                "quote_volume": df["quote_volume"].sum(),
-                "day_volume": df["day_volume"].iloc[-1],
-                 "datetime": pd.to_datetime(ts, unit="ms", utc=True)
-            }
+                new_row = df.iloc[[-1]].reindex(columns=self.df.columns)
 
-            logger.info(f"5m candle {candle_5m}")
+                #logger.info(f" new_row {new_row}")
 
-            await self._on_candle_receive(candle_5m)
+                self.df = pd.concat([self.df, new_row], ignore_index=True)
 
-    '''
+                #logger.info(f" self.df \n{self.df[self.df['symbol']==symbol]}")
+
+
+        #    await self._on_candle_receive_raw(candle_5m)
+
+    
 
     async def _on_symbols_update(self, symbols,to_add,to_remove):
         #logger.info(f"DB reset symbols {symbols} {self.timeframe}")
@@ -433,6 +465,7 @@ class DBDataframe:
             await self.db_dataframe("10s").bootstrap()
             await self.db_dataframe("1m").bootstrap()
             await self.db_dataframe("5m").bootstrap()
+            await self.db_dataframe("15m").bootstrap()
             await self.db_dataframe("1d").bootstrap()
         except:
             logger.error("BOOT ERROR" , exc_info=True)

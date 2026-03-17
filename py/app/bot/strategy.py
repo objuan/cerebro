@@ -51,6 +51,7 @@ class Strategy:
         self.backtestMode=False
         self.bootstrapMode=False
         self.sem = asyncio.Semaphore(20)
+        self._meta = {}
     
     def load(self,strat_def):
         #strat.handler = find_method_local(EventManager,code)
@@ -116,7 +117,7 @@ class Strategy:
 
     async def bootstrap(self):
         
-        self.backtestMode=False #TODO
+       # self.backtestMode=False #TODO
         self.bootstrapMode=True
         logger.info(f"bootstrap {self.__class__} tf:{self.timeframe } backtestMode:{self.backtestMode}")
 
@@ -140,6 +141,11 @@ class Strategy:
             logger.debug(f"END {tf}\n{df.tail(10)}")
 
         # trade
+        df = self.df_map[self.timeframe]
+        #logger.info(f"=========== \n{df}=================")
+        for g_idx, row in df.sort_values("timestamp").iterrows():
+            await self.on_all_candle(df,g_idx)
+
         for symbol, group in self.df_map[self.timeframe].groupby("symbol"):
             #logger.info(f"{symbol} {group.index.tolist()}")
             self.trade_dataframe = group
@@ -216,56 +222,24 @@ class Strategy:
     async def on_df_last_added(self, tf, new_symbol, new_row):
 
 
-        #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} {new_symbol}")
- 
+        #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} {new_symbol} #{len(new_row)} \n{new_row.tail(5)}")
+
+      
         async with self.sem:
             df_tf = self.df_map[tf]
 
+            #logger.info(f"asaaa \n{df_tf}")
+            
             ##aggiungo in fondo
-            new_global_idx = df_tf.index.max() + 1
-            df_tf.loc[new_global_idx] = new_row
-           
-            #rows_to_add = []
-
-            '''
-            for _, row in new_df.iterrows():
-                symbol = row["symbol"]
-                ts = int(row["timestamp"])
-
-                symbol_rows = df_tf[df_tf["symbol"] == symbol]
-                #logger.info(f"symbol_rows {symbol} {ts}")
-                if symbol_rows.empty:
-                    rows_to_add.append(row)
-                else:
-                    last_ts = int(symbol_rows.iloc[-1]["timestamp"])
-
-                    #logger.info(f"last_ts {last_ts}")
-                    
-                    if ts > last_ts:
-                        rows_to_add.append(row)
-            '''
-            #logger.info(f"rows_to_add \n{rows_to_add}")
-
-            #if rows_to_add:
+            if True:
+                new_global_idx = df_tf.index.max() + 1
+                #logger.info(f"new_global_idx {new_global_idx}")
             
-                #add_df = pd.DataFrame(rows_to_add).copy()
+                df_tf.loc[new_global_idx] = new_row
+            else: # non va aggiunge colonne
+                 df_tf = pd.concat([df_tf, new_row])
+                 self.df_map[tf] = df_tf
 
-                #logger.info(f"TO ADD \n {add_df.tail(4)}")
-
-                #from_global_index = df_tf.index.max()
-
-                #ADD NEW
-                #df_tf = pd.concat([df_tf, add_df], ignore_index=True)
-                #self.df_map[tf] = df_tf
-
-                #self._fill_indicators(allMode=False,df=add_df)
-                #TODO BETTER
-                #self._fill_indicators(tf,allMode=True)
-                
-                #last_rows = df_tf.tail(len(rows_to_add))
-            
-            # logger.info(f"ADD FINAL\n{last_rows}")
-                #self._fill_indicators()
 
             self._fill_symbol_indicators( new_symbol, tf,-1)
 
@@ -275,7 +249,7 @@ class Strategy:
 
                     #logger.debug(f"symbols  {symbols}")
     
-                    await self.on_all_candle( self.df_map[self.timeframe],{})
+                    await self.on_all_candle( self.df_map[self.timeframe],new_global_idx )
 
                     for symbol, group in self.df_map[self.timeframe].groupby("symbol"):
                         self.trade_dataframe = group
@@ -289,18 +263,20 @@ class Strategy:
         self.db_df_map[self.timeframe] = self.manager.db.db_dataframe(self.timeframe)
         for tf in self.extra_dataframes():
             self.db_df_map[tf] = self.manager.db.db_dataframe(tf)
-        
+    '''
     def has_meta(self,symbol,field, timeframe=None):
-        return self.manager.db.db_dataframe(timeframe if timeframe else self.timeframe).has_meta(symbol,field)
+        return MetaInfo.has_meta(symbol,field)
     
     def get_meta(self,symbol,field,timeframe=None, defualtValue=None):
-        return  self.manager.db.db_dataframe(timeframe if timeframe else self.timeframe).get_meta(symbol,field,defualtValue)
+        return  MetaInfo.get_meta(symbol,field,defualtValue)
 
     def set_meta(self,symbol,meta:dict,timeframe=None):
-        self.manager.db.db_dataframe(timeframe if timeframe else self.timeframe).set_meta(symbol,meta)
+        #logger.info(f"SET META {symbol} {timeframe}: {meta}")
+       MetaInfo.set_meta(symbol,meta)
 
     def get_all_meta(self,symbol,timeframe=None):
-        return self.manager.db.db_dataframe(timeframe if timeframe else self.timeframe).get_all_meta(symbol)
+        return MetaInfo.get_all_meta(symbol)
+    '''
         
     def df(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
         if timeframe in self.df_map:
@@ -311,7 +287,7 @@ class Strategy:
         else:
             return  pd.DataFrame()
 
-    def df_view(self,timeframe:str, symbol:str, column:str)-> pd.DataFrame:
+    def df_view(self,timeframe:str, symbol:str, column:str)-> np.ndarray:
         if timeframe in self.df_map:
             df = self.df_map[timeframe]
             mask = df["symbol"].to_numpy() == symbol
@@ -323,7 +299,7 @@ class Strategy:
         
            #return self.df_map[timeframe][self.df_map[timeframe]["symbol"] == symbol]
         else:
-            return  pd.DataFrame()
+            return  None
     
     def extra_dataframes(self)->List[str]:
         return []
@@ -332,7 +308,7 @@ class Strategy:
         pass
     
 
-    async def on_all_candle(self, dataframe: pd.DataFrame, metadata: dict) :
+    async def on_all_candle(self, dataframe: pd.DataFrame, global_idx) :
         '''
         call at every main timeframe candle, dataframe is all
         '''
@@ -344,7 +320,7 @@ class Strategy:
         '''
         pass
 
-    async def trade_symbol_at(self,  symbol:str, dataframe: pd.DataFrame,global_index : int, metadata: dict):
+    async def trade_symbol_at(self,  symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         '''
         call at every main timeframe  symbol  candle,dataframe is filtered
         '''
@@ -471,7 +447,8 @@ class SmartStrategy(Strategy):
             d = leg.copy()
             del d["ind"]
             try:
-                d["value"] =   df.iloc[-1] [d["source"]]
+                v = df.iloc[-1][d["source"]]
+                d["value"] = 0 if pd.isna(v) else v
             except:
                 d["value"] =0
             arr.append(d)
@@ -557,3 +534,29 @@ class SmartStrategy(Strategy):
     def add_legend(self, ind:Indicator, source:str,label:str, color:str):
         self.legend.append( {"ind": ind ,"source" : source ,"label" : label, "color" : color})
         pass
+
+    #########
+
+    def get_all_meta(self,symbol=None):
+        if symbol and not symbol in self._meta: return {}
+        if symbol:
+            return self._meta[symbol]
+        else:
+            return self._meta
+        
+    def get_df_meta(self):
+        return pd.DataFrame.from_dict(self._meta , orient="index")
+
+    def has_meta(self,symbol,fieldName):
+        if not symbol in self._meta: return False
+        return fieldName in self._meta[symbol]
+
+    def get_meta(self,symbol,fieldName, default=None):
+        if not symbol in self._meta: return default
+        return self._meta[symbol].get(fieldName,default)
+
+    def set_meta(self,symbol,meta: dict):
+        if not symbol in self._meta:
+            self._meta[symbol] = {}
+        for k,v in meta.items():
+             self._meta[symbol][k] = v

@@ -84,10 +84,10 @@ class BacktestManager:
 
         instance = getattr(module, class_name)
         strategy = instance(self)
-
+        strategy.backtestMode=True
         strategy.load(strat_def)
         self.back_strategies.append(strategy)
-        await strategy.bootstrap(False)
+        await strategy.bootstrap()
 
     def get_strategy_list(self):
         return self.strategies
@@ -152,10 +152,12 @@ class BacktestManager:
                     and timestamp>= {since}
                     and timestamp<= {to}
                     ORDER BY timestamp DESC"""
-                    
+
+        #logger.info(f"query {query}")        
         #print("query",query)
 
         df = pd.read_sql_query(query, conn)
+         
         df = df.iloc[::-1].reset_index(drop=True)
         conn.close()    
         return df 
@@ -200,6 +202,13 @@ GROUP BY symbol;
         cursor.execute(query, (name, json.dumps(data)))
         conn.commit()
         conn.close()
+
+    async def download_data(self, data:BacktestIn):
+        for timeframe in ["1m","5m","1d"]:
+            for symbol in data.symbols:
+                logger.info(f"GET DATA {symbol} {timeframe}")
+                await self.client.send_cmd("/chart/align_data", {"mode":"","symbol" : symbol,"timeframe": timeframe  })
+
     
 
 ###############################
@@ -222,13 +231,28 @@ if __name__ =="__main__":
 
         data = {
             "badgetUSD": 100,
-            "symbols": ["PRSO"],
-            "dt_from": "2026-03-06 01:00:00", # UTC format
-            "dt_to": "2026-03-06 23:59:00",
+            "symbols": ["BIAF"],
+            "symbols1": [
+                    "SAFX",
+                    "DEVS",
+                    "EDHL",
+                    "EEIQ",
+                    "TURB",
+                    "GV",
+                    "VEEE",
+                    "SVCO",
+                    "BTCT",
+                    "CODX",
+                    ],
+            "dt_from": "2026-03-13 08:00:00", # UTC format
+            "dt_to": "2026-03-13 16:59:00",
             "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
         }
 
         backtest = BacktestIn(data)
+
+        ### solo una volta
+        #await manager.download_data(backtest)
 
         strat_def ={
                 "timeframe" : "1m",

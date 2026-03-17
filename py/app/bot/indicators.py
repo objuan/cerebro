@@ -94,10 +94,183 @@ class Indicator:
  
  #################################
 
+class COPY(Indicator):
+  
+    def __init__(self,target_col, source:str):
+        super().__init__([target_col])
+        self.source=source
+        self.target_col=target_col
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+        
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source].to_numpy()
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            dest[symbol_idx[i_idx]] = source[symbol_idx[i_idx]]
+
+class GAIN(Indicator):
+  
+    def __init__(self,target_col, source:str, timeperiod:int):
+        super().__init__([target_col])
+        self.source=source
+        self.target_col=target_col
+        self.timeperiod=timeperiod
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+        
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source].to_numpy()
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            prev = source[symbol_idx[max(0,i_idx -self.timeperiod )]]
+            current = source[symbol_idx[i_idx]]
+            dest[symbol_idx[i_idx]] = 100.0 * (current-prev ) / prev
+
+
+class DIFF_PERC(Indicator):
+  
+    def __init__(self,target_col, source_base:str, source_signal:str):
+        super().__init__([target_col])
+        self.source_base=source_base
+        self.target_col=target_col
+        self.source_signal=source_signal
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+        
+        warmup = max(0, from_local_index )
+
+        dest = dataframe[self.target_col].to_numpy()
+        source_base = dataframe[self.source_base].to_numpy()
+        source_signal = dataframe[self.source_signal].to_numpy()
+
+        for idx in [ symbol_idx[i_idx] for i_idx in range(warmup,len(symbol_idx) )]:
+            dest[idx] = 100.0 * (source_signal[idx] - source_base[idx]) / source_base[idx]
+
+class SMA(Indicator):
+  
+    def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
+        self.source_col=source_col
+        self.target_col=target_col
+        self.window=timeperiod
+    
+ 
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+        
+        
+        #warmup = max(0, from_local_index - self.window + 1)
+        
+       # if symbol == "KALA":
+        #logger.info(f"SMA {symbol} idx #{symbol_idx} from_local_index {from_local_index}")
+
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source_col].to_numpy()
+
+            #logger.info(f"i_idx {range(from_local_index + self.window,len(symbol_idx))}")
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+                    sum=0.0
+                    #logger.info(f"i_idx { range(max(0,i_idx- self.window+1), i_idx+1 )}")
+                    r = range(max(0,i_idx- self.window+1), i_idx+1 )
+                    for j_idx in r:
+                        sum+= source[symbol_idx[j_idx]]
+                    sum=sum/ len(r)
+                    #logger.info(f"sum {i_idx} {symbol_idx[i_idx]}= {sum}")
+                    dest[symbol_idx[i_idx]] =sum
+
+class MAX(Indicator):
+  
+    def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
+        self.source_col=source_col
+        self.target_col=target_col
+        self.window=timeperiod
+    
+ 
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+       
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source_col].to_numpy()
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            m=0.0
+            for j_idx in range(max(0,i_idx- self.window+1), i_idx+1 ):
+                m= max(m,source[symbol_idx[j_idx]])
+            dest[symbol_idx[i_idx]] =m
+
+class MAX_ALL(Indicator):
+  
+    def __init__(self,target_col, source_col:str):
+        super().__init__([target_col])
+        self.source_col=source_col
+        self.target_col=target_col
+ 
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+       
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source_col].to_numpy()
+
+        M = 0
+        if from_local_index>0:
+            M = dest[symbol_idx[from_local_index-1]]
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            M= max(M,source[symbol_idx[i_idx]])
+            dest[symbol_idx[i_idx]] =M
+
+        ########
+
+class TREND_LIMIT(Indicator):
+  
+    def __init__(self,target_col, signal:int, outlier_std=2):
+        super().__init__([target_col])
+        self.target_col=target_col
+        self.signal=signal
+        self.outlier_std = outlier_std
+        self.trend_map={}
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+      
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.signal].to_numpy()
+
+        count = 0
+        if from_local_index>0:
+            count = dest[symbol_idx[from_local_index-1]]
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            if  source[symbol_idx[i_idx]] >0:
+                count=count+1
+            else:
+                count=0
+            dest[symbol_idx[i_idx]] =count
+
+class TOUCH(Indicator):
+    def __init__(self,target_col,trend):
+        super().__init__([target_col])
+        self.target_col=target_col
+        self.self.trend=trend
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+      
+        dest = dataframe[self.target_col].to_numpy()
+        trend = dataframe[self.trend].to_numpy()
+        
+        v_trend_prec = 0 if from_local_index==0 else trend[symbol_idx[i_idx-1]]
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            v_trend = trend[symbol_idx[i_idx]]
+            if v_trend>0 and v_trend_prec==0:
+                 dest[symbol_idx[i_idx]] =1
+            else:
+                 dest[symbol_idx[i_idx]] =0
+            v_trend_prec= v_trend
 
  
 #rolling().mean() → ATR stile SMA (più semplice, meno fedele al classico)
 # usata DA IB
+'''
 class ATR_SMA(Indicator):
 
     def __init__(self, target_col: str, timeperiod: int):
@@ -287,7 +460,7 @@ class EMA(Indicator):
 
         dataframe.loc[group.index[start_pos:],self.target_col] = ema_values
 
-
+'''
 class VWAP(Indicator):
     def __init__(self,target_col, price_name="close"):
         super().__init__([target_col])
@@ -365,7 +538,7 @@ class GAIN(Indicator):
         )
        # logger.info(f"GAIN AFTER \n{dataframe.tail(30)}")
 '''
-
+'''
 class AVG(Indicator):
     def __init__(self,target_col, source_col:str, timeperiod:int):
         super().__init__([target_col])
@@ -588,3 +761,4 @@ class DIFF_PERC(Indicator):
         start = from_local_index - warmup
         idx = sub.index[start:]
         dataframe.loc[idx, self.target_col] = diff.iloc[start:].values  
+'''

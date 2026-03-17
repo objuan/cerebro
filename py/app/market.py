@@ -122,6 +122,8 @@ def parse_time(t: str) -> datetime.time:
     h, m = map(int, t.split(":"))
     return _time(hour=h, minute=m)
 
+########################################
+
 class MarketService:
     def __init__(self,config):
         data = config["markets"]

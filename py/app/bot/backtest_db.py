@@ -126,8 +126,11 @@ class Back_DBDataframe_TimeFrame:
             new_rows = self.all_df.loc[(self.all_df.index > previous_time) & (self.all_df.index <= current_time)]
             if not new_rows.empty:
                 self.filtered_df = pd.concat([self.filtered_df, new_rows])
+                for symbol, group in new_rows.groupby("symbol"):
 
-                await self.on_df_last_added(self.timeframe,new_rows)
+                    #logger.info(f".. {symbol} \n{ group.tail(5) }")
+
+                    await self.on_df_last_added(self.timeframe,symbol, group)
                 #logger.info(f"NEW \n{ new_rows.tail(5) }")
 
             #logger.info(f"\n{ self.filtered_df.tail(10) }")

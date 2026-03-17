@@ -4,6 +4,8 @@ import logging
 from datetime import datetime, timedelta
 from bot.indicators import *
 from bot.strategy import SmartStrategy
+from zoneinfo import ZoneInfo
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,180 +15,8 @@ from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
 
-class COPY(Indicator):
-  
-    def __init__(self,target_col, source:str):
-        super().__init__([target_col])
-        self.source=source
-        self.target_col=target_col
-
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-        
-        dest = dataframe[self.target_col].to_numpy()
-        source = dataframe[self.source].to_numpy()
-
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            dest[symbol_idx[i_idx]] = source[symbol_idx[i_idx]]
-
-class GAIN(Indicator):
-  
-    def __init__(self,target_col, source:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source=source
-        self.target_col=target_col
-        self.timeperiod=timeperiod
-
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-        
-        dest = dataframe[self.target_col].to_numpy()
-        source = dataframe[self.source].to_numpy()
-
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            prev = source[symbol_idx[max(0,i_idx -self.timeperiod )]]
-            current = source[symbol_idx[i_idx]]
-            dest[symbol_idx[i_idx]] = 100.0 * (current-prev ) / prev
-
-
-class DIFF_PERC(Indicator):
-  
-    def __init__(self,target_col, source_base:str, source_signal:str):
-        super().__init__([target_col])
-        self.source_base=source_base
-        self.target_col=target_col
-        self.source_signal=source_signal
-
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-        
-        warmup = max(0, from_local_index )
-
-        dest = dataframe[self.target_col].to_numpy()
-        source_base = dataframe[self.source_base].to_numpy()
-        source_signal = dataframe[self.source_signal].to_numpy()
-
-        for idx in [ symbol_idx[i_idx] for i_idx in range(warmup,len(symbol_idx) )]:
-            dest[idx] = 100.0 * (source_signal[idx] - source_base[idx]) / source_base[idx]
-
-class SMA(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-    
- 
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-        
-        
-        #warmup = max(0, from_local_index - self.window + 1)
-        
-       # if symbol == "KALA":
-        #logger.info(f"SMA {symbol} idx #{symbol_idx} from_local_index {from_local_index}")
-
-        dest = dataframe[self.target_col].to_numpy()
-        source = dataframe[self.source_col].to_numpy()
-
-            #logger.info(f"i_idx {range(from_local_index + self.window,len(symbol_idx))}")
-
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-                    sum=0.0
-                    #logger.info(f"i_idx { range(max(0,i_idx- self.window+1), i_idx+1 )}")
-                    r = range(max(0,i_idx- self.window+1), i_idx+1 )
-                    for j_idx in r:
-                        sum+= source[symbol_idx[j_idx]]
-                    sum=sum/ len(r)
-                    #logger.info(f"sum {i_idx} {symbol_idx[i_idx]}= {sum}")
-                    dest[symbol_idx[i_idx]] =sum
-
-class MAX(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-    
- 
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-       
-        dest = dataframe[self.target_col].to_numpy()
-        source = dataframe[self.source_col].to_numpy()
-
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            m=0.0
-            for j_idx in range(max(0,i_idx- self.window+1), i_idx+1 ):
-                m= max(m,source[symbol_idx[j_idx]])
-            dest[symbol_idx[i_idx]] =m
-
-class MAX_ALL(Indicator):
-  
-    def __init__(self,target_col, source_col:str):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
- 
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-       
-        dest = dataframe[self.target_col].to_numpy()
-        source = dataframe[self.source_col].to_numpy()
-
-        M = 0
-        if from_local_index>0:
-            M = dest[symbol_idx[from_local_index-1]]
-
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            M= max(M,source[symbol_idx[i_idx]])
-            dest[symbol_idx[i_idx]] =M
-
-        ########
-
-class TREND_LIMIT(Indicator):
-  
-    def __init__(self,target_col, signal:int, outlier_std=2):
-        super().__init__([target_col])
-        self.target_col=target_col
-        self.signal=signal
-        self.outlier_std = outlier_std
-        self.trend_map={}
-
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-      
-        dest = dataframe[self.target_col].to_numpy()
-        source = dataframe[self.signal].to_numpy()
-
-        count = 0
-        if from_local_index>0:
-            count = dest[symbol_idx[from_local_index-1]]
-
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            if  source[symbol_idx[i_idx]] >0:
-                count=count+1
-            else:
-                count=0
-            dest[symbol_idx[i_idx]] =count
-
-class TOUCH(Indicator):
-    def __init__(self,target_col,trend):
-        super().__init__([target_col])
-        self.target_col=target_col
-        self.self.trend=trend
-
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-      
-        dest = dataframe[self.target_col].to_numpy()
-        trend = dataframe[self.trend].to_numpy()
-        
-        v_trend_prec = 0 if from_local_index==0 else trend[symbol_idx[i_idx-1]]
-
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            v_trend = trend[symbol_idx[i_idx]]
-            if v_trend>0 and v_trend_prec==0:
-                 dest[symbol_idx[i_idx]] =1
-            else:
-                 dest[symbol_idx[i_idx]] =0
-            v_trend_prec= v_trend
-            
-
+def get_hour_ms(hh, mm):
+    return 1000 * (hh*3600 + mm*60)
 ########################
 
 class TradeStrategy(SmartStrategy):
@@ -194,13 +24,14 @@ class TradeStrategy(SmartStrategy):
     async def on_start(self):
         self.eta= self.params["eta"]
         self.min_gain= self.params["min_gain"]
-        self.metaInfo = {}
 
         self.buyMap = {}
         pass
 
+    '''
     def extra_dataframes(self)->List[str]:
         return ['1d']
+    '''
 
     def buy(self,symbol,price, quantity,time,label=""):
         if not symbol in self.buyMap :
@@ -227,13 +58,12 @@ class TradeStrategy(SmartStrategy):
             self.add_marker(symbol, "SPOT", label, "#FF0000", "square")
 
             
-
-            
     def populate_indicators(self) :
      
         sma_20= self.addIndicator(self.timeframe,SMA("SMA_20","close",20))
         sma_200= self.addIndicator(self.timeframe,SMA("SMA_200","close",200))
-
+        
+        
         diff = self.addIndicator(self.timeframe, DIFF_PERC("DIFF","SMA_200","SMA_20" ))
         gain= self.addIndicator(self.timeframe,GAIN("GAIN","close",1))
 
@@ -245,29 +75,7 @@ class TradeStrategy(SmartStrategy):
         max_perc= self.addIndicator(self.timeframe,MAX_ALL("DIFF_ALL","DIFF"))
 
         day_perc= self.addIndicator(self.timeframe,GAIN("DGAIN","day_volume",1))
-        #day= self.addIndicator(self.timeframe,COPY("D","day_volume"))
-
-
-        '''
-        gain= self.addIndicator(self.timeframe,GAIN("GAIN","close",1))
-
-        
-        sma_200= self.addIndicator(self.timeframe,SMA_INT("SMA_200","close",200))
       
-      
-        sma_200_gain= self.addIndicator(self.timeframe,GAIN("SMA_200_G","SMA_200",1))
-
-        sma_20= self.addIndicator(self.timeframe,SMA_INT("SMA_20","close",20))
-        sma_20_gain= self.addIndicator(self.timeframe,GAIN("SMA_20_G","SMA_20",1))
-
-        sma_9= self.addIndicator(self.timeframe,SMA_INT("SMA_9","close",9))
-        sma_9_gain= self.addIndicator(self.timeframe,GAIN("SMA_9_G","SMA_9",1))
-
-        max= self.addIndicator(self.timeframe,MAX_LIMIT("MAX",60))
-
-        diff = self.addIndicator(self.timeframe, DIFF_PERC("DIFF","SMA_200","SMA_20" ))
-        trend = self.addIndicator(self.timeframe, TREND_LIMIT("TREND","DIFF" ))
-        '''
 
         #self.add_legend(sma_9_gain,"SMA_9_G", "sma9 G", "#034cd3")
         #self.add_legend(sma_20_gain,"SMA_20_G", "sma20 G", "#034cd3")
@@ -282,24 +90,7 @@ class TradeStrategy(SmartStrategy):
         
 
 
-
-        '''
-        self.add_plot(sma_200, "SMA_200","#034cd3", "main", source="SMA_200",style="SparseDotted", lineWidth=2)
         
-        
-        
-        #self.add_plot(sma_9, "SMA_9","#d30303", "main", source="SMA_9",style="SparseDotted", lineWidth=2)
-
-       
-        #self.add_plot(sma_200_gain, "SMAG_200","#034cd3", "sub1", source="SMA_200_G",style="SparseDotted", lineWidth=2)
-        self.add_plot(max, "MAX","#926B00FF", "main", source="MAX",style="Solid", lineWidth=1)
-
-        #self.add_plot(diff, "DIFF","#d30303", "sub1", source="DIFF",style="Solid", lineWidth=1)
-        self.add_plot(trend, "TREND","#d30303", "sub1", source="TREND",style="Solid", lineWidth=1)
-        '''
-     
-    
-
 
     ######################################
     async def send_property(self,symbol:str, timeframe ,  value ):
@@ -310,25 +101,134 @@ class TradeStrategy(SmartStrategy):
             #logger.info(f"send1 {self.backtestMode} {self.bootstrapMode}")
             pass
             #self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
+    
+  
+        
+    def is_in_time(self, dt, from_day_ms, to_day_ms):
+
+        ny = ZoneInfo("America/New_York")
+
+        ny_time = dt.astimezone(ny)
+        today_ny = datetime.now(ny).date()
+
+        if ny_time.date() != today_ny:
+            return ny_time, False
+
+        ms_day = (
+            ny_time.hour * 3600000 +
+            ny_time.minute * 60000 +
+            ny_time.second * 1000 +
+            ny_time.microsecond // 1000
+        )
+
+        return ny_time, (from_day_ms <= ms_day <= to_day_ms)
+
+    async def on_all_candle(self, dataframe: pd.DataFrame,global_index) :
+        
+        return
+    
+        last = dataframe.loc[global_index]
+        last_date = last["datetime"]
+        #ny_time = last_date.astimezone(ZoneInfo("America/New_York"))
+        #it_time = last_date.astimezone(ZoneInfo("Europe/Rome"))
+
+        symbol = last["symbol"]
+      
+        df_now = dataframe[dataframe["timestamp"] <= last["timestamp"]]
+
+        ny_time , is_inside = self.is_in_time(last_date,get_hour_ms(9,30),get_hour_ms(10,00))
+
+        if is_inside:
+            logger.info(f" ny_time {ny_time}")
+            # apertura
+            if (ny_time.hour == 9 and ny_time.minute == 30):
+                self.open = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
+                self.open["pos"] = range(1, len(self.open) + 1)
+                self.open["last_close"] = 0
+                for idx, row in self.open.iterrows():
+                    last_close, ts_last_close=  await self.client.last_close(symbol)
+                    self.open.at[idx, "last_close"] = last_close
+
+            #self.open["last_open"] = MetaInfo.get_meta()
+
+            if (ny_time.hour == 9 and ny_time.minute == 45):
+                self.open_15 = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
+                self.open_15["pos"] = range(1, len(self.open_15) + 1)
+
+            if (ny_time.hour == 10 and ny_time.minute == 00):
+                self.open_30 = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
+                self.open_30["pos"] = range(1, len(self.open_30) + 1)
+
+                # report
+
+                # gain 15 
+                df15 = self.open[["symbol","close","pos"]].merge(
+                    self.open_15[["symbol","close","pos"]],
+                    on="symbol",
+                    suffixes=("_open","_15")
+                )
+
+                df15["gain_15m"] = (df15["close_15"] - df15["close_open"]) / df15["close_open"] * 100
+
+                #gain 30
+
+                df30 = self.open[["symbol","close","pos"]].merge(
+                    self.open_30[["symbol","close","pos"]],
+                    on="symbol",
+                    suffixes=("_open","_30")
+                )
+
+                df30["gain_30m"] = (df30["close_30"] - df30["close_open"]) / df30["close_open"] * 100
+
+                logger.info(f"open \n{self.open}")
+                logger.info(f"df15 \n{df15}")
+                logger.info(f"df30 \n{df30}")
+                #d = dataframe.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
+                #d = d.head(5)
+
+
+
+        if not self.backtestMode and not self.bootstrapMode:
+            d = dataframe.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
+            #logger.info(f">>  \n{d}" )  
+
+           # logger.info(f"live  {symbol} it:{it_time} ny:{ny_time}")
+
+            #logger.info(f">>  \n{dataframe.tail(5)}" )  
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
-        
+        '''
+        low_15 = self.df_view("15m", symbol, "low")
+        hi_15 = self.df_view("15m", symbol, "high")
+        c_15 = self.df_view("15m", symbol, "close")
+        o_15 = self.df_view("15m", symbol, "open")
+        dt_15 = self.df_view("15m", symbol, "datetime")
+        '''
+
+        #logger.info(f"15 {symbol} {local_index} dt:{dt_15[-1]}   c:{c_15[-1]} l:{low_15[-1]}  h:{hi_15[-1]}" )  
+
+       
         #if not self.backtestMode and not self.bootstrapMode:
-        #     logger.info(f">> {symbol} {local_index} \n{dataframe.columns}" )  
-        #if symbol != "ASNS":
-        #    return
+        #     logger.info(f">> {symbol} {local_index} \n{dataframe.tail(5)}" )  
+
         if local_index<5:
             return
-            
-        #if symbol == "ACXP":
-        #    logger.info(f">> {symbol} {local_index} \n{dataframe.tail(2)}" )  
-        #if not self.backtestMode and not self.bootstrapMode:
-        #    logger.info(f">> {symbol} {local_index} \n{dataframe.tail(2)}" )  
 
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]
 
-   
+        ny_time , is_inside = self.is_in_time(last["datetime"],get_hour_ms(9,30),get_hour_ms(10,00))
+        if is_inside:
+            
+            if not self.has_meta(symbol,"open_gap"):
+                last_close = MetaInfo.get(symbol,"last_close")
+                self.set_meta(symbol,{"open_gap": 100.0* (last["close"] - last_close) / last["close"] })
+
+                pre_gain = MetaInfo.get(symbol,"pre_gain")
+                logger.info(f"OPEN {ny_time} {symbol} {self.get_meta(symbol,'open_gap')} close:{last['close']} last_close:{last_close}")
+
+        #if (ny_time.hour == 9 and ny_time.minute == 30):
+            
         #low =  last["low"]
         #high =  last["high"]
         day_volume = last["day_volume"] # va solo per LIVE
@@ -338,12 +238,8 @@ class TradeStrategy(SmartStrategy):
 
         close =  last["close"]
         prev_close =  prev["close"]
-
-      
-
         SMA_200 =  last["SMA_200"]
         SMA_20 =  last["SMA_20"]
-
         MAX =  prev["MAX"] 
         diff_all =  prev["DIFF_ALL"] 
         diff_perc =  last["DIFF"] 
@@ -356,34 +252,16 @@ class TradeStrategy(SmartStrategy):
 
         if abs(self.buyGain(symbol,close))>10:
             self.sell(symbol,close,100,last["datetime"],"SELL")
-        #trend_norm = 1 - np.exp(-trend / 20)
-        #slope = (SMA_20 - dataframe.iloc[local_index-5]["SMA_20"]) / SMA_20
-        #slope_norm = np.tanh(slope * 20)
-        #trend_strength = 100 * diff_perc * trend_norm #* (1 + slope_norm)
 
-        #trend_strength = 100 * perc * trend_norm * (1 + slope_norm)
+
+        ######### TRADE
         '''
-        if trend>0:
-            if trend_prev == 0:
-                self.spot(symbol,"t", "#0A8106","SMA_200")
-            trend_power = min(trend,60) / 60
-            diff_power = (1 + min(9, max(diff_perc,-1))) / 10
-
-            #self.spot(symbol,"t", "#210681","SMA_200")
-
-            if (close > MAX and prev_close <= MAX ):
-                self.buy(symbol,f"CLOSE/{trend_power:.1f}")
-            else:
-                if (diff_perc< 5):
-                   self.buy(symbol,f"{trend_strength:.1f}")
-        '''
-
         if day_volume_gain>10 and day_volume > 100000:
             if (SMA_20 > SMA_200 and prev["SMA_20"]
                 and close > SMA_20 and diff_perc < 5  ):
                     self.buy(symbol,close, 100,last["datetime"] ,"VOL")
-
-        #####
+        '''
+        ##### VOL BREAK
         if day_volume_gain>10 and day_volume > 100000:
              await self.send_event(symbol, "VOL", f"VOL 10",f"VOL 10%",color="#10A02F", ring="news")
 

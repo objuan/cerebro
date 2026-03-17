@@ -395,7 +395,7 @@ class MuloLiveClient:
              
         conn = sqlite3.connect(self.db_file)
         
-        if timeframe in ['10s','1m']:
+        if timeframe in ['10s','1m','1d']:
             # sono nel DB
             df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
             df = df.iloc[::-1].reset_index(drop=True)
@@ -460,30 +460,59 @@ class MuloLiveClient:
             sql_symbols = str(symbols)[1:-1]
         
             conn = sqlite3.connect(self.db_file)
-            if since:
-                #since = int(dt_from.timestamp()) * 1000
-                query = f"""
+
+            query = f"""
                     SELECT *
                     FROM ib_ohlc_history
-                    WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
-                    and timestamp>= {since}
+                    WHERE symbol in ({sql_symbols}) AND timeframe=?
+                    [SINCE]
                     ORDER BY timestamp DESC
                     LIMIT {limit}"""
                     
-                #print("since",since)
-                df = pd.read_sql_query(query, conn)
+            if since:
+                query = query.replace("[SINCE]",f"and timestamp>= {since}")
             else:
-                query = f"""
-                    SELECT *
-                    FROM ib_ohlc_history
-                    WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
-                    ORDER BY timestamp DESC
-                    LIMIT {limit}"""
-            
-                df = pd.read_sql_query(query, conn)
-                #print(query)
+                query = query.replace("[SINCE]",f"")
 
-            df = df.iloc[::-1].reset_index(drop=True)
+            #logger.info(f"QUERY {query}")
+                      
+            if timeframe in ['10s','1m','1d']:
+                # sono nel DB
+                df = pd.read_sql_query(query, conn, params= (timeframe,))
+                df = df.iloc[::-1].reset_index(drop=True)
+                #logger.info(f"..1 \n{df}")
+            else:
+
+                #logger.info(f"==========={sql_symbols} {timeframe}===============")
+                # li prendo dalle candele di 1m
+                df = pd.read_sql_query(query, conn, params= ("1m",))
+
+                df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
+
+                secs = TIMEFRAME_SECONDS[timeframe]
+                rule = f"{int(secs/60)}T"
+
+                df = (
+                    df.set_index("datetime")
+                    .groupby("symbol")
+                    .resample(rule)
+                    .agg({
+                        "open": "first",
+                        "high": "max",
+                        "low": "min",
+                        "close": "last",
+                        "quote_volume": "sum",
+                        "base_volume": "sum"
+                    })
+                    .dropna()
+                    .reset_index()
+                )
+
+                df["timestamp"] = df["datetime"].astype("int64") // 10**6
+                #df = df.drop(columns=["dt"])
+
+                #logger.info(f".. \n{df}")
+
             conn.close()     
             return df
 
@@ -495,7 +524,39 @@ class MuloLiveClient:
     #######################
     #######################
     
-    async def last_open(self,symbol: str):
+    async def last_open(self, symbol: str):
+
+        if not self.sym_mode:
+            base_time = datetime.now(tz=ZoneInfo("Europe/Rome"))
+        else:
+            base_time = self.sym_time
+
+        ny = ZoneInfo("America/New_York")
+
+        # convertiamo il tempo base in New York
+        base_ny = base_time.astimezone(ny)
+
+        oggi_apertura_ny = base_ny.replace(
+            hour=9, minute=30, second=0, microsecond=0
+        )
+
+        unix_time = int(oggi_apertura_ny.timestamp()) * 1000
+
+        df = self.get_df(f"""
+            SELECT open
+            FROM ib_ohlc_history
+            WHERE symbol='{symbol}' AND timeframe='1m'
+            AND timestamp <= {unix_time}
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """)
+
+        if len(df) > 0:
+            return (float(df.iloc[0]["open"]), unix_time)
+        else:
+            return (0.01, 0)
+    
+    async def last_open1(self,symbol: str):
         if not self.sym_mode:
             #await self._align_data(symbol,"1m")
 
@@ -529,6 +590,43 @@ class MuloLiveClient:
             return (0.01,0)
         
     async def last_close(self, symbol: str):
+
+        if not self.sym_mode:
+            base_time = datetime.now(tz=ZoneInfo("Europe/Rome"))
+        else:
+            base_time = self.sym_time
+
+        ieri = base_time - timedelta(days=1)
+
+        # salta sabato e domenica
+        while ieri.weekday() >= 5:
+            ieri -= timedelta(days=1)
+
+        # chiusura mercato USA = 16:00 New York
+        ny = ZoneInfo("America/New_York")
+        ieri_ny = ieri.astimezone(ny)
+
+        ieri_chiusura_ny = ieri_ny.replace(
+            hour=16, minute=0, second=0, microsecond=0
+        )
+
+        unix_time = int(ieri_chiusura_ny.timestamp()) * 1000
+
+        df = self.get_df(f"""
+            SELECT close
+            FROM ib_ohlc_history
+            WHERE symbol='{symbol}' AND timeframe='1m'
+            AND timestamp <= {unix_time}
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """)
+
+        if len(df) > 0:
+            return (float(df.iloc[0]["close"]), unix_time)
+        else:
+            return (0.01, 0)
+    
+    async def last_close2(self, symbol: str):
         if not self.sym_mode:
             base_time = datetime.now()
         else:
@@ -540,9 +638,10 @@ class MuloLiveClient:
         while ieri.weekday() >= 5:  # 5=sabato, 6=domenica
             ieri -= timedelta(days=1)
 
-        ieri_mezzanotte = ieri.replace(hour=22, minute=0, second=0, microsecond=0)
+        ## 22 ore locale
+        ieri_chiusura = ieri.replace(hour=22, minute=0, second=0, microsecond=0)
 
-        unix_time = int(ieri_mezzanotte.timestamp()) * 1000
+        unix_time = int(ieri_chiusura.timestamp()) * 1000
 
         df = self.get_df(f"""
             SELECT close

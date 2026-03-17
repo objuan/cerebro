@@ -252,17 +252,10 @@ const emit = defineEmits(['close', 'initialized']);
 const indicatorMenu = ref(null);
 const mainChartRef = ref(null);
 const legendHtml = ref('');
-//const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
-//const symbolList = ref([]);
 const container = ref(null);
 const left_legend = ref(false)
-/*
-const price_marker= ref(null);
-const price_marker_tp= ref(null);
-const price_marker_sl= ref(null);
-*/
 const indicatorList = ref([]);
 const profileName = ref("");
 
@@ -273,8 +266,6 @@ let initialized=false;
 
 // ==================
 
-//let timeLine_pre=null;
-//let timeLine_open=null;
 let strategy_index_map = {}
 const  strategy_index_list = ref([])
 const  legend_index_list = ref([])
@@ -283,12 +274,10 @@ const  legend_index_list = ref([])
 const gfx_canvas = ref(null);
 
 const drawMode = ref(null); // null | 'hline' | 'line'
-//let drawPoints = [];
 let drawSeries = [];
 
 // Oggetti Chart e Series (non reattivi per performance)
-//let charts = { main: null, volume: null };
-//let series = { main: null, volume: null, indicators: {} };
+
 let chart = null;
 let series  = null;
 let buy_line = null
@@ -296,21 +285,19 @@ let buy_line = null
 
 let lastMainCandle=null
 let tradeMarkerData = {}; 
-//let taskData = {}
 let chartWidth=null;
 
 //let DEFAULT_INTERACTION=null;
-//let manager = null;
-//let ctx=null;
 
 let timeframe_start = {}
-timeframe_start["10s"] = 100
-timeframe_start["1m"] = 50
-timeframe_start["5m"] = 50
-timeframe_start["1h"] = 24
-timeframe_start["1d"] = 30
+timeframe_start["10s"] = 200
+timeframe_start["1m"] = 200
+timeframe_start["5m"] = 200
+timeframe_start["1h"] = 200
+timeframe_start["1d"] = 100
 
 const get_key = (subkey)=> { return `symbols.${currentSymbol.value}.${subkey}`}
+const get_key_tm = ()=> { return `chart.start_len.${currentTimeframe.value}`}
 
 const trade_quantity = ref(null);
 
@@ -633,10 +620,12 @@ async function handleRefresh (resetWindow )
           try{
             if (resetWindow)
             {
+              const v = staticStore.get(get_key_tm(),timeframe_start[currentTimeframe.value])
+
             //  console.log("reset")
              // chart.timeScale().fitContent()
               chart.timeScale().setVisibleLogicalRange({
-                from: data.length - timeframe_start[currentTimeframe.value],
+                from: data.length - v,
                 to: data.length
               });
             }
@@ -903,6 +892,10 @@ const handleSymbols = async () => {
 
 const setSymbol = async (symbol) => {
  // console.log("setSymbol")
+   const r = chart.timeScale().getVisibleLogicalRange();
+   console.log("range",r.to - r.from)
+   staticStore.set(get_key_tm(), r.to - r.from)
+
   currentSymbol.value= symbol
   trade_quantity.value = staticStore.get(get_key("quantity"),100)
   await handleRefresh(true);
@@ -982,6 +975,11 @@ onMounted(  () => {
 });
 
 onBeforeUnmount(() => {
+
+   const r = chart.timeScale().getVisibleLogicalRange();
+   console.log(r)
+  //staticStore.set(get_key_tm(), left_legend.value)
+
   painter.unregister()
   eventBus.off("order-received", onOrderReceived);
   eventBus.off("task-order-received", onTaskOrderReceived);

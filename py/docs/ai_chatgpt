@@ -1,0 +1,41 @@
+1) Install Libraries:
+- Include a pip install cell for: yfinance, hmmlearn, matplotlib, pandas, numpy, scikit-learn
+
+2) Get Data:
+- Download hourly BTC-USD data for the last 730 days using yfinance.
+- IMPORTANT: use yf.download with period="730d" and interval="1h" (do NOT use start/end dates).
+- After downloading, handle yfinance MultiIndex columns so the final columns are exactly:
+  Open, High, Low, Close, Volume
+  (If columns are MultiIndex, flatten using get_level_values(0), not the last level.)
+- Ensure the script does not throw KeyError on Open/High/Low/Close/Volume.
+
+
+3) Feature Engineering:
+Create exactly these 3 features:
+    -Returns = Close.pct_change()
+    -Range = (High - Low) / Close
+    -Vol_Change = Volume.pct_change()
+Then clean the data by dropping NaNs and also replacing inf/-inf with NaN and dropping again.
+
+4) Train Model:
+    -Initialize hmmlearn.hmm.GaussianHMM with:
+    n_components=7, covariance_type="full", n_iter=1000, random_state=42
+    -Fit it on X = data[['Returns','Range','Vol_Change']].values
+    - Predict the hidden states and store them in data['State']
+5) Analyze:
+    -Print a summary table with one row per state showing:
+        Mean_Return (mean of Returns)
+        Volatility (std of Returns)
+        Count (number of samples)
+    -Sort the table by Mean_Return descending.
+
+6) Visualize:
+
+    -Plot the Bitcoin Close price for the last 500 hours.
+    -Overlay a scatter plot of the Close prices with dots colored by the detected state (7 regimes).
+    -Use a distinct colormap and include a legend.
+
+output
+    -return a single python file  
+
+    - return a single runnable Colab script (code only) 
