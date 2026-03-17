@@ -34,6 +34,9 @@ TIMEFRAME_SECONDS = {
     "1d": 86400,
 }
 
+def get_hour_ms(hh, mm):
+    return 1000 * (hh*3600 + mm*60)
+    
 def lerp_color(c1, c2, t):
     return tuple(
         int(c1[i] + (c2[i] - c1[i]) * t)

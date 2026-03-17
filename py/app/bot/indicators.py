@@ -268,6 +268,44 @@ class TOUCH(Indicator):
             v_trend_prec= v_trend
 
  
+class DAY_VOLUME(Indicator):
+  
+    def __init__(self,target_col):
+        super().__init__([target_col])
+        self.target_col=target_col    
+        
+ 
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+       
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe["base_volume"].to_numpy()
+        source_ts = dataframe["timestamp"].to_numpy()
+
+        DAY = 86400*1000
+        VOL = 0
+        prev_day = None
+        # recupera stato precedente se esiste
+        if from_local_index > 0:
+            prev_i = symbol_idx[from_local_index - 1]
+            VOL = dest[prev_i]
+            prev_day = source_ts[prev_i] // DAY
+
+
+        for i_idx in range(from_local_index, len(symbol_idx)):
+            idx = symbol_idx[i_idx]
+
+            ts = source_ts[idx]
+            curr_day = ts // DAY
+
+            # 🔥 reset se cambia giorno
+            if prev_day is not None and curr_day != prev_day:
+                VOL = 0
+
+            VOL += source[idx]
+            dest[idx] = VOL
+
+            prev_day = curr_day
+
 #rolling().mean() → ATR stile SMA (più semplice, meno fedele al classico)
 # usata DA IB
 '''

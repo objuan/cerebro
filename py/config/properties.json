@@ -6,12 +6,12 @@
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "1_1"
+    "grid": "1_2"
   },
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "AGRZ",
+      "symbol": "UCAR",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -49,8 +49,8 @@
       }
     },
     "2": {
-      "grid": "1_2",
-      "symbol": "CVGI",
+      "grid": "1_1",
+      "symbol": "LNAI",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -86,7 +86,7 @@
       }
     },
     "start_len": {
-      "1m": 1431.7272727272725
+      "1m": 66.66027064275454
     }
   },
   "event": {
@@ -397,10 +397,31 @@
       "quantity": 100
     },
     "WNW": {
-      "quantity": 100
+      "quantity": 300
     },
     "DFLI": {
       "quantity": 100
+    },
+    "ONFO": {
+      "quantity": 100
+    },
+    "LIDR": {
+      "quantity": 100
+    },
+    "HCWB": {
+      "quantity": 100
+    },
+    "HFFG": {
+      "quantity": 100
+    },
+    "JVA": {
+      "quantity": 100
+    },
+    "ACXP": {
+      "quantity": 100
+    },
+    "LNAI": {
+      "quantity": 300
     }
   },
   "back": {

@@ -255,7 +255,7 @@
 				"enabled" : true,
 				"ib_port" : 7497,
 				"ib_client" : 2,
-				"max_symbols" :2,
+				"max_symbols" :5,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
@@ -270,7 +270,7 @@
 				"strategy_folder"  :"strategies",
 				"scheduler":[
 					{
-						"name" : "GAIN",
+						"name" : "VOLR",
 						"update_time" : 60,
 						"live_mode" : "MERGE",
 						"merge_weight" :"100%",

@@ -91,17 +91,25 @@ const report_rows = computed(() => {
       symbol,
       ...data
     }))
-    .sort((a, b) => {
-      // ✅ prima separa deleted
-      if (!!a.deleted !== !!b.deleted) {
-        return a.deleted ? 1 : -1
-      }
+   .sort((a, b) => {
+  // separa deleted
+  if (!!a.deleted !== !!b.deleted) {
+    return a.deleted ? 1 : -1
+  }
 
-      // ✅ poi il tuo ordinamento normale
-      const av = a[key] ?? -Infinity
-      const bv = b[key] ?? -Infinity
-      return (av - bv) * dir
-    })
+  const av = a[key]
+  const bv = b[key]
+
+  // ✅ gestione stringhe (symbol)
+  if (typeof av === 'string' && typeof bv === 'string') {
+    return av.localeCompare(bv) * dir
+  }
+
+  // ✅ gestione numeri
+  const anv = av ?? -Infinity
+  const bnv = bv ?? -Infinity
+  return (anv - bnv) * dir
+})
 })
 
 

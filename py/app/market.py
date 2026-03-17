@@ -9,6 +9,8 @@ from config import DB_FILE,CONFIG_FILE
 from utils import convert_json
 from enum import Enum
 
+rome_zn= ZoneInfo("Europe/Rome")
+
 class MarketZone(Enum):
     PRE = "PRE"
     LIVE = "LIVE"
@@ -43,23 +45,39 @@ class Market:
     TZ_MAP = {
         "ET": "America/New_York"
     }
-    
+    def start(self):
+        self.tz = ZoneInfo(self.TZ_MAP[self.timezone])
+
+    def is_in_time( self, dt, from_day_ms, to_day_ms, onlyDay =True):
+
+        ny_time = dt.astimezone(self.tz)
+        today_ny = datetime.now(self.tz).date()
+
+        if onlyDay and ny_time.date() != today_ny:
+            return False
+
+        ms_day = (
+            ny_time.hour * 3600000 +
+            ny_time.minute * 60000 +
+            ny_time.second * 1000 +
+            ny_time.microsecond // 1000
+        )
+
+        return from_day_ms <= ms_day <= to_day_ms
+
     def getPrevCloseDate(self, dt: datetime | None = None) -> datetime:
         """
         Ritorna il datetime della chiusura del giorno lavorativo precedente
         (es. 16:00 ET per USA).
         """
-
-        tz = ZoneInfo(self.TZ_MAP[self.timezone])
-
         # se dt non fornito → ora attuale del mercato
         if dt is None:
-            dt = datetime.now(tz)
+            dt = datetime.now(self.tz)
         else:
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=tz)
+                dt = dt.replace(tzinfo=self.tz)
             else:
-                dt = dt.astimezone(tz)
+                dt = dt.astimezone(self.tz)
 
         # data di partenza
         day = dt.date()
@@ -83,25 +101,23 @@ class Market:
         return datetime.combine(
             day,
             self.market.end,
-            tzinfo=tz
+            tzinfo=self.tz
         )
         
     def isLiveZone(self) -> MarketZone:
         return self.getCurrentZone() == MarketZone.LIVE
     
     def getCurrentZone(self) -> MarketZone:
-        return self.getZone(datetime.now(ZoneInfo("Europe/Rome")) )
+        return self.getZone(datetime.now(rome_zn) )
 
     def getZone(self, dt: datetime) -> MarketZone:
         """
         dt può essere naive o timezone-aware
         """
-        tz = ZoneInfo(self.TZ_MAP[self.timezone])
-
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=tz)
+            dt = dt.replace(tzinfo=self.tz)
         else:
-            dt = dt.astimezone(tz)
+            dt = dt.astimezone(self.tz)
 
         #print("dt",tz,dt)
 
@@ -148,6 +164,7 @@ class MarketService:
                     parse_time(cfg["after"]["end"])
                 )
             )
+            markets[name].start()
 
         self.markets = markets
         self._exchange_map: dict[str, Market] = {}

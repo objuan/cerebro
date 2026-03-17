@@ -52,6 +52,7 @@ class Strategy:
         self.bootstrapMode=False
         self.sem = asyncio.Semaphore(20)
         self._meta = {}
+        self.market = self.client.market
     
     def load(self,strat_def):
         #strat.handler = find_method_local(EventManager,code)
@@ -554,6 +555,7 @@ class SmartStrategy(Strategy):
     def get_meta(self,symbol,fieldName, default=None):
         if not symbol in self._meta: return default
         return self._meta[symbol].get(fieldName,default)
+
 
     def set_meta(self,symbol,meta: dict):
         if not symbol in self._meta:

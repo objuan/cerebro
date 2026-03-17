@@ -297,7 +297,7 @@ timeframe_start["1h"] = 200
 timeframe_start["1d"] = 100
 
 const get_key = (subkey)=> { return `symbols.${currentSymbol.value}.${subkey}`}
-const get_key_tm = ()=> { return `chart.start_len.${currentTimeframe.value}`}
+const get_key_zoom = ()=> { return `chart.start_len.${currentTimeframe.value}`}
 
 const trade_quantity = ref(null);
 
@@ -620,7 +620,7 @@ async function handleRefresh (resetWindow )
           try{
             if (resetWindow)
             {
-              const v = staticStore.get(get_key_tm(),timeframe_start[currentTimeframe.value])
+              const v = staticStore.get(get_key_zoom(),timeframe_start[currentTimeframe.value])
 
             //  console.log("reset")
              // chart.timeScale().fitContent()
@@ -695,7 +695,9 @@ async function handleRefresh (resetWindow )
           
           painter.createMarketZoneBand()
           painter.createGapZone()
+          painter.createOpenZone()
 
+          
             // STATEGY  
       //   if (resetWindow)
           {
@@ -892,10 +894,6 @@ const handleSymbols = async () => {
 
 const setSymbol = async (symbol) => {
  // console.log("setSymbol")
-   const r = chart.timeScale().getVisibleLogicalRange();
-   console.log("range",r.to - r.from)
-   staticStore.set(get_key_tm(), r.to - r.from)
-
   currentSymbol.value= symbol
   trade_quantity.value = staticStore.get(get_key("quantity"),100)
   await handleRefresh(true);
@@ -931,6 +929,13 @@ function onTradeLastUpdated(msg){
 
 let chartWatcher=null
 
+function onMouseZoom(){
+  //console.log("onMouseZoom")
+
+   const r = chart.timeScale().getVisibleLogicalRange();
+   //console.log("range",r.to - r.from)
+   staticStore.set(get_key_zoom(), r.to - r.from)
+}
 // --- INIZIALIZZAZIONE ---
 onMounted(  () => {
 
@@ -940,6 +945,7 @@ onMounted(  () => {
   painter.subscribeTradeBoxAdded(onTradeBoxAdded)
   painter.subscribeTradeBoxChanged(onTradeBoxChanged)
   painter.subscribeTradeBoxDeleted(onTradeBoxDeleted)
+  painter.subscribeMouseZoom(onMouseZoom)
 
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
@@ -975,10 +981,6 @@ onMounted(  () => {
 });
 
 onBeforeUnmount(() => {
-
-   const r = chart.timeScale().getVisibleLogicalRange();
-   console.log(r)
-  //staticStore.set(get_key_tm(), left_legend.value)
 
   painter.unregister()
   eventBus.off("order-received", onOrderReceived);

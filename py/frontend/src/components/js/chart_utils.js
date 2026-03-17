@@ -62,6 +62,7 @@ export async  function updateStrategyIndicators(context,
             let markers =  []
 
             strat.markers.forEach( marker =>{
+              // console.log("marker",marker)
                   markers.push(
                   {
                     time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker

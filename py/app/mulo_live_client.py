@@ -173,8 +173,11 @@ class MuloLiveClient:
                 self.ready=True
               
                 while True:
-                    new_ticker = await websocket.recv()
-                    await updateTickers(json.loads(new_ticker))
+                    try:
+                        new_ticker = await websocket.recv()
+                        await updateTickers(json.loads(new_ticker))
+                    except:
+                        logger.error("ERR", exc_info=True)
 
 
         except ConnectionRefusedError:

@@ -4,6 +4,8 @@ import { drawLine, drawRect, drawTextOnLine } from './chart_draw';
 //import {  drawHandle,hitHandle,drawTextOnLine,hitLine,handleSize,drawLine,drawRect} from '@/components/js/chart_draw.js'; // Usa il percorso corretto
 import { localUnixToUtc } from '@/components/js/utils.js'; // Usa il percorso corretto
 
+const DAY_MINUTES = 1440
+
 function getTimeZoneOffsetNY() {
     const now = new Date()
 
@@ -41,8 +43,6 @@ try{
     
     const TIME_ZONE_OFFSET = getTimeZoneOffsetNY()
     //console.log("TIME_ZONE_OFFSET",TIME_ZONE_OFFSET)
-    const DAY_MINUTES = 1440
-
     // LOCAL UTC
     const min_open = 9* 60 + 30
     const min_close = 16 * 60
@@ -227,4 +227,141 @@ export  class GapZone  extends MarketZoneBand{
     
   }
        
+}
+
+// ============
+
+export  class OpenZoneBand  extends Primitive{
+   constructor(painter,data){
+    super(painter)
+    this.data=data
+    this.type = "open-zone"
+    this.isHover = false
+    this.colorBack = '#fbff002d'
+    this.color = '#22eb2273'
+    this.color_partial = '#ff00002d'
+    this.zoneIndex = []
+    this.onDataChanged()
+  }
+  onDataChanged() 
+  {
+  try{
+        if (!this.data || this.data.length === 0)
+        return
+      
+      const TIME_ZONE_OFFSET = getTimeZoneOffsetNY()
+  
+      // LOCAL UTC
+      const min_open = 9* 60 + 30
+      const min_close = 9* 60 + 45
+      const min_end = 10* 60  +30
+
+      let local_time = -1
+      let ny_time = -1
+
+      this.lastClose = null
+      this.lastOpen = null
+      this.lastEnd = null
+      this.isPartial=false;
+      for (let i = 0; i < this.data.length; i++) {
+        
+        local_time = this.data[i].time 
+        ny_time = local_time-TIME_ZONE_OFFSET*60
+
+        if (!local_time) continue
+
+        // minuti UTC senza Date()
+        let minutes = Math.floor(ny_time / 60) % DAY_MINUTES
+        local_time = local_time *1000
+        
+        //onsole.log("minutes",minutes)
+        if (minutes < 0)
+            minutes += DAY_MINUTES
+
+        if (minutes == min_open )
+        {
+          this.lastOpen = i;
+          this.lastClose = null
+          this.lastEnd = null
+        }
+        if (this.lastOpen && minutes >= min_close && !this.lastClose)
+          this.lastClose = i;
+        if (this.lastClose && minutes >= min_end && !this.lastEnd)
+          this.lastEnd = i;
+      }
+      if (!this.lastClose )
+      {
+        this.lastClose = this.data.length-1
+        this.isPartial=true;
+      }
+      if (!this.lastEnd )
+        this.lastEnd = this.data.length-1
+      
+      let m = 99999;
+      let M = -99999
+      for (let i= this.lastOpen;i<= this.lastClose;i++)
+      {
+          m = Math.min(m , this.data[i].low)
+          M= Math.max(M , this.data[i].high)
+      }
+      this.min = m
+      this.max = M
+      console.log("15m",this.lastOpen,this.lastClose,m,M)
+    }
+     catch (ex){
+        console.error(ex)
+    }
+  }
+
+  draw(ctx){
+     if (!this.lastClose) return
+
+      const t1 = localUnixToUtc( this.data[this.lastOpen].time)*1000
+      const t2 = localUnixToUtc( this.data[this.lastClose].time)*1000
+      const t3 = localUnixToUtc( this.data[this.lastEnd].time)*1000
+      
+     //  console.log(t1,t2)
+      const m = this.painter.logicalToPixel({t: t1, y:this.min})
+      const M = this.painter.logicalToPixel({t: t2, y:this.max})
+
+      const o = this.painter.logicalToPixel({t: t1, y:this.data[this.lastOpen].open})
+      const c = this.painter.logicalToPixel({t: t2, y:this.data[this.lastClose].close})
+      
+      const p1_a = {x:m.x, y: m.y}
+      const p2_a = {x:M.x, y: M.y}
+
+
+      const p1 = {x:o.x, y: o.y}
+      const p2 = {x:c.x, y: c.y}
+
+    //  console.log("zone " , "l",self.low , "h", self.hi ,"c", _lastClose,"o",_lastOpen)
+      //console.log(p1,p2,c,o,  l, h)
+      drawRect(ctx,p1_a,p2_a,this.colorBack ,this.colorBack ,false,"solid")
+
+      if (this.isPartial)
+        drawRect(ctx,p1,p2,this.color_partial ,this.color_partial ,false,"solid")
+      else
+        drawRect(ctx,p1,p2,this.color ,this.color ,false,"solid")
+
+      // DOWN
+      const e = this.painter.logicalToPixel({t: t3, y:this.max})
+
+      const p3 = {x:c.x, y: m.y}
+      const p4 = {x:e.x, y: m.y}
+
+      drawRect(ctx,p3,p4,"red" ,"red" ,false,"solid")
+
+      // up
+  
+      const p5 = {x:c.x, y: M.y}
+      const p6 = {x:e.x, y: M.y}
+
+      drawRect(ctx,p5,p6,"green" ,"green" ,false,"solid")
+
+      //console.log(from,to, log_from,log_to)
+    }
+      
+    rebuild(){
+
+    }
 }

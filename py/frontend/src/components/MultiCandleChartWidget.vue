@@ -274,7 +274,10 @@ const updateAll = async ()=>
 }
 
 const setSymbol = async (symbol) => {
+  ticker.value=''
+  fundamentals.value=''
   currentSymbol.value = symbol
+  
   await updateAll();
   onChangeSymbols()
 //  handleRefresh();

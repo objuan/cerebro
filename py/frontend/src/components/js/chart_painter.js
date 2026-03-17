@@ -5,7 +5,7 @@ import { ref,computed} from 'vue';
 import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci,
   BuyAbove,BuyBelow,MisureBox
  } from '@/components/js/chart_primitives.js'
- import {MarketZoneBand,GapZone } from '@/components/js/chart_primitives_ex.js'
+ import {MarketZoneBand,GapZone ,OpenZoneBand} from '@/components/js/chart_primitives_ex.js'
 import { liveStore } from '@/components/js/liveStore.js';
 
 
@@ -127,6 +127,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     running:false,
 
     tradeBoxHandler: {add: null, change : null, delete : null},
+    mouseHandler: {zoom: null},
     //
     trade_quantity_ref : trade_quantity_ref,
     trade_RR_ref : trade_rr
@@ -215,6 +216,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         });
 
          this.chartCanvas.dispatchEvent(evt);
+         this.mouseHandler?.zoom()
          this.redraw();
     }
     ,_private__contextMenuHandler(e){
@@ -598,6 +600,10 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     {
        this.tradeBoxHandler.delete=handler
     }
+     ,subscribeMouseZoom(handler)
+    {
+       this.mouseHandler.zoom=handler
+    }
     ,getTradeBox()
     {
         return this.primitives.find(p => p.isTradeMarker  );
@@ -642,7 +648,11 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         line.virtual=true
         this.primitives.push(line)
     }
- 
+    ,createOpenZone(){
+        const line = new OpenZoneBand(this,this.data)
+        line.virtual=true
+        this.primitives.push(line)
+    }
     // =========================================
 
     , create(type){
