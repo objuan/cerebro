@@ -338,8 +338,8 @@ class Strategy:
         if not self.backtestMode and not self.bootstrapMode:
             await self.client.send_event("strategy",symbol,name,small_desc,full_desc,{"color":color,"ring": ring})
         else:
-            self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
-
+            self.add_marker(symbol,"SPOT",name,"#060806","small_square",position ="atPriceTop")
+            
     def __str__(self):
         return f"{self.__class__} params:{self.params}"
 
@@ -379,14 +379,15 @@ class SmartStrategy(Strategy):
     #shapes : arrowUp, arrowDown, circle,square
     #atPriceTop,atPriceBottom,atPriceMiddle
     def add_marker(self, symbol,type, label,color,shape, position ="atPriceTop",
-                    _timeframe=None, sourceField = "close"):
+                    _timeframe=None, sourceField = "close", value=None):
         timeframe = self.timeframe if _timeframe==None else _timeframe
         
         #logger.info(f"self.trade_index {self.trade_index}")
         candle =  self.trade_dataframe.loc[self.trade_index_global]
         
         timestamp =  candle["timestamp"]
-        value = candle[sourceField]
+        if not value:
+            value = candle[sourceField]
 
        # logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
 

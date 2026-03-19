@@ -243,6 +243,19 @@ export  class OpenZoneBand  extends Primitive{
     this.zoneIndex = []
     this.onDataChanged()
   }
+
+  openTimeUtc(){
+     return localUnixToUtc( this.data[this.lastOpen].time)*1000
+  }
+  openTimeIdx(){
+     return this.lastOpen
+  }
+  setTP(value){
+      console.log("TP",value)
+  }  
+  setSL(value){
+    console.log("SL",value)
+  }
   onDataChanged() 
   {
   try{
@@ -306,7 +319,7 @@ export  class OpenZoneBand  extends Primitive{
       }
       this.min = m
       this.max = M
-      console.log("15m",this.lastOpen,this.lastClose,m,M)
+      //console.log("15m",this.lastOpen,this.lastClose,m,M)
     }
      catch (ex){
         console.error(ex)
@@ -314,7 +327,7 @@ export  class OpenZoneBand  extends Primitive{
   }
 
   draw(ctx){
-     if (!this.lastClose) return
+     if (!this.lastOpen) return
 
       const t1 = localUnixToUtc( this.data[this.lastOpen].time)*1000
       const t2 = localUnixToUtc( this.data[this.lastClose].time)*1000

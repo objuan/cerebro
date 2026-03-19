@@ -453,6 +453,13 @@ const initWebSocket = () => {
             tickerStore.pushStrategy( msg)
          }
           break;
+         case "strategy-trade":
+          {
+            console.log("strategy",msg);
+            eventBus.emit("strategy-trade",msg);
+
+         }
+          break;
         case "event":
           {
             console.log("event",msg);
@@ -469,7 +476,7 @@ const initWebSocket = () => {
           break;
         case "events":
           {
-            //let d = JSON.parse(msg.data)
+            //let d = JSON.parse(msg.data)JSON.parse(msg.data)
           //  console.log("events",msg.data);
             msg.data.forEach( (v)=>
             {

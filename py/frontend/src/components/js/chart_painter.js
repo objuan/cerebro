@@ -2,9 +2,11 @@
 import { send_get,localUnixToUtc,timeframeToSeconds,utcToLocalUnix } from '@/components/js/utils.js'; // Usa il percorso corretto
 //formatUnixDate
 import { ref,computed} from 'vue';
-import {TradeBox,HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci,
-  BuyAbove,BuyBelow,MisureBox
+import {HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci,
+  MisureBox
  } from '@/components/js/chart_primitives.js'
+ import {TradeBox, BuyAbove,BuyBelow,TradeRR
+ } from '@/components/js/chart_primitives_trade.js'
  import {MarketZoneBand,GapZone ,OpenZoneBand} from '@/components/js/chart_primitives_ex.js'
 import { liveStore } from '@/components/js/liveStore.js';
 
@@ -128,6 +130,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
 
     tradeBoxHandler: {add: null, change : null, delete : null},
     mouseHandler: {zoom: null},
+    keyHandler: {down: null},
     //
     trade_quantity_ref : trade_quantity_ref,
     trade_RR_ref : trade_rr
@@ -223,6 +226,16 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         e.preventDefault() // blocca menu browser
         console.log('right click', e)
         this.onRightClick(e)
+      },
+
+      _private__keyDownHandler(event) {
+        //console.log("key",event)
+        this.keyHandler?.down(event)
+/*
+        if (event.code === 'Space') {
+            console.log('Space premuta');
+        }
+            */
       }
 
        // ==========================
@@ -303,7 +316,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       
       this.chartCanvas = topCanvas;
       // ===================
-
+      this.overlay.value.tabIndex = 0;
       this.overlay.value.addEventListener('mouseenter', this._private__mouseEnterHandler.bind(this));
       this.overlay.value.addEventListener('mouseleave', this._private__mouseLeaveHandler.bind(this));
       this.overlay.value.addEventListener('mousedown',this._private__mouseDownHandler.bind(this));
@@ -311,6 +324,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       this.overlay.value.addEventListener('mouseup',this._private__mouseUpHandler.bind(this));
       this.overlay.value.addEventListener('wheel',this._private__mouseWheelHandler.bind(this));
       this.mainChart.value.addEventListener('contextmenu',this._private__contextMenuHandler.bind(this));
+      this.overlay.value.addEventListener('keydown',  this._private__keyDownHandler.bind(this) );
 
       //this.begin()
 
@@ -323,7 +337,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       this.overlay.value.removeEventListener('mouseup',this._private__mouseUpHandler)
       this.overlay.value.removeEventListener('wheel',this._private__mouseWheelHandler);
       this.mainChart.value.removeEventListener('contextmenu',this._private__contextMenuHandler)
-
+      this.overlay.value.removeEventListener('keydown',  this._private__keyDownHandler.bind(this) );
     }
     ,async load(){
       //console.log( "load")
@@ -604,17 +618,24 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     {
        this.mouseHandler.zoom=handler
     }
+    ,subscribeKeyDown(handler)
+    {
+       this.keyHandler.down=handler
+    }
     ,getTradeBox()
     {
         return this.primitives.find(p => p.isTradeMarker  );
     }
-    ,updateTradeMarker(tradeMarkerData)
+    ,updateTradeMarker(tradeMarkerData, isVirtual=false)
     {
        
-       const box = this.getTradeBox()
+       let box = this.getTradeBox()
 
        console.log("updateTradeMarker",tradeMarkerData,box)
-
+       
+       if (isVirtual && !box){
+          box = this.create("trade-box")
+       }
        if (box)
        {
          // if (!tradeMarkerData.type)
@@ -623,7 +644,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         //else
        // {
             box.tradeMarkerData=tradeMarkerData
-            console.log("tradeMarkerData")
+            console.log("tradeMarkerData",tradeMarkerData)
       //  }
       }
       this.redraw()
@@ -652,6 +673,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         const line = new OpenZoneBand(this,this.data)
         line.virtual=true
         this.primitives.push(line)
+        return line
     }
     // =========================================
 
@@ -686,11 +708,14 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       if (type  == "buy-below")
             return new BuyBelow(this)   
       if (type =="trade-box"){
-        // controllo se cè gia
-
-          const exists = this.primitives.some(p => p.type === "trade-box");
+          const exists = this.getTradeBox()
           if (!exists)
-            return new TradeBox(this,trade_rr)
+            return new TradeBox(this)
+      }
+       if (type =="trade-rr"){
+         const exists = this.getTradeBox()
+          if (!exists)
+            return new TradeRR(this)
       }
       return null
     }

@@ -63,6 +63,16 @@ export async  function updateStrategyIndicators(context,
 
             strat.markers.forEach( marker =>{
               // console.log("marker",marker)
+                if (marker.shape == "TP" || marker.shape == "SL"){
+                   // console.log("marker",marker)
+                    /*
+                    if (marker.shape == "TP" )
+                      context.openZoneControl.setTP(marker.value)
+                      if (marker.shape == "SL" )
+                      context.openZoneControl.setSL(marker.value)
+                      */
+                }
+                else
                   markers.push(
                   {
                     time:window.db_localTime ? window.db_localTime(marker.timestamp) : marker.timestamp, // momento del marker

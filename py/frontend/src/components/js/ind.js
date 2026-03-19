@@ -14185,6 +14185,7 @@ function size(barSpacing, coeff) {
     return ceiledOdd(result);
 }
 function shapeSize(shape, originalSize) {
+     // console.log("shapeSize",shape,originalSize,size(originalSize, 0.7),size(originalSize, 0.2))
     switch (shape) {
         case 'arrowDown':
         case 'arrowUp':
@@ -14193,6 +14194,10 @@ function shapeSize(shape, originalSize) {
             return size(originalSize, 0.8);
         case 'square':
             return size(originalSize, 0.7);
+        case 'small_square':
+            {
+            return size(originalSize, 0.2);
+            }
     }
 }
 function calculateShapeHeight(barSpacing) {
@@ -14287,7 +14292,20 @@ function hitTestCircle(centerX, centerY, size, x, y) {
 }
 
 function drawSquare(ctx, coords, size) {
+   // console.log("drawSquare",size)
     const squareSize = shapeSize('square', size);
+
+    //console.log("drawSquare",size,squareSize)
+
+    const halfSize = ((squareSize - 1) * coords._internal_pixelRatio) / 2;
+    const left = coords._internal_x - halfSize;
+    const top = coords._internal_y - halfSize;
+    ctx.fillRect(left, top, squareSize * coords._internal_pixelRatio, squareSize * coords._internal_pixelRatio);
+}
+function drawSmallSquare(ctx, coords, size) {
+   // console.log("drawSquare",size)
+    const squareSize = shapeSize('small_square', size);
+
     const halfSize = ((squareSize - 1) * coords._internal_pixelRatio) / 2;
     const left = coords._internal_x - halfSize;
     const top = coords._internal_y - halfSize;
@@ -14416,6 +14434,9 @@ function drawShape(item, ctx, coordinates) {
         case 'square':
             drawSquare(ctx, coordinates, item._internal_size);
             return;
+        case 'small_square':
+            drawSmallSquare(ctx, coordinates, 2);
+            return;
     }
     ensureNever(item._internal_shape);
 }
@@ -14437,6 +14458,8 @@ function hitTestShape(item, x, y) {
         case 'circle':
             return hitTestCircle(item._internal_x, item._internal_y, item._internal_size, x, y);
         case 'square':
+            return hitTestSquare(item._internal_x, item._internal_y, item._internal_size, x, y);
+        case 'small_quare':
             return hitTestSquare(item._internal_x, item._internal_y, item._internal_size, x, y);
     }
 }

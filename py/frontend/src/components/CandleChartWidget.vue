@@ -96,7 +96,10 @@
               <td style="vertical-align: top;">
                  <div class="button_bar">
 
-              
+                <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('trade-rr')">
+                    R
+                  </button>
                   <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
                       @click="painter?.setMode('trade-box')">
                     📈
@@ -286,6 +289,7 @@ let buy_line = null
 let lastMainCandle=null
 let tradeMarkerData = {}; 
 let chartWidth=null;
+let openZoneControl=null;
 
 //let DEFAULT_INTERACTION=null;
 
@@ -318,7 +322,8 @@ function context() {
         strategy_index_map,
         strategy_index_list,
         legend_index_list,
-        mainChartRef
+        mainChartRef,
+        openZoneControl
 
     };
 }
@@ -576,6 +581,9 @@ async function handleRefresh (resetWindow )
         }));
 
        //  console.info("formattedData ",data)
+        await updateStrategyIndicators( context(),
+              currentSymbol.value, currentTimeframe.value
+            )
 
         setVolumeData(series,data.map(d => (
                 {
@@ -695,16 +703,17 @@ async function handleRefresh (resetWindow )
           
           painter.createMarketZoneBand()
           painter.createGapZone()
-          painter.createOpenZone()
+          openZoneControl = painter.createOpenZone()
 
           
             // STATEGY  
       //   if (resetWindow)
           {
-
+/*
             await updateStrategyIndicators( context(),
               currentSymbol.value, currentTimeframe.value
             )
+              */
           }
         
           // TRADE MARKER
@@ -751,8 +760,17 @@ async function handleRefresh (resetWindow )
                     }
                 });
             }
-            
+             
         }
+        /*
+        nextTick( async ()=>
+        {
+          await updateStrategyIndicators( context(),
+              currentSymbol.value, currentTimeframe.value
+            )
+        });
+        */
+        
         //;
           
       }
@@ -926,6 +944,22 @@ function onTradeLastUpdated(msg){
      // tradeStore.push(msg)
   }   
 }
+function onStrategyTrade(msg){
+  if (msg && msg.symbol === props.symbol) {
+    console.log(msg)
+    tradeMarkerData=msg.data
+    /*
+    tradeMarkerData.price =   msg.price
+    tradeMarkerData.take_profit = tradeBox.tp_price()
+    tradeMarkerData.stop_loss = tradeBox.sl_price()
+    tradeMarkerData.quantity =tradeBox.quantity()
+    tradeMarkerData.price_op=tradeBox.buy_price_op()
+    tradeMarkerData.type=tradeBox.buy_type();//"bracket"
+    */
+
+    painter.updateTradeMarker(tradeMarkerData,true)
+  }
+}
 
 let chartWatcher=null
 
@@ -935,6 +969,23 @@ function onMouseZoom(){
    const r = chart.timeScale().getVisibleLogicalRange();
    //console.log("range",r.to - r.from)
    staticStore.set(get_key_zoom(), r.to - r.from)
+}
+
+function onKeyDoown(event){
+  if (event.code === 'Space') {
+        //    console.log('Space premuta');
+      const ot = openZoneControl.openTimeIdx()
+     // console.log("ot",ot)
+
+       const zoom =   staticStore.get(get_key_zoom(),timeframe_start[currentTimeframe.value])
+
+       chart.timeScale().setVisibleLogicalRange({
+                from: ot - 20,
+                to:ot+zoom
+              });
+
+
+  }
 }
 // --- INIZIALIZZAZIONE ---
 onMounted(  () => {
@@ -946,10 +997,12 @@ onMounted(  () => {
   painter.subscribeTradeBoxChanged(onTradeBoxChanged)
   painter.subscribeTradeBoxDeleted(onTradeBoxDeleted)
   painter.subscribeMouseZoom(onMouseZoom)
+  painter.subscribeKeyDown(onKeyDoown)
 
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
   eventBus.on("trade-last-changed", onTradeLastUpdated);
+  eventBus.on("strategy-trade",   onStrategyTrade);
 
   fetch("http://127.0.0.1:8000/api/chart/indicator/list")
   .then(res => res.json())
@@ -1276,7 +1329,7 @@ function on_candle(c)
       // series
     if (last_time != c.ts)
     {
-      //console.log("update inds")
+       console.log("update inds")
 
       //painter.pushLastDataTime(c.ts,painter.dataLen+1)
       updateStrategyIndicators(context(),
@@ -1342,6 +1395,7 @@ defineExpose({
    pointer-events:none;
   /*background-color: rgba(19, 23, 34, 0.7);*/
   z-index: 10;
+  
 }
 
 

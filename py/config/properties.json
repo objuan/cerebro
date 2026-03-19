@@ -6,12 +6,12 @@
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "1_2"
+    "grid": "1_1"
   },
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "UCAR",
+      "symbol": "EVTV",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -86,7 +86,7 @@
       }
     },
     "start_len": {
-      "1m": 66.66027064275454
+      "1m": 408.83397631721095
     }
   },
   "event": {
@@ -422,6 +422,12 @@
     },
     "LNAI": {
       "quantity": 300
+    },
+    "QCLS": {
+      "mode": "MARKER"
+    },
+    "CGTL": {
+      "mode": "MARKER"
     }
   },
   "back": {

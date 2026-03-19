@@ -843,6 +843,25 @@ class MuloLiveClient:
         except:
             logger.error("SEND ERROR", exc_info=True)
 
+
+    async def send_strategy_trade(self,source:str,symbol:str,timeframe:str,  data):
+       
+        try:
+    
+            await self.render_page.send(
+                {
+                    "type" : "strategy-trade",
+                    "source" : source,
+                    "symbol": symbol,
+                    "timeframe" : timeframe,
+                    "timestamp" :  int(time.time() * 1000),
+                    "data" : data
+                }
+            )
+            #logger.info(f"SEND DONE")
+        except:
+            logger.error("SEND ERROR", exc_info=True)
+
     async def send_ticker_rank(self,  data):
        
         try:
