@@ -247,8 +247,14 @@ export  class OpenZoneBand  extends Primitive{
   openTimeUtc(){
      return localUnixToUtc( this.data[this.lastOpen].time)*1000
   }
+  closeTimeUtc(){
+     return localUnixToUtc( this.data[this.lastClose].time)*1000
+  }
   openTimeIdx(){
      return this.lastOpen
+  }
+  priceHeight(){
+    return this.max-this.min
   }
   setTP(value){
       console.log("TP",value)

@@ -389,7 +389,7 @@ def read_props(path: str):
 
 @app.post("/api/props/save")
 async def write_props(payload:dict):
-    logger.info(f"write_props {payload}" )
+    #logger.info(f"write_props {payload}" )
 
     async def on_computed_changed(comp):
         for k, v in comp.items():

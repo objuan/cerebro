@@ -36,7 +36,7 @@
             display:flex; flex-direction:column;justify-content:center;
             font-size: 14px; ">
              <span v-html="fundamentals"></span>
-            <span class="ticker" v-html="ticker"></span>
+            <span class="ticker" v-html="tickerHTML"></span>
         </div>
        
         <div class="bottom-row">
@@ -111,7 +111,7 @@ const widgetRefs = ref({})
 
 const currentSymbol = ref(props.symbol);
 const fundamentals = ref("")  
-const ticker = ref("")  
+const tickerHTML = ref("")  
 const symbolList = ref([]);
 const multi_container = ref(null)
 const currentLayout= ref("")  
@@ -274,7 +274,7 @@ const updateAll = async ()=>
 }
 
 const setSymbol = async (symbol) => {
-  ticker.value=''
+  tickerHTML.value=''
   fundamentals.value=''
   currentSymbol.value = symbol
   
@@ -324,8 +324,9 @@ function onTickerReceived(msg)
   {
       let color = msg["gain"]>=0 ? '#4bffb5' : '#ff4976';  
       //console.log("MultiCandleChartWidget on_ticker",msg) 
-      ticker.value= ` Last: <span style='color:yellow'><b> ${msg["last"]} </b></span>  Gain: <span style='color:${color}'><b>${msg["gain"].toFixed(2)} %</b></span>  
-          Vol: ${window.formatValue(msg["day_volume"])} GAP: ${tickerRef.value.summary.gap.value?.toFixed(1)}%`  ;
+      tickerHTML.value= ` Last: <span style='color:yellow'><b> ${msg["last"]} </b></span>  Gain: <span style='color:${color}'><b>${msg["gain"].toFixed(2)} %</b></span>  
+           <span style='color:yellow'> Vol: ${window.formatValue(msg["day_volume"])} </span>
+          GAP: ${tickerRef.value.summary?.gap.value?.toFixed(1)}%`  ;
 
       for (const id in widgetRefs.value) {
         const comp = widgetRefs.value[id]

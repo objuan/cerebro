@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "EVTV",
+      "symbol": "GNLN",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -86,7 +86,7 @@
       }
     },
     "start_len": {
-      "1m": 408.83397631721095
+      "1m": 192.45820416947095
     }
   },
   "event": {
@@ -299,7 +299,7 @@
       "quantity": 500
     },
     "TURB": {
-      "quantity": 300,
+      "quantity": 100,
       "mode": "DIRECT"
     },
     "PRSO": {
@@ -428,6 +428,38 @@
     },
     "CGTL": {
       "mode": "MARKER"
+    },
+    "MDAI": {
+      "quantity": 100
+    },
+    "SUNE": {
+      "quantity": 200,
+      "mode": "DIRECT"
+    },
+    "LNKS": {
+      "quantity": 300
+    },
+    "CHNR": {
+      "quantity": 100,
+      "mode": "DIRECT"
+    },
+    "DLTH": {
+      "quantity": 100
+    },
+    "GNLN": {
+      "quantity": 300
+    },
+    "WETO": {
+      "quantity": 300
+    },
+    "GAUZ": {
+      "quantity": 100
+    },
+    "ALDX": {
+      "quantity": 100
+    },
+    "YHC": {
+      "quantity": 100
     }
   },
   "back": {

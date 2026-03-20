@@ -623,25 +623,7 @@ async function handleRefresh (resetWindow )
 
         // Zoom finale
         
-        if ( data.length >timeframe_start[currentTimeframe.value])
-        {
-          try{
-            if (resetWindow)
-            {
-              const v = staticStore.get(get_key_zoom(),timeframe_start[currentTimeframe.value])
-
-            //  console.log("reset")
-             // chart.timeScale().fitContent()
-              chart.timeScale().setVisibleLogicalRange({
-                from: data.length - v,
-                to: data.length
-              });
-            }
-            
-          }catch{
-            console.debug("!!")
-          }
-        }
+      
           
         // chart.timeScale().scrollToPosition(0, false);
     // nextTick( ()=>
@@ -772,6 +754,29 @@ async function handleRefresh (resetWindow )
         */
         
         //;
+          if ( data.length >timeframe_start[currentTimeframe.value])
+        {
+          try{
+            if (resetWindow)
+            {
+              console.log("reset")
+              /*
+              const v = staticStore.get(get_key_zoom(),timeframe_start[currentTimeframe.value])
+
+              
+              console.log("reset",v,data.length)
+             // chart.timeScale().fitContent()
+              chart.timeScale().setVisibleLogicalRange({
+                from: data.length - v,
+                to: data.length
+              });
+            
+              */
+            }
+          }catch{
+            console.debug("!!")
+          }
+        }
           
       }
       initialized=true;

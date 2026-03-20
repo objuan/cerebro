@@ -599,7 +599,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     }
      // =========================================
     , onTradeBoxAdded(tradeBox){
-        //console.log("tradeBox",tradeBox)
+        //console.log("onTradeBoxAdded",tradeBox)
          this.tradeBoxHandler.add(tradeBox)
     }
     ,subscribeTradeBoxAdded(handler)
@@ -626,6 +626,10 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
     {
         return this.primitives.find(p => p.isTradeMarker  );
     }
+    ,getOpenZone()
+    {
+        return this.primitives.find(p => p.type =="open-zone"  );
+    }
     ,updateTradeMarker(tradeMarkerData, isVirtual=false)
     {
        
@@ -634,7 +638,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
        console.log("updateTradeMarker",tradeMarkerData,box)
        
        if (isVirtual && !box){
-          box = this.create("trade-box")
+          //box = this.create("trade-box")
        }
        if (box)
        {
@@ -715,7 +719,11 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
        if (type =="trade-rr"){
          const exists = this.getTradeBox()
           if (!exists)
-            return new TradeRR(this)
+          {
+            let t = new TradeRR(this)
+            if (t.setup("bracket", ">"))
+              return t
+          }
       }
       return null
     }

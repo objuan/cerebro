@@ -439,9 +439,9 @@ class TradeStrategy(SmartStrategy):
         prev = dataframe.iloc[local_index-1]
 
 
-        day_volume = last["day_volume"]
-        if day_volume== 0:
-             day_volume = last["day_volume_history"]
+        #day_volume = last["day_volume"]
+        #if day_volume== 0:
+        day_volume = last["day_volume_history"]
 
         day_volume_gain=0
         if prev["day_volume"]!=0:
@@ -500,7 +500,7 @@ class TradeStrategy(SmartStrategy):
                         l_h_perc = 100.0* (high-low) / low
                         perc =  100.0 * (prev["close"]- first["open"]) / first["open"]
 
-                        #logger.info(f"{symbol} OPEN 15M perc:{perc} l_h_perc:{l_h_perc}")
+                        logger.info(f"{symbol} OPEN 15M perc:{perc} l_h_perc:{l_h_perc}")
 
                         self.set_meta(symbol, 
                                 {"open_15m_high" : high,
