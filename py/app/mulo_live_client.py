@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class MuloLiveClient:
-
+    
     def __init__(self,db_file, config, propManager):
         self.db_file = db_file
         self.ready=False
@@ -106,6 +106,7 @@ class MuloLiveClient:
                     '''
                     if self.sym_mode and "sym" in new_ticker:
                         self.sym_time = new_ticker["sym"]
+                        #logger.info(f"sym_time {self.sym_time}")
                         self.sym_speed = new_ticker["speed"]
 
                     elif "evt" in new_ticker:
@@ -131,7 +132,19 @@ class MuloLiveClient:
 
                             if self.sym_mode:
                                 await self.on_partial_candle_receive(new_ticker)
-                            
+
+                                if new_ticker["s"] in self.tickers:
+                                    t = self.tickers[new_ticker["s"]]
+                                    t.update({"last": new_ticker["c"],
+                                            "volume": new_ticker["v"],
+                                            "day_volume": new_ticker["day_v"],
+                                            "ask":  new_ticker["ask"],
+                                            "bid":  new_ticker["bid"],
+                                            "low": new_ticker["l"],
+                                            "high": new_ticker["h"],
+                                            "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
+                                            "ts":new_ticker["ts"] })
+                                    await self.on_ticker_receive(t)
 
                         else:
                             await self.on_partial_candle_receive(new_ticker)
@@ -592,12 +605,14 @@ class MuloLiveClient:
         else:
             return (0.01,0)
         
-    async def last_close(self, symbol: str):
-
-        if not self.sym_mode:
-            base_time = datetime.now(tz=ZoneInfo("Europe/Rome"))
+    async def last_close(self, symbol: str, dt:datetime=None):
+        if dt:
+            base_time = dt
         else:
-            base_time = self.sym_time
+            if not self.sym_mode:
+                base_time = datetime.now(tz=ZoneInfo("Europe/Rome"))
+            else:
+                base_time = self.sym_time
 
         ieri = base_time - timedelta(days=1)
 

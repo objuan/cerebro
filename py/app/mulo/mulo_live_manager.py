@@ -175,7 +175,8 @@ class LiveManager:
         self.conn = sqlite3.connect(fetcher.db_file)
         self.ws_manager=ws_manager
         #print(self.config)
-        self.max_symbols =   config["live_service"]["max_symbols"]
+        self.live_max_symbols =   config["live_service"]["live_max_symbols"]
+        self.feed_max_symbols =   config["live_service"]["feed_max_symbols"]
         self.run_mode = config["live_service"].get("mode","sym") 
 
         self.scanner_map = {}
@@ -276,15 +277,19 @@ class LiveManager:
             del  self.tickers[symbol]
 
     async def discard_last(self)-> bool:
-        return False
+        
         logger.info(f"========== DISCARD LAST ========== ")
      
-        if len(self.tickers) > self.max_symbols:
+        if len(self.tickers) > self.feed_max_symbols:
+
+            to_del_tickers = self.ordered_tickers()[ self.feed_max_symbols:]
+            '''
             to_del_tickers =  {
                     symbol: ticker
                     for symbol, ticker in self.tickers.items()
                     if not ticker.scan_list
             }
+            '''
             if len(to_del_tickers)>0:
 
                 logger.info(f"CHECK TICKERS TO DELETE {to_del_tickers}")
@@ -292,7 +297,7 @@ class LiveManager:
                 #o_tickers = self.ordered_tickers()
 
                 #logger.info(f"..{o_tickers}")
-                to_remove = to_del_tickers.values() # to_remove = o_tickers[self.max_symbols:]
+                to_remove = to_del_tickers#.values() # to_remove = o_tickers[self.max_symbols:]
                 
                 #symbols = [x.contract.symbol for x in to_remove]
                 symbols = [
@@ -476,7 +481,8 @@ class LiveManager:
             else:
                 to_add.append(symbol)
 
-        await self.align_symbols(to_add)
+        if self.ib:
+            await self.align_symbols(to_add)
 
         logger.info(f"START FEEDs")
 
@@ -524,7 +530,8 @@ class LiveManager:
                         ticker.scan_list = []
 
                     ticker.is_live = True
-                    ticker.updateEvent += self.on_tick
+                    if self.config["live_service"]["mode"] != "offline":
+                        ticker.updateEvent += self.on_tick
                     
                 self.tickers[symbol]  = ticker
                 self.ticker_contracts[symbol]  = contract
@@ -924,7 +931,7 @@ class LiveManager:
                                         #logger.info(f"{row}")   
                                     
                                         try:
-                                            data = {"s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), 
+                                            data = {"m":"full", "s":symbol, "tf":interval,  "o":float(row['open']),"c":float(row['close']),"h":float(row['high']),"l":float(row['low']), 
                                                     "v":base_volume, "ts":int(start)*1000, "dts":start_time  }
                                     
                                         
@@ -998,15 +1005,21 @@ class LiveManager:
             if  start_scan== "keep_last_session":
 
                 logger.info(f"Keep last session")
+                '''
                 df = self.fetcher.get_df("""SELECT * FROM ib_scanner
                     WHERE ts_exec = (
                         SELECT MAX(ts_exec) FROM ib_scanner where mode ="TOP_PERC_GAIN" 
                     )
                     ORDER BY pos ASC""")
+                '''
+                df = self.fetcher.get_df("""SELECT distinct symbol FROM ib_day_watch
+                    WHERE date = (
+                        SELECT MAX(date) FROM ib_day_watch
+                    )""")
                 if len(df)>0:
-                    max_symbols=self.config["live_service"]["max_symbols"]
+                    #max_symbols=self.config["live_service"]["live_max_symbols"]
 
-                    df = df [:max_symbols]
+                    df = df [:self.feed_max_symbols]
                     symbols =  df["symbol"].tolist()
 
                     logger.info(f"START LAST SESSION {symbols}")
@@ -1014,7 +1027,22 @@ class LiveManager:
 
                     df_symbols =self.fetcher.get_df(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})")
                     
-                    await self.updateLive(df_symbols )
+                    
+                    await self.manage_live(None,symbols , [])
+
+                    '''
+                    if config["live_service"]["mode"] != "offline":
+                        await self.updateLive(df_symbols )
+                    else:
+                        #for symbol in symbols:
+                        #    await self.fetcher._align_data(symbol,"1m")
+                        #self.actual_df = df_symbols
+                        #self.symbol_map = self.actual_df.set_index("symbol")["listing_exchange"].to_dict()
+                        #self.symbol_to_conid_map = self.actual_df.set_index("symbol")["conidex"].to_dict()
+                        await self.updateLive(df_symbols )
+                    '''
+                        #logger.info(f"SYMBOLS {df_symbols}")
+                   
                 else:
                     logger.error("COULD NOT FOUND SCANNER LAST")
             else:
@@ -1033,7 +1061,7 @@ class LiveManager:
                     None
                 )
                 '''
-                max_symbols = config["live_service"]["max_symbols"]
+                #max_symbols = config["live_service"]["max_symbols"]
 
                 for d in sched_data:
                     self.scanner_map[d["name"]] = LiveScanner(self.fetcher,d)
@@ -1050,7 +1078,7 @@ class LiveManager:
 
                     if scan.merge_weight .endswith("%"):
                         perc = float(scan.merge_weight [:-1]) / 100  # ⚠️ dividi per 100!
-                        scan.max_symbols = int(perc * max_symbols)
+                        scan.max_symbols = int(perc * self.live_max_symbols)
                         total_allocated += scan.max_symbols
                     else:
                         scan.max_symbols = 1
@@ -1058,7 +1086,7 @@ class LiveManager:
 
                 # Ultimo elemento prende il resto
                 last_key = items[-1][0]
-                self.scanner_map[last_key].max_symbols = max_symbols - total_allocated
+                self.scanner_map[last_key].max_symbols = self.live_max_symbols - total_allocated
 
                 logger.info(f"scanner_map { self.scanner_map}")
 

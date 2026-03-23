@@ -1545,7 +1545,7 @@ if __name__ =="__main__":
                         if (client.sym_mode):
                             msg = {
                                 "path": "root.clock",
-                                "data": client.sym_time 
+                                "data": client.sym_time
                             }
                         else:
                             msg = {

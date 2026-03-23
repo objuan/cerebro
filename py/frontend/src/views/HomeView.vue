@@ -381,7 +381,7 @@ const initWebSocket = () => {
   ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 
   ws.onmessage = (event) => {
-    //console.log(">>",event.data)
+    console.log(">>",event.data)
     try
     {
       const msg = JSON.parse(event.data);
@@ -462,7 +462,7 @@ const initWebSocket = () => {
           break;
         case "event":
           {
-            console.log("event",msg);
+            //console.log("event",msg);
 
             if (msg.source =="strategy" || msg.source =="mule")
                 strategyStore.push(msg);

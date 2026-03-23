@@ -229,25 +229,22 @@ if __name__ =="__main__":
 
         manager = BacktestManager(config,client,render_page)
 
+        df = client.get_df("""SELECT distinct symbol FROM ib_day_watch
+                    WHERE date = (
+                        SELECT MAX(date) FROM ib_day_watch
+                    )""")
+        list = df["symbol"].tolist()
+        list = list[:80]
+
+        logger.info(f"STAT PROCESS {list}")
         data = {
-            "badgetUSD": 100,
-            "symbols": ["BIAF"],
-            "symbols1": [
-                    "SAFX",
-                    "DEVS",
-                    "EDHL",
-                    "EEIQ",
-                    "TURB",
-                    "GV",
-                    "VEEE",
-                    "SVCO",
-                    "BTCT",
-                    "CODX",
-                    ],
-            "dt_from": "2026-03-13 08:00:00", # UTC format
-            "dt_to": "2026-03-13 16:59:00",
-            "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+            "badgetUSD": 10000,
+            "symbols": list,
+            "dt_from": "2026-03-20 13:00:00", # UTC format
+            "dt_to": "2026-03-20 18:59:00",
+            "strategy": [{"module": "strategies.trade_strategy", "class": "TradeStrategy"}]
         }
+        #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
 
         backtest = BacktestIn(data)
 

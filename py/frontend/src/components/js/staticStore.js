@@ -34,7 +34,7 @@ const set = (path, data) => {
 
 const load = (path, data) => {
   state[path] = data;
-
+ // console.log("load",path,data)
   emit(path, data);       // 👈 evento specifico per key
   emit("change", {path, data}); // 👈 evento globale
 };

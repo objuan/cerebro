@@ -71,6 +71,27 @@
                 </button>
             </td>
           </tr>
+          <tr>
+            <td>
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                
+                <label style="font-size:11px;">
+                  Min Volume: {{formatValue(minVolume) }}
+                </label>
+
+                <input
+                  type="range"
+                  min="0"
+                  max="1000000"
+                  step="50000"
+                  v-model="minVolume"
+                  @input="updateTickers"
+                />
+
+              </div>
+            </td>
+          </tr>
+
         </table>
        
       </div>
@@ -377,7 +398,7 @@
 
 <script setup>
 
-import {  ref, computed, onMounted, onUnmounted ,onBeforeUnmount } from 'vue';
+import {  ref, computed, onMounted, onUnmounted ,onBeforeUnmount ,watch} from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
 import { send_get,formatValue,newsColor,rankColor,rangeColor } from '@/components/js/utils.js'; // Usa il percorso corretto
@@ -385,6 +406,7 @@ import { eventBus } from "@/components/js/eventBus";
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { reportStore as report } from "@/components/js/reportStore";
 import NewsWidget from "@/components/NewsWidget.vue";
+import { staticStore } from '@/components/js/staticStore.js';
 
 const showNews = ref(false)
 const selectedSymbol= ref(null)
@@ -393,7 +415,7 @@ const now = ref(Date.now())
 const showAll = ref(false)
 const sortedTickers = ref([])
 const menuOpen = ref(false)
-
+const minVolume = ref(500000)
 let timer = null
 
 const orderedKeys = [
@@ -428,7 +450,10 @@ function updateTickers()
   else
   {
     sortedTickers.value= [...list]
-      .filter(t => t.secs_from)   // tiene solo quelli con secs_from
+       .filter(t => 
+          t.secs_from &&
+          (t.report?.day_volume ?? 0) >= minVolume.value
+        )  // tiene solo quelli con secs_from
       .sort((a, b) => {
         if (sortBy.value == "trend_perc")
           return  b.strategy.get(b.symbol,"1m","TRADE")?.trend_perc - 
@@ -560,11 +585,18 @@ function onReportReceived(data){
 
 }
 
+async function onStart(){
+  console.log("onStart")
+  minVolume.value = staticStore.get('summary.filter.min_volume',400000);
+console.log("onStart",minVolume.value)
+}
 
 onMounted( async () => {
   eventBus.on("ticker-received", onTickerReceived);
- eventBus.on("report-received", onReportReceived);
+  eventBus.on("report-received", onReportReceived);
+  eventBus.on("on-start", onStart)
 
+  
   timer = setInterval(() => {
     now.value = Date.now()
     try{
@@ -591,6 +623,7 @@ onMounted( async () => {
 onBeforeUnmount(() => {
   eventBus.off("ticker-received", onTickerReceived);
    eventBus.off("report-received", onReportReceived);
+    eventBus.off("on-start", onStart)
     clearInterval(timer)
 });
 
@@ -598,6 +631,12 @@ onUnmounted(() => {
 
 
 });
+
+watch(minVolume, (newVal, ) => {
+  
+  staticStore.set('summary.filter.min_volume',newVal)
+  //saveProp("event.filter",v)
+}, { deep: true })
 
 /*
 function updateSymbol(ticket){

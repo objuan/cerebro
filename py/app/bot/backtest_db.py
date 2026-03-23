@@ -59,6 +59,8 @@ class Back_DBDataframe_TimeFrame:
         self.on_df_last_added = MyEvent()
         self.time_tick = TIMEFRAME_SECONDS[timeframe] * 1000
         self.symbols = inData.symbols
+
+        logger.info(f"INIT SYMBOLS {self.symbols}")
         #for symbol in inData.symbols:
         #    self.main_df.back_manager.client.history_data()
        
@@ -68,17 +70,25 @@ class Back_DBDataframe_TimeFrame:
 
         self.all_df = self.main_df.back_manager.back_data(inData.symbols,self.timeframe,since, to)
 
+
         self.all_df["local_time"] = pd.to_datetime(self.all_df["timestamp"], unit="ms") \
                         .dt.tz_localize("UTC") \
                         .dt.tz_convert("Europe/Rome") \
                         .dt.tz_localize(None)  # opzionale: rimuove info timezone
         
+        self.all_df["datetime"] = pd.to_datetime(
+                self.all_df["timestamp"].astype("int64"),
+                unit="ms",
+                utc=True
+            )
+         # opzionale: rimuove info timezone
+
         #self.all_df["timestamp"] = pd.to_datetime(self.all_df["timestamp"], unit="ms", utc=True)
         self.all_df["i_timestamp"] = self.all_df["timestamp"]
 
         self.all_df = self.all_df.set_index("i_timestamp", drop=False).sort_index()
     
-        logger.info(f"BACK_DF \n{self.all_df }")
+        #logger.info(f"BACK_DF \n{self.all_df }")
 
         self.min_time = self.all_df.index.min()
         self.max_time = self.all_df.index.max()
@@ -129,7 +139,7 @@ class Back_DBDataframe_TimeFrame:
                 for symbol, group in new_rows.groupby("symbol"):
 
                     #logger.info(f".. {symbol} \n{ group.tail(5) }")
-
+                    
                     await self.on_df_last_added(self.timeframe,symbol, group)
                 #logger.info(f"NEW \n{ new_rows.tail(5) }")
 

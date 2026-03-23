@@ -248,6 +248,12 @@ class TradeStrategy(SmartStrategy):
         self.tradeInfo = {}
         pass
 
+    def onBackEnd(self):
+
+        logger.info(f"REPORT {self.book.report()}")
+        pass
+
+
     '''
     def extra_dataframes(self)->List[str]:
         return ['1d']
@@ -340,6 +346,8 @@ class TradeStrategy(SmartStrategy):
 
     ######################################
     async def send_property(self,symbol:str, timeframe ,  value ):
+        if self.backtestMode: return
+
         if not self.backtestMode and not self.bootstrapMode:
             #logger.info("send")
             await self.client.send_strategy_prop("TRADE", symbol,timeframe,value)
@@ -349,11 +357,15 @@ class TradeStrategy(SmartStrategy):
             #self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
     
     async def send_trade_order(self,symbol:str,type:str,side:str, quantity:str, price, tp, sl,  desc:str):
+        if self.backtestMode: return
+
         await self.client.send_strategy_trade("strategy-trade",symbol,self.timeframe,
                  {"type":type,"price_op":side,"quantity": quantity
                   ,"price": price,"take_profit": tp,"stop_loss":sl,"desc": desc})
        
     async def send_trade_bracket(self,symbol:str,side:str, quantity:str, price, tp, sl,  desc:str):
+        if self.backtestMode: return
+
         await self.send_trade_order(symbol,"bracket",side,quantity,price,tp, sl, desc )
         
     async def on_all_candle(self, dataframe: pd.DataFrame,global_index) :
@@ -439,14 +451,18 @@ class TradeStrategy(SmartStrategy):
         prev = dataframe.iloc[local_index-1]
 
 
+        #logger.info(f">> {type(last['datetime'])} trade_symbol_at \n{dataframe.tail(5)}" )  
+
         #day_volume = last["day_volume"]
         #if day_volume== 0:
         day_volume = last["day_volume_history"]
 
+        #logger.info(f">> day_volume {day_volume}" )  
+
         day_volume_gain=0
-        if prev["day_volume"]!=0:
-            day_volume_gain = 100.0 * (day_volume -  prev["day_volume"] ) /  prev["day_volume"]
-        elif prev["day_volume_history"]!=0:
+        #if prev["day_volume"]!=0:
+        #    day_volume_gain = 100.0 * (day_volume -  prev["day_volume"] ) /  prev["day_volume"]
+        if prev["day_volume_history"]!=0:
             day_volume_gain = 100.0 * (day_volume -  prev["day_volume_history"] ) /  prev["day_volume_history"]
 
         close =  last["close"]
@@ -465,21 +481,37 @@ class TradeStrategy(SmartStrategy):
 
         ###
 
+        ## US TIME
         trade_last_hh = 11
 
         #if not self.backtestMode and not self.bootstrapMode:
              #logger.info(f">> {symbol} {local_index} m:{minutes} \n{dataframe.tail(5)}" )  
         is_inside=False
-        use_day=datetime.now().hour  >= 14
+        #use_day=datetime.now().hour  >= 14
+        #UTF
+        if self.backtestMode:
+            use_day=False
+        else:
+            use_day = last["datetime"].hour >= 14
         ##
+        #logger.info(f'{last["datetime"].hour}')
+
         if  self.market.is_in_time(last["datetime"],
             get_hour_ms(9,00),get_hour_ms(trade_last_hh,00),use_day):
-            
+            #logger.info(f'{last["datetime"]}')
+
             if self.market.is_in_time(last["datetime"],
                 get_hour_ms(9,30),get_hour_ms(trade_last_hh,00),use_day):
+                #logger.info(f'{last["datetime"]}')
+
                 is_inside=True
                 if not self.has_meta(symbol,"open_gap"):
                     last_close = MetaInfo.get(symbol,"last_close")
+                    if not last_close:
+                        last_close, ts_last_close=  await self.client.last_close(symbol,last["datetime"] ) 
+                    
+                    #logger.info(f'last_close {last_close}')
+
                     if last_close:
                         self.set_meta(symbol,{"open_gap": 100.0* (last["close"] - last_close) / last["close"] })
 
@@ -507,11 +539,15 @@ class TradeStrategy(SmartStrategy):
                                 "open_15m_low": low,
                                 "open_15m_perc" : perc, 
                                 "open_15m_perc_lh":l_h_perc} )
+                        
                 #######
                 # LOGIC #
                 if self.has_meta(symbol,"open_15m_perc"):
                     open_15m_perc =  self.get_meta(symbol,"open_15m_perc")
                     open_15m_perc_lh =  self.get_meta(symbol,"open_15m_perc_lh")
+
+                    #logger.info(f'{day_volume}')
+
                     if open_15m_perc_lh > 5 and day_volume > 500000:
                         #logger.info(f"{symbol} PROCESS perc:{open_15m_perc} l_h_perc:{open_15m_perc_lh}")
                         
@@ -524,8 +560,9 @@ class TradeStrategy(SmartStrategy):
                             #RISK
                          
                             if not self.book.hasCurrentTrade(symbol):
-                                RR = 2
-                                max_loss =(self.get_meta(symbol,"open_15m_high") - self.get_meta(symbol,"open_15m_low")) * 0.25
+                                RR = 3
+                                mx_loss_perc = 0.25
+                                max_loss =(self.get_meta(symbol,"open_15m_high") - self.get_meta(symbol,"open_15m_low")) * mx_loss_perc
                                 sl = last['close'] - max_loss
                                 tp = last['close'] + max_loss * RR
 
@@ -545,6 +582,11 @@ class TradeStrategy(SmartStrategy):
                             
                             #await self.send_event(symbol, "15 ^", f"15 break up",f"15 break up",color="#A01010", ring="news")
             else:
+                # sell existing
+                if self.has_meta(symbol,"open_15m_perc"):
+                    if self.book.hasCurrentTrade(symbol):
+                         self.sell(symbol,close,100,last["datetime"],"OUT")
+                         
                 self.set_meta(symbol,{})
 
         #low =  last["low"]
@@ -573,7 +615,7 @@ class TradeStrategy(SmartStrategy):
         '''
         ##### VOL BREAK
         if day_volume_gain>10 and day_volume > 100000:
-             await self.send_event(symbol, "VOL", f"VOL 10",f"VOL 10%",color="#10A02F", ring="news")
+             await self.send_event(symbol, "VOL", f"VOL 10",f"VOL 10%",color="#10A02F", ring="")
 
         #SMA CROSS
         if day_volume > 1_000_000:
@@ -593,8 +635,8 @@ class TradeStrategy(SmartStrategy):
                                 "trend_perc" :diff_perc if  not pd.isna(diff_perc) else 0,
                                  "trend_perc_all" :diff_all if  not pd.isna(diff_all) else 0} )
 
-        if not self.bootstrapMode:
-            logger.info(f"REPORT {self.book.report()}")
+        #if not self.bootstrapMode:
+        #    logger.info(f"REPORT {self.book.report()}")
 
 
 

@@ -236,6 +236,14 @@ class Strategy:
                 new_global_idx = df_tf.index.max() + 1
                 #logger.info(f"new_global_idx {new_global_idx}")
             
+                #logger.info(f"df_tf \n{df_tf}")
+
+                if self.backtestMode:
+                    #print(type(new_row))
+                    new_row_series = new_row.iloc[0]
+                    #new_row = pd.Series(new_row).reindex(df_tf.columns, fill_value=0)
+                    new_row = pd.Series(new_row_series).reindex(df_tf.columns, fill_value=0)
+
                 df_tf.loc[new_global_idx] = new_row
             else: # non va aggiunge colonne
                  df_tf = pd.concat([df_tf, new_row])

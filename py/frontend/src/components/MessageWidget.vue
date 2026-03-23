@@ -110,7 +110,7 @@ const open = ref(false)
 
 
 const playSound = (ringName) => {
-  console.log("PLAY",ringName)
+  //console.log("PLAY",ringName)
 
   let idx = ringName
   if (ringName== null || ringName =="")

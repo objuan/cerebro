@@ -117,15 +117,12 @@ class MuloJob:
     def __init__(self,db_file, config):
         self.ib=None
         self.ready=False
-        #self.cache = JobCache()
         self.config=config
         self.symbols=[]
         self.tickers = {}
         self.db_file=db_file
         self.table_name="ib_ohlc_history"
-        #self.liveActive=config["live_service"]["enabled"]
         self.last_ts = {}
-        #self.max_symbols=config["database"]["live"]["max_symbols"]
         self.historyActive =config["live_service"]["fetch_enabled"]  
 
         self.TIMEFRAME_UPDATE_SECONDS =config["live_service"]["TIMEFRAME_UPDATE_SECONDS"]  

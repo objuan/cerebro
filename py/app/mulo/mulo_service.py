@@ -290,7 +290,13 @@ async def main():
             
             if run_mode!= "sym":
                     ib = IB()
-                    ib.connect('127.0.0.1', config["live_service"]["ib_port"], clientId=config["live_service"]["ib_client"])
+                    #if config["live_service"]["mode"] != "offline":
+                    try:
+                        ib.connect('127.0.0.1', config["live_service"]["ib_port"], clientId=config["live_service"]["ib_client"])
+                    except:
+                        ib = None
+                        if config["live_service"]["mode"] != "offline":
+                            logger.error("IB NOT FOUND !!!!", exc_info=True)
 
                     #OrderManager(config,ib)
                 
@@ -311,7 +317,7 @@ async def main():
                     #ib = IB()
                     #ib.connect('127.0.0.1', config["live_service"]["ib_port"], clientId=config["live_service"]["ib_client"])
 
-                    live = LiveManager(None,config,fetcher,scanner,ws_manager,None)
+                    live = LiveManager(None,config,fetcher,scanner,ws_manager,ms,None)
 
 
             if use_display:

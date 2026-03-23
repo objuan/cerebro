@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "GNLN",
+      "symbol": "SUNE",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -86,7 +86,7 @@
       }
     },
     "start_len": {
-      "1m": 192.45820416947095
+      "1m": 114.75538527447429
     }
   },
   "event": {
@@ -460,6 +460,12 @@
     },
     "YHC": {
       "quantity": 100
+    },
+    "NXXT": {
+      "quantity": 300
+    },
+    "MNDR": {
+      "quantity": 100
     }
   },
   "back": {
@@ -472,6 +478,11 @@
     },
     "1": {
       "grid": "1_1"
+    }
+  },
+  "summary": {
+    "filter": {
+      "min_volume": 400000
     }
   }
 }
