@@ -492,7 +492,7 @@ class TradeStrategy(SmartStrategy):
         if self.backtestMode:
             use_day=False
         else:
-            use_day = last["datetime"].hour >= 14
+            use_day = True#last["datetime"].hour >= 13
         ##
         #logger.info(f'{last["datetime"].hour}')
 
@@ -546,7 +546,7 @@ class TradeStrategy(SmartStrategy):
                     open_15m_perc =  self.get_meta(symbol,"open_15m_perc")
                     open_15m_perc_lh =  self.get_meta(symbol,"open_15m_perc_lh")
 
-                    #logger.info(f'{day_volume}')
+                    #logger.info(f'ok {symbol} {last['datetime']} v:{day_volume} {open_15m_perc_lh}')
 
                     if open_15m_perc_lh > 5 and day_volume > 500000:
                         #logger.info(f"{symbol} PROCESS perc:{open_15m_perc} l_h_perc:{open_15m_perc_lh}")
@@ -635,8 +635,8 @@ class TradeStrategy(SmartStrategy):
                                 "trend_perc" :diff_perc if  not pd.isna(diff_perc) else 0,
                                  "trend_perc_all" :diff_all if  not pd.isna(diff_all) else 0} )
 
-        #if not self.bootstrapMode:
-        #    logger.info(f"REPORT {self.book.report()}")
+        if not self.bootstrapMode:
+            logger.info(f"REPORT {self.book.report()}")
 
 
 

@@ -62,7 +62,7 @@ class Indicator:
             self.init=True
             self.initialize(dataframe)
 
-        #logger.info(f"!! indicator {self.__class__.__name__}")
+        logger.info(f"!! indicator {symbol} {self.__class__.__name__} l:{from_local_index}")
         if from_local_index == -1:
             from_local_index = len(df_symbol)-1
             
@@ -75,21 +75,22 @@ class Indicator:
             self.compute(symbol, dataframe,df_symbol, from_local_index)
 
     # solo per tutto 
-    def applyAll(self, dataframe: pd.DataFrame, from_global_index=0):
+    def applyAll(self, dataframe: pd.DataFrame, from_global_index,filter_symbol=None):
 
         for symbol, group in dataframe.groupby("symbol"):
+            
+            if not filter_symbol or (filter_symbol and filter_symbol == symbol):
+                if from_global_index == -1:
+                    start_pos = 0
+                else:
+                    if from_global_index != 0:
+                        raise Exception("AAAAAAAAAAAAA")
+                    #mask = group.index >= from_global_index
+                    #if not mask.any():
+                    #    continue
+                    #start_pos = group.index.get_indexer(group[mask].index)[0]
 
-            if from_global_index == -1:
-                start_pos = 0
-            else:
-                if from_global_index != 0:
-                    raise Exception("AAAAAAAAAAAAA")
-                #mask = group.index >= from_global_index
-                #if not mask.any():
-                #    continue
-                #start_pos = group.index.get_indexer(group[mask].index)[0]
-
-            self.apply(symbol, dataframe, group, from_global_index)
+                self.apply(symbol, dataframe, group, from_global_index)
         
  
  #################################

@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "SUNE",
+      "symbol": "NKLR",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -86,7 +86,7 @@
       }
     },
     "start_len": {
-      "1m": 114.75538527447429
+      "1m": 224.54717599283083
     }
   },
   "event": {
@@ -465,6 +465,15 @@
       "quantity": 300
     },
     "MNDR": {
+      "quantity": 100
+    },
+    "UGRO": {
+      "quantity": 100
+    },
+    "STIM": {
+      "quantity": 100
+    },
+    "OSRH": {
       "quantity": 100
     }
   },

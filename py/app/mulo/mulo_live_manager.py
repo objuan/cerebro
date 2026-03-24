@@ -541,14 +541,15 @@ class LiveManager:
 
         #####
 
+        '''
         for symbol in symbol_list_remove:
             # cancello logico
-            scan_list = self.tickers[symbol].scan_list
-            if scan in scan_list:
-                scan_list.remove(scan)
-            else:
-                logger.error(f"not found in scan list !!!! ")
-            
+            #scan_list = self.tickers[symbol].scan_list
+            #if scan in scan_list:
+            #    scan_list.remove(scan)
+            #else:
+            #    logger.error(f"not found in scan list !!!! ")
+        '''            
         #logger.info(f"tickers {self.tickers}")
 
         ###

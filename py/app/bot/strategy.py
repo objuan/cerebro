@@ -85,13 +85,13 @@ class Strategy:
                     except:
                         logger.error("error",exc_info=True)
 
-    def _fill_indicators(self,timeframe, from_global_index:int):
+    def _fill_indicators(self,timeframe, from_global_index:int,filter_symbol=None):
         for tf, inds in self.indicators.items():
             if tf == timeframe:
                 for ind in inds:
                     try:
                         #logger.info(f"_fill_indicators {from_global_index}")
-                        ind.applyAll(self.df(tf),from_global_index)
+                        ind.applyAll(self.df(tf),from_global_index,filter_symbol)
                         '''
                         if allMode:
                             ind.apply(self.df(tf))    
@@ -134,7 +134,7 @@ class Strategy:
         self.populate_indicators( )
 
         for tf, db_df in self.db_df_map.items():
-            self._fill_indicators(tf,0)
+            self._fill_indicators(tf,0,None)
             db_df.on_df_last_added+= self.on_df_last_added
 
         for tf,df in self.df_map.items():
@@ -206,6 +206,31 @@ class Strategy:
                     #logger.info(f"BOOT ADD {tf} \n{add_df.tail(10)}" )
                         df = pd.concat([df, add_df], ignore_index=True)
                         self.df_map[tf] = df
+
+                        ## BOOTSTRAP
+
+                        old = self.bootstrapMode
+                        self.bootstrapMode=True
+                        for symbol, group in df.groupby("symbol"):
+                            
+                            self.trade_dataframe = group
+                            if symbol == s:
+
+                                for tf, db_df in self.db_df_map.items():
+                                    self._fill_indicators(tf,0,symbol)
+                                # ???
+                                #db_df.on_df_last_added+= self.on_df_last_added
+
+                                logger.info(f"SMART BOOTSTRAP {symbol}")
+                                idx=0
+                                for global_idx in group.index:
+                                    try:
+                                        self.trade_index_global= global_idx
+                                        await self.trade_symbol_at(symbol, group,idx,{})
+                                        idx=idx+1
+                                    except:
+                                        logger.error(f"trade_symbol_at  {symbol} index {global_idx}" , exc_info=True)
+                        self.bootstrapMode = old
 
     ########
     # DEVE ESSERE MULTITHREAD
