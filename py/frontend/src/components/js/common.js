@@ -19,6 +19,7 @@ export async function initProps() {
             || val.path.startsWith("home")
           || val.path.startsWith("symbols")
             || val.path.startsWith("event") 
+              || val.path.startsWith("summary") 
          || val.path.startsWith("back") )
             {
               staticStore.load(val.path, val.value);

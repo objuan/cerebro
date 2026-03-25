@@ -577,7 +577,7 @@ function onReportReceived(data){
    for (const [symbol, ] of Object.entries(data)) {
      //console.log(symbol,rep)
       //tickerList.value[symbol].summary = report.get_sum_rank(symbol)
-      //console.log( "..",tickerList.value[symbol])
+      //console.log( "..",symbol)
       tickerList.push({"symbol": symbol, "summary" : report.get_sum_rank(symbol)})
       tickerList.push({"symbol": symbol, "report" : report.get_report(symbol)})
    }

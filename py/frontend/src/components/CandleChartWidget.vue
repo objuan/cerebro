@@ -273,7 +273,6 @@ let strategy_index_map = {}
 const  strategy_index_list = ref([])
 const  legend_index_list = ref([])
 
-
 const gfx_canvas = ref(null);
 
 const drawMode = ref(null); // null | 'hline' | 'line'
@@ -284,14 +283,12 @@ let drawSeries = [];
 let chart = null;
 let series  = null;
 let buy_line = null
-//let indicators = {}
 
 let lastMainCandle=null
 let tradeMarkerData = {}; 
 let chartWidth=null;
 let openZoneControl=null;
 
-//let DEFAULT_INTERACTION=null;
 
 let timeframe_start = {}
 timeframe_start["10s"] = 200
@@ -1044,6 +1041,7 @@ onBeforeUnmount(() => {
   eventBus.off("order-received", onOrderReceived);
   eventBus.off("task-order-received", onTaskOrderReceived);
   eventBus.off("trade-last-changed", onTradeLastUpdated);
+  eventBus.off("strategy-trade",   onStrategyTrade);
 });
 
 onUnmounted(() => {

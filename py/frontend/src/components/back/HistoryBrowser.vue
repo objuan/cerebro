@@ -28,19 +28,6 @@
       <button @click="openPopup" class="btn btn-success">
           Symbol Map
       </button>
-
-      <select 
-          v-model="currentTimeframe" 
-          @change="onTimeFrameChange" 
-          class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
-        >
-          <option value="10s">10s</option>
-          <option value="30s">30s</option>
-          <option value="1m">1m</option>
-          <option value="5m">5m</option>
-          <option value="1h">1h</option>
-          <option value="1d">1d</option>
-        </select>
     
 
     </div>
@@ -87,8 +74,9 @@
 import { ref,watch ,onMounted,computed,nextTick} from 'vue'
 import { staticStore } from '@/components/js/staticStore.js';
 import { initProps } from "@/components/js/common";
-import {send_get,send_post} from  "@/components/js/utils";
+import {send_get} from  "@/components/js/utils";//send_post
 import SymbolDayMap from '@/components/back/SymbolDayMap.vue'
+import {backTest} from "@/components/back/backtest";
 //import {BacktestIn}  from '@./back_types.js'
 
 //import { eventBus } from "@/components/js/eventBus";
@@ -103,11 +91,10 @@ const dateInput = ref(null)
 const symbolList = ref([])
 const symbolMap = ref(null)
 const profile_name = ref(null)
-const currentTimeframe = ref("1m")
 
 
-let profiles = null
-let profile_data = null
+//let profiles = null
+//let profile_data = null
 
 // =========================
 
@@ -152,45 +139,40 @@ async function fetchHistory(date) {
 }
 
 // =========================
-function onTimeFrameChange(){
-  emit('changed', { });
-}
 
-function getData(){
-  staticStore.set("back.history.last",profile_name.value)
-  return {
-    "symbols" : symbolList.value,
-    "date" : selectedDate.value,
-    "tf" : currentTimeframe.value
 
-  }
-}
 function saveProfile(){
-  send_post("/back/profile/save", {"name": profile_name.value, "data":getData() })
+  staticStore.set("back.history.last",profile_name.value)
+
+  backTest.inData.date= selectedDate.value 
+  backTest.inData.symbols =  symbolList.value
+
+
+  backTest.save()
+  //send_post("/back/profile/save", {"name": profile_name.value, "data":getData() })
 }
 
 onMounted(async  () => {
 
   await initProps();
 
-  profiles = await send_get("/back/profiles")
-  let name = await staticStore.get(
+  await backTest.load();
+
+   let name = await staticStore.get(
       "back.history.last",""
     )
-  profile_name.value=name
-   const profile = profiles.find(
-      p => p.name === name
-    )
-  profile_data = profile ? profile.data : null
-  if (profile_data!=null)
+   profile_name.value=name
+
+   backTest.select(name) 
+
+  if (backTest.inData)
   {
-      let data = JSON.parse(profile_data)
-      console.log("data",data)
+      console.log("data",backTest.inData)
 
-      selectedDate.value = data.date
-      symbolList.value = data.symbols
-      currentTimeframe.value = data.tf
+      selectedDate.value = backTest.inData.date
+      symbolList.value = backTest.inData.symbols
 
+      send_get("/back/enabled",{"enable": true})
 
       send_get("/back/profile/select",{"name": name})
   }
@@ -204,9 +186,8 @@ function getSymbolList() {
   */
 
 defineExpose({
-  getData,
   symbolList,
-  currentTimeframe
+
 });
 
 

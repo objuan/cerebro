@@ -117,7 +117,7 @@ class LiveScanner:
         logger.info(f"ACTUAL {self.actual_df}")
 
         changed=False
-        if len(df_symbols)==0:
+        if len(df_symbols) == 0 or (self.actual_df is not None and self.actual_df.empty):
             self.actual_df = df_symbols
             self.symbol_map =={}
             self.symbol_to_conid_map = {}
@@ -473,12 +473,15 @@ class LiveManager:
             ticker = self.tickers[symbol] if symbol in self.tickers else None
 
             if  ticker:
+                '''
                 logger.info(f"UPDATE TICKER {symbol}")
                 if not (scan in ticker.scan_list ):
                     ticker.scan_list.append(scan)
                 else:
                      logger.warning("DOUBLE TICKER SCAN")
+                '''
             else:
+                logger.info(f"ADD TICKER {symbol}")
                 to_add.append(symbol)
 
         if self.ib:
@@ -524,10 +527,12 @@ class LiveManager:
                     ticker.start_time = datetime.now()
                     ticker.last_close = await self.fetcher.last_close(symbol)
                     ticker.symbol = symbol
+                    '''
                     if scan:
                         ticker.scan_list = [scan]
                     else:
                         ticker.scan_list = []
+                    '''
 
                     ticker.is_live = True
                     if self.config["live_service"]["mode"] != "offline":
@@ -583,7 +588,7 @@ class LiveManager:
             await self.ws_manager.broadcast({"evt":"on_update_symbols"})
         
     async def on_tick(self,ticker):
-        ##logger.info(f"on_tick {ticker}")
+        #logger.info(f"on_tick {ticker}")
 
         await self.add_ticker(ticker.symbol,ticker,None)
         #logger.info(f"on_tick {ticker}")

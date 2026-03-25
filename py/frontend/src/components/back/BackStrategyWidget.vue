@@ -1,12 +1,11 @@
 <template>
-  <div class="strategy-editor">
-
+  <div class="strategy-editor" v-if="backTest.inData">
     <!-- Budget -->
     <div class="field">
       <label>Budget</label>
       <input
         type="number"
-        v-model.number="form.budget"
+        v-model.number="form.badgetUSD"
         min="0"
         class="input"
       />
@@ -27,14 +26,23 @@
     </div>
 
     <!-- Timeframe -->
-    <div class="field">
+
+     <div class="field">
       <label>Timeframe</label>
-      <input
-        type="number"
-        v-model.number="form.timeframe"
-        class="input"
-      />
+      <select 
+          v-model="currentTimeframe" 
+          @change="onTimeFrameChange" 
+          class="form-select form-select-sm bg-dark text-white border-secondary timeframe-selector"
+        >
+          <option value="10s">10s</option>
+          <option value="30s">30s</option>
+          <option value="1m">1m</option>
+          <option value="5m">5m</option>
+          <option value="1h">1h</option>
+          <option value="1d">1d</option>
+        </select>
     </div>
+
 
     <!-- Params JSON -->
     <div class="field">
@@ -58,14 +66,21 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from "vue"
+import { ref,   onMounted, watch, computed } from "vue"
 import {send_get} from  "@/components/js/utils";
-
+import {backTest} from "@/components/back/backtest";
 const emit = defineEmits(["save"])
+
 
 const strategies = ref([])
 const selectedStrategyIndex = ref(null)
+const currentTimeframe = ref("1m")
 
+const form = computed(() => {
+  return backTest.inData
+});
+
+/*
 const form = reactive({
   budget: 1000,
   module: "",
@@ -73,9 +88,15 @@ const form = reactive({
   timeframe: 0,
   params: {}
 })
+  */
 
 const paramsText = ref("{}")
 const jsonError = ref(null)
+
+function onTimeFrameChange(){
+    backTest.inData.tf=    currentTimeframe.value
+}
+
 
 onMounted(async () => {
   try {
@@ -92,23 +113,27 @@ onMounted(async () => {
   }
 })
 
+
+
 watch(selectedStrategyIndex, (index) => {
   if (index === null) return
 
   const strategy = strategies.value[index]
+  if (form.value)
+{
+  form.value.module = strategy.module
+  form.value.class = strategy.class
+  form.value.timeframe = strategy.timeframe
+  form.value.params = { ...strategy.params }
 
-  form.module = strategy.module
-  form.class = strategy.class
-  form.timeframe = strategy.timeframe
-  form.params = { ...strategy.params }
-
-  paramsText.value = JSON.stringify(form.params, null, 2)
+  paramsText.value = JSON.stringify(form.value.params, null, 2)
+}
 })
 
 watch(paramsText, (value) => {
   try {
     const parsed = JSON.parse(value)
-    form.params = parsed
+    form.value.params = parsed
     jsonError.value = null
   } catch (e) {
     jsonError.value = "JSON non valido"

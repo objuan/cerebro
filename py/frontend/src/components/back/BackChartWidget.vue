@@ -1,8 +1,9 @@
 <template>
   <div ref="container" class=" border rounded bg-dark text-white shadow-sm chart-parent" style="overflow: hidden;" >
     
+
     <div  class="bulk_header" >
-      <div style="display: grid;grid-template-columns: 80px 1fr;">
+      <div style="display: grid;grid-template-columns: 80px 30px 30px;">
         <select 
           v-model="currentTimeframe" 
           @change="onTimeFrameChange" 
@@ -16,10 +17,124 @@
           <option value="1h">1h</option>
           <option value="1d">1d</option>
         </select>
-        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh(false)" >🔄 </button>
+        <button   class="btn p-0 ms-2" title="Refresh"   @click="handleRefresh(false)" >🔄</button>
+        <button   class="btn p-0 ms-2" title="Legend"   @click="toggleLegend()" >📊</button>
       </div>
     </div>
 
+    <table >
+      <tr style="height: 100%;">
+        <td >
+          <table style="table-layout: fixed">
+            <tr >
+              <td colspan="2" style="height: 20px;">
+                  <DropdownMenu
+                    label="="
+                    :items="menuItems"
+                    @select="handleMenu"
+                  />
+
+                  <DropdownMenu
+                    :label="profileName"
+                    :items="menu_indicatorList"
+                    @select="selectProfile"
+                  />
+              </td>
+            </tr>
+            <tr style="height: 100%;">
+            <td style="vertical-align: top;">
+                <div class="button_bar" >
+                
+                          
+
+                  <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
+                  @click="painter?.setMode('price-line')">
+                    ─
+                  </button>
+
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('line')">
+                    ／
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('hline')">
+                    H
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('vline')">
+                    V
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('box')">
+                    B
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('split-box')">
+                    S
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
+                      @click="painter?.setMode('fibonacci')">
+                    F
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
+                      @click="painter?.setMode('misure-box')">
+                    M
+                  </button>
+                  <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                    @click="setDrawMode('delete')">
+                    D
+                  </button>
+
+                  <button  class="btn btn-sm btn-danger ms-1"  title="Clear drawings"
+                    @click="painter_delete_all()">
+                    ✕
+                  </button>
+                
+                </div>
+
+              </td>
+              <td style="vertical-align: top;">
+                 <div class="button_bar">
+
+                <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('trade-rr')">
+                    R
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="painter?.setMode('trade-box')">
+                    📈
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Buy Above" 
+                      @click="painter?.setMode('buy-above')">
+                    🛒⬆
+                  </button>
+                    <button  class="btn btn-sm btn-outline-warning ms-1"  title="Buy Below" 
+                      @click="painter?.setMode('buy-below')">
+                    🛒⬇
+                  </button>
+                    <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                    @click="painter.redraw()">
+                    🔄
+                  </button>
+                    <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
+                    @click="clearStrategyIndicators(context())">
+                    Clear
+                  </button>
+                  <span>
+                    mode {{  painter?.drawMode }}
+                  </span>
+        
+              
+            </div>
+
+              </td>
+            </tr>
+          </table>
+         
+         
+       </td>
+
+      <td>
     <!---   -->
     <div class="position-relative p-0 chart-panel">
       <div class="chart-legend-up  small" v-html="legendHtml"></div>
@@ -32,20 +147,8 @@
            <!-- TODO aggiungere FLOAT, MARKETCAP -->
            <!-- INDICATOR MENU -->
 
-          <div class="chart-legend-left-ind">
+          <div class="chart-legend-left-ind" v-if="left_legend">
 
-              <DropdownMenu
-              label="="
-              :items="menuItems"
-              @select="handleMenu"
-            />
-            
-            <DropdownMenu
-              :label="profileName"
-              :items="menu_indicatorList"
-              @select="selectProfile"
-            />
-            
 
             <!-- INDICATOR LEGENDS -->
 
@@ -75,77 +178,13 @@
                   <button v-if="ind.type != 'strategy'"
                     class="btn btn-sm btn-outline-danger ms-0 p-0 b-0" 
                     
-                    style="width:20px;height:20px"
+                    style="width:16px;height:16px"
                     @click="removeIndicator(i)"
                     title="Rimuovi indicatore"
-                  >
-                    ✕
-                  </button>
+                  >✕</button>
               </div>
             </div>
           </div>
-
-        </div>
-
-    
-        <!-- BUTTON BAR -->
-
-        <div class="button_bar">
-
-          <button   class="btn btn-sm btn-outline-warning ms-2"   title="Horizontal line"
-           @click="painter?.setMode('price-line')">
-            ─
-          </button>
-
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('line')">
-            ／
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('hline')">
-            H
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('vline')">
-            V
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('box')">
-            B
-          </button>
-           <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('split-box')">
-            S
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
-              @click="painter?.setMode('trade-box')">
-            T
-          </button>
-          <button  class="btn btn-sm btn-outline-warning ms-1"  title="Fibonacci" 
-              @click="painter?.setMode('fibonacci')">
-            F
-          </button>
-          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="setDrawMode('delete')">
-            D
-          </button>
-
-          <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="painter_delete_all()">
-            ✕
-          </button>
-            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="painter.redraw()">
-            refresh
-          </button>
-            <button  class="btn btn-sm btn-outline-danger ms-1"  title="Clear drawings"
-            @click="clearStrategyIndicators(context())">
-            Test
-          </button>
-          <span>
-            mode {{  painter?.drawMode }}
-          </span>
-    
           
         </div>
 
@@ -160,7 +199,14 @@
         </div>
        
       </div>
+      
     </div>
+
+    
+      </td>
+        </tr>
+    </table>
+
 
    <CandleChartIndicator ref="indicatorMenu"
         @add-indicator="onAddIndicator"></CandleChartIndicator>
@@ -208,58 +254,45 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'initialized',"refresh"]);
 
+const backTime = ref(null)
+
 // Elementi DOM e Variabili reattive
 const indicatorMenu = ref(null);
 const mainChartRef = ref(null);
 const legendHtml = ref('');
-//const legendIndHtml = ref('');
 const currentTimeframe = ref(props.timeframe);
 const currentSymbol = ref(props.symbol);
-//const symbolList = ref([]);
 const container = ref(null);
-/*
-const price_marker= ref(null);
-const price_marker_tp= ref(null);
-const price_marker_sl= ref(null);
-*/
+const left_legend = ref(false)
 const indicatorList = ref([]);
 const profileName = ref("");
 
 const overlay = ref(null)
 
 let painter = null;
+let initialized=false;
 
 // ==================
 
-//let timeLine_pre=null;
-//let timeLine_open=null;
 let strategy_index_map = {}
 const  strategy_index_list = ref([])
 const  legend_index_list = ref([])
-const backTime = ref(null)
-
 
 const gfx_canvas = ref(null);
 
 const drawMode = ref(null); // null | 'hline' | 'line'
-//let drawPoints = [];
 let drawSeries = [];
 
-// Oggetti Chart e Series (non reattivi per performance)
-//let charts = { main: null, volume: null };
-//let series = { main: null, volume: null, indicators: {} };
+
 let chart = null;
 let series  = null;
 let buy_line = null
-//let indicators = {}
 
+//let lastMainCandle=null
 let tradeMarkerData = {}; 
-//let taskData = {}
 let chartWidth=null;
+let openZoneControl=null;
 
-//let DEFAULT_INTERACTION=null;
-//let manager = null;
-//let ctx=null;
 
 let timeframe_start = {}
 timeframe_start["10s"] = 100
@@ -269,6 +302,7 @@ timeframe_start["1h"] = 24
 timeframe_start["1d"] = 30
 
 const get_key = (subkey)=> { return `symbols.${currentSymbol.value}.${subkey}`}
+const get_key_zoom = ()=> { return `chart.start_len.${currentTimeframe.value}`}
 
 const trade_quantity = ref(null);
 
@@ -289,7 +323,8 @@ function context() {
         strategy_index_map,
         strategy_index_list,
         legend_index_list,
-        mainChartRef
+        mainChartRef,
+        openZoneControl
 
     };
 }
@@ -494,6 +529,11 @@ function linkClearIndicators(){
     clearIndicators();
 }
 
+function toggleLegend(){
+  left_legend.value = !  left_legend.value
+   staticStore.set(get_layout_key("legend"), left_legend.value)
+}
+
 //  ---------
 /*
  --- LOGICA REFRESH DATI ---
@@ -502,6 +542,7 @@ async function handleRefresh (resetWindow)
 {
   try {
    // console.log("handleRefresh ", resetWindow);
+  if (!resetWindow && !initialized) return
 
     clearStrategyIndicators(context())
 
@@ -543,7 +584,9 @@ async function handleRefresh (resetWindow)
           open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
         }));
 
-       //  console.info("formattedData ",data)
+        await updateStrategyIndicators( context(),
+              currentSymbol.value, currentTimeframe.value
+            )
 
         setVolumeData(series,data.map(d => (
                 {
@@ -554,7 +597,6 @@ async function handleRefresh (resetWindow)
 
         series.setData(formattedData);
                 
-        
        // console.log(first,openDate,idx)
   
         // Gestione Indicatori (EMA, etc)
@@ -582,24 +624,6 @@ async function handleRefresh (resetWindow)
 
         // Zoom finale
         
-        if ( data.length >timeframe_start[currentTimeframe.value])
-        {
-          try{
-            if (resetWindow)
-            {
-            //  console.log("reset")
-             // chart.timeScale().fitContent()
-              chart.timeScale().setVisibleLogicalRange({
-                from: data.length - timeframe_start[currentTimeframe.value],
-                to: data.length
-              });
-            }
-            
-          }catch{
-            console.debug("!!")
-          }
-        }
-          
 
                          //let panes = chart.panes();
                 
@@ -612,17 +636,7 @@ async function handleRefresh (resetWindow)
 
  
  
-          
-        // TRADE MARKER
-        if (_trade_marker_data.data!=null)
-        {
-            tradeMarkerData = _trade_marker_data.data;
-            //updateTradeMarker(context(),tradeMarkerData)
-            liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
-                
-        }
-        
-        //console.log("_task_datas",_task_datas)
+                //console.log("_task_datas",_task_datas)
      
         // INDICATORS
 
@@ -666,16 +680,21 @@ async function handleRefresh (resetWindow)
             painter.setData(formattedData)
             painter.createMarketZoneBand()
             painter.createGapZone()
-
-            // STATEGY
-
-          await updateStrategyIndicators( context(),
-            currentSymbol.value, currentTimeframe.value, null,  
-            backTime.value ? backTime.value *1000: null
-          )
+           openZoneControl = painter.createOpenZone()
 
             // TRADE MARKER
-            /*
+/*
+
+        if (_trade_marker_data.data!=null)
+        {
+            tradeMarkerData = _trade_marker_data.data;
+            //updateTradeMarker(context(),tradeMarkerData)
+            liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+                
+        }
+        
+
+            
            if (_task_datas!=null){
 
               // taskData={}
@@ -711,6 +730,7 @@ async function handleRefresh (resetWindow)
             */
         }
         //;
+          initialized=true;
         if (resetWindow){
           emit('refresh', { 
               id: props.id, 
@@ -754,6 +774,11 @@ async function set_marker_trade(){
 
     liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
     handleRefresh (false);
+}
+
+async function onTradeBoxAdded(tradeBox){
+  console.log("onTradeBoxAdded", tradeBox)
+  set_marker_trade()
 }
 
 async function onTradeBoxChanged(){
@@ -864,7 +889,50 @@ function onTradeLastUpdated(msg){
   }   
 }
 
+function onStrategyTrade(msg){
+  if (msg && msg.symbol === props.symbol) {
+    console.log(msg)
+    tradeMarkerData=msg.data
+    /*
+    tradeMarkerData.price =   msg.price
+    tradeMarkerData.take_profit = tradeBox.tp_price()
+    tradeMarkerData.stop_loss = tradeBox.sl_price()
+    tradeMarkerData.quantity =tradeBox.quantity()
+    tradeMarkerData.price_op=tradeBox.buy_price_op()
+    tradeMarkerData.type=tradeBox.buy_type();//"bracket"
+    */
+
+    painter.updateTradeMarker(tradeMarkerData,true)
+  }
+}
+
+
 let chartWatcher=null
+
+function onMouseZoom(){
+  //console.log("onMouseZoom")
+
+   const r = chart.timeScale().getVisibleLogicalRange();
+   //console.log("range",r.to - r.from)
+   staticStore.set(get_key_zoom(), r.to - r.from)
+}
+
+function onKeyDoown(event){
+  if (event.code === 'Space') {
+        //    console.log('Space premuta');
+      const ot = openZoneControl.openTimeIdx()
+     // console.log("ot",ot)
+
+       const zoom =   staticStore.get(get_key_zoom(),timeframe_start[currentTimeframe.value])
+
+       chart.timeScale().setVisibleLogicalRange({
+                from: ot - 20,
+                to:ot+zoom
+              });
+
+
+  }
+}
 
 // --- INIZIALIZZAZIONE ---
 onMounted(  () => {
@@ -872,12 +940,16 @@ onMounted(  () => {
  // console.log("onMounted")
 
   painter =  createPainter(context(),mainChartRef,overlay, trade_quantity)
+  painter.subscribeTradeBoxAdded(onTradeBoxAdded)
   painter.subscribeTradeBoxChanged(onTradeBoxChanged)
   painter.subscribeTradeBoxDeleted(onTradeBoxDeleted)
+  painter.subscribeMouseZoom(onMouseZoom)
+  painter.subscribeKeyDown(onKeyDoown)
 
   eventBus.on("order-received", onOrderReceived);
   eventBus.on("task-order-received", onTaskOrderReceived);
   eventBus.on("trade-last-changed", onTradeLastUpdated);
+  eventBus.on("strategy-trade",   onStrategyTrade);
 
   fetch("http://127.0.0.1:8000/api/chart/indicator/list")
   .then(res => res.json())
@@ -912,6 +984,7 @@ onBeforeUnmount(() => {
   eventBus.off("order-received", onOrderReceived);
   eventBus.off("task-order-received", onTaskOrderReceived);
   eventBus.off("trade-last-changed", onTradeLastUpdated);
+   eventBus.off("strategy-trade",   onStrategyTrade);
 });
 
 onUnmounted(() => {
@@ -1141,7 +1214,7 @@ function on_candle(c)
 // BACK
 
 async function setBackTime(time){
-  //console.log("setBackTime",time)
+  console.log("setBackTime",time)
    backTime.value=time
    await handleRefresh(false);
   chart.timeScale().scrollToRealTime();
@@ -1174,6 +1247,7 @@ defineExpose({
    pointer-events:none;
   /*background-color: rgba(19, 23, 34, 0.7);*/
   z-index: 10;
+  
 }
 
 
@@ -1213,7 +1287,6 @@ defineExpose({
 }
 
 .chart-panel{
-  
   /*height: calc(100% - 45px);*/
   flex: 1;
   overflow: hidden;
@@ -1238,8 +1311,8 @@ defineExpose({
 }
 
 .chart-legend-left-ind  {
-  left:  3px;
-  top: 60px;
+  left:  20px;
+  top: 34px;
   text-align: left;
   background: rgba(50, 59, 85, 0.7);
   border-bottom-right-radius: 4px;
@@ -1247,16 +1320,17 @@ defineExpose({
   position: absolute;
   display: flex;
   flex-direction: column  !important;  /* ← verticale */
-  gap: 6px;                /* spazio tra elementi */
+  gap: 2px;                /* spazio tra elementi */
   align-items: flex-start;              /* spazio tra elementi */
 }
 
 .chart-legend-left-ind-item {
-  font-size: 0.8em;
+  font-size: 0.7em;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 2px;
 }
 
 .legend-remove-btn {
@@ -1284,13 +1358,20 @@ defineExpose({
   padding: 3px;
 }
 .button_bar{
-  position:absolute;
-  top:0px;
-  left:400px;
-  z-index: 20 !important;
-  font-weight: 300;
-  font-size: medium;
-  padding: 3px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;   /* forza partenza dall’alto */
+  align-items: flex-start;
+
+  padding: 0px;
+  background: rgba(78, 78, 78, 0.6);
+  border-radius: 6px;
+}
+.button_bar button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
 }
 .trade_bar{
   border: solid 1px white;

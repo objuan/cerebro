@@ -38,6 +38,7 @@ class MuloLiveClient:
         self.tickers = {}
         self.ib_loop=None
         self.symbol_to_exchange_map={}
+        self.df_fundamentals = None
 
         self.market = MarketService(config).getMarket("AUTO")
         self.sym_mode = config["live_service"]["mode"] =="sym"
@@ -123,9 +124,10 @@ class MuloLiveClient:
                         #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
                         #print(new_ticker)
                         # send to UI
+
+                        
                         if mode =="full":
                             #logger.info(f"full {new_ticker}")
-                           
                             
                             await self.on_full_candle_receive(new_ticker)
                             
@@ -133,7 +135,7 @@ class MuloLiveClient:
                             if self.sym_mode:
                                 await self.on_partial_candle_receive(new_ticker)
 
-                                if new_ticker["s"] in self.tickers:
+                            if new_ticker["s"] in self.tickers:
                                     t = self.tickers[new_ticker["s"]]
                                     t.update({"last": new_ticker["c"],
                                             "volume": new_ticker["v"],
@@ -147,37 +149,38 @@ class MuloLiveClient:
                                     await self.on_ticker_receive(t)
 
                         else:
+                        
                             await self.on_partial_candle_receive(new_ticker)
-                       
                         
+                            
                             if new_ticker["tf"]=="10s" and new_ticker["s"] in self.tickers:
-                                
-                                t = self.tickers[new_ticker["s"]]
-                                t.update({"last": new_ticker["c"],
-                                        "volume": new_ticker["v"],
-                                        "day_volume": new_ticker["day_v"],
-                                        "ask":  new_ticker["ask"],
-                                        "bid":  new_ticker["bid"],
-                                        "low": new_ticker["l"],
-                                        "high": new_ticker["h"],
-                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
-                                        "ts":new_ticker["ts"] })
-                                
-                                
-                                if (not "open_price" in t):
-                                    if self.market.isLiveZone():
-                                        #logger.info("GAPPPPP")
-                                        open_price, ts_open =  await self.last_open(new_ticker["s"])
+                                    
+                                    t = self.tickers[new_ticker["s"]]
+                                    t.update({"last": new_ticker["c"],
+                                            "volume": new_ticker["v"],
+                                            "day_volume": new_ticker["day_v"],
+                                            "ask":  new_ticker["ask"],
+                                            "bid":  new_ticker["bid"],
+                                            "low": new_ticker["l"],
+                                            "high": new_ticker["h"],
+                                            "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
+                                            "ts":new_ticker["ts"] })
+                                    
+                                    
+                                    if (not "open_price" in t):
+                                        if self.market.isLiveZone():
+                                            #logger.info("GAPPPPP")
+                                            open_price, ts_open =  await self.last_open(new_ticker["s"])
 
-                                        t.update({"open_price" : open_price, "ts_open_price":int(ts_open)})
-                                
-                                #logger.info(f"..  {t}")
-                                # send event 
-                                await self.on_ticker_receive(t)
-                           # logger.info(f"new_ticker {t}")
-                        #self.render_page.send({"type":"candle","data":new_ticker}) 
-                        
-                # live on last scanner
+                                            t.update({"open_price" : open_price, "ts_open_price":int(ts_open)})
+                                    
+                                    #logger.info(f"..  {t}")
+                                    # send event 
+                                    await self.on_ticker_receive(t)
+                            # logger.info(f"new_ticker {t}")
+                            #self.render_page.send({"type":"candle","data":new_ticker}) 
+                            
+                    # live on last scanner
 
                 # first
                 new_ticker = await websocket.recv()
@@ -252,8 +255,43 @@ class MuloLiveClient:
 
             self.symbols = new_symbols
 
-            logger.info(f"<< {self.symbols} ADD {to_add} DEL {to_remove}")
+            logger.info(f"<< ADD {to_add} DEL {to_remove}")
             
+            # 1. Rimuovi eventuali simboli da eliminare
+            if self.df_fundamentals is not None and len(to_remove) > 0:
+                self.df_fundamentals = self.df_fundamentals[
+                    ~self.df_fundamentals["symbol"].isin(to_remove)
+                ]
+
+            # 2. Aggiungi solo i nuovi
+            if len(to_add) > 0:
+                logger.info(f"GET  fundamentals {to_add}")
+
+                df_new = await Yahoo(self.db_file, self.config).get_float_list(to_add)
+
+                if self.df_fundamentals is None or self.df_fundamentals.empty:
+                    self.df_fundamentals = df_new
+                else:
+                    self.df_fundamentals = pd.concat(
+                        [self.df_fundamentals, df_new],
+                        ignore_index=True
+                    )
+
+                    # 3. Evita duplicati (mantieni l'ultimo aggiornamento)
+                    self.df_fundamentals = self.df_fundamentals.drop_duplicates(
+                        subset="symbol", keep="last"
+                    )
+
+            # 4. Ricrea la mappa aggiornata
+            if self.df_fundamentals is not None and not self.df_fundamentals.empty:
+                self.fundamentals_map = (
+                    self.df_fundamentals
+                        .set_index("symbol")
+                        .to_dict(orient="index")
+                )
+
+        
+            '''
             if len(self.symbols) > 0:
                 self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
                 self.fundamentals_map = (
@@ -261,11 +299,16 @@ class MuloLiveClient:
                     .set_index("symbol")
                     .to_dict(orient="index")
             )
-            #logger.debug(f"Fundamentals \n{self.df_fundamentals}")
+            '''
+            logger.info(f"Fundamentals \n{self.df_fundamentals}")
                                                 
             self.sql_symbols = str(self.symbols)[1:-1]
     
-            self.tickers = {}
+            #self.tickers = {}
+
+            for symbol in to_remove:
+                logger.info(f"REMOVE {symbol}")
+                del self.tickers[symbol]
 
             for ticker in _mule_tickers:
                 ''''
@@ -275,25 +318,26 @@ class MuloLiveClient:
                 t.gain = 0
                 self.tickers[s] =t
                 '''
-                last_close, ts_last_close=  await self.last_close(ticker["symbol"])
-                if (last_close == 0): last_close = 0.000001
-                gain =  ((ticker["last"] - last_close) / last_close) * 100
-              
+                symbol = ticker["symbol"]
+                if symbol in to_add:
+                    logger.info(f"GET  close {ticker['symbol']}")
 
-                self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
-                                    "scan" : str(ticker["scan"]).replace("'","").replace("[","").replace("]",""),
-                                    "gain" : gain, "low":0 ,
-                                    "high":0, 
-                                    "last" : ticker["last"], 
-                                    "volume": 0, "ts" : 0,
-                                    "ask" : 0, 
-                                    "bid":0,
-                                    "day_volume" : ticker["last_volume"],
-                                    "last_close": last_close,
-                                    "ts_last_close": ts_last_close}
-            
-            
-            
+                    last_close, ts_last_close=  await self.last_close(ticker["symbol"])
+                    if (last_close == 0): last_close = 0.000001
+                    gain =  ((ticker["last"] - last_close) / last_close) * 100
+                
+                    self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
+                                        "scan" : str(ticker["scan"]).replace("'","").replace("[","").replace("]",""),
+                                        "gain" : gain, "low":0 ,
+                                        "high":0, 
+                                        "last" : ticker["last"], 
+                                        "volume": 0, "ts" : 0,
+                                        "ask" : 0, 
+                                        "bid":0,
+                                        "day_volume" : ticker["last_volume"],
+                                        "last_close": last_close,
+                                        "ts_last_close": ts_last_close}
+
             logger.info(f">> tickers {self.tickers}")  
 
             await self.on_symbols_update(self.symbols,to_add,to_remove)

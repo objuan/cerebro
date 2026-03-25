@@ -11,7 +11,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "NKLR",
+      "symbol": "RBNE",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -86,7 +86,7 @@
       }
     },
     "start_len": {
-      "1m": 224.54717599283083
+      "1m": 61.310381193057765
     }
   },
   "event": {
@@ -475,6 +475,12 @@
     },
     "OSRH": {
       "quantity": 100
+    },
+    "USEG": {
+      "quantity": 100
+    },
+    "XTIA": {
+      "quantity": 100
     }
   },
   "back": {
@@ -491,7 +497,8 @@
   },
   "summary": {
     "filter": {
-      "min_volume": 400000
+      "min_volume": "950000",
+      "min_volume1": 400000
     }
   }
 }

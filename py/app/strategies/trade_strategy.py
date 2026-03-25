@@ -276,10 +276,10 @@ class TradeStrategy(SmartStrategy):
         
         #self.buyMap[symbol] = {"price": price, "quantity": quantity,"time": time}
 
-    def sell(self,symbol,price, quantity,time,label=""):
+    def sell(self,symbol,datetime, price, quantity,time,label=""):
 
         if self.book.hasCurrentTrade(symbol):
-            logger.info(f"SELL .. {symbol}")
+            logger.info(f"SELL .. {symbol} {datetime}")
             self.book.close(symbol,price)
             self.add_marker(symbol, "SPOT", label, "#FF0000", "arrowDown",position="atPriceBottom")
 
@@ -363,9 +363,10 @@ class TradeStrategy(SmartStrategy):
                  {"type":type,"price_op":side,"quantity": quantity
                   ,"price": price,"take_profit": tp,"stop_loss":sl,"desc": desc})
        
-    async def send_trade_bracket(self,symbol:str,side:str, quantity:str, price, tp, sl,  desc:str):
+    async def send_trade_bracket(self, symbol:str,datetime,side:str, quantity:str, price, tp, sl,  desc:str):
         if self.backtestMode: return
 
+        logger.info(f"BUY  {symbol} {datetime} s:{side} p:{price} tp:{tp} sl:{sl}")
         await self.send_trade_order(symbol,"bracket",side,quantity,price,tp, sl, desc )
         
     async def on_all_candle(self, dataframe: pd.DataFrame,global_index) :
@@ -450,8 +451,8 @@ class TradeStrategy(SmartStrategy):
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]
 
-
-        #logger.info(f">> {type(last['datetime'])} trade_symbol_at \n{dataframe.tail(5)}" )  
+        if not self.bootstrap:
+            logger.info(f">> {type(last['datetime'])} trade_symbol_at \n{dataframe.tail(5)}" )  
 
         #day_volume = last["day_volume"]
         #if day_volume== 0:
@@ -524,6 +525,17 @@ class TradeStrategy(SmartStrategy):
                         get_hour_ms(9,45),get_hour_ms(trade_last_hh,00),use_day):
 
                     if not self.has_meta(symbol,"open_15m_perc"):
+                        window = dataframe.iloc[local_index-15:local_index]
+                        low = window["low"].min()
+                        high = window["high"].max()
+
+                        l_h_perc = 100.0 * (high - low) / low
+
+                        first = window.iloc[0]
+                        last = window.iloc[-1]
+
+                        perc = 100.0 * (last["close"] - first["open"]) / first["open"]
+                        '''
                         first = dataframe.iloc[local_index-15]
                     
                         low = min(first["low"] , prev["low"])
@@ -531,17 +543,59 @@ class TradeStrategy(SmartStrategy):
                                 
                         l_h_perc = 100.0* (high-low) / low
                         perc =  100.0 * (prev["close"]- first["open"]) / first["open"]
-
-                        logger.info(f"{symbol} OPEN 15M perc:{perc} l_h_perc:{l_h_perc}")
+                        '''
+                        logger.info(f"{symbol} t:{last['datetime']}  OPEN 15M O:{first['open']}  C:{last['close']} perc:{perc} l_h_perc:{l_h_perc} local_index:{local_index} last_idx: { last.name}")
 
                         self.set_meta(symbol, 
                                 {"open_15m_high" : high,
                                 "open_15m_low": low,
                                 "open_15m_perc" : perc, 
-                                "open_15m_perc_lh":l_h_perc} )
+                                "open_15m_perc_lh":l_h_perc,
+                                "open_15m_close_idx": local_index,
+                                } )
+                        
+                    if True:
+                        if self.get_meta(symbol,"open_15m_perc_lh") > 5 and day_volume > 500000:
+                            if not self.book.hasCurrentTrade(symbol) :
+                                RR = 3
+                                mx_loss_perc = 0.25
+
+                                max_loss =(self.get_meta(symbol,"open_15m_high") - self.get_meta(symbol,"open_15m_low")) * mx_loss_perc
+                                
+                                open_15m_perc_lh =  self.get_meta(symbol,"open_15m_perc_lh")
+                                open_15m_close_idx =  self.get_meta(symbol,"open_15m_close_idx")
+                                
+                                window = dataframe.iloc[open_15m_close_idx:local_index-1]
+                                int_high = window["high"].max()
+
+                                candle_perc = 100.0 * (last["high"] -  last["low"] ) /  last["low"]
+                                mid = (last["high"] -  last["low"] ) /2 +  last["low"] 
+                                if candle_perc > open_15m_perc_lh * mx_loss_perc and last["close"] > last["open"] and last["close"]  > mid:
+                                    self.add_marker(symbol,"W","W","#060806","small_square",position ="atPriceTop")
+                                    
+                                    if symbol =="ORBS":
+                                        logger.info(f' t:{last["datetime"]} int_high: {int_high} close: {last["close"]} {open_15m_close_idx} {local_index-1}')
+
+                                    if last["close"]> int_high:
+                                        self.add_marker(symbol,"M","M","#000000","small_square",position ="atPriceBottom")
+
+                                        sl = last['close'] - max_loss
+                                        tp = last['close'] + max_loss * RR
+
+                                        self.add_marker(symbol, "TP", "TP", "#0026FF","TP",value=tp)
+                                        self.add_marker(symbol, "SL", "SL", "#0026FF","SL",value=sl)
+
+                                        self.setSL(symbol,sl)
+                                        self.setTP(symbol,tp)
+                                        
+                                        await self.send_trade_bracket(symbol,last["datetime"],"BUY", 100, last['close'], tp, sl, "test")
+
+                                        await self.buy(symbol,last["close"], 100,last["datetime"] ,f"15^")
+                                    
+
                         
                 #######
-                # LOGIC #
+                # LOGIC   #
                 if self.has_meta(symbol,"open_15m_perc"):
                     open_15m_perc =  self.get_meta(symbol,"open_15m_perc")
                     open_15m_perc_lh =  self.get_meta(symbol,"open_15m_perc_lh")
@@ -553,33 +607,38 @@ class TradeStrategy(SmartStrategy):
                         
                         #await self.send_event(symbol, "15M", f"15M",f"15M",color="#04FFFF", ring="news")
 
-                        h = self.get_meta(symbol,"open_15m_high")
-                        if last["close"] > h and break_max:
-                            #logger.info(f"{symbol} BREAK 15 UP ")
-                            #break
-                            #RISK
-                         
-                            if not self.book.hasCurrentTrade(symbol):
-                                RR = 3
-                                mx_loss_perc = 0.25
-                                max_loss =(self.get_meta(symbol,"open_15m_high") - self.get_meta(symbol,"open_15m_low")) * mx_loss_perc
-                                sl = last['close'] - max_loss
-                                tp = last['close'] + max_loss * RR
 
-                                self.add_marker(symbol, "TP", "TP", "#0026FF","TP",value=tp)
-                                self.add_marker(symbol, "SL", "SL", "#0026FF","SL",value=sl)
-
-                                self.setSL(symbol,sl)
-                                self.setTP(symbol,tp)
-                                
-                                #logger.info(f"close {last['close']}")
-                                #logger.info(f"sl {sl}")
-                                #logger.info(f"tp {tp}")
-
-                                await self.send_trade_bracket(symbol,"BUY", 100, last['close'], tp, sl, "test")
-
-                                await self.buy(symbol,last["close"], 100,last["datetime"] ,f"15^")
+                        ######### LOGIC 1 ########
+                      
+                        ######### LOGIC 2 ########
+                        if False:
+                            h = self.get_meta(symbol,"open_15m_high")
+                            if last["close"] > h and break_max:
+                                #logger.info(f"{symbol} BREAK 15 UP ")
+                                #break
+                                #RISK
                             
+                                if not self.book.hasCurrentTrade(symbol):
+                                    RR = 3
+                                    mx_loss_perc = 0.25
+                                    max_loss =(self.get_meta(symbol,"open_15m_high") - self.get_meta(symbol,"open_15m_low")) * mx_loss_perc
+                                    sl = last['close'] - max_loss
+                                    tp = last['close'] + max_loss * RR
+
+                                    self.add_marker(symbol, "TP", "TP", "#0026FF","TP",value=tp)
+                                    self.add_marker(symbol, "SL", "SL", "#0026FF","SL",value=sl)
+
+                                    self.setSL(symbol,sl)
+                                    self.setTP(symbol,tp)
+                                    
+                                    #logger.info(f"close {last['close']}")
+                                    #logger.info(f"sl {sl}")
+                                    #logger.info(f"tp {tp}")
+
+                                    await self.send_trade_bracket(symbol,"BUY", 100, last['close'], tp, sl, "test")
+
+                                    await self.buy(symbol,last["close"], 100,last["datetime"] ,f"15^")
+                                
                             #await self.send_event(symbol, "15 ^", f"15 break up",f"15 break up",color="#A01010", ring="news")
             else:
                 # sell existing
@@ -598,10 +657,10 @@ class TradeStrategy(SmartStrategy):
         if self.book.hasCurrentTrade(symbol):
             if close > self.get_meta(symbol,"TP"):
                 #logger.info(f"TP {self.get_meta(symbol,'TP')}")
-                self.sell(symbol,close,100,last["datetime"],"TP")
+                self.sell(symbol,last["datetime"],close,100,last["datetime"],"TP")
             elif close < self.get_meta(symbol,"SL"):
                 #logger.info(f"SL {self.get_meta(symbol,'SL')}")
-                self.sell(symbol,close,100,last["datetime"],"SL")
+                self.sell(symbol,last["datetime"],close,100,last["datetime"],"SL")
         #if abs(self.buyGain(symbol,close))>2:
         #        self.sell(symbol,close,100,last["datetime"],"SELL")
 
@@ -618,7 +677,7 @@ class TradeStrategy(SmartStrategy):
              await self.send_event(symbol, "VOL", f"VOL 10",f"VOL 10%",color="#10A02F", ring="")
 
         #SMA CROSS
-        if day_volume > 1_000_000:
+        if day_volume > 500_000:
             '''
             if (SMA_20 > SMA_200 and prev["SMA_20"] <= prev["SMA_200"]
                 and   SMA_200 > prev["SMA_200"]):

@@ -201,6 +201,8 @@ async def _on_full_candle_receive(candle):
 client.on_full_candle_receive += _on_full_candle_receive
 
 async def _on_ticker_receive(ticker):
+
+    #logger.info(f"_on_ticker_receive {ticker}")
     await OrderTaskManager.onTicker(ticker)
     
     await render_page.send({
@@ -1266,6 +1268,10 @@ async def back_enabled(enable:bool):
     back_manager.setEnabled(enable)
     return {"status": "ok"}
 
+@app.get("/back/start")
+async def back_start(data):
+   pass
+
 @app.get("/back/ohlc_chart")
 async def back_ohlc_chart(symbol: str, timeframe: str, backTime):
     try:
@@ -1314,6 +1320,9 @@ async def back_get_profiles():
 
 @app.get("/back/profile/select")
 async def back_select_profile(name):
+    if name == "":
+            return {"status": "ok"}
+
     df = back_manager.back_profiles(  )
     sdata = df[df["name"]== name].iloc[0]["data"]
     logger.info(f"SELECT DATA { sdata}")
@@ -1365,7 +1374,7 @@ async def back_get_symbols(date:str):
 
         logger.info(f"{unix_min} {unix_max}")
 
-        df = back_manager.back_symbols("1m",unix_min, unix_max)
+        df = back_manager.back_symbols(unix_min, unix_max)
         
         return JSONResponse(df.to_dict(orient="records"))
     except:

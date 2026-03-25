@@ -381,7 +381,7 @@ const initWebSocket = () => {
   ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
 
   ws.onmessage = (event) => {
-    console.log(">>",event.data)
+    //console.log(">>",event.data)
     try
     {
       const msg = JSON.parse(event.data);
@@ -432,13 +432,13 @@ const initWebSocket = () => {
           break
         case "props":
           {
-            console.log("WS props",msg);          
+           // console.log("WS props",msg);          
             liveStore.set(msg.path, msg.value);
           } 
           break
         case "report":
           {
-          // console.log("Report",msg.data);
+         //  console.log("Report",msg.data);
             
             reportStore.push( msg.data)
             eventBus.emit("report-received", msg.data);
@@ -447,7 +447,7 @@ const initWebSocket = () => {
           break;
          case "strategy-prop":
           {
-          //  console.log("event",msg);
+        //    console.log("strategy-prop",msg);
             
            
             tickerStore.pushStrategy( msg)
@@ -536,6 +536,7 @@ onMounted( async () => {
 
         await initProps();
         let grid = staticStore.get("home.grid","")
+        
         if (grid!="")
         {
             //console.log("home.grid", grid)

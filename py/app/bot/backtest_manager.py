@@ -68,12 +68,16 @@ class BacktestManager:
 
         if "stategies" in self.config:
             for strat_def in self.config["stategies"]:
-                if strat_def["scope"] =="BACK" if "scope" in strat_def else False:
+                scope = strat_def["scope"]  if "scope" in strat_def else ""
+                if scope =="BACK" or scope =="ALL":
                     self.strategies.append(strat_def)
 
     def setEnabled(self,enabled):
         logger.info(f"BACK MODE {enabled}")
-        self.enabled=enabled
+        if self.enabled!= enabled:
+            self.enabled=enabled
+           
+
 
     async def loadStrategy(self,module_name, class_name,strat_def):
         logger.info(f"LOAD STRATEGY module: {module_name} class:{class_name}")
@@ -163,7 +167,7 @@ class BacktestManager:
         return df 
 
       
-    def back_symbols(self,timeframe:str, since : int, to: int ):
+    def back_symbols(self, since : int, to: int ):
         
         conn = sqlite3.connect(DB_FILE)
 
@@ -173,7 +177,7 @@ class BacktestManager:
     MIN(timestamp) AS min_timestamp,
     MAX(timestamp) AS max_timestamp
 FROM ib_ohlc_history
-WHERE timeframe = '{timeframe}'
+WHERE timeframe = '1m'
   AND timestamp >= {since}
   AND timestamp <= {to}
 GROUP BY symbol;
@@ -240,8 +244,8 @@ if __name__ =="__main__":
         data = {
             "badgetUSD": 10000,
             "symbols": list,
-            "dt_from": "2026-03-20 13:00:00", # UTC format
-            "dt_to": "2026-03-20 18:59:00",
+            "dt_from": "2026-03-23 13:00:00", # UTC format
+            "dt_to": "2026-03-23 18:59:00",
             "strategy": [{"module": "strategies.trade_strategy", "class": "TradeStrategy"}]
         }
         #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]

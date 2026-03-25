@@ -8,9 +8,9 @@
     
     <main class="main-columns">
 
-      <div class="items-container">
+      <div class="items-container" v-if="backTest.inData">
           <div
-            v-for="item in symbolList"
+            v-for="item in backTest.inData.symbols"
             :key="item.symbol"
             class="card ticket-card"
           >
@@ -26,13 +26,13 @@
           </div>
         </div>
 
-        <div>
+        <div v-if="backTest.inData && selectedSymbol">
           <MultiBackChartWidget class="back-chart"
             ref ="multiBackChartWidget"
             id="back"
             :number="1"
             :symbol="selectedSymbol"
-            :timeframe ="currentTimeframe"
+            :timeframe ="backTest.inData.tf"
           />
         </div>
         <div>
@@ -54,10 +54,11 @@ import BackStrategyWidget from '@/components/back/BackStrategyWidget.vue'
 import { initProps } from "@/components/js/common";
 import MultiBackChartWidget from '@/components/back/MultiBackChartWidget.vue'
 import { send_get } from '@/components/js/utils';
+import {backTest} from "@/components/back/backtest";
 
 const history = ref(null)
-const symbolList = ref(null)
-const currentTimeframe = ref(null)
+//const symbolList = ref(null)
+//const currentTimeframe = ref(null)
 const selectedSymbol = ref("")
 const multiBackChartWidget = ref(null)
 
@@ -79,10 +80,10 @@ function onSymbolClick(symbol){
 function onHistoryChanged(){
      console.log("onHistoryChanged")
 
-     symbolList.value = history.value.symbolList
+     //symbolList.value = history.value.symbolList
 
-     selectedSymbol.value = symbolList.value [0].symbol
-     currentTimeframe.value =history.value.currentTimeframe
+    // selectedSymbol.value = symbolList.value [0].symbol
+    // currentTimeframe.value =history.value.currentTimeframe
 
 }
 

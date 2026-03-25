@@ -62,9 +62,11 @@ class Indicator:
             self.init=True
             self.initialize(dataframe)
 
-        logger.info(f"!! indicator {symbol} {self.__class__.__name__} l:{from_local_index}")
+        
         if from_local_index == -1:
             from_local_index = len(df_symbol)-1
+        else:
+            logger.info(f"!! indicator {symbol} {self.__class__.__name__} l:{from_local_index}")
             
         if hasattr(self,"compute_fast"):
             mask = dataframe["symbol"].to_numpy() == symbol
