@@ -10,8 +10,8 @@
   },
   "chart": {
     "1": {
-      "grid": "1_1",
-      "symbol": "RBNE",
+      "grid": "1_2",
+      "symbol": "NIXX",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -39,7 +39,7 @@
       },
       "1_2": {
         "2": {
-          "timeframe": "15m",
+          "timeframe": "5m",
           "legend": false
         },
         "1": {
@@ -86,7 +86,8 @@
       }
     },
     "start_len": {
-      "1m": 61.310381193057765
+      "1m": 259.1840647431417,
+      "5m": 376.244684896315
     }
   },
   "event": {
@@ -480,6 +481,30 @@
       "quantity": 100
     },
     "XTIA": {
+      "quantity": 100
+    },
+    "ITOC": {
+      "quantity": 300
+    },
+    "NXTT": {
+      "quantity": 100
+    },
+    "FEED": {
+      "quantity": 100
+    },
+    "CDLX": {
+      "quantity": 200
+    },
+    "MAXN": {
+      "quantity": 100
+    },
+    "ORBS": {
+      "quantity": 100
+    },
+    "TOP": {
+      "quantity": 100
+    },
+    "PAYS": {
       "quantity": 100
     }
   },

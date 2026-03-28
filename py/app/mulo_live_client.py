@@ -194,6 +194,8 @@ class MuloLiveClient:
                         await updateTickers(json.loads(new_ticker))
                     except:
                         logger.error("ERR", exc_info=True)
+                        await asyncio.sleep(1)
+
 
 
         except ConnectionRefusedError:

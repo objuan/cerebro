@@ -636,7 +636,7 @@ class LiveManager:
                 #if symbol =="USAR":
                 #    logger.info(f" onTicker{ticker.volume}")
 
-                volume = ticker.volume
+                volume = ticker.volume #day volume
               
                 volume = max(0, 0 if math.isnan(volume) else volume)
 

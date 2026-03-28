@@ -122,6 +122,12 @@ class OrderBook:
     def hasCurrentTrade(self,symbol):
         return symbol in self.currentOrder
 
+    def has_any_trade(self):
+        return bool(self.currentOrder)
+
+    def get_first_trade(self):
+        return next(iter(self.currentOrder.values()), None)
+    
     def long(self, symbol, price, quantity, label):
 
         if self.position.open_long(symbol, float(price), float(quantity)):
@@ -371,21 +377,92 @@ class TradeStrategy(SmartStrategy):
         
     async def on_all_candle(self, dataframe: pd.DataFrame,global_index) :
         
-        return
-    
+        #last = dataframe.loc[global_index]
+     
+        #logger.info(f"last {last}")
+     
         last = dataframe.loc[global_index]
         last_date = last["datetime"]
+        last_ts = int(last["timestamp"])
         #ny_time = last_date.astimezone(ZoneInfo("America/New_York"))
         #it_time = last_date.astimezone(ZoneInfo("Europe/Rome"))
 
-        symbol = last["symbol"]
+        #symbol = last["symbol"]
       
-        df_now = dataframe[dataframe["timestamp"] <= last["timestamp"]]
+  
+        if self.market.is_in_time(last["datetime"],
+            get_hour_ms(8,0),get_hour_ms(12,0),True):
 
-        ny_time , is_inside = self.is_in_time(last_date,get_hour_ms(9,30),get_hour_ms(10,00))
+            logger.info(f" ny_time {last_date} {last_ts} idx:{global_index} ")
 
-        if is_inside:
-            logger.info(f" ny_time {ny_time}")
+            df_now = dataframe[
+                (dataframe["timestamp"] == last_ts) &
+                (dataframe["day_volume_history"] > 100_000) &
+                (dataframe["GAIN"] > 0)
+            ]
+            gain_snap = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
+            
+            #logger.info(f"gain_snap \n{gain_snap}")
+
+            if len(gain_snap)>0 and not self.book.has_any_trade():
+                first = gain_snap.iloc[0]
+
+                logger.info(f"BUY  {last_date} \n{gain_snap}")
+
+                symbol = first["symbol"]
+                
+                RR = 3
+                mx_loss_perc = 0.25  # 25%
+
+                max_loss = last["close"] * mx_loss_perc
+
+                sl = last["close"] - max_loss
+                tp = last["close"] + max_loss * RR
+                
+                self.setSL(symbol,sl)
+                self.setTP(symbol,tp)
+
+
+                logger.info(f"TP  {tp} sl:{sl}")
+                
+                self.book.long(symbol, last["close"], 100,"G")
+
+
+
+            if self.book.has_any_trade():
+
+                    trade = self.book.get_first_trade()
+
+                    
+                    df_last = dataframe[
+                            (dataframe["timestamp"] == last_ts) &
+                            (dataframe["symbol"] == trade.symbol) 
+                        ]
+                            
+                    if len(df_last)>0:
+                        last = df_last.tail(1).iloc[0]
+
+                        symbol = trade.symbol
+                        
+                        close = last["close"]
+
+                        gain = self.buyGain(trade.symbol,close)
+
+                        logger.info(f"LAST TRADE {trade.symbol} {last['datetime']} tp:{self.get_meta(symbol,'TP')} c:{last['close']} gain:{gain} ")
+                
+                        if close > self.get_meta(symbol,"TP"):
+                            #logger.info(f"TP {self.get_meta(symbol,'TP')}")
+                            #self.sell(symbol,last["datetime"],close,100,last["datetime"],"TP")
+                            logger.info(f"SELL .. {symbol} {last_date}")
+                            self.book.close(symbol,last['close'])
+                        elif close < self.get_meta(symbol,"SL"):
+                            #logger.info(f"SL {self.get_meta(symbol,'SL')}")
+                            #self.sell(symbol,last["datetime"],close,100,last["datetime"],"SL")
+                            logger.info(f"SELL .. {symbol} {last_date}")
+                            self.book.close(symbol,last['close'])
+        return
+        
+        '''
             # apertura
             if (ny_time.hour == 9 and ny_time.minute == 30):
                 self.open = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
@@ -441,10 +518,15 @@ class TradeStrategy(SmartStrategy):
            # logger.info(f"live  {symbol} it:{it_time} ny:{ny_time}")
 
             #logger.info(f">>  \n{dataframe.tail(5)}" )  
-
+        '''
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
       
-      
+     
+
+        if not self.bootstrapMode:
+            logger.info(f"REPORT {self.book.report()}")
+
+        return
         if local_index<5:
             return
 
@@ -673,7 +755,7 @@ class TradeStrategy(SmartStrategy):
                     self.buy(symbol,close, 100,last["datetime"] ,"VOL")
         '''
         ##### VOL BREAK
-        if day_volume_gain>10 and day_volume > 100000:
+        if day_volume_gain>10 and day_volume > 300000:
              await self.send_event(symbol, "VOL", f"VOL 10",f"VOL 10%",color="#10A02F", ring="")
 
         #SMA CROSS
