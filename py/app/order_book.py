@@ -56,6 +56,7 @@ class Position:
         self.budget = budget
         self.positions = {}
         self.entry_price = {}
+        self.cur_price = {}
 
     def open_long(self, symbol, price, quantity):
 
@@ -69,6 +70,7 @@ class Position:
 
         self.positions[symbol] = self.positions.get(symbol, 0) + quantity
         self.entry_price[symbol] = price
+        self.cur_price[symbol] = price
 
         return True
 
@@ -80,6 +82,7 @@ class Position:
 
         self.positions[symbol] = self.positions.get(symbol, 0) - quantity
         self.entry_price[symbol] = price
+        self.cur_price[symbol] = price
 
         return True
 
@@ -100,9 +103,12 @@ class Position:
 
         self.positions.pop(symbol)
         self.entry_price.pop(symbol)
-
+        self.cur_price.pop(symbol)
         return pnl
-        
+     
+    def set_current_price(self, symbol, price):
+        self.cur_price[symbol] = price
+
     def equity(self):
         return self.budget
 
@@ -115,6 +121,12 @@ class OrderBook:
         self.trades = []
         self.position = position
         self.currentOrder={}
+
+    def end(self):
+        list = [x for x in self.currentOrder.keys()]
+        for symbol in list:
+            order = self.currentOrder[symbol]
+            self.close(symbol, self.position.cur_price[symbol])
 
     def lastOrder(self):
         return self.orders[-1] if self.orders else None
@@ -171,11 +183,20 @@ class OrderBook:
         qty = self.position.positions[symbol]
         entry = self.position.entry_price[symbol]
 
-        return 100.0 * (actual_price- entry) / entry
+        gain =  100.0 * (actual_price- entry) / entry
+        self.position.positions[symbol] = qty
+        return gain
+    
+    def set_current_price(self, symbol, price): 
+        if symbol not in self.position.positions:
+            return None
+        self.position.set_current_price(symbol, price)  
 
     def report(self):
 
         total_pnl = sum(t.pnl() for t in self.trades)
+
+        total_gain = sum(t.gain() for t in self.trades)
 
         wins = [t for t in self.trades if t.pnl() > 0]
         losses = [t for t in self.trades if t.pnl() <= 0]
@@ -195,6 +216,7 @@ class OrderBook:
         report = {
             "start_budget": self.position.start_budget,
             "final_equity": self.position.equity(),
+            "total_gain": total_gain,
             "total_pnl": total_pnl,
             "trades": len(self.trades),
             "wins": len(wins),

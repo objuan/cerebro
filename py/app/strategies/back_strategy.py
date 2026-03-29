@@ -45,6 +45,8 @@ class _BackStrategy(SmartStrategy):
         pass
 
     def onBackEnd(self):
+        
+        self.book.end()
 
         logger.info(f"REPORT {self.book.report()}")
         pass
@@ -64,7 +66,7 @@ class BackStrategy(_BackStrategy):
     def populate_indicators(self) :
         pass
         #self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))
-        #day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
+        day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
         #self.addIndicator(self.timeframe,SMA("sma_9","close",timeperiod=9))
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
 
@@ -168,7 +170,8 @@ class BackStrategy(_BackStrategy):
             first_enter = int(utc_dt.timestamp()  ) * 1000  
 
             self.set_meta(symbol, {"trade_date": utc_dt,"first_enter": first_enter  })   
-
+            
+            '''
             start_of_day = datetime.combine(utc_dt.date(), datetime.min.time())
             first_day= int(start_of_day.timestamp()  ) * 1000  
 
@@ -187,44 +190,46 @@ class BackStrategy(_BackStrategy):
                         logger.info(f"FIRST ENTER {symbol} {start_of_day} - {utc_dt}  volume:{volume}")
 
                         self.set_meta(symbol, {"valid": True ,"buy_time": int(candle.iloc[0]["timestamp"] )}) 
-                        
+            '''     
 
         #########
         last = dataframe.iloc[local_index]
+        volume = last["day_volume_history"]    
     
-        if  self.has_meta(symbol,"valid")  :
-
-            if last["timestamp"] == self.get_meta(symbol,"buy_time"):   
+        if volume > self.volume_min_filter:
 
             #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
 
-                if  not self.book.hasCurrentTrade(symbol):
-                    
+            if  not self.has_meta(symbol,"valid") and not self.book.hasCurrentTrade(symbol):
+                        
+                        self.set_meta(symbol, {"valid": True }) 
+
                         buy_price = dataframe.iloc[local_index]["close"]
                         dt = dataframe.iloc[local_index]["datetime"]
 
-                        logger.info(f"BUY {dt} {buy_price}")
+                        logger.info(f"BUY {symbol} {dt} {buy_price}")
                         self.book.long(symbol, buy_price, 100, f"BUY")    
 
-        
-        if self.book.hasCurrentTrade(symbol):
             
-                 
-                gain = self.book.gain(symbol, dataframe.iloc[local_index]["close"]) 
-                dt = dataframe.iloc[local_index]["datetime"]
-
-                #logger.info(f"gain {symbol} {dt} gain {gain}")
-
-                if gain < -10:
-                    self.book.close(symbol, dataframe.iloc[local_index]["close"])
-                    logger.info(f"SELL SL {dt}  gain {gain}")  
-                    self.del_meta(symbol,"valid")  
+            if self.book.hasCurrentTrade(symbol):
                 
-                if gain > 2:
-                    self.book.close(symbol, dataframe.iloc[local_index]["close"])
-                    logger.info(f"SELL TP {dt}   gain {gain}")   
+                    
+                    gain = self.book.gain(symbol, dataframe.iloc[local_index]["close"]) 
+                    dt = dataframe.iloc[local_index]["datetime"]
 
-                    self.del_meta(symbol,"valid")  
+                    self.book.set_current_price(symbol, last["close"])           
+                    #logger.info(f"gain {symbol} {dt} gain {gain}")
+
+                    if gain < -10:
+                        self.book.close(symbol, dataframe.iloc[local_index]["close"])
+                        logger.info(f"SELL SL  {symbol}  {dt}  gain {gain}")  
+                        #self.del_meta(symbol,"valid")  
+                    
+                    if gain > 10:
+                        self.book.close(symbol, dataframe.iloc[local_index]["close"])
+                        logger.info(f"SELL TP  {symbol}  {dt}   gain {gain}")   
+
+                        #self.del_meta(symbol,"valid")  
 
        
         

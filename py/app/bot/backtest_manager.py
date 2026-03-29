@@ -136,6 +136,9 @@ class BacktestManager:
         
         for s in self.back_strategies:
             s.onBackEnd()
+
+        # save back 
+
         logger.info(f"BACK END")
 
     def reset(self):
@@ -258,10 +261,10 @@ if __name__ =="__main__":
       
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
    
-        #for _, row_dict in df.iterrows():
-        for date in ["2026-03-24"]: 
+        for _, row_dict in df.iterrows():
+        #for date in ["2026-03-23"]: 
          
-            #date = row_dict["date"] 
+            date = row_dict["date"] 
 
             logger.info(f"=========  PROCESS  {date} ====================")
 
@@ -277,7 +280,7 @@ if __name__ =="__main__":
                 "badgetUSD": 10000,
                 "symbols": list,
                 "dt_from": f"{date} 9:00:00", # UTC format
-                "dt_to": f"{date} 16:59:00",
+                "dt_to": f"{date} 20:59:00",
                 "module" : "strategies.back_strategy",
                 "class": "BackStrategy",
                 "pre_scan": {
@@ -286,7 +289,7 @@ if __name__ =="__main__":
                 },
                 "params" : {
                     "hh_filter" : 14,
-                    "volume_min_filter" :200_000
+                    "volume_min_filter" :1_000_000
                     },
                 "timeframe" : "1m"
 
