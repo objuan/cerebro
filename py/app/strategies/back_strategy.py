@@ -15,210 +15,10 @@ from reports.db_dataframe import *
 from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
-
+from order_book import *
 #from strategy.order_strategy import *
 
 ########################
-
-class Order:
-    def __init__(self, symbol, side, price, quantity, label):
-        self.symbol = symbol
-        self.side = side
-        self.price = price
-        self.quantity = quantity
-        self.label = label
-
-    def value(self):
-        return self.price * self.quantity
-
-class Trade:
-    def __init__(self, symbol, entry_price, exit_price, quantity, side):
-        self.symbol = symbol
-        self.entry_price = entry_price
-        self.exit_price = exit_price
-        self.quantity = quantity
-        self.side = side
-
-    def pnl(self):
-        if self.side == "long":
-            return (self.exit_price - self.entry_price) * self.quantity
-        else:
-            return (self.entry_price - self.exit_price) * self.quantity
-  
-class Position:
-
-    def __init__(self, budget):
-        self.start_budget = budget
-        self.budget = budget
-        self.positions = {}
-        self.entry_price = {}
-
-    def open_long(self, symbol, price, quantity):
-
-        cost = price * quantity
-
-        if cost > self.budget:
-            print("Not enough budget")
-            return False
-
-        self.budget -= cost
-
-        self.positions[symbol] = self.positions.get(symbol, 0) + quantity
-        self.entry_price[symbol] = price
-
-        return True
-
-    def open_short(self, symbol, price, quantity):
-
-        gain = price * quantity
-
-        self.budget += gain
-
-        self.positions[symbol] = self.positions.get(symbol, 0) - quantity
-        self.entry_price[symbol] = price
-
-        return True
-
-    def close(self, symbol, price):
-
-        if symbol not in self.positions:
-            return None
-
-        qty = self.positions[symbol]
-        entry = self.entry_price[symbol]
-
-        if qty > 0:
-            pnl = (price - entry) * qty
-        else:
-            pnl = (entry - price) * abs(qty)
-
-        self.budget += abs(qty) * price
-
-        self.positions.pop(symbol)
-        self.entry_price.pop(symbol)
-
-        return pnl
-
-    def equity(self):
-        return self.budget
-
-
-class OrderBook:
-
-    def __init__(self, position):
-
-        self.orders = []
-        self.trades = []
-        self.position = position
-        self.currentOrder={}
-
-    def lastOrder(self):
-        return self.orders[-1] if self.orders else None
-    
-    def hasCurrentTrade(self,symbol):
-        return symbol in self.currentOrder
-
-    def long(self, symbol, price, quantity, label):
-
-        if self.position.open_long(symbol, price, quantity):
-
-            order = Order(symbol, "long", price, quantity, label)
-            self.orders.append(order)
-            self.currentOrder[symbol] = order
-            return order
-
-    def short(self, symbol, price, quantity, label):
-
-        if self.position.open_short(symbol, price, quantity):
-
-            order = Order(symbol, "short", price, quantity, label)
-            self.orders.append(order)
-            return order
-
-    def close(self, symbol, price):
-
-        if symbol not in self.position.positions:
-            return
-
-        qty = self.position.positions[symbol]
-        entry = self.position.entry_price[symbol]
-
-        side = "long" if qty > 0 else "short"
-
-        trade = Trade(symbol, entry, price, abs(qty), side)
-
-        self.trades.append(trade)
-
-        self.position.close(symbol, price)
-
-        del self.currentOrder[symbol]
-
-    def report(self):
-
-        total_pnl = sum(t.pnl() for t in self.trades)
-
-        wins = [t for t in self.trades if t.pnl() > 0]
-        losses = [t for t in self.trades if t.pnl() <= 0]
-
-        win_rate = len(wins) / len(self.trades) if self.trades else 0
-
-        avg_gain = sum(t.pnl() for t in wins) / len(wins) if wins else 0
-        avg_loss = sum(t.pnl() for t in losses) / len(losses) if losses else 0
-
-        profit_factor = (
-            sum(t.pnl() for t in wins) /
-            abs(sum(t.pnl() for t in losses))
-            if losses else 0
-        )
-
-        # -------- REPORT GLOBALE --------
-        report = {
-            "start_budget": self.position.start_budget,
-            "final_equity": self.position.equity(),
-            "total_pnl": total_pnl,
-            "trades": len(self.trades),
-            "wins": len(wins),
-            "losses": len(losses),
-            "win_rate": win_rate,
-            "avg_gain": avg_gain,
-            "avg_loss": avg_loss,
-            "profit_factor": profit_factor
-        }
-
-        # -------- REPORT PER SYMBOL --------
-        trades_by_symbol = defaultdict(list)
-
-        for t in self.trades:
-            trades_by_symbol[t.symbol].append(t)
-
-        symbol_report = {}
-
-        for symbol, trades in trades_by_symbol.items():
-
-            wins = [t for t in trades if t.pnl() > 0]
-            losses = [t for t in trades if t.pnl() <= 0]
-
-            pnl_total = sum(t.pnl() for t in trades)
-
-            symbol_report[symbol] = {
-                "trades": len(trades),
-                "wins": len(wins),
-                "losses": len(losses),
-                "win_rate": len(wins) / len(trades) if trades else 0,
-                "total_pnl": pnl_total,
-                "avg_gain": sum(t.pnl() for t in wins) / len(wins) if wins else 0,
-                "avg_loss": sum(t.pnl() for t in losses) / len(losses) if losses else 0,
-                "profit_factor": (
-                    sum(t.pnl() for t in wins) /
-                    abs(sum(t.pnl() for t in losses))
-                    if losses else 0
-                )
-            }
-
-        report["by_symbol"] = symbol_report
-
-        return report
-##################################
 
 
 class _BackStrategy(SmartStrategy):
@@ -257,20 +57,147 @@ class BackStrategy(_BackStrategy):
     async def on_start(self):
         self.eta= self.params["eta"]
         self.min_gain= self.params["min_gain"]
+        self.inPeriod=False
+
         pass
 
     def populate_indicators(self) :
         
-        self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=self.eta))
+        self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))
+        day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
+        #self.addIndicator(self.timeframe,SMA("sma_9","close",timeperiod=9))
+        #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
 
-        self.addIndicator(self.timeframe,SMA("sma_9","close",timeperiod=9))
-        self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
+    async def on_begin(self, dataframe: pd.DataFrame) :
+
+        #logger.info(f"on_begin {len(dataframe)}")
+        valid_symbols = dataframe["symbol"].unique()
+
+        for symbol in  valid_symbols:
+            df = dataframe[dataframe["symbol"]== symbol]
+            #logger.info(f"df {symbol} #{len(dataframe)} \n{df}")
+
+            candle_1330 = df[
+                    (df['datetime'].dt.hour == 13) & 
+                    (df['datetime'].dt.minute == 00)
+                ].copy()
 
 
+            gain_pre = 100.0 * (candle_1330.iloc[0]["close"]- df.iloc[0]["open"]) /  df.iloc[0]["open"]
+            gain_last = 100.0 * (df.iloc[-1]["close"]- df.iloc[0]["open"]) /  df.iloc[0]["open"]
+
+            logger.info(f"candle_1330  {symbol}  pre:{gain_pre} last:{gain_last}")
+            #df['start_gain'] = df['first_open'] > df['prev_close']
+        pass
+
+
+    async def on_all_candle(self, dataframe: pd.DataFrame,global_index) :
+        return
+    
+        for idx,last in  dataframe.loc[[global_index]].iterrows():
+            #logger.info(f"last \n{last}")
+            
+            last_date = last["datetime"]
+            last_ts = int(last["timestamp"])
+            #logger.info(f" ny_time {last_date} {last_ts} idx:{global_index} ")
+
+            if self.market.is_in_time(last["datetime"],
+                get_hour_ms(9,0),get_hour_ms(11,0),False):
+                    self.inPeriod=True
+                    #logger.info(f" ny_time {last_date} {last_ts} idx:{global_index} ")
+
+                    df_now = dataframe[
+                        (dataframe["timestamp"] == last_ts) &
+                        (dataframe["day_volume_history"] > 200_000)
+                    ]
+
+                    df_gain = df_now[
+                        (df_now["GAIN"] > 0) & (df_now["GAIN"] < 2)
+                    ]
+
+                    gain_snap = df_gain.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
+                    
+                    #logger.info(f"gain_snap \n{gain_snap}")
+
+                    if len(gain_snap)>0 and not self.book.has_any_trade():
+                        first = gain_snap.iloc[0]
+
+                        gain = first["GAIN"]
+
+                        symbol = first["symbol"]
+                            
+                        logger.info(f"BUY  {last_date} {symbol} c:{first['close']}")
+
+                        self.book.long(symbol, first["close"], 100,"G")
+                        self.TP = gain
+
+
+                    ########
+
+                    if self.book.has_any_trade():
+                        trade = self.book.get_first_trade()
+
+                        if trade.symbol == last["symbol"]:
+
+                            df_last = dataframe[
+                                    (dataframe["timestamp"] == last_ts) &
+                                    (dataframe["symbol"] == trade.symbol) 
+                                ]
+                            
+                            if len(df_last)>0:
+                                last = df_last.tail(1).iloc[0]
+
+                                symbol = trade.symbol
+                                
+                                close = last["close"]
+
+                                filtered = df_now[df_now["symbol"] == symbol]
+                                #logger.info(f"ff\n{filtered}")
+
+                                if not filtered.empty:
+                                    gain_actual = filtered.iloc[0]["GAIN"]
+                                else:
+                                    gain_actual = 0  # oppure 0 o quello che ti serve
+
+                                gain_buy = self.book.gain(symbol,close)
+
+                                logger.info(f"LAST TRADE {trade.symbol} {last['datetime']} l:{close} gain_buy:{gain_buy} gain_actual:{gain_actual}")
+
+                                if gain_buy < -self.TP:
+                                    logger.info(f"SELL SL {last_date} {symbol} g:{gain_buy}")
+
+                                    self.book.close(symbol,last['close'])
+
+                                elif gain_buy > self.TP*3 :#and gain_actual<=0:
+                                    
+                                    logger.info(f"SELL TP {last_date} {symbol} g:{gain_buy}")
+
+                                    self.book.close(symbol,last['close'])
+
+            else:
+            
+                if self.inPeriod:
+         
+                    self.inPeriod=False
+                    if self.book.has_any_trade():
+                        trade = self.book.get_first_trade()
+                        symbol = trade.symbol
+                       
+                        df_last = dataframe[
+                                (dataframe["timestamp"] == last_ts) &
+                                (dataframe["symbol"] == trade.symbol) 
+                            ]
+                        if len(df_last)>0:
+                            last = df_last.tail(1).iloc[0]
+                            gain = self.book.gain(symbol,last['close'])
+                            logger.info(f"SELL LAST  {last_date} {symbol} g:{gain}")
+
+                            self.book.close(symbol,last['close'])
+                    
+                
     async  def on_symbol_candle(self,symbol:str, dataframe: pd.DataFrame, metadata: dict) :
 
-       
-    
+        return
         #logger.info(f"on_symbol_candles   {symbol} \n {dataframe.tail(2)}" )
 
     

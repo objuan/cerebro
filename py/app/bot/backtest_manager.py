@@ -77,7 +77,9 @@ class BacktestManager:
         if self.enabled!= enabled:
             self.enabled=enabled
            
-
+    async def  pre_scan(self):
+        logger.info(f"pre_scan {self.inData.to_dict()}")
+        await self.db.pre_scan()
 
     async def loadStrategy(self,module_name, class_name,strat_def):
         logger.info(f"LOAD STRATEGY module: {module_name} class:{class_name}")
@@ -91,25 +93,39 @@ class BacktestManager:
         strategy.backtestMode=True
         strategy.load(strat_def)
         self.back_strategies.append(strategy)
-        await strategy.bootstrap()
+
+        await strategy.initialize()
 
     def get_strategy_list(self):
         return self.strategies
 
     async def load(self, inData:BacktestIn):
         self.inData=inData
+        logger.info(f"LOAD {self.inData.to_dict()}")
         self.db = Back_DatabaseManager(self,inData)
+        
 
-    async def start(self, strat_def):
-        #self.db = Back_DatabaseManager(self,inData)
-        logger.info(f"BACK START")
         self.back_strategies=[]
-        for s in self.inData.strategy:
-            await self.loadStrategy(s["module"], s["class"],strat_def)
+        
+        await self.loadStrategy(inData.module, inData.className,
+                                {
+                                    "timeframe" :  TIMEFRAME_SECONDS[inData.timeframe],
+                                    "params": inData.params
+                                })
 
         self.db.begin()
+
+
+    async def start(self):
+        #self.db = Back_DatabaseManager(self,inData)
+
+        for s in self.back_strategies:
+            await s.start()
+
         time = self.db.start_ts
         time_delta =  self.db.min_tf
+
+        logger.info(f"BACK START time {ts_to_local_str(self.db.start_ts)}-{ ts_to_local_str(self.db.end_ts)} time_delta {time_delta}")
 
         #for i in range(0,10):
         while(time < self.db.end_ts):
@@ -234,19 +250,27 @@ if __name__ =="__main__":
         manager = BacktestManager(config,client,render_page)
 
         df = client.get_df("""SELECT distinct symbol FROM ib_day_watch
-                    WHERE date = (
-                        SELECT MAX(date) FROM ib_day_watch
-                    )""")
+                    WHERE date = '2026-03-23' """)
         list = df["symbol"].tolist()
         list = list[:80]
+
+        ##list = ["IMNN"]
 
         logger.info(f"STAT PROCESS {list}")
         data = {
             "badgetUSD": 10000,
             "symbols": list,
-            "dt_from": "2026-03-23 13:00:00", # UTC format
-            "dt_to": "2026-03-23 18:59:00",
-            "strategy": [{"module": "strategies.trade_strategy", "class": "TradeStrategy"}]
+            "dt_from": "2026-03-23 12:00:00", # UTC format
+            "dt_to": "2026-03-23 16:59:00",
+            "module" : "strategies.back_strategy",
+            "class": "BackStrategy",
+            "params" : {
+                "eta" : 5,
+				"min_gain" : 2
+                },
+            "timeframe" : "1m"
+
+           # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
         }
         #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
 
@@ -255,19 +279,10 @@ if __name__ =="__main__":
         ### solo una volta
         #await manager.download_data(backtest)
 
-        strat_def ={
-                "timeframe" : "1m",
-				"params" :
-				{
-					"eta" : 5,
-					"min_gain" : 2
-				}
-        }
-        strat_def = convert_json(strat_def)
-
         await manager.load(backtest)
 
-        await manager.start(strat_def)
+
+        await manager.start()
 
         pass
 

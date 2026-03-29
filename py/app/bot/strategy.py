@@ -55,6 +55,7 @@ class Strategy:
         self.market = self.client.market
     
     def load(self,strat_def):
+    
         #strat.handler = find_method_local(EventManager,code)
         self.params= strat_def["params"]
         self.scope =  strat_def["scope"] if "scope" in strat_def else ""
@@ -117,6 +118,10 @@ class Strategy:
         pass
 
     async def bootstrap(self):
+        await self.initialize()
+        await self.start()
+
+    async def initialize(self):
         
        # self.backtestMode=False #TODO
         self.bootstrapMode=True
@@ -130,7 +135,10 @@ class Strategy:
         for tf, db_df in self.db_df_map.items():
             #copia
             self.df_map[tf] = db_df.dataframe().copy()
-            #
+  
+            
+    async def start(self):
+
         self.populate_indicators( )
 
         for tf, db_df in self.db_df_map.items():
@@ -143,6 +151,10 @@ class Strategy:
 
         # trade
         df = self.df_map[self.timeframe]
+
+
+        await self.on_begin(df)
+    
         #logger.info(f"=========== \n{df}=================")
         for g_idx, row in df.sort_values("timestamp").iterrows():
             await self.on_all_candle(df,g_idx)
@@ -295,6 +307,7 @@ class Strategy:
 
     def _populate_dataframes(self):
         self.db_df_map[self.timeframe] = self.manager.db.db_dataframe(self.timeframe)
+        # logger.info(f"ccccccccc {self.db_df_map[self.timeframe].symbols}")
         for tf in self.extra_dataframes():
             self.db_df_map[tf] = self.manager.db.db_dataframe(tf)
     '''
@@ -341,6 +354,11 @@ class Strategy:
     def populate_indicators(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
         pass
     
+    async def on_begin(self, dataframe: pd.DataFrame) :
+        '''
+        call at every main timeframe candle, dataframe is all
+        '''
+        pass
 
     async def on_all_candle(self, dataframe: pd.DataFrame, global_idx) :
         '''

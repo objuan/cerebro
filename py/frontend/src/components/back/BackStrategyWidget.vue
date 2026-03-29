@@ -58,7 +58,7 @@
     </div>
 
     <!-- Save Button -->
-    <button @click="emitSave" :disabled="jsonError" class="button">
+    <button @click="onSave" :disabled="jsonError" class="button">
       Salva
     </button>
 
@@ -69,7 +69,7 @@
 import { ref,   onMounted, watch, computed } from "vue"
 import {send_get} from  "@/components/js/utils";
 import {backTest} from "@/components/back/backtest";
-const emit = defineEmits(["save"])
+//const emit = defineEmits(["save"])
 
 
 const strategies = ref([])
@@ -97,6 +97,9 @@ function onTimeFrameChange(){
     backTest.inData.tf=    currentTimeframe.value
 }
 
+function onSave(){
+    backTest.save()
+}
 
 onMounted(async () => {
   try {
@@ -140,9 +143,7 @@ watch(paramsText, (value) => {
   }
 })
 
-function emitSave() {
-  emit("save", { ...form })
-}
+
 </script>
 
 <style scoped>

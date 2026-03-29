@@ -29,6 +29,9 @@
           Symbol Map
       </button>
     
+     <button @click="initialize" class="btn btn-success">
+          Initialize
+      </button>
 
     </div>
   <!--    -->
@@ -138,6 +141,10 @@ async function fetchHistory(date) {
   //symbolMap.value.setup(pdata)
 }
 
+
+function initialize(){
+  backTest.pre_scan()
+}
 // =========================
 
 

@@ -1320,6 +1320,8 @@ async def back_get_profiles():
 
 @app.get("/back/profile/select")
 async def back_select_profile(name):
+    logger.info(f"SELECT  { name}")
+
     if name == "":
             return {"status": "ok"}
 
@@ -1340,6 +1342,11 @@ async def back_select_profile(name):
 
     backData.dt_from = start_of_day.strftime("%Y-%m-%d %H:%M:%S")
     backData.dt_to =end_of_day.strftime("%Y-%m-%d %H:%M:%S")
+    backData.module = data["module"]
+    backData.className = data["class"]
+    backData.timeframe = data["tf"]
+    backData.params = data["params"]
+
     logger.info(f"load  DATA { backData}")
     await back_manager.load(backData)
 
@@ -1359,7 +1366,10 @@ async def back_save_profile(payload: dict):
     except :
         logger.error("ERROR", exc_info=True)
         return  {"status": "ko"}   
-
+    
+@app.get("/back/profile/pre_scan")
+async def back_pre_scan():
+    await back_manager.pre_scan()
 
 @app.get("/back/symbols")
 async def back_get_symbols(date:str):

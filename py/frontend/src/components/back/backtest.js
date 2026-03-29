@@ -10,7 +10,7 @@ export class BacktestIn {
        this.dt_from=""
        this.dt_to =""
        this.module=""
-       this.strategy=""
+       this.class=""
        this.params={}
   }
 }
@@ -22,8 +22,11 @@ export const backTest = reactive({
         this.inData = new BacktestIn()
     },
     async save(){
-        send_post("/back/profile/save", {"name": this.profileName,
+       await  send_post("/back/profile/save", {"name": this.profileName,
              "data":this.inData  })
+    },
+    async pre_scan(){
+        await send_get("/back/profile/pre_scan")
     },
 
     async select(profileName){
@@ -41,7 +44,7 @@ export const backTest = reactive({
                 this.inData.dt_from  = data.dt_from
                 this.inData.date  = data.date
                 this.inData.tf  = data.tf
-                this.inData.strategy  = data.strategy
+                this.inData.class  = data.class
 
                  console.log("profile data",profileName,this.inData)
 

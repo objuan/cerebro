@@ -1006,6 +1006,7 @@ class LiveManager:
             for symbol in symbols:
                 await self.fetcher._align_data(symbol,"1m")
 
+            await self.manage_live(None,symbols , [])
             #await self.updateLive(df_symbols )
         else:
             if  start_scan== "keep_last_session":

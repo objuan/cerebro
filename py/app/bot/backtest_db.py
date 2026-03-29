@@ -27,14 +27,22 @@ class BacktestIn:
     symbols: List[str]
     dt_from : str
     dt_to: str
-    strategy : List[ Dict]
+    module: str
+    className: str
+    params: str
+    timeframe: str
+    #strategy : List[ Dict]
 
     def __init__(self, data: Dict[str, Any]):
         self.badgetUSD: int = data.get("badgetUSD", 0)
         self.symbols: List[str] = data.get("symbols", [])
         self.dt_from: str = data.get("dt_from", 0)
         self.dt_to: str = data.get("dt_to", 0)
-        self.strategy: List[Dict] = data.get("strategy", [])
+        self.module: str = data.get("module", "")
+        self.className: str = data.get("class", "")
+        self.params: str = data.get("params", {})
+        self.timeframe: str = data.get("timeframe", "1m")
+        #self.strategy: List[Dict] = data.get("strategy", [])
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -42,7 +50,10 @@ class BacktestIn:
             "symbols": self.symbols,
             "dt_from": self.dt_from,
             "dt_to": self.dt_to,
-            "strategy": self.strategy,
+            "module": self.module,
+            "class": self.className,
+            "params": self.params,
+            "timeframe": self.timeframe,
         }
 
 ###############################
@@ -93,7 +104,11 @@ class Back_DBDataframe_TimeFrame:
         self.min_time = self.all_df.index.min()
         self.max_time = self.all_df.index.max()
 
-        self.goTo(self.min_time)
+        self.symbols = self.pre_scan()
+        logger.info(f"OUT SYMBOLS {self.symbols}")
+
+        self.filtered_df =  self.all_df
+        #self.goTo(self.min_time)
 
     def goTo(self, begin_time):
         self.current_time = begin_time
@@ -147,6 +162,26 @@ class Back_DBDataframe_TimeFrame:
 
             self.current_time=current_time
     
+    def  pre_scan(self):
+        # prendo ultima candela di ognuno , volume > 500_000
+        valid_symbols = (
+            self.all_df.groupby("symbol")["base_volume"]
+            .sum()
+            .loc[lambda x: x > 5_000_000]
+            .index
+        )
+        
+        self.all_df = self.all_df[self.all_df["symbol"].isin(valid_symbols)]
+
+        
+        valid_symbols = self.all_df["symbol"].unique()
+        self.symbols = valid_symbols
+
+      
+        logger.info(f"PRE SCAN {len(self.all_df )} {valid_symbols }")
+          
+        return self.symbols
+
 ########
 
 class Back_DatabaseManager:
@@ -184,6 +219,10 @@ class Back_DatabaseManager:
 
         for timeframe,db in self.map.items():
             db.goTo(_min)
+
+    async def  pre_scan(self):
+        for timeframe,db in self.map.items():
+            await db.pre_scan()
 
     async def tick(self,time):
         for x in self.map.values():
