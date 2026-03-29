@@ -31,17 +31,20 @@ class BacktestIn:
     className: str
     params: str
     timeframe: str
+    pre_scan: Any
+
     #strategy : List[ Dict]
 
     def __init__(self, data: Dict[str, Any]):
-        self.badgetUSD: int = data.get("badgetUSD", 0)
-        self.symbols: List[str] = data.get("symbols", [])
-        self.dt_from: str = data.get("dt_from", 0)
-        self.dt_to: str = data.get("dt_to", 0)
-        self.module: str = data.get("module", "")
-        self.className: str = data.get("class", "")
-        self.params: str = data.get("params", {})
-        self.timeframe: str = data.get("timeframe", "1m")
+        self.badgetUSD = data.get("badgetUSD", 0)
+        self.symbols = data.get("symbols", [])
+        self.dt_from = data.get("dt_from", 0)
+        self.dt_to = data.get("dt_to", 0)
+        self.module = data.get("module", "")
+        self.className = data.get("class", "")
+        self.params = data.get("params", {})
+        self.timeframe = data.get("timeframe", "1m")
+        self.pre_scan =  data.get("pre_scan",{})
         #self.strategy: List[Dict] = data.get("strategy", [])
 
     def to_dict(self) -> Dict[str, Any]:
@@ -54,6 +57,7 @@ class BacktestIn:
             "class": self.className,
             "params": self.params,
             "timeframe": self.timeframe,
+            "pre_scan": self.pre_scan,
         }
 
 ###############################
@@ -164,10 +168,15 @@ class Back_DBDataframe_TimeFrame:
     
     def  pre_scan(self):
         # prendo ultima candela di ognuno , volume > 500_000
+        if self.inData.pre_scan.get("enabled",False) == False:
+            return self.symbols 
+        
+        min_day_volume = self.inData.pre_scan.get("min_day_volume",5_000_000)
+
         valid_symbols = (
             self.all_df.groupby("symbol")["base_volume"]
             .sum()
-            .loc[lambda x: x > 5_000_000]
+            .loc[lambda x: x > min_day_volume]
             .index
         )
         

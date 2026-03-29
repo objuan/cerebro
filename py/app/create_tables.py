@@ -142,6 +142,7 @@ cur.execute("""
         date  DATE,
         count INT,
         enabled INT,
+        timestamp INT DEFAULT (strftime('%s','now')),           
         ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)

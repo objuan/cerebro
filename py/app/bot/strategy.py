@@ -608,6 +608,10 @@ class SmartStrategy(Strategy):
         if not symbol in self._meta: return default
         return self._meta[symbol].get(fieldName,default)
 
+    def del_meta(self,symbol,fieldName):
+        if not symbol in self._meta: return 
+        if fieldName in self._meta[symbol]: 
+            del self._meta[symbol][fieldName]
 
     def set_meta(self,symbol,meta: dict):
         if not symbol in self._meta:

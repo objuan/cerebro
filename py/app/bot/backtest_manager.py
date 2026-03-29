@@ -128,13 +128,18 @@ class BacktestManager:
         logger.info(f"BACK START time {ts_to_local_str(self.db.start_ts)}-{ ts_to_local_str(self.db.end_ts)} time_delta {time_delta}")
 
         #for i in range(0,10):
+        '''
         while(time < self.db.end_ts):
             time= time + time_delta
             await self.db.tick(time)
+        '''
         
         for s in self.back_strategies:
             s.onBackEnd()
         logger.info(f"BACK END")
+
+    def reset(self):
+        pass
 
     ##############
 
@@ -249,40 +254,56 @@ if __name__ =="__main__":
 
         manager = BacktestManager(config,client,render_page)
 
-        df = client.get_df("""SELECT distinct symbol FROM ib_day_watch
-                    WHERE date = '2026-03-23' """)
-        list = df["symbol"].tolist()
-        list = list[:80]
+        
+      
+        df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
+   
+        #for _, row_dict in df.iterrows():
+        for date in ["2026-03-24"]: 
+         
+            #date = row_dict["date"] 
 
-        ##list = ["IMNN"]
+            logger.info(f"=========  PROCESS  {date} ====================")
 
-        logger.info(f"STAT PROCESS {list}")
-        data = {
-            "badgetUSD": 10000,
-            "symbols": list,
-            "dt_from": "2026-03-23 12:00:00", # UTC format
-            "dt_to": "2026-03-23 16:59:00",
-            "module" : "strategies.back_strategy",
-            "class": "BackStrategy",
-            "params" : {
-                "eta" : 5,
-				"min_gain" : 2
+            df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
+                        WHERE date = '{date}' """)
+            list = df["symbol"].tolist()
+            list = list[:80]
+
+            ##list = ["IMNN"]
+            
+            logger.info(f"STAT PROCESS {list}")
+            data = {
+                "badgetUSD": 10000,
+                "symbols": list,
+                "dt_from": f"{date} 9:00:00", # UTC format
+                "dt_to": f"{date} 16:59:00",
+                "module" : "strategies.back_strategy",
+                "class": "BackStrategy",
+                "pre_scan": {
+                    "enabled": False,
+                    "min_day_volume": 5_000_000
                 },
-            "timeframe" : "1m"
+                "params" : {
+                    "hh_filter" : 14,
+                    "volume_min_filter" :200_000
+                    },
+                "timeframe" : "1m"
 
-           # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
-        }
-        #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+            # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+            }
+            #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
 
-        backtest = BacktestIn(data)
+            backtest = BacktestIn(data)
 
-        ### solo una volta
-        #await manager.download_data(backtest)
+            ### solo una volta
+            #await manager.download_data(backtest)
 
-        await manager.load(backtest)
+            await manager.load(backtest)
 
+            await manager.start()
 
-        await manager.start()
+            manager.reset()
 
         pass
 
