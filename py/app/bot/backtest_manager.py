@@ -59,10 +59,12 @@ class BacktestManager:
     def __init__(self,config, client : MuloLiveClient,render_page : RenderPage):
         self.client=client
         self.config=config
+  
         self.render_page = render_page
         self.strategy_folder = self.config["live_service"]["strategy_folder"]
         self.strategies=[]
-        self.back_strategies=[]
+        #self.back_strategies=[]
+        self.active_strategy=None   
         self.enabled=False
         self.db=None
 
@@ -82,30 +84,86 @@ class BacktestManager:
         await self.db.pre_scan()
 
     async def loadStrategy(self,module_name, class_name,strat_def):
+
         logger.info(f"LOAD STRATEGY module: {module_name} class:{class_name}")
-        try:
-            module = importlib.import_module(module_name)
-        except:
-            logger.error("MODULE NOT FOUND", exc_info=True)
+
+        find=False
+        if self.active_strategy:
+            if self.active_strategy.moduleName == module_name :
+                logger.info(f"STRATEGY {module_name} already loaded")
+                try:
+                    self.active_strategy.dispose()
+
+                    module = importlib.reload(self.active_strategy.module)
+                    find=True
+                except:
+                    logger.error("MODULE NOT FOUND", exc_info=True)
+
+               
+        
+        if not find:
+            try:
+                module = importlib.import_module(module_name)
+            except:
+                logger.error("MODULE NOT FOUND", exc_info=True)
 
         instance = getattr(module, class_name)
         strategy = instance(self)
         strategy.backtestMode=True
         strategy.load(strat_def)
-        self.back_strategies.append(strategy)
+        strategy.moduleName = module_name
+        strategy.module = module
+        strategy.name = module_name+"."+class_name
+        strategy.code = inspect.getsource(instance)
+        self.active_strategy = strategy
 
         await strategy.initialize()
 
     def get_strategy_list(self):
         return self.strategies
 
+    def get_profile_data(self,profile_name):
+        logger.info(f"GET PROFILE { profile_name}")
+        df = self.back_profiles(  )
+        sdata = df[df["name"]== profile_name].iloc[0]["data"]
+        logger.info(f"SELECT DATA { sdata}")
+        data = json.loads(sdata)
+
+        date_obj = datetime.strptime(data["date"], "%Y-%m-%d")
+        # inizio giorno
+        start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+        # fine giorno
+        end_of_day = datetime.combine(date_obj.date(), datetime.max.time())
+        unix_min = int(start_of_day.timestamp())*1000
+        unix_max = int(end_of_day.timestamp())*1000
+
+        in_data = {
+            "badgetUSD": 100,
+            "symbols": ["ATOM","CRSR"],
+            "dt_from": "2026-02-13 16:00:00",
+            "dt_to": "2026-02-13 18:00:00",
+            "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+        }
+
+        backData =  BacktestIn(in_data)
+        backData.symbols = [ x["symbol"] for  x in data["symbols"]]
+
+        backData.dt_from = start_of_day.strftime("%Y-%m-%d %H:%M:%S")
+        backData.dt_to =end_of_day.strftime("%Y-%m-%d %H:%M:%S")
+        if  data["module"].startswith("strategies."):
+            backData.module = data["module"]
+        else:
+            backData.module = "strategies."+data["module"].strip()
+        backData.className = data["class"]
+        backData.timeframe = data["tf"]
+        backData.params = data["params"]
+        return backData
+
+
     async def load(self, inData:BacktestIn):
         self.inData=inData
         logger.info(f"LOAD {self.inData.to_dict()}")
         self.db = Back_DatabaseManager(self,inData)
-        
-
-        self.back_strategies=[]
         
         await self.loadStrategy(inData.module, inData.className,
                                 {
@@ -117,10 +175,11 @@ class BacktestManager:
 
 
     async def start(self):
+
+        logger.info(f"START ")
         #self.db = Back_DatabaseManager(self,inData)
 
-        for s in self.back_strategies:
-            await s.start()
+        await self.active_strategy.start()
 
         time = self.db.start_ts
         time_delta =  self.db.min_tf
@@ -133,9 +192,24 @@ class BacktestManager:
             time= time + time_delta
             await self.db.tick(time)
         '''
-        
-        for s in self.back_strategies:
-            s.onBackEnd()
+     
+        self.active_strategy.onBackEnd()
+        trades= json.dumps([t.toDict() for t in self.active_strategy.book.trades])
+
+        script=self.active_strategy.code
+
+        markers = self.active_strategy.marker_map[self.active_strategy.timeframe] if self.active_strategy.timeframe in self.active_strategy.marker_map else []
+
+        #logger.info(f"markers {markers}")   
+
+        self.client.execute("""
+            INSERT INTO back_session (strategy,dt_from,dt_to, in_data, trades,markers,script)
+        VALUES (?, ?, ?, ?,?, ?, ?)
+        """, (self.active_strategy.name, self.inData.dt_from, self.inData.dt_to,
+               json.dumps(self.inData.to_dict()), 
+               json.dumps(trades),
+               json.dumps(markers.to_dict(orient="records")), 
+               script))
 
         # save back 
 
@@ -237,7 +311,48 @@ GROUP BY symbol;
                 logger.info(f"GET DATA {symbol} {timeframe}")
                 await self.client.send_cmd("/chart/align_data", {"mode":"","symbol" : symbol,"timeframe": timeframe  })
 
-    
+    async def get_history(self,strategy,dt_from,dt_to):
+        conn = sqlite3.connect(DB_FILE)
+        query = f""" SELECT * from back_session where strategy='{strategy}' and dt_from >= '{dt_from}' and dt_to <= '{dt_to}' order by ds_timestamp desc limit 10"""
+        df = pd.read_sql_query(query, conn)
+        #logger.info(f"get_history {query} {df}")
+
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()    
+        return df
+
+    def get_symbol_history(self,history_id,symbol):
+        arr={}
+       
+        conn = sqlite3.connect(DB_FILE)
+        query = f""" SELECT * from back_session where id={history_id} """
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()   
+
+        trades = json.loads(df["trades"].iloc[0])
+        markers = json.loads(df["markers"].iloc[0])
+
+
+        logger.info(f"trades {symbol} {markers}")
+
+        markers = [x for x in markers if x["symbol"] == symbol]
+        '''
+        for _trade in _trades:
+            trades = json.loads(_trade)
+            for trade in trades:
+                if trade["symbol"]==symbol: 
+                    arr.append(trade)   
+                    #logger.info(f"{trade}")
+        '''
+        return {"strategy": df["strategy"].iloc[0],
+                "markers": markers, "trades": trades    }
+
+    def get_history_indicators(self,symbol,id):
+        h = self.get_symbol_history(id,symbol  )
+  
+        return [ {"strategy": h["strategy"], "markers": h["markers"]}]
+
 
 ###############################
 
@@ -279,8 +394,8 @@ if __name__ =="__main__":
             data = {
                 "badgetUSD": 10000,
                 "symbols": list,
-                "dt_from": f"{date} 9:00:00", # UTC format
-                "dt_to": f"{date} 20:59:00",
+                "dt_from": f"{date} 0:00:00", # UTC format
+                "dt_to": f"{date} 23:59:00",
                 "module" : "strategies.back_strategy",
                 "class": "BackStrategy",
                 "pre_scan": {
@@ -288,8 +403,9 @@ if __name__ =="__main__":
                     "min_day_volume": 5_000_000
                 },
                 "params" : {
-                    "hh_filter" : 14,
-                    "volume_min_filter" :1_000_000
+                    "gain_perc" : 10,
+                    "volume_min_filter" :1_000_000,
+                    "trade_last_hh" : 12
                     },
                 "timeframe" : "1m"
 

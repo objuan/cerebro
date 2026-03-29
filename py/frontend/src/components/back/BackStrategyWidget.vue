@@ -59,9 +59,11 @@
 
     <!-- Save Button -->
     <button @click="onSave" :disabled="jsonError" class="button">
-      Salva
+      Save
     </button>
-
+    <button @click="execute" :disabled="jsonError" class="button">
+      Execute
+    </button>
   </div>
 </template>
 
@@ -100,6 +102,9 @@ function onTimeFrameChange(){
 function onSave(){
     backTest.save()
 }
+function execute(){
+    backTest.execute()
+} 
 
 onMounted(async () => {
   try {
@@ -124,15 +129,16 @@ watch(selectedStrategyIndex, (index) => {
   const strategy = strategies.value[index]
   if (form.value)
 {
+  console.log("selected strategy", strategy)  
   form.value.module = strategy.module
   form.value.class = strategy.class
-  form.value.timeframe = strategy.timeframe
-  form.value.params = { ...strategy.params }
+  //form.value.timeframe = strategy.timeframe
+  //form.value.params =strategy.params // { ...strategy.params }
 
   paramsText.value = JSON.stringify(form.value.params, null, 2)
 }
 })
-
+// TEXT → JSON
 watch(paramsText, (value) => {
   try {
     const parsed = JSON.parse(value)
@@ -142,7 +148,19 @@ watch(paramsText, (value) => {
     jsonError.value = "JSON non valido"
   }
 })
+watch(
+  () => form.value?.params,
+  (value) => {
+    if (!form.value) return
 
+    const newText = JSON.stringify(value, null, 2)
+
+    if (newText !== paramsText.value) {
+      paramsText.value = newText
+    }
+  },
+  { deep: true }
+)
 
 </script>
 

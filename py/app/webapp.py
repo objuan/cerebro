@@ -165,7 +165,7 @@ in_data = {
             "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
         }
 
-backData =  BacktestIn(in_data)
+#backData =  BacktestIn(in_data)
 
 tradeManager.on_trade_changed+= OrderTaskManager.on_update_trade
 tradeManager.on_trade_deleted+= OrderTaskManager.on_delete_trade
@@ -1318,13 +1318,19 @@ async def back_get_profiles():
     df = back_manager.back_profiles(  )
     return JSONResponse(df.to_dict(orient="records"))
 
+back_profile_name=""
+
 @app.get("/back/profile/select")
 async def back_select_profile(name):
     logger.info(f"SELECT  { name}")
 
     if name == "":
             return {"status": "ok"}
+    global back_profile_name
+    back_profile_name= name
 
+    '''
+    back_profile_name= name
     df = back_manager.back_profiles(  )
     sdata = df[df["name"]== name].iloc[0]["data"]
     logger.info(f"SELECT DATA { sdata}")
@@ -1342,12 +1348,17 @@ async def back_select_profile(name):
 
     backData.dt_from = start_of_day.strftime("%Y-%m-%d %H:%M:%S")
     backData.dt_to =end_of_day.strftime("%Y-%m-%d %H:%M:%S")
-    backData.module = data["module"]
+    if  data["module"].startswith("strategies."):
+        backData.module = data["module"]
+    else:
+        backData.module = "strategies."+data["module"].strip()
     backData.className = data["class"]
     backData.timeframe = data["tf"]
     backData.params = data["params"]
+    '''
 
-    logger.info(f"load  DATA { backData}")
+    backData = back_manager.get_profile_data(name)  
+    logger.info(f"load  DATA { backData.to_dict()}")
     await back_manager.load(backData)
 
     return {"status": "ok"}
@@ -1370,6 +1381,23 @@ async def back_save_profile(payload: dict):
 @app.get("/back/profile/pre_scan")
 async def back_pre_scan():
     await back_manager.pre_scan()
+
+@app.get("/back/profile/execute")
+async def back_execute():
+    try:
+        #await back_manager.load(backtest)
+
+        backData = back_manager.get_profile_data(back_profile_name) 
+        await back_manager.load(backData)
+
+        #await back_manager.load(backData)
+
+        await back_manager.start()
+
+        return  {"status": "ko"}   
+    except :
+        logger.error("ERROR", exc_info=True)
+        return  {"status": "ko"}   
 
 @app.get("/back/symbols")
 async def back_get_symbols(date:str):
@@ -1399,6 +1427,33 @@ async def back_strategy_list():
 async def back_currentTime(current):
         back_manager.setCurrentTime(current)
         return {"status": "ok"}
+
+@app.get("/back/history/get")
+async def back_currentTime(strategy,date):
+
+        if  not strategy.startswith("strategies."):
+            strategy = "strategies."+strategy.strip()
+
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+        # fine giorno
+        end_of_day = datetime.combine(
+            date_obj.date(),
+            datetime.max.time().replace(microsecond=0)
+        )
+            
+        ret = await back_manager.get_history(strategy,start_of_day,end_of_day)
+        return JSONResponse(ret.to_dict(orient="records"))
+
+@app.get("/back/history/indicators")      
+def back_indicators(symbol,history_id):
+
+    try:
+        df = back_manager.get_history_indicators(symbol,history_id)
+        return JSONResponse(df)
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": "Error retrieving indicators"}
 
 ###########################################
 

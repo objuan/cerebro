@@ -252,8 +252,8 @@ class OrderBook:
                 "avg_loss": sum(t.pnl() for t in losses) / len(losses) if losses else 0,
                 "profit_factor": (
                     sum(t.pnl() for t in wins) /
-                    abs(sum(t.pnl() for t in losses))
-                    if losses else 0
+                    max(1,abs(sum(t.pnl() for t in losses)))
+                    if losses else 1
                 ),
                 "trade" : [ x.toDict() for x in trades]
             }

@@ -4,7 +4,7 @@
     <PageHeader title="Cerebro V0.1" style="margin-left: 30px;margin-right: 30px;"/>
  
    
-    <HistoryBrowser ref="history" @changed="onHistoryChanged"></HistoryBrowser>
+    <BackSelector ref="history" @changed="onHistoryChanged"></BackSelector>
     
     <main class="main-columns">
 
@@ -14,12 +14,18 @@
             :key="item.symbol"
             class="card ticket-card"
           >
-            <div class="card-body p-2 d-flex justify-content-between align-items-center">
+            <div 
+              v-if="!backTest.history || (backTest.history && backTest.getTradeCount(item.symbol)>0 )"
+              class="card-body p-2 d-flex justify-content-between align-items-center">
 
                 <div class="fw-bold">
                     <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item.symbol)">
                           {{ item.symbol }}
-                        </a>
+                          
+                    </a>
+                    <div v-if="backTest.history">
+                          {{backTest.getTradeCount(item.symbol)}}
+                    </div>
 
                 </div>
               </div>
@@ -38,8 +44,10 @@
         <div>
           <BackStrategyWidget></BackStrategyWidget>
         </div>
-   
+        
       </main>
+    <BackHistory style="max-height:100px;background-color:aliceblue;"
+        @select="onSelectHystory"></BackHistory>
   </div>
 
 
@@ -48,7 +56,8 @@
 <script setup>
 import { onMounted,ref} from 'vue';
 import PageHeader from '@/components/PageHeader.vue'
-import HistoryBrowser from '@/components/back/HistoryBrowser.vue'
+import BackSelector from '@/components/back/BackSelector.vue'
+import BackHistory from '@/components/back/BackHistory.vue'
 import BackStrategyWidget from '@/components/back/BackStrategyWidget.vue'
 //import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { initProps } from "@/components/js/common";
@@ -76,7 +85,10 @@ const symbolList = computed( ()=>
 function onSymbolClick(symbol){
   selectedSymbol.value = symbol
 }
-
+function onSelectHystory(item) {
+  console.log("Selezionato:", item)
+  backTest.selectHistory(item)
+}
 function onHistoryChanged(){
      console.log("onHistoryChanged")
 
@@ -129,7 +141,7 @@ watch(history.value.symbolList, async (newValue, oldValue)  => {
 }
 
 .items-container {
-   height: calc(100vh - 140px); 
+   height: calc(100vh - 240px); 
   overflow-y: auto;
   overflow-x: hidden;   /* ❌ niente scroll orizzontale */
   width: 100%;

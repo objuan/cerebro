@@ -25,14 +25,6 @@
         📅 
       </button> 
 
-      <button @click="openPopup" class="btn btn-success">
-          Symbol Map
-      </button>
-    
-     <button @click="initialize" class="btn btn-success">
-          Initialize
-      </button>
-
     </div>
   <!--    -->
 
@@ -58,27 +50,15 @@
 
   <!-- -->
 
-      <div>
-         <!-- POPUP -->
-        <div v-if="showPopup" class="overlay" @click.self="closePopup">
-          <div class="modal">
-            <button class="close" @click="closePopup">✕</button>
-
-            <SymbolDayMap ref="symbolMap" />
-          </div>
-        </div>
-
-    </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref,watch ,onMounted,computed,nextTick} from 'vue'
+import { ref,watch ,onMounted,computed} from 'vue'
 import { staticStore } from '@/components/js/staticStore.js';
 import { initProps } from "@/components/js/common";
 import {send_get} from  "@/components/js/utils";//send_post
-import SymbolDayMap from '@/components/back/SymbolDayMap.vue'
+//import SymbolDayMap from '@/components/back/SymbolDayMap.vue'
 import {backTest} from "@/components/back/backtest";
 //import {BacktestIn}  from '@./back_types.js'
 
@@ -86,13 +66,13 @@ import {backTest} from "@/components/back/backtest";
 
 const emit = defineEmits(['changed']);
 
-const allSymbolList = ref(null)
+//const allSymbolList = ref(null)
 
-const showPopup = ref(false)
+//const showPopup = ref(false)
 const selectedDate = ref(null)
 const dateInput = ref(null)
-const symbolList = ref([])
-const symbolMap = ref(null)
+//const symbolList = ref([])
+//const symbolMap = ref(null)
 const profile_name = ref(null)
 
 
@@ -117,7 +97,7 @@ watch(selectedDate, (newDate) => {
 })
 
 // =========================
-
+/*
 async  function openPopup() {
   showPopup.value = true
   await nextTick()
@@ -132,27 +112,30 @@ function closePopup() {
 
   emit('changed', { });
 }
+  */
 
 async function fetchHistory(date) {
   console.log("Nuova data:", date)
   let pdata = await send_get("/back/symbols", {date})
-  console.log("symbols:", pdata)
-  allSymbolList.value = pdata
+  //console.log("symbols:", pdata)
+ // allSymbolList.value = pdata
   //symbolMap.value.setup(pdata)
+  //backTest.setDate(date)
+  backTest.inData.date= selectedDate.value 
+  backTest.inData.symbols =  pdata
+  await backTest.updateHistoryList()
+   
 }
 
 
-function initialize(){
-  backTest.pre_scan()
-}
 // =========================
 
 
 function saveProfile(){
   staticStore.set("back.history.last",profile_name.value)
 
-  backTest.inData.date= selectedDate.value 
-  backTest.inData.symbols =  symbolList.value
+  //backTest.inData.date= selectedDate.value 
+ // backTest.inData.symbols =  symbolList.value
 
 
   backTest.save()
@@ -177,11 +160,13 @@ onMounted(async  () => {
       console.log("data",backTest.inData)
 
       selectedDate.value = backTest.inData.date
-      symbolList.value = backTest.inData.symbols
+     // symbolList.value = backTest.inData.symbols
 
-      send_get("/back/enabled",{"enable": true})
+      await send_get("/back/enabled",{"enable": true})
 
-      send_get("/back/profile/select",{"name": name})
+      await send_get("/back/profile/select",{"name": name})
+
+      backTest.setHistoryList(await send_get("/back/history/get",{"strategy": backTest.inData.module+"."+backTest.inData.class,"date": backTest.inData.date}))
   }
    emit('changed', { });
  });
@@ -193,7 +178,7 @@ function getSymbolList() {
   */
 
 defineExpose({
-  symbolList,
+ // symbolList,
 
 });
 

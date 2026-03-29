@@ -302,3 +302,19 @@ CREATE TABLE IF NOT EXISTS  back_profile (
 cur.execute("""
 CREATE UNIQUE INDEX IF NOT EXISTS idx_back_profile
 ON back_profile (name);""")
+
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS  back_session (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+    strategy VARCHAR(255),
+    dt_from TEXT,
+    dt_to  TEXT,
+    in_data TEXT,
+    trades TEXT,       
+    markers TEXT,       
+    script TEXT,   
+    ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  
+);
+            """)

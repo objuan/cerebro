@@ -27,23 +27,38 @@ export function clearStrategyIndicators(context){
   //createSeriesMarkers(context.series, []);
 }
 
+export async  function updateBackIndicators(context,symbol, history_id){
+  let params = {"symbol":symbol,"history_id":history_id  }
+
+  const  strat_response = await send_get(`/back/history/indicators`,params);
+
+   //console.log("strat_response",strat_response)  
+
+    _updateStrategyIndicators(context,strat_response) 
+}
+
 export async  function updateStrategyIndicators(context,
     symbol, timeframe,from_ts=null, to_ts=null){
     //console.log("updateStrategyIndicators",context,symbol,timeframe)
 
-  try
-  //if (Object.keys(strategy_index_map).length==0)
-  {
-    let strategy_index_map = context.strategy_index_map;
-
-    context.legend_index_list.value.length=0
-    let strat_response =null;
     let params = {"symbol":symbol,"timeframe":timeframe  }
     if (from_ts!=null)  params["from_ts"] = from_ts
     if (to_ts!=null)  params["to_ts"] = to_ts
 
-    strat_response = await send_get(`/live/strategy/indicators`,params);
+    const strat_response = await send_get(`/live/strategy/indicators`,params);
 
+   
+
+    _updateStrategyIndicators(context,strat_response) 
+  }
+
+  export async  function _updateStrategyIndicators(context,strat_response)
+  {
+    let strategy_index_map = context.strategy_index_map;
+    context.legend_index_list.value.length=0
+    try
+  //if (Object.keys(strategy_index_map).length==0)
+  {
     // console.log("task strat_response",strat_response)
     strat_response.forEach( (strat) =>
     {

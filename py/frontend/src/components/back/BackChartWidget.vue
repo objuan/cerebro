@@ -233,13 +233,14 @@ LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingL
 
 import { eventBus } from "@/components/js/eventBus";
 import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
-import { drawHorizontalLine,clearDrawings,
+import { drawHorizontalLine,clearDrawings,updateBackIndicators,
     // setTradeMarker,updateTradeMarker,updateTaskMarker,clearLine,updateVerticalLineData
    findLastCandleOfEachDay,findOpenDate,updateStrategyIndicators,clearStrategyIndicators,
  } from '@/components/js/chart_utils.js';  // ,onMouseDown,onMouseMove,onMouseUp
 import DropdownMenu from '@/components/DropdownMenu.vue';
 import { tradeStore } from "@/components/js/tradeStore";
 import { createPainter ,ChartWatcher} from "@/components/js/chart_painter";
+import {backTest} from "@/components/back/backtest";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -569,8 +570,15 @@ async function handleRefresh (resetWindow)
       */
 
       // TRADE MARKER
-
-      const _trade_marker_data = await send_get("/api/trade/marker/read", { "symbol":currentSymbol.value, "timeframe":currentTimeframe.value});
+/*
+      if (backTest && backTest.history){
+           const trades = backTest.getTrades(currentSymbol.value)
+            console.log("dsssssssssssssssss",trades) 
+        }
+*/
+      const _trade_marker_data = await send_get("/api/trade/marker/read", 
+      { "symbol":currentSymbol.value, 
+        "timeframe":currentTimeframe.value });
       
       if (_trade_marker_data.data!=null)
           _trade_marker_data.data = JSON.parse(_trade_marker_data.data)
@@ -583,10 +591,13 @@ async function handleRefresh (resetWindow)
           time: window.db_localTime ? window.db_localTime(d.t) : d.t,
           open: d.o, high: d.h, low: d.l, close: d.c, volume: d.bv
         }));
-
-        await updateStrategyIndicators( context(),
-              currentSymbol.value, currentTimeframe.value
-            )
+        
+        if (backTest.history)
+        {
+          await updateBackIndicators( context(),
+                currentSymbol.value, backTest.history.id
+              )
+        }
 
         setVolumeData(series,data.map(d => (
                 {
@@ -613,7 +624,8 @@ async function handleRefresh (resetWindow)
         // gestione lieen user
         
         clearDrawings( context() );
-
+        
+      
         ind_response.forEach( line =>
         {
             if (line.type ==='price_line')
@@ -1007,20 +1019,44 @@ const buildChart =  () => {
 
   // 1. Main Chart
   try{
-  chart = createChart(mainChartRef.value, {
-    layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
-    grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
-    crosshair: { 
-      mode: CrosshairMode.Normal,
-      horzLine: {
-            visible: false,
-        }, 
+ chart = createChart(mainChartRef.value, {
+    layout: {
+      background: { color: '#ffffff' },
+      textColor: '#131722',
+      fontSize: 12
     },
-    timeScale: { timeVisible: true, borderColor: '#485c7b' },
+
+    grid: {
+      vertLines: { color: '#f0f3fa' },
+      horzLines: { color: '#f0f3fa' }
+    },
+
+    crosshair: {
+      mode: CrosshairMode.Normal,
+      vertLine: {
+        color: '#758696',
+        width: 1,
+        style: 3,
+        labelBackgroundColor: '#758696'
+      },
+      horzLine: {
+        color: '#758696',
+        width: 1,
+        style: 3,
+        labelBackgroundColor: '#758696'
+      }
+    },
+
     rightPriceScale: {
+      borderColor: '#d1d4dc',
       autoScale: true
+    },
+
+    timeScale: {
+      borderColor: '#d1d4dc',
+      timeVisible: true,
+      secondsVisible: false
     }
-    
   });
 
   series = chart.addSeries(CandlestickSeries, {

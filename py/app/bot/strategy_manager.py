@@ -95,6 +95,8 @@ class StrategyManager:
     def get_list(self):
         return self.strategies
     
+    def get(self):
+        return self.strategies
 
     async def bootstrap(self):
         self.load_strategies()
@@ -125,6 +127,9 @@ class StrategyManager:
 
                 module_name = self.package_name+"."+strat_def["module"]   # es: strategies.my_strategy
                 class_name = strat_def["class"]
+                scope = strat_def["scope"]  if "scope" in strat_def else ""
+                if scope == "BACK":
+                     continue
 
                 self.logger.info(f"LOAD MODULE {module_name}")
                 #module = importlib.import_module(module_name)
