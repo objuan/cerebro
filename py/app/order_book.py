@@ -122,11 +122,13 @@ class OrderBook:
         self.position = position
         self.currentOrder={}
 
-    def end(self):
+    def end(self, onClose=None):
         list = [x for x in self.currentOrder.keys()]
         for symbol in list:
             order = self.currentOrder[symbol]
-            self.close(symbol, self.position.cur_price[symbol])
+            trade = self.close(symbol, self.position.cur_price[symbol])
+            if onClose:
+                onClose(trade)
 
     def lastOrder(self):
         return self.orders[-1] if self.orders else None
@@ -157,7 +159,7 @@ class OrderBook:
             self.orders.append(order)
             return order
 
-    def close(self, symbol, price):
+    def close(self, symbol, price) -> Trade:
 
         if symbol not in self.position.positions:
             return
@@ -174,6 +176,8 @@ class OrderBook:
         self.position.close(symbol, float(price))
 
         del self.currentOrder[symbol]
+
+        return trade
 
     def gain(self, symbol, actual_price):
 

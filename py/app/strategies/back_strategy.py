@@ -34,19 +34,28 @@ class _BackStrategy(SmartStrategy):
         self.book = OrderBook( self.position )
 
     def buy(self,  symbol, price, label):
-        logger.info(f"BUY {symbol} {label}")
-        self.book.long(symbol, price, 100,label)
+
+        self.book.long(symbol, price, self.get_quantity(price), f"BUY")    
+        self.add_marker(symbol,"BUY",label,"#000000","arrowUp")
+          
+        #logger.info(f"BUY {symbol} {label}")
+        #self.book.long(symbol, price, 100,label)
 
         
     def sell(self,symbol,price,label):
-        logger.info(f"SELL {symbol} {label}")
+         
+        self.add_marker(symbol,"BUY",label,"#000000","arrowDown")
+        trade = self.book.close(symbol,price)     
+        #logger.info(f"SELL {symbol} {label}")
         #self.book.short(symbol, price, 100,label)
-        self.book.close(symbol,price)
-        pass
+        #self.book.close(symbol,price)
+        return trade
 
     def onBackEnd(self):
         
-        self.book.end()
+        def onClose(trade):
+            logger.info(f"CLOSE {trade.symbol}  gain {trade.gain()} pnl : {trade.pnl()}")
+        self.book.end(onClose)
 
         logger.info(f"REPORT {self.book.report()}")
         pass
@@ -62,16 +71,24 @@ class BackStrategy(_BackStrategy):
         self.inPeriod=False
         self.gain_perc = self.params["gain_perc"]   
         self.trade_last_hh= self.params["trade_last_hh"]
+      
+        capital = self.props.get("trade.day_balance_USD")
+        trade_risk = self.props.get("trade.trade_risk")
+        self.loss_by_trade = 100#capital * trade_risk
+        logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
         pass
 
     def populate_indicators(self) :
-        pass
         #self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))
         day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
         self.addIndicator(self.timeframe,SMA("sma_9","close",timeperiod=9))
         self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
 
+    def get_quantity(self,price):
+        #sl_price = price - price / 100 * self.gain_perc
+        return int(self.loss_by_trade  / price )
+    
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
         if not self.backtestMode and self.bootstrapMode:
@@ -101,33 +118,49 @@ class BackStrategy(_BackStrategy):
                         buy_price = dataframe.iloc[local_index]["close"]
                         dt = dataframe.iloc[local_index]["datetime"]
 
-                        logger.info(f"BUY {symbol} {dt} {buy_price}")
-                        self.book.long(symbol, buy_price, 100, f"BUY")    
-                        self.add_marker(symbol,"BUY","BUY","#000000","arrowUp")
+                        logger.info(f"BUY {symbol} {dt} q:{self.get_quantity(buy_price)} at: {buy_price}")
+                        self.buy(symbol, buy_price, f"BUY"  )
+
+                        #logger.info(f"BUY {symbol} {dt} q:{self.get_quantity(buy_price)} at: {buy_price}")
+                        #self.book.long(symbol, buy_price, self.get_quantity(buy_price), f"BUY")    
+                        #self.add_marker(symbol,"BUY","BUY","#000000","arrowUp")
                   
                 
                 if self.book.hasCurrentTrade(symbol):
                     
                         
-                        gain = self.book.gain(symbol, dataframe.iloc[local_index]["close"]) 
+                        gain = self.book.gain(symbol, last["close"]) 
                         dt = dataframe.iloc[local_index]["datetime"]
 
                         self.book.set_current_price(symbol, last["close"])           
                         #logger.info(f"gain {symbol} {dt} gain {gain}")
 
                         if gain < -self.gain_perc:
-                            self.book.close(symbol, dataframe.iloc[local_index]["close"])
-                            logger.info(f"SELL SL  {symbol}  {dt}  gain {gain}")  
-
-                            self.add_marker(symbol,"BUY","SL","#000000","arrowDown")
+                            #trade = self.book.close(symbol, last["close"])
+                            
+                            trade = self.sell(symbol,  last["close"], f"SL"  )
+                            logger.info(f"SELL SL  {symbol}  {dt}  gain {gain} pnl : {trade.pnl()}")  
+                            #self.add_marker(symbol,"BUY","SL","#000000","arrowDown")
                             #self.del_meta(symbol,"valid")  
                         
-                        if gain > self.gain_perc:
-                            self.book.close(symbol, dataframe.iloc[local_index]["close"])
-                            logger.info(f"SELL TP  {symbol}  {dt}   gain {gain}")   
+                        elif gain > self.gain_perc:
+                            #trade = self.book.close(symbol, last["close"])
+                            trade = self.sell(symbol,  last["close"], f"TP"  )
 
-                            self.add_marker(symbol,"BUY","TP","#000000","arrowDown")
+                            logger.info(f"SELL TP  {symbol}  {dt}   gain {gain} pnl : {trade.pnl()}")   
+                            
+
+                            #self.add_marker(symbol,"BUY","TP","#000000","arrowDown")
                             #self.del_meta(symbol,"valid")  
 
-       
-        
+                        '''
+                        logger.info(f"TIME  {symbol}  {dt}  ") 
+
+                        if not self.market.is_in_time(last["datetime"],
+                             get_hour_ms(0,0),get_hour_ms(self.trade_last_hh,0),use_day):
+                                
+                                trade = self.book.close(symbol, last["close"])
+                                logger.info(f"SELL TIME  {symbol}  {dt}   gain {gain} pnl : {trade.pnl()}")   
+
+                                self.add_marker(symbol,"BUY","TM","#000000","arrowDown")
+                        '''

@@ -115,6 +115,7 @@ class BacktestManager:
         strategy.module = module
         strategy.name = module_name+"."+class_name
         strategy.code = inspect.getsource(instance)
+        strategy.props = self.client.propManager
         self.active_strategy = strategy
 
         await strategy.initialize()
@@ -372,14 +373,12 @@ if __name__ =="__main__":
 
         manager = BacktestManager(config,client,render_page)
 
-        
-      
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
    
-        for _, row_dict in df.iterrows():
-        #for date in ["2026-03-23"]: 
+       # for _, row_dict in df.iterrows():
+        for date in ["2026-03-23"]: 
          
-            date = row_dict["date"] 
+            #date = row_dict["date"] 
 
             logger.info(f"=========  PROCESS  {date} ====================")
 
@@ -405,7 +404,7 @@ if __name__ =="__main__":
                 "params" : {
                     "gain_perc" : 10,
                     "volume_min_filter" :1_000_000,
-                    "trade_last_hh" : 12
+                    "trade_last_hh" : 14
                     },
                 "timeframe" : "1m"
 
