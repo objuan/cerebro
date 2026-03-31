@@ -17,549 +17,468 @@ from utils import *
 from reports.report_manager import ReportManager
 
 from order_book import *
+
+
+
+class OrderBook:
+
+    def __init__(self, position):
+
+        self.orders = []
+        self.trades = []
+        self.position = position
+        self.currentOrder={}
+
+    def end(self, onClose=None):
+        list = [x for x in self.currentOrder.keys()]
+        for symbol in list:
+            order = self.currentOrder[symbol]
+            trade = self.close(symbol, self.position.cur_price[symbol])
+            if onClose:
+                onClose(trade)
+
+    def lastOrder(self):
+        return self.orders[-1] if self.orders else None
     
+    def hasCurrentTrade(self,symbol):
+        return symbol in self.currentOrder
+
+    def has_any_trade(self):
+        return bool(self.currentOrder)
+
+    def get_first_trade(self):
+        return next(iter(self.currentOrder.values()), None)
+    
+    def long(self, symbol, price, quantity, label):
+
+        if self.position.open_long(symbol, float(price), float(quantity)):
+
+            order = Order(symbol, "long",float(price), float(quantity), label)
+            self.orders.append(order)
+            self.currentOrder[symbol] = order
+            return order
+
+    def short(self, symbol, price, quantity, label):
+
+        if self.position.open_short(symbol, float(price), float(quantity)):
+
+            order = Order(symbol, "short",float(price), float(quantity), label)
+            self.orders.append(order)
+            return order
+
+    def close(self, symbol, price) -> Trade:
+
+        if symbol not in self.position.positions:
+            return
+
+        qty = self.position.positions[symbol]
+        entry = self.position.entry_price[symbol]
+
+        side = "long" if qty > 0 else "short"
+
+        trade = Trade(symbol, entry, float(price), abs(qty), side)
+
+        self.trades.append(trade)
+
+        self.position.close(symbol, float(price))
+
+        del self.currentOrder[symbol]
+
+        return trade
+
+    def gain(self, symbol, actual_price):
+
+        if symbol not in self.position.positions:
+            return None
+       
+        qty = self.position.positions[symbol]
+        entry = self.position.entry_price[symbol]
+
+        gain =  100.0 * (actual_price- entry) / entry
+        self.position.positions[symbol] = qty
+        return gain
+    
+    def set_current_price(self, symbol, price): 
+        if symbol not in self.position.positions:
+            return None
+        self.position.set_current_price(symbol, price)  
+
+    def report(self):
+
+        total_pnl = sum(t.pnl() for t in self.trades)
+
+        total_gain = sum(t.gain() for t in self.trades)
+
+        wins = [t for t in self.trades if t.pnl() > 0]
+        losses = [t for t in self.trades if t.pnl() <= 0]
+
+        win_rate = len(wins) / len(self.trades) if self.trades else 0
+
+        avg_gain = sum(t.pnl() for t in wins) / len(wins) if wins else 0
+        avg_loss = sum(t.pnl() for t in losses) / len(losses) if losses else 0
+
+        opens=[]
+        try:
+            profit_factor = (
+                sum(t.pnl() for t in wins) /
+                abs(sum(t.pnl() for t in losses))
+                if losses else 0
+            )
+        except:
+            profit_factor=0
+
+
+        for symbol in self.currentOrder.keys():
+            order = self.currentOrder[symbol]
+            d = self.virtual_close(symbol,order,float(self.position.cur_price[symbol]))
+            opens.append(d)
+
+        # -------- REPORT GLOBALE --------
+        report = {
+            "start_budget": self.position.start_budget,
+            "final_equity": self.position.equity(),
+            "total_gain": total_gain,
+            "total_pnl": total_pnl,
+            "trades": len(self.trades),
+            "wins": len(wins),
+            "losses": len(losses),
+            "win_rate": win_rate,
+            "avg_gain": avg_gain,
+            "avg_loss": avg_loss,
+            "profit_factor": profit_factor,
+            "opens" : opens
+        }
+
+        # -------- REPORT PER SYMBOL --------
+        trades_by_symbol = defaultdict(list)
+
+        for t in self.trades:
+            trades_by_symbol[t.symbol].append(t)
+
+        symbol_report = {}
+
+        for symbol, trades in trades_by_symbol.items():
+
+            wins = [t for t in trades if t.pnl() > 0]
+            losses = [t for t in trades if t.pnl() <= 0]
+
+            pnl_total = sum(t.pnl() for t in trades)
+
+            symbol_report[symbol] = {
+                "trades": len(trades),
+                "wins": len(wins),
+                "losses": len(losses),
+                "win_rate": len(wins) / len(trades) if trades else 0,
+                "total_pnl": pnl_total,
+                "avg_gain": sum(t.pnl() for t in wins) / len(wins) if wins else 0,
+                "avg_loss": sum(t.pnl() for t in losses) / len(losses) if losses else 0,
+                "profit_factor": (
+                    sum(t.pnl() for t in wins) /
+                    max(1,abs(sum(t.pnl() for t in losses)))
+                    if losses else 1
+                ),
+                "trade" : [ x.toDict() for x in trades],
+            }
+        
+      
+        report["by_symbol"] = symbol_report
+
+        return report
+
+    def virtual_close(self, symbol, order,price):
+
+        if symbol not in self.position.positions:
+            return None
+
+        qty = order.quantity
+        entry = order.price
+        exit =   price
+
+        if qty > 0:
+            pnl = (price - entry) * qty
+        else:
+            pnl = (entry - price) * abs(qty)
+
+        data = {
+            "symbol": symbol,
+            "price": price,
+           "exit" :exit,
+           "entry": entry,
+           "qty" : qty,
+           "gain" : 100.0 * (exit-entry ) / entry,
+           "pnl" : pnl
+        }
+        return data
+        
+    
+
+
 ########################
 
 class TradeStrategy(SmartStrategy):
 
     async def on_start(self):
-        self.eta= self.params["eta"]
-        self.min_gain= self.params["min_gain"]
-
-        self.position = Position(10000)
+        
         self.book = OrderBook( self.position )
 
-        self.tradeInfo = {}
+        self.volume_min_filter= self.params["volume_min_filter"]
+        self.inPeriod=False
+        self.gain_perc = self.params["gain_perc"]   
+        self.trade_last_hh= self.params["trade_last_hh"]
+      
+        capital = self.props.get("trade.day_balance_USD")
+        trade_risk = self.props.get("trade.trade_risk")
+        self.loss_by_trade = 100#capital * trade_risk
+        logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
         pass
 
-    def onBackEnd(self):
-
-        logger.info(f"REPORT {self.book.report()}")
-        pass
-
-
-    '''
-    def extra_dataframes(self)->List[str]:
-        return ['1d']
-    '''
-
-    async def buy(self,symbol,price, quantity,time,label=""):
+    async def buy(self,symbol,datetime,price, quantity,label=""):
         if self.book.hasCurrentTrade(symbol):
             return
 
-        logger.info(f"BUY {symbol} {label}")
-        self.add_marker(symbol,"BUY",label,"#005307FF","arrowUp",position="atPriceBottom")
+        logger.info(f"BUY {symbol} {datetime} {quantity} at {price} [{label}]")
+        self.add_marker(symbol,"BUY",label,"#000000FF","arrowUp",position="atPriceBottom")
 
         #if not self.buyMap[symbol]:
         self.book.long(symbol, price, quantity,label)
 
         #super().buy(symbol,label)
         if not self.bootstrapMode:
-            await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#04FFFF", ring="news")
+            await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
 
-        
-        #self.buyMap[symbol] = {"price": price, "quantity": quantity,"time": time}
 
-    def sell(self,symbol,datetime, price, quantity,time,label=""):
+    async def sell(self,symbol,datetime, price, quantity,label=""):
 
         if self.book.hasCurrentTrade(symbol):
-            logger.info(f"SELL .. {symbol} {datetime}")
-            self.book.close(symbol,price)
-            self.add_marker(symbol, "SPOT", label, "#FF0000", "arrowDown",position="atPriceBottom")
+            logger.info(f"SELL  {symbol} {datetime}")
 
-        '''
-        #if symbol in self.buyMap and self.buyMap[symbol]:
-            buy_data =  self.buyMap[symbol]
-            #logger.info(f"SELL .. {buy_data}")
-            logger.info(f"SELL {symbol} time{time} gain {self.buyGain(symbol, price)}" )
-            self.buyMap[symbol] = {}
-            self.add_marker(symbol, "SPOT", label, "#FF0000", "square")
-        '''
+            trade = self.book.close(symbol,price)
 
-    def buyGain(self,symbol,close):
-        if self.book.hasCurrentTrade(symbol):
-            return self.book.gain(symbol,close)
-        else:
-            return 0
-        '''
-        if symbol in self.buyMap and self.buyMap[symbol]:   
-            buy_price = self.buyMap[symbol]["price"]
-            return 100.0 * (close- buy_price) / buy_price
-        else:
-            return 0
-        '''
-    def setSL(self,symbol, price):
-        self.set_meta(symbol,{"SL": price})
+            self.add_marker(symbol, "SPOT", label, "#000000", "arrowDown",position="atPriceBottom")
 
-    def setTP(self,symbol, price):
-        self.set_meta(symbol,{"TP": price})
+            if not self.bootstrapMode:
+                await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
+            return trade
+        else:   
+            return None
 
     def populate_indicators(self) :
-     
-        sma_20= self.addIndicator(self.timeframe,SMA("SMA_20","close",20))
-        sma_200= self.addIndicator(self.timeframe,SMA("SMA_200","close",200))
-        
-        
-        diff = self.addIndicator(self.timeframe, DIFF_PERC("DIFF","SMA_200","SMA_20" ))
-        gain= self.addIndicator(self.timeframe,GAIN("GAIN","close",1))
-
-        max= self.addIndicator(self.timeframe,MAX("MAX","close",60))
-
-        trend = self.addIndicator(self.timeframe, TREND_LIMIT("TREND","DIFF" ))
-
-
-        max_perc= self.addIndicator(self.timeframe,MAX_ALL("DIFF_ALL","DIFF"))
-
-        #day_perc= self.addIndicator(self.timeframe,GAIN("DGAIN","day_volume",1))
-
-        day_volume_ticker = self.addIndicator(self.timeframe,COPY("day_volume_ticker","day_volume"))
+        #self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))
         day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
+        day_volume_ticker = self.addIndicator(self.timeframe,COPY("day_volume_ticker","day_volume"))
+     
+        sma_20= self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
+        sma_200 = self.addIndicator(self.timeframe,SMA("sma_200","close",timeperiod=200))
+        self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
+        #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
 
-        #self.add_legend(sma_9_gain,"SMA_9_G", "sma9 G", "#034cd3")
-        #self.add_legend(sma_20_gain,"SMA_20_G", "sma20 G", "#034cd3")
-        
-        
-        self.add_plot(sma_20, "SMA_20","#a70000", "main", style="SparseDotted", lineWidth=2)
-        self.add_plot(sma_200, "SMA_200","#034cd3", "main", style="SparseDotted", lineWidth=2)
-        self.add_plot(max, "MAX","#926B00FF", "main", source="MAX",style="Solid", lineWidth=1)
+        self.add_plot(sma_20, "sma_20","#a70000", "main", style="SparseDotted", lineWidth=2)
+        self.add_plot(sma_200, "sma_200","#034cd3", "main", style="SparseDotted", lineWidth=2)
 
-        #self.add_plot(day, "day","#d30303", "sub1", style="Solid", lineWidth=1)
-        self.add_plot(day_volume_ticker, "day_volume_ticker","#0318d3", "sub1", style="Solid", lineWidth=1)
         self.add_plot(day_volume_history, "day_volume_history","#d3035a", "sub1", style="Solid", lineWidth=1)
+        self.add_plot(day_volume_ticker, "day_volume_ticker","#0318d3", "sub1", style="Solid", lineWidth=1)
 
-
-    ######################################
-    async def send_property(self,symbol:str, timeframe ,  value ):
-        if self.backtestMode: return
-
-        if not self.backtestMode and not self.bootstrapMode:
-            #logger.info("send")
-            await self.client.send_strategy_prop("TRADE", symbol,timeframe,value)
-        else:
-            #logger.info(f"send1 {self.backtestMode} {self.bootstrapMode}")
-            pass
-            #self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
+    def get_quantity(self,price):
+        #sl_price = price - price / 100 * self.gain_perc
+        return int(self.loss_by_trade  / price )
     
-    async def send_trade_order(self,symbol:str,type:str,side:str, quantity:str, price, tp, sl,  desc:str):
-        if self.backtestMode: return
-
-        await self.client.send_strategy_trade("strategy-trade",symbol,self.timeframe,
-                 {"type":type,"price_op":side,"quantity": quantity
-                  ,"price": price,"take_profit": tp,"stop_loss":sl,"desc": desc})
-       
-    async def send_trade_bracket(self, symbol:str,datetime,side:str, quantity:str, price, tp, sl,  desc:str):
-        if self.backtestMode: return
-
-        logger.info(f"BUY  {symbol} {datetime} s:{side} p:{price} tp:{tp} sl:{sl}")
-        await self.send_trade_order(symbol,"bracket",side,quantity,price,tp, sl, desc )
-        
-    async def on_all_candle(self, dataframe: pd.DataFrame,global_index) :
-        
-        return
-        #last = dataframe.loc[global_index]
-     
-        #logger.info(f"last {last}")
-     
-        last = dataframe.loc[global_index]
-        last_date = last["datetime"]
-        last_ts = int(last["timestamp"])
-        #ny_time = last_date.astimezone(ZoneInfo("America/New_York"))
-        #it_time = last_date.astimezone(ZoneInfo("Europe/Rome"))
-
-        #symbol = last["symbol"]
-      
-  
-        if self.market.is_in_time(last["datetime"],
-            get_hour_ms(8,0),get_hour_ms(12,0),True):
-
-            logger.info(f" ny_time {last_date} {last_ts} idx:{global_index} ")
-
-            df_now = dataframe[
-                (dataframe["timestamp"] == last_ts) &
-                (dataframe["day_volume_history"] > 100_000) &
-                (dataframe["GAIN"] > 0)
-            ]
-            gain_snap = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
-            
-            #logger.info(f"gain_snap \n{gain_snap}")
-
-            if len(gain_snap)>0 and not self.book.has_any_trade():
-                first = gain_snap.iloc[0]
-
-                logger.info(f"BUY  {last_date} \n{gain_snap}")
-
-                symbol = first["symbol"]
-                
-                RR = 3
-                mx_loss_perc = 0.25  # 25%
-
-                max_loss = last["close"] * mx_loss_perc
-
-                sl = last["close"] - max_loss
-                tp = last["close"] + max_loss * RR
-                
-                self.setSL(symbol,sl)
-                self.setTP(symbol,tp)
-
-
-                logger.info(f"TP  {tp} sl:{sl}")
-                
-                self.book.long(symbol, last["close"], 100,"G")
-
-
-
-            if self.book.has_any_trade():
-
-                    trade = self.book.get_first_trade()
-
-                    
-                    df_last = dataframe[
-                            (dataframe["timestamp"] == last_ts) &
-                            (dataframe["symbol"] == trade.symbol) 
-                        ]
-                            
-                    if len(df_last)>0:
-                        last = df_last.tail(1).iloc[0]
-
-                        symbol = trade.symbol
-                        
-                        close = last["close"]
-
-                        gain = self.buyGain(trade.symbol,close)
-
-                        logger.info(f"LAST TRADE {trade.symbol} {last['datetime']} tp:{self.get_meta(symbol,'TP')} c:{last['close']} gain:{gain} ")
-                
-                        if close > self.get_meta(symbol,"TP"):
-                            #logger.info(f"TP {self.get_meta(symbol,'TP')}")
-                            #self.sell(symbol,last["datetime"],close,100,last["datetime"],"TP")
-                            logger.info(f"SELL .. {symbol} {last_date}")
-                            self.book.close(symbol,last['close'])
-                        elif close < self.get_meta(symbol,"SL"):
-                            #logger.info(f"SL {self.get_meta(symbol,'SL')}")
-                            #self.sell(symbol,last["datetime"],close,100,last["datetime"],"SL")
-                            logger.info(f"SELL .. {symbol} {last_date}")
-                            self.book.close(symbol,last['close'])
-        return
-        
-        '''
-            # apertura
-            if (ny_time.hour == 9 and ny_time.minute == 30):
-                self.open = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
-                self.open["pos"] = range(1, len(self.open) + 1)
-                self.open["last_close"] = 0
-                for idx, row in self.open.iterrows():
-                    last_close, ts_last_close=  await self.client.last_close(symbol)
-                    self.open.at[idx, "last_close"] = last_close
-
-            #self.open["last_open"] = MetaInfo.get_meta()
-
-            if (ny_time.hour == 9 and ny_time.minute == 45):
-                self.open_15 = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
-                self.open_15["pos"] = range(1, len(self.open_15) + 1)
-
-            if (ny_time.hour == 10 and ny_time.minute == 00):
-                self.open_30 = df_now.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
-                self.open_30["pos"] = range(1, len(self.open_30) + 1)
-
-                # report
-
-                # gain 15 
-                df15 = self.open[["symbol","close","pos"]].merge(
-                    self.open_15[["symbol","close","pos"]],
-                    on="symbol",
-                    suffixes=("_open","_15")
-                )
-
-                df15["gain_15m"] = (df15["close_15"] - df15["close_open"]) / df15["close_open"] * 100
-
-                #gain 30
-
-                df30 = self.open[["symbol","close","pos"]].merge(
-                    self.open_30[["symbol","close","pos"]],
-                    on="symbol",
-                    suffixes=("_open","_30")
-                )
-
-                df30["gain_30m"] = (df30["close_30"] - df30["close_open"]) / df30["close_open"] * 100
-
-                logger.info(f"open \n{self.open}")
-                logger.info(f"df15 \n{df15}")
-                logger.info(f"df30 \n{df30}")
-                #d = dataframe.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
-                #d = d.head(5)
-
-
-
-        if not self.backtestMode and not self.bootstrapMode:
-            d = dataframe.groupby("symbol").tail(1).sort_values("GAIN", ascending=False)
-            #logger.info(f">>  \n{d}" )  
-
-           # logger.info(f"live  {symbol} it:{it_time} ny:{ny_time}")
-
-            #logger.info(f">>  \n{dataframe.tail(5)}" )  
-        '''
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
-      
-     
+        
+        
+        #if not self.backtestMode and self.bootstrapMode:
+        #    return
 
-        #if not self.bootstrapMode:
-        #    logger.info(f"REPORT {self.book.report()}")
-
-      
-        if local_index<5:
-            return
-
+        use_day=True
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]
+        sma_20 = last["sma_20"]   
+        sma_200 = last["sma_200"]   
+        volume = last["day_volume_history"]    
 
-        if not self.bootstrap:
-            logger.info(f">> {type(last['datetime'])} trade_symbol_at \n{dataframe.tail(5)}" )  
-
-        #day_volume = last["day_volume"]
-        #if day_volume== 0:
-        day_volume = last["day_volume_history"]
-
-        #logger.info(f">> day_volume {day_volume}" )  
-
-        day_volume_gain=0
-        #if prev["day_volume"]!=0:
-        #    day_volume_gain = 100.0 * (day_volume -  prev["day_volume"] ) /  prev["day_volume"]
-        if prev["day_volume_history"]!=0:
-            day_volume_gain = 100.0 * (day_volume -  prev["day_volume_history"] ) /  prev["day_volume_history"]
-
-        close =  last["close"]
-        prev_close =  prev["close"]
-        SMA_200 =  last["SMA_200"]
-        SMA_20 =  last["SMA_20"]
-        MAX =  prev["MAX"] 
-        diff_all =  prev["DIFF_ALL"] 
-        diff_perc =  last["DIFF"] 
-        trend =  last["TREND"]
-        trend_prev =  prev["TREND"]
-
-        close_sma_gain = 100.0 * ((close - SMA_20 ) /  SMA_20)
-  
-        break_max = close > MAX and prev_close <= MAX
-
-        ###
-
-        ## US TIME
-        trade_last_hh = 11
-
-        #if not self.backtestMode and not self.bootstrapMode:
-             #logger.info(f">> {symbol} {local_index} m:{minutes} \n{dataframe.tail(5)}" )  
-        is_inside=False
-        #use_day=datetime.now().hour  >= 14
-        #UTF
-        if self.backtestMode:
-            use_day=False
-        else:
-            use_day = True#last["datetime"].hour >= 13
-        ##
-        #logger.info(f'{last["datetime"].hour}')
-
-        if  self.market.is_in_time(last["datetime"],
-            get_hour_ms(9,00),get_hour_ms(trade_last_hh,00),use_day):
-            #logger.info(f'{last["datetime"]}')
-
-            if self.market.is_in_time(last["datetime"],
-                get_hour_ms(9,30),get_hour_ms(trade_last_hh,00),use_day):
-                #logger.info(f'{last["datetime"]}')
-
-                is_inside=True
-                if not self.has_meta(symbol,"open_gap"):
-                    last_close = MetaInfo.get(symbol,"last_close")
-                    if not last_close:
-                        last_close, ts_last_close=  await self.client.last_close(symbol,last["datetime"] ) 
-                    
-                    #logger.info(f'last_close {last_close}')
-
-                    if last_close:
-                        self.set_meta(symbol,{"open_gap": 100.0* (last["close"] - last_close) / last["close"] })
-
-                        #pre_gain = MetaInfo.get(symbol,"pre_gain")
-                        logger.info(f"{symbol} t:{last['datetime']} {self.get_meta(symbol,'open_gap')} close:{last['close']} last_close:{last_close}")
-
-                ###### 15 perc ######
-
-                if self.market.is_in_time(last["datetime"],
-                        get_hour_ms(9,45),get_hour_ms(trade_last_hh,00),use_day):
-
-                    if not self.has_meta(symbol,"open_15m_perc"):
-                        window = dataframe.iloc[local_index-15:local_index]
-                        low = window["low"].min()
-                        high = window["high"].max()
-
-                        l_h_perc = 100.0 * (high - low) / low
-
-                        first = window.iloc[0]
-                        last = window.iloc[-1]
-
-                        perc = 100.0 * (last["close"] - first["open"]) / first["open"]
-                        '''
-                        first = dataframe.iloc[local_index-15]
-                    
-                        low = min(first["low"] , prev["low"])
-                        high = max(first["high"] , prev["high"])
-                                
-                        l_h_perc = 100.0* (high-low) / low
-                        perc =  100.0 * (prev["close"]- first["open"]) / first["open"]
-                        '''
-                        logger.info(f"{symbol} t:{last['datetime']}  OPEN 15M O:{first['open']}  C:{last['close']} perc:{perc} l_h_perc:{l_h_perc} local_index:{local_index} last_idx: { last.name}")
-
-                        self.set_meta(symbol, 
-                                {"open_15m_high" : high,
-                                "open_15m_low": low,
-                                "open_15m_perc" : perc, 
-                                "open_15m_perc_lh":l_h_perc,
-                                "open_15m_close_idx": local_index,
-                                } )
-                        
-                    if True:
-                        if self.get_meta(symbol,"open_15m_perc_lh") > 5 and day_volume > 500_000:
-                            if not self.book.hasCurrentTrade(symbol) :
-                                RR = 3
-                                mx_loss_perc = 0.25
-
-                                max_loss =(self.get_meta(symbol,"open_15m_high") - self.get_meta(symbol,"open_15m_low")) * mx_loss_perc
-                                
-                                open_15m_perc_lh =  self.get_meta(symbol,"open_15m_perc_lh")
-                                open_15m_close_idx =  self.get_meta(symbol,"open_15m_close_idx")
-                                
-                                window = dataframe.iloc[open_15m_close_idx:local_index-1]
-                                int_high = window["high"].max()
-
-                                candle_perc = 100.0 * (last["high"] -  last["low"] ) /  last["low"]
-                                mid = (last["high"] -  last["low"] ) /2 +  last["low"] 
-                                if candle_perc > open_15m_perc_lh * mx_loss_perc and last["close"] > last["open"] and last["close"]  > mid:
-                                    self.add_marker(symbol,"W","W","#060806","small_square",position ="atPriceTop")
-                                    
-                                    if symbol =="ORBS":
-                                        logger.info(f' t:{last["datetime"]} int_high: {int_high} close: {last["close"]} {open_15m_close_idx} {local_index-1}')
-
-                                    if last["close"]> int_high:
-                                        self.add_marker(symbol,"M","M","#000000","small_square",position ="atPriceBottom")
-
-                                        sl = last['close'] - max_loss
-                                        tp = last['close'] + max_loss * RR
-
-                                        self.add_marker(symbol, "TP", "TP", "#0026FF","TP",value=tp)
-                                        self.add_marker(symbol, "SL", "SL", "#0026FF","SL",value=sl)
-
-                                        self.setSL(symbol,sl)
-                                        self.setTP(symbol,tp)
-                                        
-                                        await self.send_trade_bracket(symbol,last["datetime"],"BUY", 100, last['close'], tp, sl, "test")
-
-                                        await self.buy(symbol,last["close"], 100,last["datetime"] ,f"15^")
-                                    
-
-                        
-                #######
-                # LOGIC   #
-                if self.has_meta(symbol,"open_15m_perc"):
-                    open_15m_perc =  self.get_meta(symbol,"open_15m_perc")
-                    open_15m_perc_lh =  self.get_meta(symbol,"open_15m_perc_lh")
-
-                    #logger.info(f'ok {symbol} {last['datetime']} v:{day_volume} {open_15m_perc_lh}')
-
-                    if open_15m_perc_lh > 5 and day_volume > 500000:
-                        #logger.info(f"{symbol} PROCESS perc:{open_15m_perc} l_h_perc:{open_15m_perc_lh}")
-                        
-                        #await self.send_event(symbol, "15M", f"15M",f"15M",color="#04FFFF", ring="news")
-
-
-                        ######### LOGIC 1 ########
-                      
-                        ######### LOGIC 2 ########
-                        if False:
-                            h = self.get_meta(symbol,"open_15m_high")
-                            if last["close"] > h and break_max:
-                                #logger.info(f"{symbol} BREAK 15 UP ")
-                                #break
-                                #RISK
-                            
-                                if not self.book.hasCurrentTrade(symbol):
-                                    RR = 3
-                                    mx_loss_perc = 0.25
-                                    max_loss =(self.get_meta(symbol,"open_15m_high") - self.get_meta(symbol,"open_15m_low")) * mx_loss_perc
-                                    sl = last['close'] - max_loss
-                                    tp = last['close'] + max_loss * RR
-
-                                    self.add_marker(symbol, "TP", "TP", "#0026FF","TP",value=tp)
-                                    self.add_marker(symbol, "SL", "SL", "#0026FF","SL",value=sl)
-
-                                    self.setSL(symbol,sl)
-                                    self.setTP(symbol,tp)
-                                    
-                                    #logger.info(f"close {last['close']}")
-                                    #logger.info(f"sl {sl}")
-                                    #logger.info(f"tp {tp}")
-
-                                    await self.send_trade_bracket(symbol,"BUY", 100, last['close'], tp, sl, "test")
-
-                                    await self.buy(symbol,last["close"], 100,last["datetime"] ,f"15^")
-                                
-                            #await self.send_event(symbol, "15 ^", f"15 break up",f"15 break up",color="#A01010", ring="news")
+        if local_index<60:
+            return
+        self.book.set_current_price(symbol, last["close"])    
+        
+        ##### FIRST ENTER ######
+        if not self.has_meta(symbol,"first_enter"): 
+           
+            if use_day:
+                date = datetime.now().date()    
             else:
-                # sell existing
-                if self.has_meta(symbol,"open_15m_perc"):
-                    if self.book.hasCurrentTrade(symbol):
-                         self.sell(symbol,close,100,last["datetime"],"OUT")
-                         
-                self.set_meta(symbol,{})
+                date = last["datetime"].date()    
 
-        #low =  last["low"]
-        #high =  last["high"]
-        #day_volume = last["day_volume"] # va solo per LIVE
+            d_df = self.client.get_df(f"""SELECT * FROM ib_day_watch  
+                        WHERE date = '{date}' AND symbol = '{symbol}' """)  
+            
+            #first_enter = d_df.iloc[0]["ds_timestamp"]
+            if not d_df.empty:  
+                utc_dt = datetime.strptime(d_df.iloc[0]["ds_timestamp"], '%Y-%m-%d %H:%M:%S')
+                utc_dt = utc_dt.replace(tzinfo=pytz.utc)
+                first_enter = int(utc_dt.timestamp()  ) * 1000  
+            else:
+                first_enter=-1
+
+            self.set_meta(symbol, {"first_enter": first_enter }) 
+
+            #logger.info(f"FIRST ENTER {symbol} {date} {first_enter}")   
+
+            self.add_marker(symbol,"SPOT","X","#060806","square",position ="atPriceTop",timestamp=first_enter)
+
+           
+        if  self.market.is_in_time(last["datetime"],
+            get_hour_ms(0,00),get_hour_ms(self.trade_last_hh,00),use_day):
+        
+            #########
+
+            if volume > self.volume_min_filter:#and int(last["timestamp"]) >= self.get_meta(symbol,"first_enter") :
+                
+                if not self.has_meta(symbol,"volume"):
+                    self.set_meta(symbol,{"volume":"OK"})
+                    self.add_marker(symbol,"SPOT","VOL","#0A0038","small_square",position ="atPriceTop")
+                    if not self.bootstrapMode:
+                            await self.send_event(symbol, "VOL", f"VOL > {self.volume_min_filter}", f"VOL > {self.volume_min_filter}",color="#BB0B46", ring="news")
 
 
-        #if not is_inside:
-        if self.book.hasCurrentTrade(symbol):
-            if close > self.get_meta(symbol,"TP"):
-                #logger.info(f"TP {self.get_meta(symbol,'TP')}")
-                self.sell(symbol,last["datetime"],close,100,last["datetime"],"TP")
-            elif close < self.get_meta(symbol,"SL"):
-                #logger.info(f"SL {self.get_meta(symbol,'SL')}")
-                self.sell(symbol,last["datetime"],close,100,last["datetime"],"SL")
-        #if abs(self.buyGain(symbol,close))>2:
-        #        self.sell(symbol,close,100,last["datetime"],"SELL")
+                #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
+
+                if  not self.has_meta(symbol,"valid") and not self.book.hasCurrentTrade(symbol):
+                    #self.set_meta(symbol, {"valid": True }) 
+
+                    trend_up =  sma_200 > dataframe.iloc[local_index-60:local_index]["sma_200"].max()
+
+                    gain = last["gain"]
+                    # incrocio sma 20 200 rialzista 
+                    if  gain < self.gain_perc/2 and last["close"] > sma_20 and sma_20 > sma_200 and prev["sma_20"] < prev["sma_200"] and trend_up  :
+                        self.set_meta(symbol, {"valid": True }) 
+                        buy_price = dataframe.iloc[local_index]["close"]
+                        dt = dataframe.iloc[local_index]["datetime"]
+
+                        await self.buy(symbol, last["datetime"], buy_price,self.get_quantity(buy_price), f"BUY"  )
+
+                
+                if self.book.hasCurrentTrade(symbol) and self.has_meta(symbol,"valid"):
+                    
+                        
+                        gain = self.book.gain(symbol, last["close"]) 
+                        dt = last["datetime"]
+
+                        #self.book.set_current_price(symbol, last["close"])           
+                        #logger.info(f"gain {symbol} {dt} gain {gain}")
+
+                        if gain < -self.gain_perc:
+                            trade = await self.sell(symbol, dt, last["close"], -1, f"SL"  )
+                        elif gain > self.gain_perc:
+                            trade = await self.sell(symbol, dt, last["close"], -1, f"TP"  )
 
 
-        ######### TRADE
-        '''
-        if day_volume_gain>10 and day_volume > 100000:
-            if (SMA_20 > SMA_200 and prev["SMA_20"]
-                and close > SMA_20 and diff_perc < 5  ):
-                    self.buy(symbol,close, 100,last["datetime"] ,"VOL")
-        '''
-        ##### VOL BREAK
-        if day_volume_gain>10 and day_volume > 300000:
-             await self.send_event(symbol, "VOL", f"VOL 10",f"VOL 10%",color="#10A02F", ring="")
+                        '''
+                        logger.info(f"TIME  {symbol}  {dt}  ") 
 
-        #SMA CROSS
-        if day_volume > 500_000:
-            '''
-            if (SMA_20 > SMA_200 and prev["SMA_20"] <= prev["SMA_200"]
-                and   SMA_200 > prev["SMA_200"]):
-                await self.send_event(symbol, "SMA", f"SMA CR",f"SMA over ",color="#0AD8F3", ring="news")
-            '''
-            if (break_max ):
-                if close < SMA_200:
-                    await self.send_event(symbol, "MAX", f"max cross <",f"max over ",color="#31F30A", ring="alert1")
-                else:
-                    await self.send_event(symbol, "MAX", f"max cross >",f"max over ",color="#F3A90A", ring="chime")
+                        if not self.market.is_in_time(last["datetime"],
+                             get_hour_ms(0,0),get_hour_ms(self.trade_last_hh,0),use_day):
+                                
+                                trade = self.book.close(symbol, last["close"])
+                                logger.info(f"SELL TIME  {symbol}  {dt}   gain {gain} pnl : {trade.pnl()}")   
 
-        await self.send_property(symbol,self.timeframe , 
-                                 {"trend_len": trend if  not pd.isna(trend) else 0,
-                                "trend_perc" :diff_perc if  not pd.isna(diff_perc) else 0,
-                                 "trend_perc_all" :diff_all if  not pd.isna(diff_all) else 0} )
+                                self.add_marker(symbol,"BUY","TM","#000000","arrowDown")
+                        '''
+
+        #pattern LOGIC
+
+        if not self.has_meta(symbol,"valid"):
+
+            if volume > self.volume_min_filter:
+                for n  in [5,4,3]:  
+                    valid,min_low,max_high,gain_perc =  self.check_pattern(dataframe,local_index,n,5)
+                    if valid:
+                        logger.info(f"PATTERN {symbol} {last['datetime']} pattern {n} candles")
+                        self.add_marker(symbol,"SPOT",f"M_{n} {gain_perc:.0f}%","#060806","small_square",position ="atPriceTop")
+
+                        patt = { "idx": local_index, "type": n, "candle": last,"min_low":min_low,"max_high":max_high ,"gain":gain_perc   }
+                        self.set_meta(symbol, {"pattern":patt } ) 
+
+                        if not self.bootstrapMode:
+                            await self.send_event(symbol, "PAT", f"PAT {n}", f"PAT {n}",color="#BB750B", ring="news")
+
+                        break
+                
+                ######
+
+                if self.has_meta(symbol,"pattern") and not self.book.hasCurrentTrade(symbol) :
+                    patt = self.get_meta(symbol,"pattern")
+                    buy_limit = patt["max_high"] + patt["max_high"]*0.01
+                    if last["close"] > buy_limit and local_index - patt["idx"] < 5:
+
+    
+                        logger.info(f"PATTERN BREAKOUT {symbol} {last['datetime']} pattern {patt['type']} candles")
+                    
+                        buy_price = dataframe.iloc[local_index]["close"]
+                        dt = dataframe.iloc[local_index]["datetime"]
+
+                        await self.buy(symbol, last["datetime"], buy_price,self.get_quantity(buy_price), f"BUY"  )
+                    
+                if self.book.hasCurrentTrade(symbol) and self.has_meta(symbol,"pattern") :
+                    patt = self.get_meta(symbol,"pattern")
+                    gain = self.book.gain(symbol, last["close"]) 
+                    dt = last["datetime"]
+                    min_low = patt["min_low"]
+                    max_high = patt["max_high"]
+
+                    pattern_gain_perc = self.get_meta(symbol,"pattern")["gain"]
+
+                    self.book.set_current_price(symbol, last["close"])           
+                    #logger.info(f"gain {symbol} {dt} gain {gain}")
+
+                    if last["close"]< min_low:
+                            trade = await self.sell(symbol, dt, last["close"], -1, f"SL"  )
+                            self.del_meta(symbol,"pattern")
+                    elif last["close"]>max_high + (max_high-min_low)*2:
+                            trade = await self.sell(symbol, dt, last["close"], -1, f"TP"  )
+                            self.del_meta(symbol,"pattern")
+                    elif local_index -  patt["idx"] > 10:
+                        # > 10 minuti
+                        trade = await self.sell(symbol, dt, last["close"], -1, f"TO"  )
+                        self.del_meta(symbol,"pattern")
 
         if not self.bootstrapMode and not self.backtestMode:
             logger.info(f"REPORT {self.book.report()}")
-
-
-
             
-  
-  
+
+    ##########################
+    def check_pattern(self,dataframe, local_index, N,min_gain):
+        if local_index < N - 1:
+            return (False,0,0,0)
+
+        window = dataframe.iloc[local_index - N  : local_index+1 ]
+
+        # Separo ultime e precedenti
+        prev_candles = window.iloc[:-1]
+        last = window.iloc[-1]
+
+        # 1. Controllo che le prime N-1 siano rosse
+        if not (prev_candles['close'] < prev_candles['open']).all():
+            return (False,0,0,0)
+
+        # 2. Ultima verde
+        if not (last['close'] > last['open']):
+            return (False,0,0,0)
+
+        # 3. Altezza ultima candela
+        last_height = abs(last['close'] - last['open'])
+
+        # 4. Range min/max delle N candele
+        max_high = prev_candles['high'].max()
+        min_low = prev_candles['low'].min()
+        total_range = max_high - min_low
+        gain_perc = 100.0 * (total_range / min_low)
+
+        # Evita divisioni strane
+        if total_range == 0:
+            return (False,0,0,0)
+
+        # 5. Condizione finale
+        return (gain_perc > min_gain and last_height >= (total_range / 3)  
+            and last_height < total_range  
+            and last['close'] < max_high,
+            min_low,
+            max_high,gain_perc)

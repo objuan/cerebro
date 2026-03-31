@@ -151,6 +151,7 @@ class StrategyManager:
                 cls = getattr(module, class_name)
 
                 strat = cls(self)
+                strat.props = self.client.propManager
                 strat.load(strat_def)
 
                 if strat.scope != "BACK":
@@ -206,6 +207,7 @@ class StrategyManager:
                     strat_def = strat_info["def"]
 
                     new_instance.load(strat_def)
+                    new_instance.props = self.client.propManager
 
                     self.logger.info(f"ADD STRATEGY {strat_def} {new_instance}")
 

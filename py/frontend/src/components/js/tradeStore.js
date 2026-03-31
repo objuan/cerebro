@@ -16,8 +16,10 @@ export const tradeStore = reactive({
     const newTime = data.list?.[0]?.time;
     data.pos = newTime;
     data.isOpen = this._isOpen(data)  
+    if (!data.isOpen)
+       data.gain = this.computeGain(data).gain
 
-     //console.log("tradeStore", data)
+     console.log("tradeStore", data)
      if (!this.items[symbol]) {
         this.items[symbol] = [];
       }
@@ -133,6 +135,37 @@ export const tradeStore = reactive({
     if (!trade) return false
     return !trade.list.some(fill => fill.side === 'SELL')
   },
+ _Gain(trade){
+    if (!trade) return 0
+    const open =  !trade.list.some(fill => fill.side === 'SELL')
+    if (!open){
+          const buyTotal = trade.list
+            .filter(fill => fill.side === 'BUY')
+            .reduce((sum, fill) => sum + fill.price * fill.size, 0)
+
+          const buy_comm = trade.list
+            .filter(fill => fill.side === 'BUY')
+            .reduce((sum, fill) => sum + (fill.comm || 0), 0);
+
+          const sellTotal = trade.list
+            .filter(fill => fill.side === 'fill')
+            .reduce((sum, fill) => sum + fill.price * fill.size, 0)
+
+
+          let sell_comm = trade.list
+            .filter(fill => fill.side === 'SELL')
+            .reduce((sum, fill) => sum + (fill.comm || 0), 0);
+
+          if (sell_comm == 0){
+              sell_comm = buy_comm
+          }
+
+          return ((sellTotal-buyTotal) / buyTotal) * 100
+    }
+    else
+      return 0
+  },
+
   buyPrice(trade){
     if (!trade) return null
     const buyPrices = trade.list
@@ -141,14 +174,28 @@ export const tradeStore = reactive({
       return buyPrices[0] || null 
   },
   
-  computeGain(trade)
-  { // console.log("computeGain",trade) 
+  currentGain(trade){
+      if (trade.isOpen)
+      { 
+        return this.computeGain(trade).gain
+      }
+      else
+      {
+        return (trade.gain)
+      }
+  },
 
+  computeGain(trade)
+  { 
+     //console.log("computeGain",trade) 
+    let _lastPrice=0
     const ticker = tickerList.get_ticker(trade.symbol)
-    if (!ticker) return null;
+    if (ticker) {
+      _lastPrice = ticker.last
+    }
     
-    let _lastPrice = ticker.last
-    if (_lastPrice){
+   // let _lastPrice = ticker.last
+    //if (_lastPrice){
           //console.log("lastPrice",_lastPrice) 
 
           const buyTotal = trade.list
@@ -191,8 +238,12 @@ export const tradeStore = reactive({
       
 
           const remain = buySize-sellSize
-
-          const actualSell =remain * _lastPrice
+          
+          let actualSell=0
+          if (trade.isOpen && _lastPrice!=0)
+            actualSell =remain * _lastPrice
+          else
+            actualSell=sellTotal
           
           //console.log("cpu",buyTotal,sellTotal,remain,actualSell) 
 
@@ -200,12 +251,12 @@ export const tradeStore = reactive({
           
           const gain =  ((actualSell-buyTotal) / buyTotal) * 100
       
-         // console.log("pnl",pnl,"gain",gain)
+          //console.log("pnl",pnl,"gain",gain)
 
           return {buyTotal,avgPrice,sellTotal,actualSell,buySize,sellSize,pnl, gain,comm}
       }
-      return null
-  }
+     
+  
 /*
   get_sorted() {
       let list = this.get_list() || {}

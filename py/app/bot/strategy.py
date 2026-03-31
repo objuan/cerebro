@@ -15,7 +15,7 @@ from reports.db_dataframe import *
 from renderpage import RenderPage
 from utils import *
 from reports.report_manager import ReportManager
-
+from order_book import *
 
 class Strategy:
     params : Dict
@@ -408,6 +408,9 @@ class SmartStrategy(Strategy):
         self.plots = []
         self.legend = []
         self.marker_map= {}
+        self.position = Position(10000)
+        self.book = OrderBook( self.position )
+
 
     def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
         if timeframe in self.marker_map:
@@ -427,16 +430,16 @@ class SmartStrategy(Strategy):
         self.add_marker(symbol,"BUY",label,"#060806","arrowUp")
 
 
-    #shapes : arrowUp, arrowDown, circle,square
+    #shapes : arrowUp, arrowDown, circle,square,small_square
     #atPriceTop,atPriceBottom,atPriceMiddle
     def add_marker(self, symbol,type, label,color,shape, position ="atPriceTop",
-                    _timeframe=None, sourceField = "close", value=None):
+                    _timeframe=None, sourceField = "close", value=None,timestamp=None):
         timeframe = self.timeframe if _timeframe==None else _timeframe
         
         #logger.info(f"self.trade_index {self.trade_index}")
         candle =  self.trade_dataframe.loc[self.trade_index_global]
-        
-        timestamp =  candle["timestamp"]
+        if not timestamp:
+            timestamp =  candle["timestamp"]
         if not value:
             value = candle[sourceField]
 
@@ -618,3 +621,86 @@ class SmartStrategy(Strategy):
             self._meta[symbol] = {}
         for k,v in meta.items():
              self._meta[symbol][k] = v
+    #########
+
+    async def send_property(self,symbol:str, timeframe ,  value ):
+        if self.backtestMode: return
+
+        if not self.backtestMode and not self.bootstrapMode:
+            #logger.info("send")
+            await self.client.send_strategy_prop("TRADE", symbol,timeframe,value)
+        else:
+            #logger.info(f"send1 {self.backtestMode} {self.bootstrapMode}")
+            pass
+            #self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
+    
+    async def send_trade_order(self,symbol:str,type:str,side:str, quantity:str, price, tp, sl,  desc:str):
+        if self.backtestMode: return
+
+        await self.client.send_strategy_trade("strategy-trade",symbol,self.timeframe,
+                 {"type":type,"price_op":side,"quantity": quantity
+                  ,"price": price,"take_profit": tp,"stop_loss":sl,"desc": desc})
+       
+    async def send_trade_bracket(self, symbol:str,datetime,side:str, quantity:str, price, tp, sl,  desc:str):
+        if self.backtestMode: return
+
+        logger.info(f"BUY  {symbol} {datetime} s:{side} p:{price} tp:{tp} sl:{sl}")
+        await self.send_trade_order(symbol,"bracket",side,quantity,price,tp, sl, desc )
+
+    #########
+    async def buy(self,symbol,datetime,price, quantity,label=""):
+        if self.book.hasCurrentTrade(symbol):
+            return
+
+        logger.info(f"BUY {symbol} {datetime} {quantity} at {price} [{label}]")
+        self.add_marker(symbol,"BUY",label,"#000000FF","arrowUp",position="atPriceBottom")
+
+        #if not self.buyMap[symbol]:
+        self.book.long(symbol, price, quantity,label)
+
+        #super().buy(symbol,label)
+        if not self.bootstrapMode:
+            await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
+
+        
+        #self.buyMap[symbol] = {"price": price, "quantity": quantity,"time": time}
+
+    async def sell(self,symbol,datetime, price, quantity,label=""):
+
+        if self.book.hasCurrentTrade(symbol):
+            logger.info(f"SELL  {symbol} {datetime}")
+
+            self.book.close(symbol,price)
+
+            self.add_marker(symbol, "SPOT", label, "#000000", "arrowDown",position="atPriceBottom")
+
+            if not self.bootstrapMode:
+                await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
+
+
+        '''
+        #if symbol in self.buyMap and self.buyMap[symbol]:
+            buy_data =  self.buyMap[symbol]
+            #logger.info(f"SELL .. {buy_data}")
+            logger.info(f"SELL {symbol} time{time} gain {self.buyGain(symbol, price)}" )
+            self.buyMap[symbol] = {}
+            self.add_marker(symbol, "SPOT", label, "#FF0000", "square")
+        '''
+
+    def buyGain(self,symbol,close):
+        if self.book.hasCurrentTrade(symbol):
+            return self.book.gain(symbol,close)
+        else:
+            return 0
+        '''
+        if symbol in self.buyMap and self.buyMap[symbol]:   
+            buy_price = self.buyMap[symbol]["price"]
+            return 100.0 * (close- buy_price) / buy_price
+        else:
+            return 0
+        '''
+    def setSL(self,symbol, price):
+        self.set_meta(symbol,{"SL": price})
+
+    def setTP(self,symbol, price):
+        self.set_meta(symbol,{"TP": price})

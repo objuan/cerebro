@@ -376,7 +376,7 @@ if __name__ =="__main__":
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
    
        # for _, row_dict in df.iterrows():
-        for date in ["2026-03-23"]: 
+        for date in ["2026-03-30"]: 
          
             #date = row_dict["date"] 
 

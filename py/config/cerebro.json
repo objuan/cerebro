@@ -136,8 +136,9 @@
 				"scope" : "ALL",
 				"params" :
 				{
-					"eta" : 5,
-					"min_gain" : 5
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :1000000,
+                    "trade_last_hh" : 14
 				}
 			},
 		{
@@ -258,10 +259,10 @@
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
-				"mode" : "sym",
+				"mode" : "live",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["EDHL"],
-				"start_scan" : "debug",
+				"start_scan" : "live",
 				"start_scan1" : "keep_last_session|debug|live",
 				"start_sym_time" : "2026-03-20 10:00:00",
 				"history_provider" :"ib",

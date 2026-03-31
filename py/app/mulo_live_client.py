@@ -68,142 +68,119 @@ class MuloLiveClient:
                 logger.info(f"START SYM TIME: {self.sym_time} sp:{self.sym_speed}")
         await self._on_update_symbols()
 
+    import asyncio
+    import json
+    import websockets
+
     async def batch(self):
-        try:
-            uri = "ws://localhost:3000/ws/tickers"
-                
-            async with websockets.connect(uri,
-                        ping_interval=30,
-                        ping_timeout=60,
-                        close_timeout=10,) as websocket:
-                logger.info(f"Connesso a {uri}")
-                
-                # Invia un messaggio al server
-                message = {"id": "client"}
-                await websocket.send(json.dumps(message))
-                
-                async def updateTickers(new_ticker):
-                    #logger.info(f"new_ticker {new_ticker}")
-                    '''
-                    if "ticker" in new_ticker:
-                        symbol =  new_ticker["ticker"]
-                      
-                        #logger.info(f"<<TICKER {new_ticker}")
+        uri = "ws://localhost:3000/ws/tickers"
 
-                        t = self.tickers[symbol]
-                        t.update({"last": new_ticker["last"],
-                                  "day_volume": new_ticker["day_v"],
-                                  "volume": new_ticker["v"],
-                                  "ask": new_ticker["ask"],"bid": new_ticker["bid"],
-                                   "open": new_ticker["open"],
-                                   "low": new_ticker["low"],"high": new_ticker["high"],
-                                  "gain": ((new_ticker["last"]-t["last_close"]) / t["last_close"]) * 100,
-                                  "ts" : int(new_ticker["ts"]*1000)
-                                  })
-                            
-                        logger.info(f"..  {t}")
-                         # send event 
-                        await self.on_ticker_receive(t)
-                    '''
-                    if self.sym_mode and "sym" in new_ticker:
-                        self.sym_time = new_ticker["sym"]
-                        #logger.info(f"sym_time {self.sym_time}")
-                        self.sym_speed = new_ticker["speed"]
+        while True:  # 🔁 loop di riconnessione
+            try:
+                logger.info(f"Tento connessione a {uri}...")
 
-                    elif "evt" in new_ticker:
-                        name = new_ticker["evt"]
-                        if name =="on_update_symbols":
-                             await self._on_update_symbols()
+                async with websockets.connect(
+                    uri,
+                    ping_interval=30,
+                    ping_timeout=60,
+                    close_timeout=10,
+                ) as websocket:
 
-                    else:
-                     
-                        mode = new_ticker["m"]
-                        new_ticker["tf"]= TF_SEC_TO_DESC[new_ticker["tf"]]
-                        new_ticker["ask"] = new_ticker["ask"] if not pd.isna(new_ticker["ask"]) else 0
-                        new_ticker["bid"] = new_ticker["bid"] if not pd.isna(new_ticker["bid"]) else 0
-                        #new_ticker["ts"] = new_ticker["ts"]/1000  # to ms
-                        #print(new_ticker)
-                        # send to UI
+                    logger.info(f"✅ Connesso a {uri}")
 
-                        
-                        if mode =="full":
-                            #logger.info(f"full {new_ticker}")
-                            
-                            await self.on_full_candle_receive(new_ticker)
-                            
+                    # reset stato se vuoi
+                    self.ready = False
 
-                            if self.sym_mode:
-                                await self.on_partial_candle_receive(new_ticker)
+                    # handshake
+                    message = {"id": "client"}
+                    await websocket.send(json.dumps(message))
 
-                            if new_ticker["s"] in self.tickers:
-                                    t = self.tickers[new_ticker["s"]]
-                                    t.update({"last": new_ticker["c"],
-                                            "volume": new_ticker["v"],
-                                            "day_volume": new_ticker["day_v"],
-                                            "ask":  new_ticker["ask"],
-                                            "bid":  new_ticker["bid"],
-                                            "low": new_ticker["l"],
-                                            "high": new_ticker["h"],
-                                            "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
-                                            "ts":new_ticker["ts"] })
-                                    await self.on_ticker_receive(t)
+                    async def updateTickers(new_ticker):
+                        # --- il tuo codice invariato ---
+                        if self.sym_mode and "sym" in new_ticker:
+                            self.sym_time = new_ticker["sym"]
+                            self.sym_speed = new_ticker["speed"]
+
+                        elif "evt" in new_ticker:
+                            if new_ticker["evt"] == "on_update_symbols":
+                                await self._on_update_symbols()
 
                         else:
-                        
-                            await self.on_partial_candle_receive(new_ticker)
-                        
-                            
-                            if new_ticker["tf"]=="10s" and new_ticker["s"] in self.tickers:
-                                    
+                            mode = new_ticker["m"]
+                            new_ticker["tf"] = TF_SEC_TO_DESC[new_ticker["tf"]]
+                            new_ticker["ask"] = new_ticker["ask"] if not pd.isna(new_ticker["ask"]) else 0
+                            new_ticker["bid"] = new_ticker["bid"] if not pd.isna(new_ticker["bid"]) else 0
+
+                            if mode == "full":
+                                await self.on_full_candle_receive(new_ticker)
+
+                                if self.sym_mode:
+                                    await self.on_partial_candle_receive(new_ticker)
+
+                                if new_ticker["s"] in self.tickers:
                                     t = self.tickers[new_ticker["s"]]
-                                    t.update({"last": new_ticker["c"],
-                                            "volume": new_ticker["v"],
-                                            "day_volume": new_ticker["day_v"],
-                                            "ask":  new_ticker["ask"],
-                                            "bid":  new_ticker["bid"],
-                                            "low": new_ticker["l"],
-                                            "high": new_ticker["h"],
-                                            "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100, 
-                                            "ts":new_ticker["ts"] })
-                                    
-                                    
-                                    if (not "open_price" in t):
-                                        if self.market.isLiveZone():
-                                            #logger.info("GAPPPPP")
-                                            open_price, ts_open =  await self.last_open(new_ticker["s"])
-
-                                            t.update({"open_price" : open_price, "ts_open_price":int(ts_open)})
-                                    
-                                    #logger.info(f"..  {t}")
-                                    # send event 
+                                    t.update({
+                                        "last": new_ticker["c"],
+                                        "volume": new_ticker["v"],
+                                        "day_volume": new_ticker["day_v"],
+                                        "ask": new_ticker["ask"],
+                                        "bid": new_ticker["bid"],
+                                        "low": new_ticker["l"],
+                                        "high": new_ticker["h"],
+                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100,
+                                        "ts": new_ticker["ts"]
+                                    })
                                     await self.on_ticker_receive(t)
-                            # logger.info(f"new_ticker {t}")
-                            #self.render_page.send({"type":"candle","data":new_ticker}) 
-                            
-                    # live on last scanner
 
-                # first
-                new_ticker = await websocket.recv()
-                await updateTickers(json.loads(new_ticker))
+                            else:
+                                await self.on_partial_candle_receive(new_ticker)
 
-                self.ready=True
-              
-                while True:
-                    try:
+                                if new_ticker["tf"] == "10s" and new_ticker["s"] in self.tickers:
+                                    t = self.tickers[new_ticker["s"]]
+                                    t.update({
+                                        "last": new_ticker["c"],
+                                        "volume": new_ticker["v"],
+                                        "day_volume": new_ticker["day_v"],
+                                        "ask": new_ticker["ask"],
+                                        "bid": new_ticker["bid"],
+                                        "low": new_ticker["l"],
+                                        "high": new_ticker["h"],
+                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100,
+                                        "ts": new_ticker["ts"]
+                                    })
+
+                                    if "open_price" not in t and self.market.isLiveZone():
+                                        open_price, ts_open = await self.last_open(new_ticker["s"])
+                                        t.update({
+                                            "open_price": open_price,
+                                            "ts_open_price": int(ts_open)
+                                        })
+
+                                    await self.on_ticker_receive(t)
+
+                    # prima ricezione
+                    new_ticker = await websocket.recv()
+                    await updateTickers(json.loads(new_ticker))
+
+                    self.ready = True
+
+                    # loop ricezione
+                    while True:
                         new_ticker = await websocket.recv()
                         await updateTickers(json.loads(new_ticker))
-                    except:
-                        logger.error("ERR", exc_info=True)
-                        await asyncio.sleep(1)
 
+            except (websockets.exceptions.ConnectionClosedError,
+                    websockets.exceptions.ConnectionClosedOK,
+                    ConnectionRefusedError) as e:
 
+                logger.warning(f"⚠️ Connessione persa: {e}")
+                logger.info("🔁 Riconnessione tra 3 secondi...")
+                await asyncio.sleep(3)
 
-        except ConnectionRefusedError:
-            logger.error("Errore: Assicurati che il server sia attivo!")
-            exit(-1)
-        except Exception as e:
-            logger.error(f"Errore", exc_info=True)
-           # exit(-1)
+            except Exception:
+                logger.error("❌ Errore generico", exc_info=True)
+                logger.info("🔁 Riprovo tra 5 secondi...")
+                await asyncio.sleep(5)
 
    
     def getCurrentZone(self):

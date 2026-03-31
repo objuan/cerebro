@@ -13,6 +13,7 @@
               PnL: {{ props.trade.pnl.toFixed(2) }}
               (G:{{ props.trade.balance.toFixed(2) }},
               C:{{-props.trade.comm.toFixed(1) }})
+              {{props.trade.gain.toFixed(1) }} %
             </span>
           </div>
 
@@ -27,6 +28,7 @@
             {{ formatTime(fill.time*1000) }}           
             @{{ fill.price.toFixed(3) }}x{{ fill.size }}
             ({{ fill.comm.toFixed(1) }})
+        
           </div>
         </div>
   

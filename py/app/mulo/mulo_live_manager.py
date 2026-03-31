@@ -636,9 +636,9 @@ class LiveManager:
                 #if symbol =="USAR":
                 #    logger.info(f" onTicker{ticker.volume}")
 
-                volume = ticker.volume #day volume
+                day_volume = ticker.volume #day volume
               
-                volume = max(0, 0 if math.isnan(volume) else volume)
+                day_volume = max(0, 0 if math.isnan(day_volume) else day_volume)
 
                 if ticker.last_close>0:
                     ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
@@ -680,8 +680,10 @@ class LiveManager:
                             if candle is not None:  # se esisteva, va inviata
                                 #logger.info("send")
                                 # send
-                                v = volume - candle["last_volume"]
-                                v = max(0,v)
+                                volume = day_volume - candle["last_volume"]
+                                volume = max(0,volume)
+                                if volume == day_volume:
+                                    volume = 0
                                 
                                 data = {
                                     "m": "full",
@@ -691,12 +693,12 @@ class LiveManager:
                                     "c": ticker.last if candle["close"] == 0 else candle["close"],
                                     "h":  ticker.last if candle["high"] == 0 else candle["high"],
                                     "l":  ticker.last if candle["low"] == 0 else candle["low"],
-                                    "v": v if use_yahoo else v * 100,
+                                    "v": volume if use_yahoo else volume * 100,
                                     "ts": int(candle["start"]) * 1000,
                                     "dts": start_time,
                                     "bid": ticker.bid if ticker.bid  else 0,
                                     "ask": ticker.ask if ticker.ask  else 0, #bidSize,askSize,minTick
-                                    "day_v": volume if use_yahoo else volume * 100
+                                    "day_v": day_volume if use_yahoo else day_volume * 100
                                 }
 
                                 #logger.info(f"add {data} \n{ticker}")
@@ -716,7 +718,7 @@ class LiveManager:
                                 "low": ticker.last,
                                 "close": ticker.last,
                                 "volume": 0,
-                                "last_volume": volume
+                                "last_volume": day_volume
                             }
 
                             history[interval] = candle
@@ -730,7 +732,7 @@ class LiveManager:
                                 candle["low"] = min(candle["low"], ticker.last)
 
                                 #vol_diff = ticker.volume - candle["last_volume"]
-                                candle["volume"]  = max(0,volume - candle["last_volume"])
+                                candle["volume"]  = max(0,day_volume - candle["last_volume"])
                                 candle["close"] = ticker.last
 
                                 data = {
@@ -746,7 +748,7 @@ class LiveManager:
                                         "dts": start_time,
                                         "bid": ticker.bid,
                                         "ask": ticker.ask,
-                                        "day_v": volume if use_yahoo else volume * 100
+                                        "day_v": day_volume if use_yahoo else day_volume * 100
                                     }
 
                             

@@ -1,21 +1,11 @@
 from typing import Dict
 import pandas as pd
 import logging
-from datetime import datetime, timedelta
-from bot.indicators import *
-from bot.strategy import SmartStrategy
-from zoneinfo import ZoneInfo
-from market import Market
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-from report import *
-from reports.db_dataframe import *
-from renderpage import RenderPage
 from utils import *
-from reports.report_manager import ReportManager
-
 
 class Order:
     def __init__(self, symbol, side, price, quantity, label):
@@ -210,11 +200,15 @@ class OrderBook:
         avg_gain = sum(t.pnl() for t in wins) / len(wins) if wins else 0
         avg_loss = sum(t.pnl() for t in losses) / len(losses) if losses else 0
 
-        profit_factor = (
-            sum(t.pnl() for t in wins) /
-            abs(sum(t.pnl() for t in losses))
-            if losses else 0
-        )
+        try:
+            profit_factor = (
+                sum(t.pnl() for t in wins) /
+                abs(sum(t.pnl() for t in losses))
+                if losses else 0
+            )
+        except:
+            profit_factor=0
+
 
         # -------- REPORT GLOBALE --------
         report = {

@@ -184,6 +184,7 @@ export  class GapZone  extends MarketZoneBand{
 
         for (var i = this.lastClose ; i<= this.lastOpen;i++)
         {
+          if (!this.data[i]) continue
             m = Math.min(m, this.data[i].low)
             M = Math.max(M, this.data[i].high)
         }
@@ -320,8 +321,11 @@ export  class OpenZoneBand  extends Primitive{
       let M = -99999
       for (let i= this.lastOpen;i<= this.lastClose;i++)
       {
+        if (this.data[i].low)
+        {
           m = Math.min(m , this.data[i].low)
           M= Math.max(M , this.data[i].high)
+        }
       }
       this.min = m
       this.max = M

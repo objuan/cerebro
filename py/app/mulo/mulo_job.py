@@ -619,7 +619,10 @@ class MuloJob:
                             formatDate=2 #unixtime
                         )
                 df = util.df(bars)
-
+                
+                if df.empty:
+                    return symbol, None
+                
                 df = df.rename(columns={
                                 "open": "Open",
                                 "high": "High",

@@ -140,13 +140,18 @@
                   {{item.report?.rel_vol_5m.toFixed(1)}}%
               </td>
             </tr>
-          <tr style="height : 30%">
+            
+           <tr style="height : 30%" v-if="!hasTrade(item.symbol)">
               <td class="volume" :style="{ color: rangeColor(item.strategy.get(item.symbol,'1m','TRADE')?.trend_perc*10,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 0, b: 255 }) }">
                   {{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc.toFixed(0)}}({{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc_all.toFixed(0)}})%
               </td>
               <td class="volume" :style="{ color: rangeColor(item.strategy.get(item.symbol,'1m','TRADE')?.trend_len,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 0, b: 255 }) }">
                   #{{item.strategy.get(item.symbol,"1m","TRADE")?.trend_len}}
               </td>
+            </tr>
+            <tr v-else>
+              <td  style="color:blue" class="volume" colspan="2" v-if="lastTrade(item.symbol).isOpen" >OPEN {{ tradeStore.currentGain(lastTrade(item.symbol)).toFixed(1) }}%</td>
+              <td   style="color:black" class="volume" colspan="2" v-else >Close {{ tradeStore.currentGain(lastTrade(item.symbol)).toFixed(1) }}%</td>
             </tr>
 
           </table>
@@ -407,6 +412,7 @@ import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { reportStore as report } from "@/components/js/reportStore";
 import NewsWidget from "@/components/NewsWidget.vue";
 import { staticStore } from '@/components/js/staticStore.js';
+import { tradeStore } from "@/components/js/tradeStore";
 
 const showNews = ref(false)
 const selectedSymbol= ref(null)
@@ -429,6 +435,14 @@ const progress = (item) => {
   const f =  Math.min(10, item.secs_from-10)/10
   return 100 - f * 100;
 }
+
+function hasTrade(symbol){
+  return tradeStore.lastTrade(symbol)!=null
+}
+function lastTrade(symbol){
+  return tradeStore.lastTrade(symbol)
+}
+
 //const sortedTickers = computed(() => {
 function updateTickers()
 {

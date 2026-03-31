@@ -56,6 +56,6 @@ function formatValue(v) {
 function db_localTime(data)
 {
      const seconds = new Date(data).getTime() / 1000;
-    const offsetSeconds = 60*60;//-date.getTimezoneOffset() * 6000;
+    const offsetSeconds = 2* 60*60;//-date.getTimezoneOffset() * 6000;
     return Math.floor(seconds + offsetSeconds);
 }
