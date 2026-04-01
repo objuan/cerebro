@@ -72,8 +72,8 @@ class BackStrategy(_BackStrategy):
         self.gain_perc = self.params["gain_perc"]   
         self.trade_last_hh= self.params["trade_last_hh"]
       
-        capital = self.props.get("trade.day_balance_USD")
-        trade_risk = self.props.get("trade.trade_risk")
+        capital = self.props.get("trade.trade_balance_USD")
+        #trade_risk = self.props.get("trade.trade_risk")
         self.loss_by_trade = 100#capital * trade_risk
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
         pass

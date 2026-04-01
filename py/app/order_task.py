@@ -297,12 +297,16 @@ class OrderTaskManager:
 
         data = json.loads(df.iloc[0]["data"])
         logger.info(f"ADD tp_sl {data}")
-
+    
         price = data["price"]
         quantity = data["quantity"]
         stop_loss = data["stop_loss"]
         take_profit = data["take_profit"]
 
+        OrderTaskManager.tp_sl(price,quantity,stop_loss,take_profit)
+    
+    async def _tp_sl(symbol,price,quantity,stop_loss,take_profit):
+      
         logger.info(f"ADD tp_sl p:{price} q:{quantity} sl:{stop_loss} tp:{take_profit}")
 
         actions = [

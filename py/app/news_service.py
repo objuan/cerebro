@@ -36,7 +36,10 @@ exclude_titles = ["""What's going on in today's pre-market session""",
                   """Here are the top movers in""",
                   """Industrials Stocks Moving In""",
                   """Which stocks are moving""",
-                  """Consumer Staples Stocks Moving"""]
+                  """Consumer Staples Stocks Moving""",
+                  """Which stocks are experiencing""",
+                  """Discover the top movers""",
+                  """Why These 5 Stocks Are On Investors' Radars Today"""]
 
 #############
 

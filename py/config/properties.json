@@ -3,6 +3,7 @@
     "rr": 2,
     "trade_risk": 0.1,
     "day_risk": 0.2,
+    "trade_balance_USD": 60,
     "day_balance_USD": 500
   },
   "home": {
@@ -11,7 +12,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "BFRG",
+      "symbol": "ABVE",
       "indicator": {
         "1m": "SMA",
         "10s": "SMA",
@@ -39,7 +40,7 @@
       },
       "1_2": {
         "2": {
-          "timeframe": "5m",
+          "timeframe": "10s",
           "legend": false
         },
         "1": {
@@ -86,8 +87,9 @@
       }
     },
     "start_len": {
-      "1m": 402.0583249632482,
-      "5m": 33.50000255375187
+      "1m": 396.76202268292957,
+      "5m": 33.50000255375187,
+      "10s": 139.95786425703102
     }
   },
   "event": {
@@ -360,7 +362,7 @@
       "quantity": 100
     },
     "POLA": {
-      "mode": "MARKER",
+      "mode": "DIRECT",
       "quantity": 100
     },
     "AGRZ": {
@@ -517,6 +519,27 @@
       "quantity": 100
     },
     "BFRG": {
+      "quantity": 39,
+      "quantity_rr": false,
+      "mode": "DIRECT"
+    },
+    "OXBR": {
+      "quantity_rr": false,
+      "quantity": 100
+    },
+    "CTXR": {
+      "quantity": 100
+    },
+    "NUWE": {
+      "quantity": 100
+    },
+    "FOFO": {
+      "quantity": 100
+    },
+    "GVH": {
+      "quantity": 100
+    },
+    "CETX": {
       "quantity": 100
     }
   },

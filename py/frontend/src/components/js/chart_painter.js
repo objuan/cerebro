@@ -5,7 +5,7 @@ import { ref,computed} from 'vue';
 import {HLine,Box,Line,SplitBox,PriceLine,VLine,Fibonacci,
   MisureBox
  } from '@/components/js/chart_primitives.js'
- import {TradeBox, BuyAbove,BuyBelow,TradeRR
+ import {TradeBox, BuyAbove,BuyBelow,TradeRR,TradeSL_TP
  } from '@/components/js/chart_primitives_trade.js'
  import {MarketZoneBand,GapZone ,OpenZoneBand} from '@/components/js/chart_primitives_ex.js'
 import { liveStore } from '@/components/js/liveStore.js';
@@ -648,6 +648,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         //else
        // {
             box.tradeMarkerData=tradeMarkerData
+            box.update()
             console.log("tradeMarkerData",tradeMarkerData)
       //  }
       }
@@ -679,6 +680,8 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
         this.primitives.push(line)
         return line
     }
+    //
+
     // =========================================
 
     , create(type){
@@ -716,13 +719,22 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
           if (!exists)
             return new TradeBox(this)
       }
-       if (type =="trade-rr"){
+      if (type =="trade-rr"){
          const exists = this.getTradeBox()
           if (!exists)
           {
             let t = new TradeRR(this)
             if (t.setup("bracket", ">"))
               return t
+          }
+      }
+      if (type =="trade-tp_sl"){
+         const exists = this.getTradeBox()
+          if (!exists)
+          {
+            let t = new TradeSL_TP(this)
+            this.primitives.push(t)
+            return t
           }
       }
       return null
@@ -794,7 +806,7 @@ export function  createPainter(context,mainChart,overlay, trade_quantity_ref)
       //console.log( this.primitives)
       const p =  this.primitives.find(p => p.guid === guid);
       this.primitives = this.primitives.filter(p => p.guid !== guid);
-      if (p.type =="trade-box"){
+      if (p && p.isTradeMarker){
           console.log("dleete nob")
           this.tradeBoxHandler.delete(p)
       }

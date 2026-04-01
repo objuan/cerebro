@@ -732,8 +732,8 @@ async def do_bracket(symbol:str,timeframe:str):
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
    
-@app.get("/order/tp_sl")
-async def do_tp_sl(symbol:str,timeframe:str):
+@app.get("/order/tp_sl/timeframe")
+async def do_tp_sl_timeframe(symbol:str,timeframe:str):
     try:
         logger.info(f"do_tp_sl {symbol} {timeframe} ")
        
@@ -744,6 +744,18 @@ async def do_tp_sl(symbol:str,timeframe:str):
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
 
+@app.get("/order/tp_sl")
+async def do_tp_sl(symbol:str,price,quantity,stop_loss,take_profit):
+    try:
+        logger.info(f"do_tp_sl {symbol} {price} {quantity} {stop_loss} {take_profit} ")
+       
+        await OrderTaskManager._tp_sl(symbol,float(price),float(quantity),float(stop_loss),float(take_profit))
+       
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
 @app.get("/order/single")
 async def do_single(symbol:str,timeframe:str):
     try:

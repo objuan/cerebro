@@ -19,9 +19,9 @@
 
         <div class ="div-row" >
               <div class="symbol fw-bold">
-                      <a
+                      <a style="color:black"
                         href="#"
-                        class="text-blue-600 hover:underline"
+                        class="text-black-600 hover:underline"
                         @click.prevent="onSymbolClick(props.symbol)"
                       >
                         {{ props.symbol }}

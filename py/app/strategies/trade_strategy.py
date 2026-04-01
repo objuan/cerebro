@@ -220,7 +220,7 @@ class TradeStrategy(SmartStrategy):
     async def on_start(self):
         
         self.book = OrderBook( self.position )
-
+        self.last_timestamp=0
         self.volume_min_filter= self.params["volume_min_filter"]
         self.inPeriod=False
         self.gain_perc = self.params["gain_perc"]   
@@ -282,6 +282,67 @@ class TradeStrategy(SmartStrategy):
         #sl_price = price - price / 100 * self.gain_perc
         return int(self.loss_by_trade  / price )
     
+    async def compute_open(self,symbol,dataframe,local_index,open_count = 15, use_day=True):
+        trade_last_hh = self.trade_last_hh
+        last = dataframe.iloc[local_index]
+        if  self.market.is_in_time(last["datetime"],
+            get_hour_ms(9,00),get_hour_ms(trade_last_hh,00),use_day):
+            #logger.info(f'{last["datetime"]}')
+
+            if self.market.is_in_time(last["datetime"],
+                get_hour_ms(9,30),get_hour_ms(trade_last_hh,00),use_day):
+                #logger.info(f'{last["datetime"]}')
+
+                is_inside=True
+                if not self.has_meta(symbol,"open_gap"):
+                    last_close = MetaInfo.get(symbol,"last_close")
+                    if not last_close:
+                        last_close, ts_last_close=  await self.client.last_close(symbol,last["datetime"] ) 
+                    
+                    #logger.info(f'last_close {last_close}')
+
+                    if last_close:
+                        self.set_meta(symbol,{"open_gap": 100.0* (last["close"] - last_close) / last["close"] })
+
+                        #pre_gain = MetaInfo.get(symbol,"pre_gain")
+                        logger.info(f"{symbol} t:{last['datetime']} {self.get_meta(symbol,'open_gap')} close:{last['close']} last_close:{last_close}")
+
+                ###### 15 perc ######
+
+                if self.market.is_in_time(last["datetime"],
+                        get_hour_ms(9,45),get_hour_ms(trade_last_hh,00),use_day):
+
+                    if not self.has_meta(symbol,"open_perc"):
+                        window = dataframe.iloc[local_index-open_count:local_index]
+                        low = window["low"].min()
+                        high = window["high"].max()
+
+                        l_h_perc = 100.0 * (high - low) / low
+
+                        first = window.iloc[0]
+                        last = window.iloc[-1]
+
+                        perc = 100.0 * (last["close"] - first["open"]) / first["open"]
+                        '''
+                        first = dataframe.iloc[local_index-15]
+                    
+                        low = min(first["low"] , prev["low"])
+                        high = max(first["high"] , prev["high"])
+                                
+                        l_h_perc = 100.0* (high-low) / low
+                        perc =  100.0 * (prev["close"]- first["open"]) / first["open"]
+                        '''
+                        #logger.info(f"OPEN {symbol} t:{last['datetime']}  OPEN 15M O:{first['open']}  C:{last['close']} perc:{perc} l_h_perc:{l_h_perc} local_index:{local_index} last_idx: { last.name}")
+
+                        self.set_meta(symbol, 
+                                {"open_high" : high,
+                                "open_low": low,
+                                "open_perc" : perc, 
+                                "open_perc_min_max":l_h_perc,
+                                "open_close_idx": local_index,
+                                } )
+        return self.has_meta(symbol,"open_high" )
+                        
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
         
@@ -324,7 +385,25 @@ class TradeStrategy(SmartStrategy):
 
             self.add_marker(symbol,"SPOT","X","#060806","square",position ="atPriceTop",timestamp=first_enter)
 
-           
+        # OPEN CLOSE INFOS
+        if volume > self.volume_min_filter:
+            if await self.compute_open(symbol,dataframe,local_index, open_count=15, use_day=use_day):
+                if not self.has_meta(symbol,"up_done" ):
+                    h = self.get_meta(symbol,"open_high",999999 )
+                    if last["close"] > h:
+                            self.set_meta(symbol,{"up_done": False} )
+                            self.add_marker(symbol,"SPOT","UP","#004726","small_square",position ="atPriceTop")
+                            if not self.bootstrapMode:    
+                                await self.send_event(symbol, "UP", f"UP", f"UP",color="#0B89BB", ring="news")
+
+            #await self.send_property(symbol,self.timeframe , 
+            #                     {"open_h":  self.get_meta(symbol,"open_high",999999 )}
+            #                   )
+
+
+        
+        #######################
+
         if  self.market.is_in_time(last["datetime"],
             get_hour_ms(0,00),get_hour_ms(self.trade_last_hh,00),use_day):
         
@@ -441,7 +520,9 @@ class TradeStrategy(SmartStrategy):
                         self.del_meta(symbol,"pattern")
 
         if not self.bootstrapMode and not self.backtestMode:
-            logger.info(f"REPORT {self.book.report()}")
+            if int(last["timestamp"]) > self.last_timestamp:
+                logger.info(f"REPORT {self.book.report()}")
+                self.last_timestamp =  last["timestamp"] 
             
 
     ##########################

@@ -321,7 +321,7 @@ export  class OpenZoneBand  extends Primitive{
       let M = -99999
       for (let i= this.lastOpen;i<= this.lastClose;i++)
       {
-        if (this.data[i].low)
+        if (this.data[i])
         {
           m = Math.min(m , this.data[i].low)
           M= Math.max(M , this.data[i].high)

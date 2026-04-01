@@ -18,8 +18,33 @@
             v-model.number="dayBalance"
           />
         </div>
-      
+      <div class="fw-bold d-flex align-items-center gap-1">
+          Day Risk
+          <input
+            type="number"
+            step="0.01"
+            class="form-control form-control-sm"
+            style="width: 90px"
+            v-model.number="dayRisk"
+          />
+        </div>
     </div>
+
+     <div class="card-body p-2 d-flex justify-content-between align-items-center">
+        <div class="fw-bold">Max DayLoss {{ liveData['trade.max_day_loss'] }}</div>
+       
+    </div>
+
+     <div class="fw-bold d-flex align-items-center gap-1">
+            trade Balance 
+           <input
+            type="number"
+            step="1"
+            class="form-control form-control-sm"
+            style="width: 150px"
+            v-model.number="tradeBalance"
+          />
+        </div>
 
     <div class="card-body p-2 d-flex justify-content-between align-items-center">
         <div class="fw-bold d-flex align-items-center gap-1">
@@ -33,16 +58,7 @@
           />
         </div>
 
-        <div class="fw-bold d-flex align-items-center gap-1">
-          Day Risk
-          <input
-            type="number"
-            step="0.01"
-            class="form-control form-control-sm"
-            style="width: 90px"
-            v-model.number="dayRisk"
-          />
-        </div>
+        
 
         <div class="fw-bold">
             RR {{ displayRR }}
@@ -63,8 +79,7 @@
     </div>
 
     <div class="card-body p-2 d-flex justify-content-between align-items-center">
-        <div class="fw-bold">Max DayLoss {{ liveData['trade.max_day_loss'] }}</div>
-        <div class="fw-bold" style="color:darkblue">Trade DayLoss {{ liveData['trade.loss_per_trade'] }}</div>
+        <div class="fw-bold" style="color:darkblue">Trade Max Loss {{ liveData['trade.loss_per_trade'] }}</div>
 
     </div>
 
@@ -83,6 +98,7 @@ const cash_usd = computed(() => liveStore.get("account.cash_usd") || 0);
 const cash_eur = computed(() => liveStore.get("account.cash_eur") || 0);  
 
 const rr = ref(1);
+const tradeBalance = ref(null);
 const tradeRisk = ref(null);
 const dayRisk = ref(null);
 const dayBalance = ref(null);
@@ -102,6 +118,15 @@ function format(value) {
   });
 }
 // sync STORE → SELECT
+
+watch(
+  () => liveData.value['trade.trade_balance_USD'],
+  v => {
+    if (v != null) tradeBalance.value = v;
+  },
+  { immediate: true }
+);
+
 
 watch(
   () => liveData.value['trade.day_balance_USD'],
@@ -138,6 +163,15 @@ watch(
 /* =========================
    INPUTS → STORE + SAVE
    ========================= */
+
+  watch(tradeBalance, async (newValue, oldValue)  => {
+  if (newValue == null) return;
+  if (oldValue && oldValue!= newValue)
+  {
+    liveStore.set('trade.trade_balance_USD', newValue);
+    send_post('/api/props/save', { path: 'trade.trade_balance_USD', value: newValue });
+  }
+});
 
 watch(dayBalance, async (newValue, oldValue)  => {
   if (newValue == null) return;

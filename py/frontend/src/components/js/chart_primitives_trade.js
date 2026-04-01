@@ -8,8 +8,12 @@ constructor(painter){
     this.isTradeMarker=true
 }
  update(){
+    super.update()
+    this._update()
+ }
 
-      super.update()
+_update(){
+    
       const quantity = this.quantity()
       const price = this.buy_price()
       const tp = this.tp_price()
@@ -423,3 +427,66 @@ export class BuyBelow extends TradeSingle{
   }
 }
 
+
+export  class TradeSL_TP  extends TradeRR{
+
+   constructor(painter){
+    super(painter)
+      this.type = "trade-tp_sl"
+       this.trade_mode = {"price": false, "tp" : true , "sl" : true}
+    }
+  
+    onEnd(){
+     this.save()
+    // this.painter.tradeBoxHandler.change(this);
+  }
+
+    update(){
+   this._update()
+  }
+
+  draw(ctx){
+   
+   // const buy_color = "#0000ff9d"
+    const openZone = this.painter.getOpenZone()
+    if (!openZone) return
+    const closeTime = openZone.closeTimeUtc()
+
+    //console.log("this.tradeMarkerData",this.tradeMarkerData)
+
+    const max_time_min = 45 
+    const buy = this.painter.logicalToPixel ( {t:closeTime, y : this.buy_price() })
+    const buy_right = this.painter.logicalToPixel ( {t:closeTime+max_time_min*60*1000, y : this.buy_price() })
+    const tp = this.painter.logicalToPixel ( {t:closeTime, y : this.tp_price() })
+    const sl = this.painter.logicalToPixel ( {t:closeTime, y : this.sl_price() })
+   
+    const t_l = {x : buy.x, y : tp.y}
+   // const m_l = {x : buy.x, y : buy_right.y}
+   // const m_r = {x : buy_right.x, y : buy_right.y}
+    const b_r = {x : buy_right.x, y : sl.y}
+
+    const pixel_band = this.painter.getPriceBand()
+
+    const min_s = {x: pixel_band.min, y :t_l.y }
+    const min_e=  {x: pixel_band.max, y :t_l.y }
+
+    const max_s=  {x: pixel_band.min, y :b_r.y }
+    const max_e=  {x: pixel_band.max, y :b_r.y }
+
+   // const mid_s = {x: pixel_band.min, y :m_l.y }
+  //  const mid_e=  {x: pixel_band.max, y :m_l.y }
+
+    //const buy_price_txt = `${this.trade_mode["sl"] ? "🔥": ""}${this.tradeMarkerData["price"] ? "📌": ""} ${this.buy_price_txt}`
+    const tp_price_txt = `${this.trade_mode["sl"] ? "🔥": ""}${this.tradeMarkerData["price"] ? "📌": ""} ${this.tp_price_txt}`
+    const sl_price_txt = `${this.trade_mode["sl"] ? "🔥": ""}${this.tradeMarkerData["price"] ? "📌": ""} ${this.sl_price_txt}`
+
+    drawTextOnLine(ctx, min_s, min_e , tp_price_txt, "white", 11, "right" , "green")
+    drawLine(ctx, {x:0, y :min_e.y },min_e, "green" , false, 1, "dotted")
+
+    //drawTextOnLine(ctx, mid_s, mid_e , buy_price_txt, "white", -11, "right" , buy_color)
+    drawTextOnLine(ctx, max_s, max_e , sl_price_txt, "white", -11, "right" , "red")
+    drawLine(ctx, {x:0, y :max_e.y },max_e, "red" , false, 1, "dotted")
+
+
+  }
+}

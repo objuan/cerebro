@@ -86,7 +86,7 @@ class TradeManager:
         props.add_computed("trade.max_day_loss", self.max_day_loss)
 
     def loss_per_trade(self):
-            capital = self.props.get("trade.day_balance_USD")
+            capital = self.props.get("trade.trade_balance_USD")
             trade_risk = self.props.get("trade.trade_risk")
             return capital * trade_risk
 

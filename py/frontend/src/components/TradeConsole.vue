@@ -6,12 +6,22 @@
        <div class="col-2rows">
           <div class="row r1">
                 <div class="d-flex align-items-center gap-1">
-                  Quantity {{ props.symbol }}
+                  Quantity   <!-- Checkbox RR -->
+                <div class="form-check m-0">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    v-model="quantity_rr"
+                    id="rrCheck"
+                  />
+  
+                </div>
                   <span v-if="!props.liveMode">S</span>
                   <select
                     v-model="quantity"
                     class="form-select form-select-sm"
                     style="width: 80px"
+                    :disabled="!quantity_rr"
                   >
                     <option :value="100">100</option>
                     <option :value="200">200</option>
@@ -26,7 +36,9 @@
                     <option :value="1500">1500</option>
                     <option :value="2000">2000</option>
                   </select>
+                  
                 </div>
+               
           </div>
          <div class="row r2">
             <div class="d-flex align-items-center gap-1">
@@ -50,13 +62,16 @@
                         >BUY</button>
 
                      <div class="flex-grow-1 text-center">
-                          Buy <strong>{{ quantity }}</strong> at 
+                          Buy <strong>{{ tradeQuantity }}</strong> at 
                           <strong>{{ ticker?.last.toFixed(2) }}</strong> 
-                            = ${{ (quantity * ticker?.last).toFixed(1) }}     
+                            = ${{ (tradeQuantity * ticker?.last).toFixed(1) }}     
                      
                     </div>
                     <div  v-if="lastTrade && lastTrade.isOpen">
                            (OPEN)
+                            <button  class="btn btn-sm btn-success"
+                                @click="send_price_tp_ls()"
+                              >TP_LS</button>
                     </div>
 
                   </div>
@@ -74,7 +89,7 @@
                                  
                                   <td colspan="2">
                                     BUY <strong style="color:yellow">{{ Number(tradeData.total_price_usd).toFixed(2) }} $</strong>
-                                      ({{ Number(tradeData.price).toFixed(2) }}x{{ tradeData.quantity }})
+                                      ({{ Number(tradeData.price).toFixed(2) }}x{{ tradeData.tradeQuantity }})
                                   </td>
                                  
                               </tr>
@@ -135,7 +150,7 @@ import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il p
 import { staticStore } from '@/components/js/staticStore.js';
 import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
-import {order_limit,clear_all_orders,order_bracket,order_tp_sl,order_single} from "@/components/js/orderManager";
+import {order_limit,clear_all_orders,order_bracket,order_tp_sl,order_single,order_existing_do_tp_sl} from "@/components/js/orderManager";
 import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
 import { tradeStore } from "@/components/js/tradeStore";
 
@@ -151,6 +166,7 @@ const props = defineProps({
 watch(() => props.symbol, () => {  //console.log("symbol cambiato:", newValue);
 
     quantity.value = staticStore.get(get_key("quantity"),100);  
+    quantity_rr.value = staticStore.get(get_key("quantity_rr"),false);  
     tradeMode.value = staticStore.get(get_key("mode"),"DIRECT");  
 });
 
@@ -161,6 +177,7 @@ const get_key = (subkey)=> { return `symbols.${props.symbol}.${subkey}`}
 const tradeMode = ref("DIRECT");
 const tradeData = ref(null);
 const quantity = ref(0);
+const quantity_rr = ref(false)
 const ticker = ref(null);
 const isUpdating = ref(false)
 const active_order_task = ref("");
@@ -179,8 +196,48 @@ const lastTrade = computed(() => {
   return tradeStore.lastTrade(props.symbol);
 })
 
+const tradeQuantity = computed(() => {
+  if (!quantity_rr.value)
+  {
+    if (ticker.value)
+    {
+      const trade_balance = liveData.value['trade.trade_balance_USD']
+      return Math.trunc(trade_balance / ticker.value.last)
+    }
+    else
+      return 0
+  }
+  else
+    return quantity.value;
+});
 
 // =========
+
+function send_price_tp_ls(){
+  if (lastTrade.value.isOpen)
+{
+    console.log("lastTrade",lastTrade.value)
+
+  if (lastTrade.value.list.length==1)
+  {
+      const order = lastTrade.value.list[0]
+      if (order.side =="BUY"){
+          const price = order.price
+          const qnt = order.size
+          const loss_per_trade = liveData.value['trade.loss_per_trade']
+          const rr = liveData.value['trade.rr'] 
+          const sl = price- loss_per_trade / qnt
+          const tp = price+ (loss_per_trade / qnt) * rr
+          console.log(price,loss_per_trade,rr,qnt)
+          
+
+        order_existing_do_tp_sl(props.symbol,price,qnt,tp,sl)
+      }
+    console.log("lastTrade",order)
+  }
+}
+
+}
 
 function setMode(mode){
   tradeMode.value=mode;
@@ -188,7 +245,7 @@ function setMode(mode){
 }
 
 function send_limit_order(){
-  const val =  quantity.value * ticker.value.last
+  const val =  tradeQuantity.value * ticker.value.last
   if (val>0){
     const day_balance_USD =  liveData.value['trade.day_balance_USD']
     const max_day_loss = liveData.value['trade.max_day_loss']
@@ -213,7 +270,7 @@ function send_limit_order(){
       if(!ok) return
     }
 
-    order_limit(props.symbol,quantity.value)
+    order_limit(props.symbol,tradeQuantity.value)
   }
 }
 
@@ -224,11 +281,11 @@ function send_order_marker(){
   console.log("send_order_marker", tradeData.value);  
 
   if (tradeData.value.type == "single") 
-     order_single(props.symbol,tradeData.value.timeframe,quantity.value,ticker.value.last  )
+     order_single(props.symbol,tradeData.value.timeframe,tradeQuantity.value,ticker.value.last  )
   else if (tradeData.value.type == "tp_sl") 
     order_tp_sl(props.symbol,tradeData.value.timeframe,tradeData.value.take_profit, tradeData.value.stop_loss )
   else
-    order_bracket(props.symbol,tradeData.value.timeframe,quantity.value,ticker.value.last )
+    order_bracket(props.symbol,tradeData.value.timeframe,tradeQuantity.value,ticker.value.last )
 }
 
 
@@ -370,6 +427,7 @@ onMounted( async () => {
   eventBus.on("on-start", ()=>{
     //console.log("TradeConsole on-start", props.symbol,quantity.value );
     quantity.value = staticStore.get(get_key("quantity"),100);  
+    quantity_rr.value = staticStore.get(get_key("quantity_rr"),false);  
     tradeMode.value = staticStore.get(get_key("mode"),"DIRECT");  
     
   });
@@ -447,6 +505,15 @@ watch(quantity,  async (newValue, oldValue) => {
           liveStore.updatePathData('trade.tradeData.'+props.symbol, tradeData.value);
       }
     }
+});
+
+watch(quantity_rr,  async (newValue, oldValue) => {
+  if ( oldValue!= newValue)
+  {
+    staticStore.set(get_key("quantity_rr"),newValue );  
+
+    console.log("quantity_rr",newValue, oldValue)
+  }
 });
 
 

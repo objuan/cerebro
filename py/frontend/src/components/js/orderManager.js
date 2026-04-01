@@ -21,11 +21,24 @@ export async function order_single(symbol, timeframe,qty, price){
     })
 }
 
+export async function order_existing_do_tp_sl(symbol, price, quantity, tp,sl){
+    console.log("order_existing_do_tp_sl", symbol,price, quantity, tp,sl)
+
+    send_get("/order/tp_sl", {
+        "symbol" : symbol,
+        "price" : price,
+        "quantity": quantity,
+        "stop_loss" : sl,
+        "take_profit" : tp
+        
+    })
+}
+
 
 export async function order_tp_sl(symbol, timeframe, tp,sl){
     console.log("order_tp_sl", symbol,timeframe, tp,sl)
 
-    send_get("/order/tp_sl", {
+    send_get("/order/tp_sl/timeframe", {
         "symbol" : symbol,
         "timeframe" : timeframe,
        // "tp" : tp,

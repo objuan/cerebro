@@ -96,7 +96,11 @@
               <td style="vertical-align: top;">
                  <div class="button_bar">
 
-                <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                 <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
+                      @click="add_TP_SL()">
+                    .
+                  </button>
+                  <button  class="btn btn-sm btn-outline-warning ms-1"  title="Trend line" 
                       @click="painter?.setMode('trade-rr')">
                     R
                   </button>
@@ -364,6 +368,7 @@ function onTimeFrameChange(){
 // ===============================
 
 const linkName = computed(() => `Link to slot:${props.number} tf: ${currentTimeframe.value}`);
+const liveData = computed(() => liveStore.state.dataByPath);
 
 const menu_indicatorList = []
 const profile_indicatorList=[]
@@ -786,6 +791,52 @@ async function handleRefresh (resetWindow )
   }
 }
 
+async function add_TP_SL(){
+  if (lastTrade.value.isOpen){
+    if (lastTrade.value.list.length==1)
+    {
+        const order = lastTrade.value.list[0]
+        if (order.side =="BUY"){
+           // const loss_max = liveData['trade.loss_per_trade']
+
+            const price = order.price
+            const qnt = order.size
+            const loss_per_trade = liveData.value['trade.loss_per_trade'];//qnt * (price*loss_perc)
+            const rr = liveData.value['trade.rr'] 
+
+            tradeMarkerData.price  = price
+            tradeMarkerData.quantity = qnt
+            tradeMarkerData.stop_loss = price- loss_per_trade / qnt
+            tradeMarkerData.take_profit = price+ (loss_per_trade / qnt) * rr
+            tradeMarkerData.price_op =">"
+            tradeMarkerData.type="tp_sl"
+
+            //console.log(price,loss_per_trade,rr,qnt,sl,tp)
+
+            const t = painter.create("trade-tp_sl")
+            painter.updateTradeMarker(tradeMarkerData,false)
+            t.save()
+          
+             await send_post("/api/trade/marker/add",
+              {
+                  symbol: currentSymbol.value,
+                  timeframe: currentTimeframe.value,
+                  data: tradeMarkerData,
+              });
+        
+            console.log("new tradeMarkerData",tradeMarkerData)
+
+            liveStore.set('trade.tradeData.'+currentSymbol.value, tradeMarkerData);
+            
+            handleRefresh (false);
+            
+        
+        }
+      console.log("lastTrade",order)
+    }
+  }
+  
+}
 // ====================================
 
 async function set_marker_trade(){
@@ -1332,7 +1383,7 @@ function on_candle(c)
       // series
     if (last_time != c.ts)
     {
-       console.log("update inds")
+      // console.log("update inds")
 
       //painter.pushLastDataTime(c.ts,painter.dataLen+1)
       updateStrategyIndicators(context(),
