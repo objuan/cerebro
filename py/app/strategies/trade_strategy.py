@@ -272,76 +272,21 @@ class TradeStrategy(SmartStrategy):
         self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
 
+        max= self.addIndicator(self.timeframe,MAX("MAX","close",60))
+
         self.add_plot(sma_20, "sma_20","#a70000", "main", style="SparseDotted", lineWidth=2)
         self.add_plot(sma_200, "sma_200","#034cd3", "main", style="SparseDotted", lineWidth=2)
 
         self.add_plot(day_volume_history, "day_volume_history","#d3035a", "sub1", style="Solid", lineWidth=1)
         self.add_plot(day_volume_ticker, "day_volume_ticker","#0318d3", "sub1", style="Solid", lineWidth=1)
 
+        self.add_plot(max, "MAX","#926B00FF", "main", source="MAX",style="Solid", lineWidth=1)
+
     def get_quantity(self,price):
         #sl_price = price - price / 100 * self.gain_perc
         return int(self.loss_by_trade  / price )
     
-    async def compute_open(self,symbol,dataframe,local_index,open_count = 15, use_day=True):
-        trade_last_hh = self.trade_last_hh
-        last = dataframe.iloc[local_index]
-        if  self.market.is_in_time(last["datetime"],
-            get_hour_ms(9,00),get_hour_ms(trade_last_hh,00),use_day):
-            #logger.info(f'{last["datetime"]}')
-
-            if self.market.is_in_time(last["datetime"],
-                get_hour_ms(9,30),get_hour_ms(trade_last_hh,00),use_day):
-                #logger.info(f'{last["datetime"]}')
-
-                is_inside=True
-                if not self.has_meta(symbol,"open_gap"):
-                    last_close = MetaInfo.get(symbol,"last_close")
-                    if not last_close:
-                        last_close, ts_last_close=  await self.client.last_close(symbol,last["datetime"] ) 
-                    
-                    #logger.info(f'last_close {last_close}')
-
-                    if last_close:
-                        self.set_meta(symbol,{"open_gap": 100.0* (last["close"] - last_close) / last["close"] })
-
-                        #pre_gain = MetaInfo.get(symbol,"pre_gain")
-                        logger.info(f"{symbol} t:{last['datetime']} {self.get_meta(symbol,'open_gap')} close:{last['close']} last_close:{last_close}")
-
-                ###### 15 perc ######
-
-                if self.market.is_in_time(last["datetime"],
-                        get_hour_ms(9,45),get_hour_ms(trade_last_hh,00),use_day):
-
-                    if not self.has_meta(symbol,"open_perc"):
-                        window = dataframe.iloc[local_index-open_count:local_index]
-                        low = window["low"].min()
-                        high = window["high"].max()
-
-                        l_h_perc = 100.0 * (high - low) / low
-
-                        first = window.iloc[0]
-                        last = window.iloc[-1]
-
-                        perc = 100.0 * (last["close"] - first["open"]) / first["open"]
-                        '''
-                        first = dataframe.iloc[local_index-15]
-                    
-                        low = min(first["low"] , prev["low"])
-                        high = max(first["high"] , prev["high"])
-                                
-                        l_h_perc = 100.0* (high-low) / low
-                        perc =  100.0 * (prev["close"]- first["open"]) / first["open"]
-                        '''
-                        #logger.info(f"OPEN {symbol} t:{last['datetime']}  OPEN 15M O:{first['open']}  C:{last['close']} perc:{perc} l_h_perc:{l_h_perc} local_index:{local_index} last_idx: { last.name}")
-
-                        self.set_meta(symbol, 
-                                {"open_high" : high,
-                                "open_low": low,
-                                "open_perc" : perc, 
-                                "open_perc_min_max":l_h_perc,
-                                "open_close_idx": local_index,
-                                } )
-        return self.has_meta(symbol,"open_high" )
+   
                         
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
@@ -355,6 +300,7 @@ class TradeStrategy(SmartStrategy):
         sma_20 = last["sma_20"]   
         sma_200 = last["sma_200"]   
         volume = last["day_volume_history"]    
+        MAX =  prev["MAX"] 
 
         if local_index<60:
             return
@@ -462,11 +408,35 @@ class TradeStrategy(SmartStrategy):
                                 self.add_marker(symbol,"BUY","TM","#000000","arrowDown")
                         '''
 
+        #
+
+        if volume > self.volume_min_filter:
+            prev_close = prev["close"]
+            break_max = last["close"] >= MAX and prev_close < MAX
+        
+
+            if (break_max ):
+                if  last["close"] < sma_200:
+                    await self.send_event(symbol, "MAX", f"max cross <",f"max over ",color="#31F30A", ring="alert1")
+                else:
+                    await self.send_event(symbol, "MAX", f"max cross >",f"max over ",color="#F3A90A", ring="chime")
+
         #pattern LOGIC
 
-        if not self.has_meta(symbol,"valid"):
+        #if not self.has_meta(symbol,"valid"):
+        if True:
 
             if volume > self.volume_min_filter:
+                fvg_ok, fvg_type, gap_low, gap_high, gap_perc = self.check_fvg(
+                    dataframe, local_index
+                )
+                if fvg_ok :
+                    msg = f"^_{gap_perc:.1f}" if fvg_type =="bullish" else f"V_{gap_perc:.1f}"
+                    self.add_marker(symbol,"SPOT",msg,"#060806","small_square",position ="atPriceTop")
+                    if not self.bootstrapMode:
+                        await self.send_event(symbol, "FVG", f"FVG {fvg_type} {gap_perc:.1f}", f"FVG",color="#57472E", ring="news")
+
+                    
                 for n  in [5,4,3]:  
                     valid,min_low,max_high,gain_perc =  self.check_pattern(dataframe,local_index,n,5)
                     if valid:
@@ -526,6 +496,7 @@ class TradeStrategy(SmartStrategy):
             
 
     ##########################
+
     def check_pattern(self,dataframe, local_index, N,min_gain):
         if local_index < N - 1:
             return (False,0,0,0)
@@ -563,3 +534,124 @@ class TradeStrategy(SmartStrategy):
             and last['close'] < max_high,
             min_low,
             max_high,gain_perc)
+    
+    def check_fvg(self, dataframe, local_index, max_gap_perc=2.0):
+        if local_index < 2:
+            return (False, None, None, None,None)
+
+        c1 = dataframe.iloc[local_index - 2]
+        c2 = dataframe.iloc[local_index - 1]
+        c3 = dataframe.iloc[local_index]
+
+        # ---- BEARISH FVG PRECISO ----
+        cond_structure = (
+            c1['low'] >= c2['low'] and
+            c1['low'] <= c2['high'] and
+
+            c3['high'] >= c2['low'] and
+            c3['high'] <= c2['high'] and 
+
+            c1['close'] <= c1['open']  and
+            c2['close'] <= c2['open']  and
+            c3['close'] <= c3['open'] 
+        )
+
+        cond_gap = c1['low'] > c3['high']
+
+        if cond_structure and cond_gap:
+            gap_low = c3['high']
+            gap_high = c1['low']
+            gap_size = gap_high - gap_low
+
+            # filtro dimensione gap (in %)
+            gap_perc = 100.0 * (gap_size / gap_low)
+
+            if gap_perc <= max_gap_perc:
+                return (True, "bearish", gap_low, gap_high, gap_perc)
+
+        # ---- BULLISH (speculare) ----
+        cond_structure = (
+            c1['high'] >= c2['low'] and
+            c1['high'] <= c2['high'] and
+            c3['low'] >= c2['low'] and
+            c3['low'] <= c2['high']  and 
+
+            c1['close'] > c1['open']  and
+            c2['close'] > c2['open']  and
+            c3['close'] > c3['open'] 
+        )
+
+        cond_gap = c1['high'] < c3['low']
+
+        if cond_structure and cond_gap:
+            gap_low = c1['high']
+            gap_high = c3['low']
+            gap_size = gap_high - gap_low
+
+            gap_perc = 100.0 * (gap_size / gap_low)
+
+            if gap_perc <= max_gap_perc:
+                return (True, "bullish", gap_low, gap_high, gap_perc)
+
+        return (False, None, None, None,None)
+
+    async def compute_open(self,symbol,dataframe,local_index,open_count = 15, use_day=True):
+        trade_last_hh = self.trade_last_hh
+        last = dataframe.iloc[local_index]
+        if  self.market.is_in_time(last["datetime"],
+            get_hour_ms(9,00),get_hour_ms(trade_last_hh,00),use_day):
+            #logger.info(f'{last["datetime"]}')
+
+            if self.market.is_in_time(last["datetime"],
+                get_hour_ms(9,30),get_hour_ms(trade_last_hh,00),use_day):
+                #logger.info(f'{last["datetime"]}')
+
+                is_inside=True
+                if not self.has_meta(symbol,"open_gap"):
+                    last_close = MetaInfo.get(symbol,"last_close")
+                    if not last_close:
+                        last_close, ts_last_close=  await self.client.last_close(symbol,last["datetime"] ) 
+                    
+                    #logger.info(f'last_close {last_close}')
+
+                    if last_close:
+                        self.set_meta(symbol,{"open_gap": 100.0* (last["close"] - last_close) / last["close"] })
+
+                        #pre_gain = MetaInfo.get(symbol,"pre_gain")
+                        logger.info(f"{symbol} t:{last['datetime']} {self.get_meta(symbol,'open_gap')} close:{last['close']} last_close:{last_close}")
+
+                ###### 15 perc ######
+
+                if self.market.is_in_time(last["datetime"],
+                        get_hour_ms(9,45),get_hour_ms(trade_last_hh,00),use_day):
+
+                    if not self.has_meta(symbol,"open_perc"):
+                        window = dataframe.iloc[local_index-open_count:local_index]
+                        low = window["low"].min()
+                        high = window["high"].max()
+
+                        l_h_perc = 100.0 * (high - low) / low
+
+                        first = window.iloc[0]
+                        last = window.iloc[-1]
+
+                        perc = 100.0 * (last["close"] - first["open"]) / first["open"]
+                        '''
+                        first = dataframe.iloc[local_index-15]
+                    
+                        low = min(first["low"] , prev["low"])
+                        high = max(first["high"] , prev["high"])
+                                
+                        l_h_perc = 100.0* (high-low) / low
+                        perc =  100.0 * (prev["close"]- first["open"]) / first["open"]
+                        '''
+                        #logger.info(f"OPEN {symbol} t:{last['datetime']}  OPEN 15M O:{first['open']}  C:{last['close']} perc:{perc} l_h_perc:{l_h_perc} local_index:{local_index} last_idx: { last.name}")
+
+                        self.set_meta(symbol, 
+                                {"open_high" : high,
+                                "open_low": low,
+                                "open_perc" : perc, 
+                                "open_perc_min_max":l_h_perc,
+                                "open_close_idx": local_index,
+                                } )
+        return self.has_meta(symbol,"open_high" )

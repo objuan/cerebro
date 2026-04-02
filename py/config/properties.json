@@ -3,19 +3,19 @@
     "rr": 2,
     "trade_risk": 0.1,
     "day_risk": 0.2,
-    "trade_balance_USD": 60,
+    "trade_balance_USD": 100,
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "1_1"
+    "grid": "1_2"
   },
   "chart": {
     "1": {
-      "grid": "1_1",
-      "symbol": "ABVE",
+      "grid": "2_1",
+      "symbol": "CYCN",
       "indicator": {
         "1m": "SMA",
-        "10s": "SMA",
+        "10s": "aa",
         "30s": "vwap",
         "5m": "SMA",
         "1d": "SMA",
@@ -47,11 +47,16 @@
           "legend": true,
           "timeframe": "1m"
         }
+      },
+      "2_1": {
+        "2": {
+          "timeframe": "10s"
+        }
       }
     },
     "2": {
-      "grid": "1_1",
-      "symbol": "LNAI",
+      "grid": "2_1",
+      "symbol": "AGPU",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -70,6 +75,11 @@
           "legend": true,
           "timeframe": "1m"
         }
+      },
+      "2_1": {
+        "2": {
+          "timeframe": "10s"
+        }
       }
     },
     "4": {
@@ -80,16 +90,22 @@
       }
     },
     "3": {
-      "grid": "1_1",
-      "symbol": "EDSA",
+      "grid": "2_1",
+      "symbol": "CETX",
       "indicator": {
-        "1m": "aa"
+        "1m": "SMA",
+        "5m": "SMA"
+      },
+      "2_1": {
+        "2": {
+          "timeframe": "5m"
+        }
       }
     },
     "start_len": {
-      "1m": 396.76202268292957,
-      "5m": 33.50000255375187,
-      "10s": 139.95786425703102
+      "1m": 105.10216783880242,
+      "5m": 125.00283271935893,
+      "10s": 272.35913840775015
     }
   },
   "event": {
@@ -540,7 +556,29 @@
       "quantity": 100
     },
     "CETX": {
-      "quantity": 100
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "CYCN": {
+      "quantity_rr": false,
+      "quantity": 25
+    },
+    "IPW": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "HPAI": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "AGPU": {
+      "quantity_rr": false,
+      "quantity": 50,
+      "mode": "DIRECT"
+    },
+    "MLGO": {
+      "quantity": 100,
+      "quantity_rr": false
     }
   },
   "back": {

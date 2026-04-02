@@ -23,6 +23,9 @@
                     style="width: 80px"
                     :disabled="!quantity_rr"
                   >
+                  <option :value="25">25</option>
+                  <option :value="50">50</option>
+                  <option :value="75">75</option>
                     <option :value="100">100</option>
                     <option :value="200">200</option>
                     <option :value="300">300</option>

@@ -414,7 +414,7 @@ class MuloJob:
 
     async def process_data_batch(self, exchange, symbol, timeframe, cursor, df, useYahoo):
 
-        if df.empty:
+        if df is None or df.empty:
             return False
 
         if useYahoo:
@@ -618,21 +618,25 @@ class MuloJob:
                             useRTH=False,           # includi orari estesi
                             formatDate=2 #unixtime
                         )
-                df = util.df(bars)
-                
-                if df.empty:
+                try:
+                    df = util.df(bars)
+                    
+                    if df.empty:
+                        return symbol, None
+                    
+                    df = df.rename(columns={
+                                    "open": "Open",
+                                    "high": "High",
+                                    "low": "Low",
+                                    "close": "Close",
+                                    "volume": "Volume",
+                                    "date" :"Datetime",
+                                    "average" : "VWAP"
+                                })
+                    return symbol, df
+                except:
+                    logger.error("ERROR", exc_info=True)
                     return symbol, None
-                
-                df = df.rename(columns={
-                                "open": "Open",
-                                "high": "High",
-                                "low": "Low",
-                                "close": "Close",
-                                "volume": "Volume",
-                                "date" :"Datetime",
-                                "average" : "VWAP"
-                            })
-                return symbol, df
           
     async def _align_data(self, symbol, timeframe):
         

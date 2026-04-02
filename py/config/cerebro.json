@@ -1,7 +1,7 @@
 {
 	"general":
 	{
-		"ib_port" : 7497,
+		"ib_port" : 7496,
 		"ib_client" : 1
 	},
 	"instruments":{
@@ -138,7 +138,7 @@
 				{
 				 	"gain_perc" : 10,
                     "volume_min_filter" :1000000,
-                    "trade_last_hh" : 14
+                    "trade_last_hh" : 13
 				}
 			},
 		{
@@ -252,7 +252,9 @@
 	"live_service":
 	{
 				"enabled" : true,
-				"ib_port" : 7497,
+				"ib_port" : 7496 ,
+				"__ib_port_paper" : 7497,
+				"__ib_port_live" : 7496 ,
 				"ib_client" : 2,
 				"live_max_symbols" :10,
 				"feed_max_symbols" :60,
