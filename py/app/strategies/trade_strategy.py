@@ -19,197 +19,6 @@ from reports.report_manager import ReportManager
 from order_book import *
 
 
-
-class OrderBook:
-
-    def __init__(self, position):
-
-        self.orders = []
-        self.trades = []
-        self.position = position
-        self.currentOrder={}
-
-    def end(self, onClose=None):
-        list = [x for x in self.currentOrder.keys()]
-        for symbol in list:
-            order = self.currentOrder[symbol]
-            trade = self.close(symbol, self.position.cur_price[symbol])
-            if onClose:
-                onClose(trade)
-
-    def lastOrder(self):
-        return self.orders[-1] if self.orders else None
-    
-    def hasCurrentTrade(self,symbol):
-        return symbol in self.currentOrder
-
-    def has_any_trade(self):
-        return bool(self.currentOrder)
-
-    def get_first_trade(self):
-        return next(iter(self.currentOrder.values()), None)
-    
-    def long(self, symbol, price, quantity, label):
-
-        if self.position.open_long(symbol, float(price), float(quantity)):
-
-            order = Order(symbol, "long",float(price), float(quantity), label)
-            self.orders.append(order)
-            self.currentOrder[symbol] = order
-            return order
-
-    def short(self, symbol, price, quantity, label):
-
-        if self.position.open_short(symbol, float(price), float(quantity)):
-
-            order = Order(symbol, "short",float(price), float(quantity), label)
-            self.orders.append(order)
-            return order
-
-    def close(self, symbol, price) -> Trade:
-
-        if symbol not in self.position.positions:
-            return
-
-        qty = self.position.positions[symbol]
-        entry = self.position.entry_price[symbol]
-
-        side = "long" if qty > 0 else "short"
-
-        trade = Trade(symbol, entry, float(price), abs(qty), side)
-
-        self.trades.append(trade)
-
-        self.position.close(symbol, float(price))
-
-        del self.currentOrder[symbol]
-
-        return trade
-
-    def gain(self, symbol, actual_price):
-
-        if symbol not in self.position.positions:
-            return None
-       
-        qty = self.position.positions[symbol]
-        entry = self.position.entry_price[symbol]
-
-        gain =  100.0 * (actual_price- entry) / entry
-        self.position.positions[symbol] = qty
-        return gain
-    
-    def set_current_price(self, symbol, price): 
-        if symbol not in self.position.positions:
-            return None
-        self.position.set_current_price(symbol, price)  
-
-    def report(self):
-
-        total_pnl = sum(t.pnl() for t in self.trades)
-
-        total_gain = sum(t.gain() for t in self.trades)
-
-        wins = [t for t in self.trades if t.pnl() > 0]
-        losses = [t for t in self.trades if t.pnl() <= 0]
-
-        win_rate = len(wins) / len(self.trades) if self.trades else 0
-
-        avg_gain = sum(t.pnl() for t in wins) / len(wins) if wins else 0
-        avg_loss = sum(t.pnl() for t in losses) / len(losses) if losses else 0
-
-        opens=[]
-        try:
-            profit_factor = (
-                sum(t.pnl() for t in wins) /
-                abs(sum(t.pnl() for t in losses))
-                if losses else 0
-            )
-        except:
-            profit_factor=0
-
-
-        for symbol in self.currentOrder.keys():
-            order = self.currentOrder[symbol]
-            d = self.virtual_close(symbol,order,float(self.position.cur_price[symbol]))
-            opens.append(d)
-
-        # -------- REPORT GLOBALE --------
-        report = {
-            "start_budget": self.position.start_budget,
-            "final_equity": self.position.equity(),
-            "total_gain": total_gain,
-            "total_pnl": total_pnl,
-            "trades": len(self.trades),
-            "wins": len(wins),
-            "losses": len(losses),
-            "win_rate": win_rate,
-            "avg_gain": avg_gain,
-            "avg_loss": avg_loss,
-            "profit_factor": profit_factor,
-            "opens" : opens
-        }
-
-        # -------- REPORT PER SYMBOL --------
-        trades_by_symbol = defaultdict(list)
-
-        for t in self.trades:
-            trades_by_symbol[t.symbol].append(t)
-
-        symbol_report = {}
-
-        for symbol, trades in trades_by_symbol.items():
-
-            wins = [t for t in trades if t.pnl() > 0]
-            losses = [t for t in trades if t.pnl() <= 0]
-
-            pnl_total = sum(t.pnl() for t in trades)
-
-            symbol_report[symbol] = {
-                "trades": len(trades),
-                "wins": len(wins),
-                "losses": len(losses),
-                "win_rate": len(wins) / len(trades) if trades else 0,
-                "total_pnl": pnl_total,
-                "avg_gain": sum(t.pnl() for t in wins) / len(wins) if wins else 0,
-                "avg_loss": sum(t.pnl() for t in losses) / len(losses) if losses else 0,
-                "profit_factor": (
-                    sum(t.pnl() for t in wins) /
-                    max(1,abs(sum(t.pnl() for t in losses)))
-                    if losses else 1
-                ),
-                "trade" : [ x.toDict() for x in trades],
-            }
-        
-      
-        report["by_symbol"] = symbol_report
-
-        return report
-
-    def virtual_close(self, symbol, order,price):
-
-        if symbol not in self.position.positions:
-            return None
-
-        qty = order.quantity
-        entry = order.price
-        exit =   price
-
-        if qty > 0:
-            pnl = (price - entry) * qty
-        else:
-            pnl = (entry - price) * abs(qty)
-
-        data = {
-            "symbol": symbol,
-            "price": price,
-           "exit" :exit,
-           "entry": entry,
-           "qty" : qty,
-           "gain" : 100.0 * (exit-entry ) / entry,
-           "pnl" : pnl
-        }
-        return data
-        
     
 
 
@@ -225,6 +34,7 @@ class TradeStrategy(SmartStrategy):
         self.inPeriod=False
         self.gain_perc = self.params["gain_perc"]   
         self.trade_last_hh= self.params["trade_last_hh"]
+        self.trade_last_mm= self.params["trade_last_mm"]
       
         capital = self.props.get("trade.day_balance_USD")
         trade_risk = self.props.get("trade.trade_risk")
@@ -237,14 +47,14 @@ class TradeStrategy(SmartStrategy):
             return
 
         logger.info(f"BUY {symbol} {datetime} {quantity} at {price} [{label}]")
-        self.add_marker(symbol,"BUY",label,"#000000FF","arrowUp",position="atPriceBottom")
+        await self.add_marker(symbol,"BUY","BUY",label,"#000000FF","arrowUp",position="atPriceBottom",ring="chime")
 
         #if not self.buyMap[symbol]:
         self.book.long(symbol, price, quantity,label)
 
         #super().buy(symbol,label)
-        if not self.bootstrapMode:
-            await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
+        #if not self.bootstrapMode:
+        #    await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
 
 
     async def sell(self,symbol,datetime, price, quantity,label=""):
@@ -254,10 +64,10 @@ class TradeStrategy(SmartStrategy):
 
             trade = self.book.close(symbol,price)
 
-            self.add_marker(symbol, "SPOT", label, "#000000", "arrowDown",position="atPriceBottom")
+            await self.add_marker(symbol, "SELL", "SELL",label, "#FF0404", "arrowDown",position="atPriceBottom")
 
-            if not self.bootstrapMode:
-                await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
+            #if not self.bootstrapMode:
+            #    await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
             return trade
         else:   
             return None
@@ -270,6 +80,7 @@ class TradeStrategy(SmartStrategy):
         sma_20= self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
         sma_200 = self.addIndicator(self.timeframe,SMA("sma_200","close",timeperiod=200))
         self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
+        
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
 
         max= self.addIndicator(self.timeframe,MAX("MAX","close",60))
@@ -282,11 +93,44 @@ class TradeStrategy(SmartStrategy):
 
         self.add_plot(max, "MAX","#926B00FF", "main", source="MAX",style="Solid", lineWidth=1)
 
+    async def add_marker(self, symbol,type, label,desc,color,shape="small_square", position ="atPriceTop",
+                    _timeframe=None, sourceField = "close", value=None,timestamp=None,ring="news"):
+        timeframe = self.timeframe if _timeframe==None else _timeframe
+        
+        #logger.info(f"self.trade_index {self.trade_index}")
+        candle =  self.trade_dataframe.loc[self.trade_index_global]
+        if not timestamp:
+            timestamp =  candle["timestamp"]
+        if not value:
+            value = candle[sourceField]
+
+       # logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
+
+        if not timeframe in self.marker_map:
+            self.marker_map[timeframe] = pd.DataFrame(
+                    columns=["symbol","timeframe","type", "timestamp", "price", "desc","color","shape","position"]
+                )
+
+        self.marker_map[timeframe].loc[len(self.marker_map[timeframe])] = [
+                symbol,               # symbol
+                timeframe,                # type
+                type,               # symbol
+                timestamp,       # timestamp
+                value,              # price
+                label,           # desc
+                "#000000",
+                shape,
+                position
+            ]
+        if not self.bootstrapMode:    
+            await self.send_event(symbol, label, desc,desc,color=color, ring=ring)
+
+       # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
+     
     def get_quantity(self,price):
         #sl_price = price - price / 100 * self.gain_perc
         return int(self.loss_by_trade  / price )
     
-   
                         
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
@@ -304,64 +148,51 @@ class TradeStrategy(SmartStrategy):
 
         if local_index<60:
             return
+        
         self.book.set_current_price(symbol, last["close"])    
         
         ##### FIRST ENTER ######
+
         if not self.has_meta(symbol,"first_enter"): 
-           
-            if use_day:
-                date = datetime.now().date()    
-            else:
-                date = last["datetime"].date()    
-
-            d_df = self.client.get_df(f"""SELECT * FROM ib_day_watch  
-                        WHERE date = '{date}' AND symbol = '{symbol}' """)  
-            
-            #first_enter = d_df.iloc[0]["ds_timestamp"]
-            if not d_df.empty:  
-                utc_dt = datetime.strptime(d_df.iloc[0]["ds_timestamp"], '%Y-%m-%d %H:%M:%S')
-                utc_dt = utc_dt.replace(tzinfo=pytz.utc)
-                first_enter = int(utc_dt.timestamp()  ) * 1000  
-            else:
-                first_enter=-1
-
-            self.set_meta(symbol, {"first_enter": first_enter }) 
-
-            #logger.info(f"FIRST ENTER {symbol} {date} {first_enter}")   
-
-            self.add_marker(symbol,"SPOT","X","#060806","square",position ="atPriceTop",timestamp=first_enter)
-
+            await self.compute_first_enter(symbol, dataframe,local_index, use_day )
+      
         # OPEN CLOSE INFOS
         if volume > self.volume_min_filter:
-            if await self.compute_open(symbol,dataframe,local_index, open_count=15, use_day=use_day):
+            
+            if not self.has_meta(symbol,"compute_open"):
+                await self.compute_open(symbol,dataframe,local_index, open_count=15, use_day=use_day)
+
+            if self.has_meta(symbol,"compute_open"):
                 if not self.has_meta(symbol,"up_done" ):
+
                     h = self.get_meta(symbol,"open_high",999999 )
                     if last["close"] > h:
                             self.set_meta(symbol,{"up_done": False} )
-                            self.add_marker(symbol,"SPOT","UP","#004726","small_square",position ="atPriceTop")
-                            if not self.bootstrapMode:    
-                                await self.send_event(symbol, "UP", f"UP", f"UP",color="#0B89BB", ring="news")
+                            await self.add_marker(symbol,"SPOT","UP","UP","#004726","small_square",position ="atPriceTop")
+                            #if not self.bootstrapMode:    
+                            #    await self.send_event(symbol, "UP", f"UP", f"UP",color="#0B89BB", ring="news")
 
             #await self.send_property(symbol,self.timeframe , 
             #                     {"open_h":  self.get_meta(symbol,"open_high",999999 )}
             #                   )
 
 
-        
         #######################
+        if volume > self.volume_min_filter:
 
-        if  self.market.is_in_time(last["datetime"],
-            get_hour_ms(0,00),get_hour_ms(self.trade_last_hh,00),use_day):
+            if  self.market.is_in_time(last["datetime"],
+                get_hour_ms(0,00),get_hour_ms(self.trade_last_hh,self.trade_last_mm),use_day):
         
-            #########
+                ######### FIRST OPEN PERIOD ########
 
-            if volume > self.volume_min_filter:#and int(last["timestamp"]) >= self.get_meta(symbol,"first_enter") :
+                #and int(last["timestamp"]) >= self.get_meta(symbol,"first_enter") :
                 
                 if not self.has_meta(symbol,"volume"):
                     self.set_meta(symbol,{"volume":"OK"})
-                    self.add_marker(symbol,"SPOT","VOL","#0A0038","small_square",position ="atPriceTop")
-                    if not self.bootstrapMode:
-                            await self.send_event(symbol, "VOL", f"VOL > {self.volume_min_filter}", f"VOL > {self.volume_min_filter}",color="#BB0B46", ring="news")
+
+                    await self.add_marker(symbol,"SPOT","VOL",f"VOL > {self.volume_min_filter}","#BB0B46",position ="atPriceTop")
+                    #if not self.bootstrapMode:
+                    #        await self.send_event(symbol, "VOL", f"VOL > {self.volume_min_filter}", f"VOL > {self.volume_min_filter}",color="#BB0B46", ring="news")
 
 
                 #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
@@ -408,7 +239,21 @@ class TradeStrategy(SmartStrategy):
                                 self.add_marker(symbol,"BUY","TM","#000000","arrowDown")
                         '''
 
-        #
+        # VOLUME DIFF
+        #if volume > self.volume_min_filter:
+        vol_diff = volume - prev["day_volume_history"]
+        await self.send_property(symbol,"1m",{"volume_diff":vol_diff})
+
+        # strenght
+        back = 5
+        strength = 100.0 * (last["close"] - dataframe.iloc[local_index-back]["close"]) /  dataframe.iloc[local_index-5]["close"]
+        v=0
+        for i  in [0,1,2,3,4]:
+            v += dataframe.iloc[local_index-i]["day_volume_history"] * dataframe.iloc[local_index-i]["close"]
+        v = v / back
+        #logger.info(f"{volume} {v} ss {len( [-back,0])}")
+        await self.send_property(symbol,"1m",{"strenght":strength * v})
+        # MAX LOGIC
 
         if volume > self.volume_min_filter:
             prev_close = prev["close"]
@@ -417,9 +262,9 @@ class TradeStrategy(SmartStrategy):
 
             if (break_max ):
                 if  last["close"] < sma_200:
-                    await self.send_event(symbol, "MAX", f"max cross <",f"max over ",color="#31F30A", ring="alert1")
+                    await self.add_marker(symbol, "SPOT", "MAX", f"max cross <",color="#31F30A", ring="alert1")
                 else:
-                    await self.send_event(symbol, "MAX", f"max cross >",f"max over ",color="#F3A90A", ring="chime")
+                    await self.add_marker(symbol,  "SPOT","MAX", f"max cross >",color="#F3A90A", ring="alert1")
 
         #pattern LOGIC
 
@@ -427,27 +272,28 @@ class TradeStrategy(SmartStrategy):
         if True:
 
             if volume > self.volume_min_filter:
+                '''
                 fvg_ok, fvg_type, gap_low, gap_high, gap_perc = self.check_fvg(
                     dataframe, local_index
                 )
                 if fvg_ok :
                     msg = f"^_{gap_perc:.1f}" if fvg_type =="bullish" else f"V_{gap_perc:.1f}"
-                    self.add_marker(symbol,"SPOT",msg,"#060806","small_square",position ="atPriceTop")
-                    if not self.bootstrapMode:
-                        await self.send_event(symbol, "FVG", f"FVG {fvg_type} {gap_perc:.1f}", f"FVG",color="#57472E", ring="news")
-
+                    await self.add_marker(symbol,"SPOT",msg,f"FVG {fvg_type} {gap_perc:.1f}","#060806","small_square",position ="atPriceTop")
+                    #if not self.bootstrapMode:
+                    #    await self.send_event(symbol, "FVG", f"FVG {fvg_type} {gap_perc:.1f}", f"FVG",color="#57472E", ring="news")
+                '''
                     
                 for n  in [5,4,3]:  
                     valid,min_low,max_high,gain_perc =  self.check_pattern(dataframe,local_index,n,5)
                     if valid:
                         logger.info(f"PATTERN {symbol} {last['datetime']} pattern {n} candles")
-                        self.add_marker(symbol,"SPOT",f"M_{n} {gain_perc:.0f}%","#060806","small_square",position ="atPriceTop")
+                        await self.add_marker(symbol,"SPOT",f"M_{n} {gain_perc:.0f}%",f"PAT {n}","#BB750B","small_square",position ="atPriceTop")
 
                         patt = { "idx": local_index, "type": n, "candle": last,"min_low":min_low,"max_high":max_high ,"gain":gain_perc   }
                         self.set_meta(symbol, {"pattern":patt } ) 
 
-                        if not self.bootstrapMode:
-                            await self.send_event(symbol, "PAT", f"PAT {n}", f"PAT {n}",color="#BB750B", ring="news")
+                        #if not self.bootstrapMode:
+                        #    await self.send_event(symbol, "PAT", f"PAT {n}", f"PAT {n}",color="#BB750B", ring="news")
 
                         break
                 
@@ -458,7 +304,6 @@ class TradeStrategy(SmartStrategy):
                     buy_limit = patt["max_high"] + patt["max_high"]*0.01
                     if last["close"] > buy_limit and local_index - patt["idx"] < 5:
 
-    
                         logger.info(f"PATTERN BREAKOUT {symbol} {last['datetime']} pattern {patt['type']} candles")
                     
                         buy_price = dataframe.iloc[local_index]["close"]
@@ -648,10 +493,38 @@ class TradeStrategy(SmartStrategy):
                         #logger.info(f"OPEN {symbol} t:{last['datetime']}  OPEN 15M O:{first['open']}  C:{last['close']} perc:{perc} l_h_perc:{l_h_perc} local_index:{local_index} last_idx: { last.name}")
 
                         self.set_meta(symbol, 
-                                {"open_high" : high,
+                                {
+                                    "compute_open" : True,
+                                "open_high" : high,
                                 "open_low": low,
                                 "open_perc" : perc, 
                                 "open_perc_min_max":l_h_perc,
                                 "open_close_idx": local_index,
                                 } )
         return self.has_meta(symbol,"open_high" )
+    
+    async def compute_first_enter(self,symbol,dataframe,local_index, use_day):
+            if not self.has_meta(symbol,"first_enter"): 
+
+                last = dataframe.iloc[local_index]
+                if use_day:
+                    date = datetime.now().date()    
+                else:
+                    date = last["datetime"].date()    
+
+                d_df = self.client.get_df(f"""SELECT * FROM ib_day_watch  
+                            WHERE date = '{date}' AND symbol = '{symbol}' """)  
+                
+                #first_enter = d_df.iloc[0]["ds_timestamp"]
+                if not d_df.empty:  
+                    utc_dt = datetime.strptime(d_df.iloc[0]["ds_timestamp"], '%Y-%m-%d %H:%M:%S')
+                    utc_dt = utc_dt.replace(tzinfo=pytz.utc)
+                    first_enter = int(utc_dt.timestamp()  ) * 1000  
+                else:
+                    first_enter=-1
+
+                self.set_meta(symbol, {"first_enter": first_enter }) 
+
+                #logger.info(f"FIRST ENTER {symbol} {date} {first_enter}")   
+
+                await self.add_marker(symbol,"SPOT","X","#060806","square",position ="atPriceTop",timestamp=first_enter)

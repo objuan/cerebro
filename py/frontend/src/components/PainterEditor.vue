@@ -94,7 +94,7 @@
                 </div>
               </div>
 
-              <button class="btn btn-sm btn-warning" @click="addAlarm">Add alarm</button>
+              <button class="btn btn-xs btn-warning" @click="addAlarm">Add alarm</button>
               
               <table style="width: 100%">
                 <tr v-for="(a,i) in obj.alarms" :key="i" >

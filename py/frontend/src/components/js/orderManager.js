@@ -57,10 +57,11 @@ export async function order_buy_at_level(symbol, qty, price){
     })
 }
 
+// SIMPLE BUY 
 export async function order_limit(symbol, qty){
     console.log("order_limit", symbol,qty)
 
-    send_get("/order/limit", {
+    send_get("/order/smart/limit", {
         "symbol" : symbol,
         "qty": qty,
     })
@@ -72,5 +73,15 @@ export async function clear_all_orders(symbol){
 
     send_get("/order/clear_all", {
         "symbol" : symbol,
+    })
+}
+
+
+export async function sell_smart(symbol,perc){
+    console.log("sell", symbol,perc)
+
+    send_get("/order/sell/smart", {
+        "symbol" : symbol,
+        "perc": perc
     })
 }

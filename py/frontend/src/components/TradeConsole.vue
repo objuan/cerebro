@@ -133,8 +133,20 @@
       </div>  
 
      <!-- sell-->
+      <table>
+        <tr>
+          <td>
+              <button class="btn btn-sm btn-danger" @click="clear_all()"  >SELL ALL</button>
+          </td>
+        </tr>
+        <tr>
+          <td>
+              <button style="padding: 2px 2px; font-size: 11px;"  class="btn btn-sm btn-warning" @click="sell_half()"  >SELL HALF</button>
 
-     <button class="btn btn-sm btn-danger" @click="clear_all()"  >SELL ALL</button>
+          </td>
+        </tr>
+      </table>
+     
 
       <!-- right-->
       <TradeHistoryWidget :symbol="props.symbol"  style="width:100%"></TradeHistoryWidget>
@@ -153,7 +165,7 @@ import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il p
 import { staticStore } from '@/components/js/staticStore.js';
 import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
-import {order_limit,clear_all_orders,order_bracket,order_tp_sl,order_single,order_existing_do_tp_sl} from "@/components/js/orderManager";
+import {sell_smart,order_limit,clear_all_orders,order_bracket,order_tp_sl,order_single,order_existing_do_tp_sl} from "@/components/js/orderManager";
 import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
 import { tradeStore } from "@/components/js/tradeStore";
 
@@ -294,6 +306,9 @@ function send_order_marker(){
 
 function clear_all(){
   clear_all_orders(props.symbol);
+}
+function sell_half(){
+  sell_smart(props.symbol,50);
 }
 
 async function cancelTaskOrder(){

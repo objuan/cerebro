@@ -154,7 +154,9 @@ class Scanner:
 
             logger.info(f'FIND #{len(scanData)}')
 
-            if len(scanData)>0:
+            if len(scanData)==0:
+                return None
+            else:
                 conn = sqlite3.connect(DB_FILE)
                 #cursor = conn.cursor()
 
@@ -286,6 +288,8 @@ class Scanner:
                 #    df_fundamentals = df_fundamentals [:max_symbols]
 
                 return  df
+        
+
 
 ########################################################################
 

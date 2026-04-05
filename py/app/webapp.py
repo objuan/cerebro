@@ -688,7 +688,7 @@ async def get_news(symbol, start: Optional[str] = None):
 
 ####################
 # no nsi ferma ?????
-@app.get("/order/limit")
+@app.get("/order/smart/limit")
 async def do_limit_order(symbol, qty):
     try:
         logger.info(f"/order/limit {symbol} {qty}")
@@ -789,7 +789,7 @@ async def do_sell_at_level(symbol:str, qty:float,price:float,desc:str):
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
     
-@app.get("/order/sell/all")
+@app.get("/order/sell/market/all")
 async def do_sell_order(symbol):
     try:
         orderManager.sell_all(symbol)
@@ -797,6 +797,26 @@ async def do_sell_order(symbol):
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
+
+@app.get("/order/sell/smart")
+async def do_sell_smart(symbol,perc):
+    try:
+
+        pos = Balance.get_position(symbol)
+        if (pos and pos.position>0):
+            sell_pos = float(perc) * pos.position
+            logger.info(f"SELL ALL {symbol} {pos.position} => {sell_pos} ")
+            ret = await orderManager.smart_sell_limit(symbol,sell_pos, client.getTicker(symbol))
+
+            if not ret:
+                return {"status": "ok", "message": f"Orders cancelled {symbol}"}
+            else:
+                return {"status": "warn", "message": f"No order founds fo {symbol}"}
+        else:
+            return {"status": "ok", "message": f"Orders cancelled {symbol}"}
+    except Exception as e:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error", "message": str(e)}
     
 @app.get("/order/list")
 async def get_orders(start: Optional[str] = None):
@@ -848,6 +868,8 @@ async def cancel_order(permId: int):
 @app.get("/order/clear_all")
 async def clar_all_orders(symbol: str):
     try:
+        
+        await orderManager.abort_smart(symbol)
 
         await OrderTaskManager.cancel_orderBySymbol(symbol)
 

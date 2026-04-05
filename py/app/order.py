@@ -144,8 +144,9 @@ class OrderManager:
         
         self.exec_to_order = {}
         self.order_commissions = {}
-
+        self._last_call_time = {}  # {symbol: timestamp}
         # Assegna gli event handlers
+        self.doSmartAbort=False
 
     async def bootstrap(self,ib):
         OrderManager.ib = ib
@@ -639,7 +640,28 @@ class OrderManager:
 
         return None
 
+    async def abort_smart(self,symbol):
+        logger.info(f"abort_smart {symbol} { self.trade.symbol if self.trade else '..'}")
+        self.doSmartAbort=True
+        if self.trade :#and self.trade==symbol:
+            logger.info("FORCE TRADE cancel")
+            self.lastError = None
+            self.ib.cancelOrder(self.trade.order)
+            await asyncio.sleep(2)
+            if self.lastError!= None:
+                if self.lastError["errorCode"] ==  10148:# Order FILLED 
+                    logger.info("BUY DONE AFTER CANCEL")
+               
+
     async def _smart_limit_real(self,symbol,op, totalQuantity,ticker):
+
+        self.doSmartAbort=False
+        now = time.time()
+        last_time = self._last_call_time.get(symbol)
+        if last_time is not None and (now - last_time) < 60:
+            logger.warning(f"Chiamata bloccata per {symbol}: già eseguita meno di 1 minuto fa")
+            return None
+
         '''
         return error if != None
         '''
@@ -648,10 +670,12 @@ class OrderManager:
         self.ib.qualifyContracts(contract)  
         
         timeout = 120          # secondi
-        if op =="BUY":
-            timeout = 20 
-
         interval = 2          # ciclo ogni secondo
+
+        if op =="BUY":
+            timeout = 22
+            interval = 10
+
         start_time = time.time()
         
         trade=None
@@ -665,7 +689,7 @@ class OrderManager:
             if not tick_size or tick_size <= 0:
                 raise ValueError("minTick non valido")
         attempt = 0      
-        while time.time() - start_time < timeout:
+        while time.time() - start_time < timeout and not self.doSmartAbort:
                         
             if trade:
                 logger.info(f"Redo  status {trade.orderStatus.status} ")
@@ -766,6 +790,9 @@ class OrderManager:
 
                     
                     trade:Trade = await self.send_order(contract.symbol,do_order,attempt)
+                    trade.symbol = contract.symbol
+                    self.trade= trade
+                    
                     attempt=attempt+1
                     
                     submittedCount=0
@@ -786,6 +813,8 @@ class OrderManager:
                     logger.info("BUY DONE AFTER CANCEL")
                     return None
 
+        self.doSmartAbort=False
+        self.trade= None
         return  {"reqId" : 0, "errorCode": -1, "errorString": "TIMEOUT"} 
 
 
@@ -810,6 +839,9 @@ class OrderManager:
         self.ib.placeOrder(contract, entry)
 
     def sell_all(self,symbol):
+        self._sell(symbol,100)
+
+    def sell(self,symbol,perc):
         '''
         Vende tutte le azioni possedute per il simbolo specificato.
         '''                                  
@@ -826,6 +858,8 @@ class OrderManager:
                 break
 
         if position_qty > 0:
+            if perc<100:
+                position_qty = position_qty * (float(perc)/100)
             # Vendi tutto a mercato
             entry = MarketOrder(
                 action='SELL',
@@ -835,6 +869,7 @@ class OrderManager:
             logger.info(f"Placed sell order for {position_qty} shares of {symbol}")
         else:
             logger.warning(f"No position found for {symbol} to sell")
+
 
     def buy_at_level(self,symbol, quantity, level_price):
         '''

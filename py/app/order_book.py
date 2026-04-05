@@ -103,6 +103,8 @@ class Position:
         return self.budget
 
 
+
+
 class OrderBook:
 
     def __init__(self, position):
@@ -200,6 +202,7 @@ class OrderBook:
         avg_gain = sum(t.pnl() for t in wins) / len(wins) if wins else 0
         avg_loss = sum(t.pnl() for t in losses) / len(losses) if losses else 0
 
+        opens=[]
         try:
             profit_factor = (
                 sum(t.pnl() for t in wins) /
@@ -209,6 +212,11 @@ class OrderBook:
         except:
             profit_factor=0
 
+
+        for symbol in self.currentOrder.keys():
+            order = self.currentOrder[symbol]
+            d = self.virtual_close(symbol,order,float(self.position.cur_price[symbol]))
+            opens.append(d)
 
         # -------- REPORT GLOBALE --------
         report = {
@@ -222,7 +230,8 @@ class OrderBook:
             "win_rate": win_rate,
             "avg_gain": avg_gain,
             "avg_loss": avg_loss,
-            "profit_factor": profit_factor
+            "profit_factor": profit_factor,
+            "opens" : opens
         }
 
         # -------- REPORT PER SYMBOL --------
@@ -253,13 +262,39 @@ class OrderBook:
                     max(1,abs(sum(t.pnl() for t in losses)))
                     if losses else 1
                 ),
-                "trade" : [ x.toDict() for x in trades]
+                "trade" : [ x.toDict() for x in trades],
             }
-
+        
+      
         report["by_symbol"] = symbol_report
 
         return report
-    
+
+    def virtual_close(self, symbol, order,price):
+
+        if symbol not in self.position.positions:
+            return None
+
+        qty = order.quantity
+        entry = order.price
+        exit =   price
+
+        if qty > 0:
+            pnl = (price - entry) * qty
+        else:
+            pnl = (entry - price) * abs(qty)
+
+        data = {
+            "symbol": symbol,
+            "price": price,
+           "exit" :exit,
+           "entry": entry,
+           "qty" : qty,
+           "gain" : 100.0 * (exit-entry ) / entry,
+           "pnl" : pnl
+        }
+        return data
+        
 
             
   

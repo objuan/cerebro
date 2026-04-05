@@ -274,7 +274,7 @@ export  class OpenZoneBand  extends Primitive{
       // LOCAL UTC
       const min_open = 9* 60 + 30
       const min_close = 9* 60 + 45
-      const min_end = 10* 60  +30
+      const min_end = 11* 60  
 
       let local_time = -1
       let ny_time = -1

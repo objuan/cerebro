@@ -245,6 +245,9 @@ class LiveManager:
         logger.info(f"========== SCAN ========== {live.name} ===========")
         df_symbols = await self.scanner.do_scanner(live.name)
 
+        if df_symbols is None:
+            return
+
         #logger.info(f"SCANNED \n{df_symbols}")
         ret =  await live.updateLive(df_symbols, self.manage_live)
 

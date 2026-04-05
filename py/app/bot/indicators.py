@@ -132,6 +132,26 @@ class GAIN(Indicator):
             dest[symbol_idx[i_idx]] = 100.0 * (current-prev ) / prev
 
 
+class DIFF(Indicator):
+  
+    def __init__(self,target_col, source_base:str, source_signal:str):
+        super().__init__([target_col])
+        self.source_base=source_base
+        self.target_col=target_col
+        self.source_signal=source_signal
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+        
+        warmup = max(0, from_local_index )
+
+        dest = dataframe[self.target_col].to_numpy()
+        source_base = dataframe[self.source_base].to_numpy()
+        source_signal = dataframe[self.source_signal].to_numpy()
+
+        for idx in [ symbol_idx[i_idx] for i_idx in range(warmup,len(symbol_idx) )]:
+            dest[idx] = source_signal[idx] - source_base[idx]
+
+
 class DIFF_PERC(Indicator):
   
     def __init__(self,target_col, source_base:str, source_signal:str):

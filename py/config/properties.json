@@ -3,16 +3,16 @@
     "rr": 2,
     "trade_risk": 0.1,
     "day_risk": 0.2,
-    "trade_balance_USD": 100,
+    "trade_balance_USD": 200,
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "1_2"
+    "grid": "1_3"
   },
   "chart": {
     "1": {
       "grid": "2_1",
-      "symbol": "CYCN",
+      "symbol": "TANH",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -56,7 +56,7 @@
     },
     "2": {
       "grid": "2_1",
-      "symbol": "AGPU",
+      "symbol": "GV",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -91,21 +91,22 @@
     },
     "3": {
       "grid": "2_1",
-      "symbol": "CETX",
+      "symbol": "TKLF",
       "indicator": {
         "1m": "SMA",
-        "5m": "SMA"
+        "5m": "SMA",
+        "10s": "aa"
       },
       "2_1": {
         "2": {
-          "timeframe": "5m"
+          "timeframe": "10s"
         }
       }
     },
     "start_len": {
-      "1m": 105.10216783880242,
-      "5m": 125.00283271935893,
-      "10s": 272.35913840775015
+      "1m": 31.174888736471758,
+      "5m": 110.18425894998643,
+      "10s": 179.0381579178661
     }
   },
   "event": {
@@ -305,7 +306,9 @@
       "mode": "DIRECT"
     },
     "DLXY": {
-      "mode": "MARKER"
+      "mode": "DIRECT",
+      "quantity": 100,
+      "quantity_rr": false
     },
     "AIFF": {
       "quantity": 300,
@@ -318,8 +321,9 @@
       "quantity": 500
     },
     "TURB": {
-      "quantity": 100,
-      "mode": "DIRECT"
+      "quantity": 25,
+      "mode": "DIRECT",
+      "quantity_rr": true
     },
     "PRSO": {
       "quantity": 100
@@ -496,7 +500,8 @@
       "quantity": 100
     },
     "USEG": {
-      "quantity": 100
+      "quantity": 100,
+      "quantity_rr": false
     },
     "XTIA": {
       "quantity": 100
@@ -578,6 +583,35 @@
     },
     "MLGO": {
       "quantity": 100,
+      "quantity_rr": false
+    },
+    "SELX": {
+      "quantity": 100,
+      "quantity_rr": true
+    },
+    "ORIS": {
+      "quantity_rr": false
+    },
+    "RBNE": {
+      "quantity": 100
+    },
+    "COCP": {
+      "quantity_rr": true,
+      "quantity": 50
+    },
+    "SKYQ": {
+      "quantity_rr": true,
+      "quantity": 25
+    },
+    "TKLF": {
+      "quantity_rr": true,
+      "quantity": 25
+    },
+    "GV": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "TANH": {
       "quantity_rr": false
     }
   },

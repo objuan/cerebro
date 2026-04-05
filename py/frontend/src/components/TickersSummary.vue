@@ -51,6 +51,23 @@
           </tr>
           <tr>
             <td>
+               <button
+                  :class="{ active: sortBy === 'volume_diff' }"
+                  @click="sortBy = 'volume_diff';menuOpen=false"
+                >
+                  Last Volume
+                </button>
+
+                 <button
+                  :class="{ active: sortBy === 'volume_diff_quote' }"
+                  @click="sortBy = 'volume_diff_quote';menuOpen=false"
+                >
+                  Last Volume Quote
+                </button>
+            </td>
+          </tr>
+          <tr>
+            <td>
                 <button
                   :class="{ active: sortBy === 'trend_perc' }"
                   @click="sortBy = 'trend_perc';menuOpen=false"
@@ -141,16 +158,16 @@
               </td>
             </tr>
             
-           <tr style="height : 30%" v-if="!hasTrade(item.symbol)">
-              <td class="volume" :style="{ color: rangeColor(item.strategy.get(item.symbol,'1m','TRADE')?.trend_perc*10,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 0, b: 255 }) }">
-                  {{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc.toFixed(0)}}({{item.strategy.get(item.symbol,"1m","TRADE")?.trend_perc_all.toFixed(0)}})%
+           <tr style="height : 30%" v-if="!hasTradeOpen(item.symbol)">
+              <td class="volume" >
+                  {{formatValue(item.strategy.get(item.symbol,"1m","TRADE")?.volume_diff)}}
               </td>
-              <td class="volume" :style="{ color: rangeColor(item.strategy.get(item.symbol,'1m','TRADE')?.trend_len,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 0, b: 255 }) }">
-                  #{{item.strategy.get(item.symbol,"1m","TRADE")?.trend_len}}
+              <td class="volume" >
+                   {{ ( formatValue( item.strategy.get(item.symbol,"1m","TRADE")?.volume_diff * item.last))}}$
               </td>
             </tr>
             <tr v-else>
-              <td  style="color:blue" class="volume" colspan="2" v-if="lastTrade(item.symbol).isOpen" >OPEN {{ tradeStore.currentGain(lastTrade(item.symbol)).toFixed(1) }}%</td>
+              <td  style="color:blue" class="volume" colspan="2" v-if="lastTrade(item.symbol).isOpen" >{{formatValue(item.strategy.get(item.symbol,"1m","TRADE")?.volume_diff)}} OPEN {{ tradeStore.currentGain(lastTrade(item.symbol)).toFixed(1) }}% </td>
               <td   style="color:black" class="volume" colspan="2" v-else >Close {{ tradeStore.currentGain(lastTrade(item.symbol)).toFixed(1) }}%</td>
             </tr>
 
@@ -406,7 +423,7 @@
 import {  ref, computed, onMounted, onUnmounted ,onBeforeUnmount ,watch} from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import { send_get,formatValue,newsColor,rankColor,rangeColor } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_get,formatValue,newsColor,rankColor } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { eventBus } from "@/components/js/eventBus";
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { reportStore as report } from "@/components/js/reportStore";
@@ -435,9 +452,14 @@ const progress = (item) => {
   const f =  Math.min(10, item.secs_from-10)/10
   return 100 - f * 100;
 }
-
+/*
 function hasTrade(symbol){
   return tradeStore.lastTrade(symbol)!=null
+}
+  */
+function hasTradeOpen(symbol){
+  const last = lastTrade(symbol)
+  return last!=null && last.isOpen
 }
 function lastTrade(symbol){
   return tradeStore.lastTrade(symbol)
@@ -469,6 +491,7 @@ function updateTickers()
           (t.report?.day_volume ?? 0) >= minVolume.value
         )  // tiene solo quelli con secs_from
       .sort((a, b) => {
+        /*
         if (sortBy.value == "trend_perc")
           return  b.strategy.get(b.symbol,"1m","TRADE")?.trend_perc - 
                   a.strategy.get(a.symbol,"1m","TRADE")?.trend_perc;
@@ -478,6 +501,14 @@ function updateTickers()
         else  if (sortBy.value == "trend_len")
           return  b.strategy.get(b.symbol,"1m","TRADE")?.trend_len - 
                   a.strategy.get(a.symbol,"1m","TRADE")?.trend_len;
+        else
+        */
+         if (sortBy.value == "volume_diff")
+            return  b.strategy.get(b.symbol,"1m","TRADE")?.volume_diff - 
+                  a.strategy.get(a.symbol,"1m","TRADE")?.volume_diff;
+        else  if (sortBy.value == "volume_diff_quote")
+          return  b.strategy.get(b.symbol,"1m","TRADE")?.volume_diff_quote - 
+                  a.strategy.get(a.symbol,"1m","TRADE")?.volume_diff_quote;
         else
           return (b.report?.[sortBy.value] ?? 0) - (a.report?.[sortBy.value] ?? 0);
       });
