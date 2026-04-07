@@ -85,6 +85,8 @@ class Back_DBDataframe_TimeFrame:
 
         self.all_df = self.main_df.back_manager.back_data(inData.symbols,self.timeframe,since, to)
 
+        logger.info(f"<< {self.all_df}")
+    
 
         self.all_df["local_time"] = pd.to_datetime(self.all_df["timestamp"], unit="ms") \
                         .dt.tz_localize("UTC") \
@@ -109,7 +111,7 @@ class Back_DBDataframe_TimeFrame:
         self.max_time = self.all_df.index.max()
 
         self.symbols = self.pre_scan()
-        logger.info(f"OUT SYMBOLS {self.symbols}")
+        logger.info(f"OUT SYMBOLS {self.symbols}  #{len(self.all_df)}")
 
         self.filtered_df =  self.all_df
         #self.goTo(self.min_time)
@@ -200,6 +202,7 @@ class Back_DatabaseManager:
         self.map={}
            
     def db_dataframe(self,timeframe)-> Back_DBDataframe_TimeFrame:
+       
         if not timeframe in self.map :
             self.map[timeframe] = Back_DBDataframe_TimeFrame(self,timeframe,self.inData) 
         # min max
@@ -219,6 +222,8 @@ class Back_DatabaseManager:
             _min= min(_min,db.min_time)
             _max= max(_max,db.max_time)
             tf = min(tf , TIMEFRAME_SECONDS[timeframe]*1000 )
+
+        logger.info(f"TEST PERIOD : {_min} {_max}")
 
         logger.info(f"TEST PERIOD : {ts_to_local_str(_min)} {ts_to_local_str(_max)} tf: {tf}")
 

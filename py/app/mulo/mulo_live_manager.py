@@ -368,7 +368,7 @@ class LiveManager:
        
     def need_update(self,symbol):
         toupdate=True
-        df = self.fetcher.get_df("SELECT * FROM ib_ohlc_history WHERE SYMBOL = ? and timeframe ='1d' order by timestamp desc limit 1",(symbol,))
+        df = self.fetcher.get_df("SELECT * FROM ib_ohlc_history WHERE exchange='exchange' and SYMBOL = ? and timeframe ='1d' order by timestamp desc limit 1",(symbol,))
         if not df.empty:
             if df.iloc[0]["ds_updated_at"]:
                                            
@@ -847,7 +847,7 @@ class LiveManager:
                 else:
                     #last_time={}
                     for symbol,ticker in self.tickers.items():
-                        df = self.fetcher.get_df(f"SELECT MIN(timestamp) as min FROM ib_ohlc_history WHERE timeframe='10s' and symbol='{symbol}'")
+                        df = self.fetcher.get_df(f"SELECT MIN(timestamp) as min FROM ib_ohlc_history WHERE exchange='exchange' and timeframe='10s' and symbol='{symbol}'")
                         print(df)
                         if len(df)>0 and df.iloc[0]["min"]!=None:
                             ts_start =  int(df.iloc[0]["min"] )
@@ -858,13 +858,13 @@ class LiveManager:
                 logger.info(f"SYM TIME  BEGIN AT  {datetime.fromtimestamp(self.sym_start_time/1000).strftime('%Y-%m-%d %H:%M:%S')}") 
 
                 for symbol,ticker in self.tickers.items():
-                    ticker.last_close = await self.fetcher.last_close(symbol,datetime.fromtimestamp(self.sym_start_time/1000))
+                    ticker.last_close = 0 #//await self.fetcher.last_close(symbol,datetime.fromtimestamp(self.sym_start_time/1000))
                     ticker.gain = 0    
                     ticker.volume=0
                     ticker.last = 0
                     ticker.symbol = symbol
                     ticker.last_tick_time = {}
-                    logger.info(f"Start ticker {ticker} last_close{ticker.last_close}")
+                    logger.info(f"Start sym ticker {ticker} last_close{ticker.last_close}")
 
                 self.sym_current_time = int(_time.time())    
 
@@ -913,7 +913,7 @@ class LiveManager:
                                     #logger.info(f"..{ts_check} {symbol} {interval}")
 
                                     #self.conn. df = pd.read_sql_query(query, conn, params=params)
-                                    df = pd.read_sql_query(f"SELECT * FROM ib_ohlc_history WHERE  symbol='{symbol}' and timeframe='{TF_SEC_TO_DESC[interval]}'  and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1",
+                                    df = pd.read_sql_query(f"SELECT * FROM ib_ohlc_history WHERE symbol='{symbol}' and timeframe='{TF_SEC_TO_DESC[interval]}'  and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1",
                                                         self.conn)
                                     #df = self.fetcher.get_df(f"SELECT * FROM ib_ohlc_history WHERE timeframe='{TF_SEC_TO_DESC[interval]}' and symbol='{symbol}' and timestamp<={ts*1000} ORDER BY timestamp DESC LIMIT 1")
                                     if len(df)>0:
@@ -937,7 +937,8 @@ class LiveManager:
                                             ticker.time=ts
                                             ticker.ask=0
                                             ticker.bid=0 
-                                            ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
+                                            if self.run_mode !="sym":
+                                                ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
                                         
                                         #logger.info(f"{row}")   
                                     

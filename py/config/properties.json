@@ -7,7 +7,7 @@
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "1_3"
+    "grid": "1_1"
   },
   "chart": {
     "1": {
@@ -23,7 +23,7 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "1m",
+          "timeframe": "10s",
           "legend": true
         }
       },
@@ -104,9 +104,9 @@
       }
     },
     "start_len": {
-      "1m": 31.174888736471758,
+      "1m": 98.81106398757368,
       "5m": 110.18425894998643,
-      "10s": 179.0381579178661
+      "10s": 157.58116293550688
     }
   },
   "event": {
@@ -612,6 +612,15 @@
       "quantity_rr": false
     },
     "TANH": {
+      "quantity_rr": false,
+      "quantity": 100
+    },
+    "ZEO": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "SLGB": {
+      "quantity": 100,
       "quantity_rr": false
     }
   },

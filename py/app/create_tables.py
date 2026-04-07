@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS ib_ohlc_history (
         datetime TEXT,
         ds_updated_at TEXT,
 
-        PRIMARY KEY (exchange, symbol, timeframe, timestamp)
+        PRIMARY KEY ( symbol, timeframe, timestamp)
     )""")
      
 

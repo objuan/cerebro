@@ -138,13 +138,14 @@ class BacktestManager:
         unix_min = int(start_of_day.timestamp())*1000
         unix_max = int(end_of_day.timestamp())*1000
 
-        in_data = {
+        in_data_old= {
             "badgetUSD": 100,
             "symbols": ["ATOM","CRSR"],
             "dt_from": "2026-02-13 16:00:00",
             "dt_to": "2026-02-13 18:00:00",
             "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
         }
+        in_data = data
 
         backData =  BacktestIn(in_data)
         backData.symbols = [ x["symbol"] for  x in data["symbols"]]
@@ -256,7 +257,7 @@ class BacktestManager:
                     and timestamp<= {to}
                     ORDER BY timestamp DESC"""
 
-        #logger.info(f"query {query}")        
+        logger.info(f"query {query}")        
         #print("query",query)
 
         df = pd.read_sql_query(query, conn)
