@@ -446,7 +446,28 @@ class OrderManager:
 
 ##############
 
-    def order_limit(self,symbol,totalQuantity,lmtPrice)-> Trade:
+   
+    def buy_breakout_no_slippage(self, symbol, quantity, price):
+        '''
+        BUY a breakout SENZA accettare prezzi sopra
+        - Trigger a 110
+        - Compra solo a 110 o meno
+        '''
+
+        contract = Stock(symbol, 'SMART', 'USD')
+        self.ib.qualifyContracts(contract)
+
+        order = Order(
+            action='BUY',
+            orderType='STP LMT',
+            totalQuantity=quantity,
+            auxPrice=price,   # trigger
+            lmtPrice=price    # NO prezzi sopra
+        )
+
+        self.ib.placeOrder(contract, order)
+        
+    def _order_limit(self,symbol,action,totalQuantity,lmtPrice)-> Trade:
         '''
         '''
 
@@ -455,11 +476,11 @@ class OrderManager:
 
         formatted_price = self.format_price(contract,lmtPrice)
 
-        logger.info(f"LIMIT ORDER {symbol} q:{totalQuantity} p:{lmtPrice}->{formatted_price}")
+        logger.info(f"LIMIT ORDER {symbol} {action} q:{totalQuantity} p:{lmtPrice}->{formatted_price}")
 
         # 🔹 ORDINE PADRE (ENTRY)
         entry = LimitOrder(
-            action='BUY',
+            action=action,
             totalQuantity=totalQuantity,
             lmtPrice=formatted_price,
             tif='DAY' ,
@@ -472,6 +493,14 @@ class OrderManager:
         trade = self.ib.placeOrder(contract, entry)
 
         return trade
+
+
+    def sell_limit(self,symbol,totalQuantity,lmtPrice):
+        self._order_limit(symbol,"SELL",totalQuantity,lmtPrice)
+
+    def buy_limit(self,symbol,totalQuantity,lmtPrice):
+        self._order_limit(symbol,"BUY",totalQuantity,lmtPrice)
+
 
     def order_limit_stop(self,symbol,totalQuantity,lmtPrice,stopPrice):
         '''
@@ -818,25 +847,6 @@ class OrderManager:
         return  {"reqId" : 0, "errorCode": -1, "errorString": "TIMEOUT"} 
 
 
-    def sell_limit(self,symbol,totalQuantity,lmtPrice):
-        '''
-        '''
-
-        logger.debug(f"SELL LIMIT ORDER {symbol} q:{totalQuantity} p:{lmtPrice}")
-        contract = Stock(symbol, 'SMART', 'USD')
-        self.ib.qualifyContracts(contract)
-
-        formatted_price = self.format_price(contract,lmtPrice)
-
-        # 🔹 ORDINE DI VENDITA
-        entry = LimitOrder(
-            action='SELL',
-            totalQuantity=totalQuantity,
-            lmtPrice=formatted_price,
-            tif='GTC' ,
-            outsideRth=True
-        )
-        self.ib.placeOrder(contract, entry)
 
     def sell_all(self,symbol):
         self._sell(symbol,100)

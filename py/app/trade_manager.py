@@ -150,7 +150,7 @@ class TradeManager:
              order = await self.add_order_bracket(symbol, timeframe,data,"bracket")
         if data["type"] =="tp_sl":
              order = await self.add_tp_sl(symbol, timeframe,data)
-        if data["type"] =="single":
+        if data["type"] =="breakout_no_slippage":
              order = await self.add_single(symbol, timeframe,data)
 
         if order:     

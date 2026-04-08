@@ -12,7 +12,7 @@
   "chart": {
     "1": {
       "grid": "2_1",
-      "symbol": "TANH",
+      "symbol": "AIXI",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -56,7 +56,7 @@
     },
     "2": {
       "grid": "2_1",
-      "symbol": "GV",
+      "symbol": "AIXI",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -91,7 +91,7 @@
     },
     "3": {
       "grid": "2_1",
-      "symbol": "TKLF",
+      "symbol": "CETX",
       "indicator": {
         "1m": "SMA",
         "5m": "SMA",
@@ -104,9 +104,9 @@
       }
     },
     "start_len": {
-      "1m": 98.81106398757368,
+      "1m": 282.00590789297576,
       "5m": 110.18425894998643,
-      "10s": 157.58116293550688
+      "10s": 95.52861616828272
     }
   },
   "event": {
@@ -444,7 +444,8 @@
       "quantity": 100
     },
     "LNAI": {
-      "quantity": 300
+      "quantity": 300,
+      "quantity_rr": false
     },
     "QCLS": {
       "mode": "MARKER"
@@ -470,7 +471,8 @@
       "quantity": 100
     },
     "GNLN": {
-      "quantity": 300
+      "quantity": 75,
+      "quantity_rr": true
     },
     "WETO": {
       "quantity": 300
@@ -620,6 +622,48 @@
       "quantity_rr": false
     },
     "SLGB": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "AIXI": {
+      "quantity_rr": true,
+      "quantity": 200,
+      "mode": "MARKER"
+    },
+    "CUPR": {
+      "quantity_rr": false
+    },
+    "SILO": {
+      "quantity_rr": true,
+      "quantity": 300
+    },
+    "MIGI": {
+      "quantity_rr": false,
+      "quantity": 100
+    },
+    "FRGT": {
+      "quantity_rr": false
+    },
+    "IPST": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "PSTV": {
+      "quantity_rr": false
+    },
+    "KPRX": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "HCAI": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "UK": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "MIST": {
       "quantity": 100,
       "quantity_rr": false
     }

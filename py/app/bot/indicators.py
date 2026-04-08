@@ -203,6 +203,40 @@ class SMA(Indicator):
                     #logger.info(f"sum {i_idx} {symbol_idx[i_idx]}= {sum}")
                     dest[symbol_idx[i_idx]] =sum
 
+
+class EMA(Indicator):
+  
+    def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
+        self.source_col=source_col
+        self.target_col=target_col
+        self.window=timeperiod
+        self.alpha = 2.0 / (timeperiod + 1)
+    
+ 
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source_col].to_numpy()
+
+        # inizializzazione (prima EMA = SMA iniziale oppure primo valore)
+        if from_local_index == 0:
+            first_idx = symbol_idx[0]
+            dest[first_idx] = source[first_idx]
+
+            start = 1
+        else:
+            start = from_local_index
+
+        for i_idx in range(start, len(symbol_idx)):
+            curr = symbol_idx[i_idx]
+            prev = symbol_idx[i_idx - 1]
+
+            dest[curr] = (
+                self.alpha * source[curr]
+                + (1 - self.alpha) * dest[prev]
+            )
+
 class MAX(Indicator):
   
     def __init__(self,target_col, source_col:str, timeperiod:int):

@@ -1,5 +1,16 @@
 import {send_get} from '@/components/js/utils.js'; // Usa il percorso corretto
 
+export async function order_breakout_no_slippage(symbol,op, qty, price){
+    console.log("buy_breakout_no_slippage", symbol,op,qty, price)
+
+    send_get("/order/buy_breakout_no_slippage", {
+        "symbol" : symbol,
+        "op": op,
+        "qty": qty,
+        "price" : price
+    })
+}
+
 export async function order_bracket(symbol, timeframe,qty, price){
     console.log("bracket", symbol,timeframe,qty, price)
 

@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta
 from market import MarketZone
 from bot.indicators import *
-from bot.strategy import SmartStrategy
+from bot.smart_strategy import SmartStrategy
 
 logger = logging.getLogger(__name__)
 

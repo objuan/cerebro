@@ -358,14 +358,14 @@ export  class  TradeBox  extends SplitBox{
 
 // ==========
 
-export class TradeSingle extends PriceLine{
+class _TradeSingle extends PriceLine{
   constructor(painter){
     super(painter)
     this.trade_quantity_ref=painter.trade_quantity_ref
     this.tradeMarkerData={}
     this.clearLiveMarkerMode()
      this.isTradeMarker = true
-    console.log("TradeSingle")
+   // console.log("TradeSingle")
   }
     onEnd(){
      this.save()
@@ -404,8 +404,7 @@ export class TradeSingle extends PriceLine{
   }
 }
 
-
-export class BuyAbove extends TradeSingle{
+export class BuyAbove extends _TradeSingle{
   constructor(painter){
     super(painter)
     this.type = "buy-above"
@@ -414,9 +413,12 @@ export class BuyAbove extends TradeSingle{
   buy_price_op(){
     return ">"
   }
+  buy_type(){
+    return "breakout_no_slippage"
+  }
 }
 
-export class BuyBelow extends TradeSingle{
+export class BuyBelow extends _TradeSingle{
   constructor(painter){
     super(painter)
     this.type = "buy-below"
@@ -424,6 +426,9 @@ export class BuyBelow extends TradeSingle{
   }
   buy_price_op(){
     return "<"
+  }
+   buy_type(){
+    return "breakout_no_slippage"
   }
 }
 

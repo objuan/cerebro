@@ -1,0 +1,351 @@
+from typing import Dict
+import numpy as np
+import pandas as pd
+import logging
+from datetime import datetime, timedelta
+from bot.indicators import Indicator
+from company_loaders import *
+from collections import deque
+from utils import SECONDS_TO_TIMEFRAME
+logger = logging.getLogger(__name__)
+from concurrent.futures import ThreadPoolExecutor
+
+from report import *
+from reports.db_dataframe import *
+from renderpage import RenderPage
+from utils import *
+from reports.report_manager import ReportManager
+from order_book import *
+from bot.strategy import *
+
+#from strategy.order_strategy import *
+class SmartStrategy(Strategy):
+    
+    
+    def __init__(self, manager):
+        super().__init__(manager)
+        self.position = Position(10000)
+        self.book = OrderBook( self.position )
+
+
+    def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
+        if timeframe in self.marker_map:
+            if not symbol:
+                return self.marker_map[timeframe]
+            else:
+                return self.marker_map[timeframe][self.marker_map[timeframe]["symbol"] == symbol]
+        else:
+            return  pd.DataFrame()
+
+    def spot(self,  symbol, label,color, sourceField):
+        #logger.info(f"SPOT {symbol} {label}")
+        self.add_marker(symbol,"SPOT",label,color,"circle", position ="atPriceMiddle" , sourceField=sourceField)
+
+    '''
+    def buy(self,  symbol, label):
+        logger.info(f"BUY {symbol} {label}")
+        self.add_marker(symbol,"BUY",label,"#060806","arrowUp")
+    '''
+
+    #shapes : arrowUp, arrowDown, circle,square,small_square
+    #atPriceTop,atPriceBottom,atPriceMiddle
+    def add_marker_old(self, symbol,type, label,color,shape, position ="atPriceTop",
+                    _timeframe=None, sourceField = "close", value=None,timestamp=None):
+        timeframe = self.timeframe if _timeframe==None else _timeframe
+        
+        #logger.info(f"self.trade_index {self.trade_index}")
+        candle =  self.trade_dataframe.loc[self.trade_index_global]
+        if not timestamp:
+            timestamp =  candle["timestamp"]
+        if not value:
+            value = candle[sourceField]
+
+       # logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
+
+        if not timeframe in self.marker_map:
+            self.marker_map[timeframe] = pd.DataFrame(
+                    columns=["symbol","timeframe","type", "timestamp", "price", "desc","color","shape","position"]
+                )
+
+        self.marker_map[timeframe].loc[len(self.marker_map[timeframe])] = [
+                symbol,               # symbol
+                timeframe,                # type
+                type,               # symbol
+                timestamp,       # timestamp
+                value,              # price
+                label,           # desc
+                color,
+                shape,
+                position
+            ]
+
+       # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
+     
+    async def add_marker(self, symbol,type, label,desc,color,shape="small_square", position ="atPriceTop",
+                    _timeframe=None, sourceField = "close", value=None,timestamp=None,ring="news"):
+        timeframe = self.timeframe if _timeframe==None else _timeframe
+        
+        #logger.info(f"self.trade_index {self.trade_index}")
+        candle =  self.trade_dataframe.loc[self.trade_index_global]
+        if not timestamp:
+            timestamp =  candle["timestamp"]
+        if not value:
+            value = candle[sourceField]
+
+       # logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
+
+        if not timeframe in self.marker_map:
+            self.marker_map[timeframe] = pd.DataFrame(
+                    columns=["symbol","timeframe","type", "timestamp", "price", "desc","color","shape","position"]
+                )
+
+        self.marker_map[timeframe].loc[len(self.marker_map[timeframe])] = [
+                symbol,               # symbol
+                timeframe,                # type
+                type,               # symbol
+                timestamp,       # timestamp
+                value,              # price
+                label,           # desc
+                "#000000",
+                shape,
+                position
+            ]
+        if not self.bootstrapMode:    
+            await self.send_event(symbol, label, desc,desc,color=color, ring=ring)
+
+       # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
+     
+
+    def live_markers(self,symbol,timeframe,from_ts,to_ts):
+        if not timeframe:
+            timeframe = self.timeframe
+        '''
+        if since:
+            df = self.marker(timeframe,symbol)
+            if not df.empty:
+                df = df[df["timestamp"]>= since]
+        else:
+            df = self.marker(timeframe,symbol)
+        '''
+        df = self.get_df_windows( self.marker(timeframe,symbol),from_ts,to_ts)
+
+        if df.empty:
+            return []
+        else:
+            #logger.info(f"live_markers since:{since}\n{df}")
+            return df.to_dict(orient="records")
+       
+    def live_legend(self,symbol,timeframe,from_ts,to_ts):
+        if not timeframe:
+            timeframe = self.timeframe
+
+        df = self.get_df_windows( self.df(timeframe,symbol),from_ts,to_ts)
+        '''
+        if since:
+            df = self.df(timeframe,symbol)
+            if not df.empty:
+                df = df[df["timestamp"]>= since]
+            #logger.info(f"since {since}\n{df}")
+        else:
+            df = self.df(timeframe,symbol)
+        '''
+
+        arr = []
+        for leg in self.legend:
+            d = leg.copy()
+            del d["ind"]
+            try:
+                v = df.iloc[-1][d["source"]]
+                d["value"] = 0 if pd.isna(v) else v
+            except:
+                d["value"] =0
+            arr.append(d)
+         #logger.info(f"live_markers since:{since}\n{df}")
+        return arr
+    
+    def get_df_windows(self,source_df,from_ts,to_ts):
+        if from_ts or to_ts:
+            df = source_df
+            if not df.empty:
+                if from_ts:
+                    df = df[df["timestamp"]>= from_ts]
+                else:
+                    df = df[df["timestamp"]<= to_ts]
+            #logger.info(f"since {since}\n{df}")
+        else:
+            df = source_df
+
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df.dropna()
+        return df
+        
+    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
+     
+        if not timeframe:
+            timeframe = self.timeframe
+
+        '''
+        if from_ts or to_ts:
+            df = self.df(timeframe,symbol)
+            if not df.empty:
+                if from_ts:
+                    df = df[df["timestamp"]>= from_ts]
+                else:
+                    df = df[df["timestamp"]<= to_ts]
+            #logger.info(f"since {since}\n{df}")
+        else:
+            df = self.df(timeframe,symbol)
+        '''
+
+        #df = df.replace([np.inf, -np.inf], np.nan)
+        #df.dropna()
+        df = self.get_df_windows(self.df(timeframe,symbol),from_ts,to_ts)
+
+        
+        if df.empty:
+            return{"strategy": __name__ 
+                   ,"legends" : []
+                   ,"markers": self.live_markers(symbol,timeframe,from_ts,to_ts)}
+        
+        #logger.info(f"out \n{df}")
+        o = {"strategy": __name__ ,
+             "markers": self.live_markers(symbol,timeframe,from_ts,to_ts), 
+             "legends": self.live_legend(symbol,timeframe,from_ts,to_ts), 
+             "list" : []}
+
+        #logger.info(f"process1 {self.plots}")
+        for p in  self.plots:
+            for col in p["ind"].target_cols:
+                if (col ==p["source"] or not p["source"]):
+                    #logger.info(f"process {col}")
+                    d = p.copy()
+                    del d["ind"]
+                    d["symbol"] = symbol
+                    d["timeframe"] = timeframe
+                    df_data = p["ind"].get_render_data(df,col)
+                    if symbol:
+                            df_data = df_data[["time","value"]]
+                    d["data"] = df_data.to_dict(orient="records")
+                        
+                    o["list"].append(d)
+
+        return o
+    
+    #######
+    # style in ['Solid','Dotted','Dashed','LargeDashed','SparseDotted']
+    def add_plot(self,ind : Indicator ,name :str,  color:str,panel: str ='main',source = None, style="Solid",lineWidth=1):
+        if not source:
+            source = ind.target_cols[0]
+        self.plots.append({"ind": ind ,"name" : name ,"source" : source, "color" : color, "panel" : panel,"style":style,"lineWidth": lineWidth})
+        pass
+    
+    def add_legend(self, ind:Indicator, source:str,label:str, color:str):
+        self.legend.append( {"ind": ind ,"source" : source ,"label" : label, "color" : color})
+        pass
+
+    #########
+
+    def get_all_meta(self,symbol=None):
+        if symbol and not symbol in self._meta: return {}
+        if symbol:
+            return self._meta[symbol]
+        else:
+            return self._meta
+        
+    def get_df_meta(self):
+        return pd.DataFrame.from_dict(self._meta , orient="index")
+
+    def has_meta(self,symbol,fieldName):
+        if not symbol in self._meta: return False
+        return fieldName in self._meta[symbol]
+
+    def get_meta(self,symbol,fieldName, default=None):
+        if not symbol in self._meta: return default
+        return self._meta[symbol].get(fieldName,default)
+
+    def del_meta(self,symbol,fieldName):
+        if not symbol in self._meta: return 
+        if fieldName in self._meta[symbol]: 
+            del self._meta[symbol][fieldName]
+
+    def set_meta(self,symbol,meta: dict):
+        if not symbol in self._meta:
+            self._meta[symbol] = {}
+        for k,v in meta.items():
+             self._meta[symbol][k] = v
+    #########
+
+    async def send_property(self,symbol:str, timeframe ,  value ):
+        if self.backtestMode: return
+
+        if not self.backtestMode and not self.bootstrapMode:
+            #logger.info("send")
+            await self.client.send_strategy_prop("TRADE", symbol,timeframe,value)
+        else:
+            #logger.info(f"send1 {self.backtestMode} {self.bootstrapMode}")
+            pass
+            #self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
+    
+    async def send_trade_order(self,symbol:str,type:str,side:str, quantity:str, price, tp, sl,  desc:str):
+        if self.backtestMode: return
+
+        await self.client.send_strategy_trade("strategy-trade",symbol,self.timeframe,
+                 {"type":type,"price_op":side,"quantity": quantity
+                  ,"price": price,"take_profit": tp,"stop_loss":sl,"desc": desc})
+       
+    async def send_trade_bracket(self, symbol:str,datetime,side:str, quantity:str, price, tp, sl,  desc:str):
+        if self.backtestMode: return
+
+        logger.info(f"BUY  {symbol} {datetime} s:{side} p:{price} tp:{tp} sl:{sl}")
+        await self.send_trade_order(symbol,"bracket",side,quantity,price,tp, sl, desc )
+
+    #########
+           
+
+    async def buy(self,symbol,datetime,price, quantity,label=""):
+        if self.book.hasCurrentTrade(symbol):
+            return
+
+        logger.info(f"BUY {symbol} {datetime} {quantity} at {price} [{label}]")
+        await self.add_marker(symbol,"BUY","BUY",label,"#000000FF","arrowUp",position="atPriceBottom",ring="chime")
+
+        #if not self.buyMap[symbol]:
+        self.book.long(symbol, price, quantity,label)
+
+        #super().buy(symbol,label)
+        #if not self.bootstrapMode:
+        #    await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
+
+
+    async def sell(self,symbol,datetime, price, quantity,label=""):
+
+        if self.book.hasCurrentTrade(symbol):
+            logger.info(f"SELL  {symbol} {datetime}")
+
+            trade = self.book.close(symbol,price)
+
+            await self.add_marker(symbol, "SELL", "SELL",label, "#FF0404", "arrowDown",position="atPriceBottom")
+
+            #if not self.bootstrapMode:
+            #    await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
+            return trade
+        else:   
+            return None
+
+    def buyGain(self,symbol,close):
+        if self.book.hasCurrentTrade(symbol):
+            return self.book.gain(symbol,close)
+        else:
+            return 0
+        '''
+        if symbol in self.buyMap and self.buyMap[symbol]:   
+            buy_price = self.buyMap[symbol]["price"]
+            return 100.0 * (close- buy_price) / buy_price
+        else:
+            return 0
+        '''
+    def setSL(self,symbol, price):
+        self.set_meta(symbol,{"SL": price})
+
+    def setTP(self,symbol, price):
+        self.set_meta(symbol,{"TP": price})

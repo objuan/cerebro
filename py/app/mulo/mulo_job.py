@@ -197,7 +197,7 @@ class MuloJob:
                             ds_updated_at
                         )
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
-                        ON CONFLICT(exchange, symbol, timeframe, timestamp)
+                        ON CONFLICT( symbol, timeframe, timestamp)
                         DO UPDATE SET
                             open = excluded.open,
                             high = excluded.high,
@@ -475,7 +475,7 @@ class MuloJob:
                 source, datetime, ds_updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(exchange, symbol, timeframe, timestamp)
+            ON CONFLICT( symbol, timeframe, timestamp)
             DO UPDATE SET
                 open = excluded.open,
                 high = excluded.high,
@@ -520,7 +520,7 @@ class MuloJob:
                         df["timestamp"] = df["Datetime"].astype("int64") // 10**9
 
 
-                logger.info(f"..\n{df}")
+                logger.info(f"..\n{df.tail(1)}")
           
                 ohlcv = [
                     (b.timestamp * 1000, b.Open, b.High, b.Low, b.Close, b.Volume,str(b.Datetime))
@@ -547,7 +547,7 @@ class MuloJob:
                             source, datetime, ds_updated_at
                         )
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(exchange, symbol, timeframe, timestamp)
+                        ON CONFLICT( symbol, timeframe, timestamp)
                         DO UPDATE SET
                             open = excluded.open,
                             high = excluded.high,

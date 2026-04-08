@@ -687,6 +687,17 @@ async def get_news(symbol, start: Optional[str] = None):
 
 
 ####################
+
+@app.get("/order/buy_breakout_no_slippage")
+async def do_buy_breakout_no_slippage(symbol, qty, price):
+    try:
+        logger.info(f"/order/limit {symbol} {qty}")
+        await orderManager.buy_breakout_no_slippage(symbol, qty,price)
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+    
 # no nsi ferma ?????
 @app.get("/order/smart/limit")
 async def do_limit_order(symbol, qty):
@@ -1503,12 +1514,12 @@ async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Opti
             
 
         all = strategy.live_indicators(symbol,timeframe,from_ts,to_ts)
-        #logger.info(f"\n {all}")
+        logger.info(f"\n {type(all)}")
         return JSONResponse(all)
     except:
         logger.error(f"\n {all}")
         logger.error("Error",exc_info=True)
-        return JSONResponse({})
+        return {"status": "ko"}
     
 ########
 

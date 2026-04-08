@@ -428,7 +428,7 @@ class LiveManager:
       
         
         for symbol, data in dict(results).items():
-            logger.info(f"{symbol} \n{data}")
+            logger.info(f"{symbol} \n{data.tail(1)}")
 
             exchange = self.fetcher.get_exchange(symbol)
             await self.fetcher.process_data_batch(exchange,symbol, "1m",self.fetcher.conn_exe, data,False)
@@ -858,7 +858,7 @@ class LiveManager:
                 logger.info(f"SYM TIME  BEGIN AT  {datetime.fromtimestamp(self.sym_start_time/1000).strftime('%Y-%m-%d %H:%M:%S')}") 
 
                 for symbol,ticker in self.tickers.items():
-                    ticker.last_close = 0 #//await self.fetcher.last_close(symbol,datetime.fromtimestamp(self.sym_start_time/1000))
+                    ticker.last_close = await self.fetcher.last_close(symbol,datetime.fromtimestamp(self.sym_start_time/1000))
                     ticker.gain = 0    
                     ticker.volume=0
                     ticker.last = 0

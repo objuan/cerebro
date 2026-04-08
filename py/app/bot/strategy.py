@@ -53,6 +53,9 @@ class Strategy:
         self.sem = asyncio.Semaphore(20)
         self._meta = {}
         self.market = self.client.market
+        self.plots = []
+        self.legend = []
+        self.marker_map= {}
     
     def load(self,strat_def):
     
@@ -398,18 +401,6 @@ class Strategy:
     #######
 #############
 
-
-#from strategy.order_strategy import *
-class SmartStrategy(Strategy):
-    
-    
-    def __init__(self, manager):
-        super().__init__(manager)
-        self.plots = []
-        self.legend = []
-        self.marker_map= {}
-        self.position = Position(10000)
-        self.book = OrderBook( self.position )
 
 
     def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
