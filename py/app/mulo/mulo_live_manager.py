@@ -428,7 +428,7 @@ class LiveManager:
       
         
         for symbol, data in dict(results).items():
-            logger.info(f"{symbol} \n{data.tail(1)}")
+            logger.info(f"{symbol} #{len(data) if data is not None else 0}  ")
 
             exchange = self.fetcher.get_exchange(symbol)
             await self.fetcher.process_data_batch(exchange,symbol, "1m",self.fetcher.conn_exe, data,False)

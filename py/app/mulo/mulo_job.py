@@ -621,7 +621,7 @@ class MuloJob:
                 try:
                     df = util.df(bars)
                     
-                    if df.empty:
+                    if df is None or df.empty:
                         return symbol, None
                     
                     df = df.rename(columns={

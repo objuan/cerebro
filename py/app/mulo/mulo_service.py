@@ -292,7 +292,12 @@ async def main():
                     ib = IB()
                     #if config["live_service"]["mode"] != "offline":
                     try:
-                        ib.connect('127.0.0.1', config["live_service"]["ib_port"], clientId=config["live_service"]["ib_client"])
+                        live_mode = config["general"]["live_mode"] == True
+                        port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]  
+
+                        logger.info(f"live_mode:{live_mode} Connecting to IB on port {port} with clientId {config['live_service']['ib_client']}") 
+
+                        ib.connect('127.0.0.1', port, clientId=config["live_service"]["ib_client"])
                     except:
                         ib = None
                         if config["live_service"]["mode"] != "offline":

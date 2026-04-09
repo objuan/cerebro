@@ -11,8 +11,8 @@
   },
   "chart": {
     "1": {
-      "grid": "2_1",
-      "symbol": "AIXI",
+      "grid": "2_2",
+      "symbol": "INHD",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -56,7 +56,7 @@
     },
     "2": {
       "grid": "2_1",
-      "symbol": "AIXI",
+      "symbol": "OMEX",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -80,6 +80,17 @@
         "2": {
           "timeframe": "10s"
         }
+      },
+      "2_2": {
+        "3": {
+          "timeframe": "1d"
+        },
+        "1": {
+          "timeframe": "5m"
+        },
+        "4": {
+          "timeframe": "30s"
+        }
       }
     },
     "4": {
@@ -91,7 +102,7 @@
     },
     "3": {
       "grid": "2_1",
-      "symbol": "CETX",
+      "symbol": "VSME",
       "indicator": {
         "1m": "SMA",
         "5m": "SMA",
@@ -104,9 +115,11 @@
       }
     },
     "start_len": {
-      "1m": 282.00590789297576,
-      "5m": 110.18425894998643,
-      "10s": 95.52861616828272
+      "1m": 92.66391184573001,
+      "5m": 76.18052045625302,
+      "10s": 85.36683423621173,
+      "1d": 117.12251173936636,
+      "30s": 24.27980041338367
     }
   },
   "event": {
@@ -243,7 +256,8 @@
       "quantity": 100
     },
     "VSME": {
-      "quantity": 200
+      "quantity": 50,
+      "quantity_rr": true
     },
     "PFSA": {
       "quantity": 200
@@ -336,7 +350,7 @@
     },
     "AZI": {
       "quantity": 400,
-      "mode": "MARKER"
+      "mode": "DIRECT"
     },
     "ANTX": {
       "quantity": 100
@@ -571,8 +585,8 @@
       "quantity": 25
     },
     "IPW": {
-      "quantity": 100,
-      "quantity_rr": false
+      "quantity": 50,
+      "quantity_rr": true
     },
     "HPAI": {
       "quantity": 100,
@@ -626,9 +640,9 @@
       "quantity_rr": false
     },
     "AIXI": {
-      "quantity_rr": true,
+      "quantity_rr": false,
       "quantity": 200,
-      "mode": "MARKER"
+      "mode": "DIRECT"
     },
     "CUPR": {
       "quantity_rr": false
@@ -666,6 +680,43 @@
     "MIST": {
       "quantity": 100,
       "quantity_rr": false
+    },
+    "HYPD": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "GMM": {
+      "quantity": 100
+    },
+    "OMEX": {
+      "quantity": 100,
+      "quantity_rr": true
+    },
+    "BBGI": {
+      "quantity_rr": false
+    },
+    "ELAB": {
+      "quantity_rr": true,
+      "quantity": 50
+    },
+    "GRI": {
+      "quantity": 100,
+      "quantity_rr": true
+    },
+    "CYCU": {
+      "quantity_rr": true,
+      "quantity": 100
+    },
+    "ADGM": {
+      "quantity_rr": false,
+      "quantity": 100
+    },
+    "SNBR": {
+      "quantity_rr": false,
+      "quantity": 100
+    },
+    "INHD": {
+      "quantity_rr": true
     }
   },
   "back": {
@@ -682,7 +733,7 @@
   },
   "summary": {
     "filter": {
-      "min_volume": "1000000",
+      "min_volume": "700000",
       "min_volume1": 400000
     }
   }

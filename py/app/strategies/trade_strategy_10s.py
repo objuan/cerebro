@@ -109,7 +109,7 @@ class CHAIN(Indicator):
             sum=True
             r = range(max(0,i_idx- self.window+1), i_idx+1 )
             for j_idx in r:
-                sum = sum and source[symbol_idx[j_idx]] >= source[symbol_idx[j_idx-1]] and volume[symbol_idx[j_idx-1]]>0
+                sum = sum and source[symbol_idx[j_idx]] >= source[symbol_idx[j_idx-1]] #and volume[symbol_idx[j_idx]]>0
                  
             dest[symbol_idx[i_idx]] =1 if sum else 0
 
@@ -130,7 +130,7 @@ class TradeStrategy10S(SmartStrategy):
         self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         max= self.addIndicator(self.timeframe,MAX("MAX","close",60))
 
-        chain= self.addIndicator(self.timeframe,CHAIN("chain","close",5))
+        chain= self.addIndicator(self.timeframe,CHAIN("chain","close",3))
       
         self.add_plot(chain, "chain","#0318d3", "sub1", style="Solid", lineWidth=1)
         #self.add_plot(day_volume_history, "day_volume_history","#d3035a", "sub1", style="Solid", lineWidth=1)
@@ -148,17 +148,20 @@ class TradeStrategy10S(SmartStrategy):
         prev = dataframe.iloc[local_index-1]
 
         volume = last["day_volume_history"]    
-        MAX =  prev["MAX"] 
-        gain =  last["gain"] 
+        #MAX =  prev["MAX"] 
+        gain2 =  last["gain"] 
+        gain = (last["close"] - prev["close"]) / prev["close"] * 100    
 
         if volume > self.volume_min_filter:
-            prev_close = prev["close"]
-            break_max = last["close"] >= MAX and prev_close < MAX
+            #prev_close = prev["close"]
+            #break_max = last["close"] >= MAX and prev_close < MAX
         
-            if (break_max ):
+            if (last["MAX"]>  prev["MAX"] ):
                 await self.add_marker(symbol, "SPOT", "MAX10", f"max 10",color="#31F30A", ring="alert1")
                
-            if gain > 3:
-                await self.add_marker(symbol, "SPOT", "GAIN", f"Gain 10 {gain:.1f}",color="#575757", ring="alert1")
+            if gain2 > 3:
+                if (gain > 1.5):
+                    await self.add_marker(symbol, "SPOT", "GAIN", f"Gain 10 {gain:.1f}",color="#575757", ring="alert1")
+
 
        

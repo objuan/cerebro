@@ -302,7 +302,12 @@ async def main():
     config = convert_json(config)
 
     ib = IB()
-    ib.connect('127.0.0.1', config["live_service"]["ib_port"], clientId=1)
+
+    live_mode = config["general"]["live_mode"] == "true"
+    port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]   
+
+
+    ib.connect('127.0.0.1', port, clientId=1)
 
     ms = MarketService(config)    
     scanner = Scanner(ib,config,ms)

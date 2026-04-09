@@ -179,6 +179,7 @@ class TradeStrategy(SmartStrategy):
         await self.send_property(symbol,"1m",{"volume_diff":vol_diff})
 
         # strenght
+        '''
         back = 5
         strength = 100.0 * (last["close"] - dataframe.iloc[local_index-back]["close"]) /  dataframe.iloc[local_index-5]["close"]
         v=0
@@ -187,6 +188,8 @@ class TradeStrategy(SmartStrategy):
         v = v / back
         #logger.info(f"{volume} {v} ss {len( [-back,0])}")
         await self.send_property(symbol,"1m",{"strenght":strength * v})
+        '''
+        
         # MAX LOGIC
 
         if volume > self.volume_min_filter:
@@ -216,7 +219,7 @@ class TradeStrategy(SmartStrategy):
                     #if not self.bootstrapMode:
                     #    await self.send_event(symbol, "FVG", f"FVG {fvg_type} {gap_perc:.1f}", f"FVG",color="#57472E", ring="news")
                 '''
-                    
+                '''
                 for n  in [5,4,3]:  
                     valid,min_low,max_high,gain_perc =  StrategyUtils.check_pattern(dataframe,local_index,n,5)
                     if valid:
@@ -267,11 +270,13 @@ class TradeStrategy(SmartStrategy):
                         # > 10 minuti
                         trade = await self.sell(symbol, dt, last["close"], -1, f"TO"  )
                         self.del_meta(symbol,"pattern")
-
+                '''
+        '''
         if not self.bootstrapMode and not self.backtestMode:
             if int(last["timestamp"]) > self.last_timestamp:
                 logger.info(f"REPORT {self.book.report()}")
                 self.last_timestamp =  last["timestamp"] 
+        '''
             
 
     ##########################

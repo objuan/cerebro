@@ -1577,10 +1577,13 @@ if __name__ =="__main__":
             
             ib = IB()
             util.patchAsyncio()
+
+            live_mode = config["general"]["live_mode"] 
+
             #ib.connect('127.0.0.1', config["general"]["ib_port"], clientId=config["general"]["ib_client"])
             await ib.connectAsync(
                     host="127.0.0.1",
-                    port=config["general"]["ib_port"],
+                    port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]  ,
                     clientId=config["general"]["ib_client"],
                     timeout=10
                 )

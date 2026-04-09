@@ -413,9 +413,6 @@ export class BuyAbove extends _TradeSingle{
   buy_price_op(){
     return ">"
   }
-  buy_type(){
-    return "breakout_no_slippage"
-  }
 }
 
 export class BuyBelow extends _TradeSingle{
@@ -426,9 +423,6 @@ export class BuyBelow extends _TradeSingle{
   }
   buy_price_op(){
     return "<"
-  }
-   buy_type(){
-    return "breakout_no_slippage"
   }
 }
 
