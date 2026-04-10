@@ -2,6 +2,7 @@ from typing import Dict
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
+from balance import Balance, PositionTrade
 from bot.indicators import *
 from bot.smart_strategy import SmartStrategy
 from zoneinfo import ZoneInfo
@@ -18,6 +19,29 @@ from utils import *
 from reports.report_manager import ReportManager
 
 from order_book import *
+
+
+class MAX_DAY(Indicator):
+
+    def __init__(self, target_col, price_col: str):
+        super().__init__([target_col])
+        self.price_col = price_col
+        self.target_col = target_col
+        self.max = 0.0  
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+
+        dest = dataframe[self.target_col].to_numpy()
+        price = dataframe[self.price_col].to_numpy()
+     
+        start = max(1, from_local_index)
+
+        for i_idx in range(start, len(symbol_idx)):
+
+            self.max = max(self.max, price[i_idx])
+
+            dest[symbol_idx[i_idx]] =self.max
+
 
 class VolumeStrength(Indicator):
 
@@ -119,45 +143,91 @@ class TradeStrategy10S(SmartStrategy):
 
     async def on_start(self):
         self.volume_min_filter= self.params["volume_min_filter"]
+        
+        capital = self.props.get("trade.day_balance_USD")
+        trade_risk = self.props.get("trade.trade_risk")
+        self.loss_by_trade = 100#capital * trade_risk
+        logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
+
         pass
 
+    '''
+    def extra_dataframes(self)->List[str]:
+        return ["1m"]
+    '''
+   
 
     def populate_indicators(self) :
       
+
+        #max_day = self.addIndicator("1m",MAX_DAY("max_day","close"))
+
         day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
-        str= self.addIndicator(self.timeframe,VolumeStrength("str","close","base_volume", 6))
+        # str= self.addIndicator(self.timeframe,VolumeStrength("str","close","base_volume", 6))
         ema =  self.addIndicator(self.timeframe,EMA("ema","quote_volume",6))
         self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         max= self.addIndicator(self.timeframe,MAX("MAX","close",60))
 
-        chain= self.addIndicator(self.timeframe,CHAIN("chain","close",3))
+        #chain= self.addIndicator(self.timeframe,CHAIN("chain","close",3))
       
-        self.add_plot(chain, "chain","#0318d3", "sub1", style="Solid", lineWidth=1)
+       # self.add_plot(chain, "chain","#0318d3", "sub1", style="Solid", lineWidth=1)
         #self.add_plot(day_volume_history, "day_volume_history","#d3035a", "sub1", style="Solid", lineWidth=1)
         #self.add_plot(str, "str","#f70b03" "sub1", style="Solid", lineWidth=1)
 
         self.add_plot(max, "MAX","#926B00FF", "main", source="MAX",style="Solid", lineWidth=1)
 
+        #self.add_plot(max_day, "max_day","#009200FF", "main", source="max_day",style="Solid", lineWidth=1)
 
         
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         #if not self.bootstrapMode:
         #     logger.info(f"..\n{dataframe.tail(3)}")
+        
+        #DAY GAIN 
 
+        if not self.has_meta(symbol, "open_price"): 
+            first = self.client.fist_day_price(symbol)
+            #logger.info(f"first day price {symbol} {first[0]}")    
+            self.set_meta(symbol,{"open_price": first[0]})   
+            
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]
 
+        if not self.has_meta(symbol, "max_day_price"): 
+            self.set_meta(symbol,{"max_day_price": 0})  
+        else:
+            self.set_meta(symbol,{"max_day_price": max(self.get_meta(  symbol,"max_day_price"),last["close"] ) })  
+
         volume = last["day_volume_history"]    
         #MAX =  prev["MAX"] 
+        day_gain = 100.0 * (last["close"] - self.get_meta(symbol,"open_price")) / self.get_meta(symbol,"open_price")        
+
         gain2 =  last["gain"] 
         gain = (last["close"] - prev["close"]) / prev["close"] * 100    
+
+
+        if not self.bootstrapMode:
+            pos =  Balance.get_position(symbol)
+            if pos.position>0 :
+                if not self.has_meta(symbol, "last_trade_price"):
+                    order:PositionTrade = self.orderManager.getLastTrade(symbol)
+                    if not order.isClosed():
+                        self.set_meta(symbol, {"last_trade_price":0})
+                        logger.info(f"FIND OPEN ORDER {symbol} {order}")  
+                    #if last:
+                    #    self.set_meta(symbol, "last_trade_price",last.)    
+
 
         if volume > self.volume_min_filter:
             #prev_close = prev["close"]
             #break_max = last["close"] >= MAX and prev_close < MAX
-        
+            
+            
             if (last["MAX"]>  prev["MAX"] ):
                 await self.add_marker(symbol, "SPOT", "MAX10", f"max 10",color="#31F30A", ring="alert1")
+
+            if last["close"] > self.get_meta(symbol,"max_day_price"):
+                await self.add_marker(symbol, "SPOT", "DAY_MAX", f"day max {day_gain:.1f}",color="#31F30A", ring="alert1")  
                
             if gain2 > 3:
                 if (gain > 1.5):

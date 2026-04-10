@@ -214,6 +214,9 @@ class SmartStrategy(Strategy):
              "list" : []}
 
         #logger.info(f"process1 {self.plots}")
+
+        #logger.info(f"live_indicators {symbol} {timeframe} from_ts:{from_ts} to_ts:{to_ts} {self} \n{df}") 
+
         for p in  self.plots:
             for col in p["ind"].target_cols:
                 if (col ==p["source"] or not p["source"]):

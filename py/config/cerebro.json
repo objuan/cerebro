@@ -148,7 +148,7 @@
 						"filter": 
 						{
 							"price_min": 1,
-							"price_max": 10,
+							"price_max": 20,
 							"float_min" : "500K",
 							"float_max" : "50M"
 						}
@@ -174,7 +174,7 @@
 						"filter": 
 						{
 							"price_min": 1,
-							"price_max": 10,
+							"price_max": 20,
 							"float_min" : "500K",
 							"float_max" : "50M"
 						}

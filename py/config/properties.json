@@ -7,12 +7,12 @@
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "1_1"
+    "grid": "1_2"
   },
   "chart": {
     "1": {
       "grid": "2_2",
-      "symbol": "INHD",
+      "symbol": "GLMD",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -41,7 +41,7 @@
       "1_2": {
         "2": {
           "timeframe": "10s",
-          "legend": false
+          "legend": true
         },
         "1": {
           "legend": true,
@@ -55,8 +55,8 @@
       }
     },
     "2": {
-      "grid": "2_1",
-      "symbol": "OMEX",
+      "grid": "2_2",
+      "symbol": "ONCO",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -89,7 +89,8 @@
           "timeframe": "5m"
         },
         "4": {
-          "timeframe": "30s"
+          "timeframe": "10s",
+          "legend": false
         }
       }
     },
@@ -102,7 +103,7 @@
     },
     "3": {
       "grid": "2_1",
-      "symbol": "VSME",
+      "symbol": "SKYQ",
       "indicator": {
         "1m": "SMA",
         "5m": "SMA",
@@ -115,17 +116,17 @@
       }
     },
     "start_len": {
-      "1m": 92.66391184573001,
-      "5m": 76.18052045625302,
-      "10s": 85.36683423621173,
-      "1d": 117.12251173936636,
+      "1m": 185.6125378339425,
+      "5m": 85.74222627664801,
+      "10s": 153.08940961002963,
+      "1d": 97.65316869303433,
       "30s": 24.27980041338367
     }
   },
   "event": {
     "filter_events": "[\"trade\",\"order\",\"task-order\",\"error\",\"message\"]",
     "filter_strategy": {
-      "sources": "[\"strategy\",\"mule\"]",
+      "sources": "[\"strategy\"]",
       "names": "[]",
       "symbols": "[]"
     }
@@ -641,7 +642,7 @@
     },
     "AIXI": {
       "quantity_rr": false,
-      "quantity": 200,
+      "quantity": 100,
       "mode": "DIRECT"
     },
     "CUPR": {
@@ -690,13 +691,13 @@
     },
     "OMEX": {
       "quantity": 100,
-      "quantity_rr": true
+      "quantity_rr": false
     },
     "BBGI": {
       "quantity_rr": false
     },
     "ELAB": {
-      "quantity_rr": true,
+      "quantity_rr": false,
       "quantity": 50
     },
     "GRI": {
@@ -717,6 +718,19 @@
     },
     "INHD": {
       "quantity_rr": true
+    },
+    "ARAI": {
+      "quantity_rr": false,
+      "quantity": 100
+    },
+    "GLMD": {
+      "quantity": 168,
+      "mode": "DIRECT",
+      "quantity_rr": false
+    },
+    "ONCO": {
+      "quantity_rr": false,
+      "quantity": 25
     }
   },
   "back": {

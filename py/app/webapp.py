@@ -152,7 +152,7 @@ tradeManager = TradeManager(config,client,propManager)
 render_page = RenderPage(ws_manager,ws_manager_orders)
 #event_manager.render_page=render_page
 report.render_page=render_page
-strategy = StrategyManager(config,db,client,render_page)
+strategy = StrategyManager(config,db,client,render_page, orderManager)
 client.render_page=render_page
 
 back_manager = BacktestManager(config,client,render_page)
@@ -1514,7 +1514,7 @@ async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Opti
             
 
         all = strategy.live_indicators(symbol,timeframe,from_ts,to_ts)
-        logger.info(f"\n {type(all)}")
+        #logger.info(f"\n {type(all)}")
         return JSONResponse(all)
     except:
         logger.error(f"\n {all}")

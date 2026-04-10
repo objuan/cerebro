@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
+from order import OrderManager
 from company_loaders import *
 from collections import deque
 
@@ -74,10 +75,11 @@ class StrategyReloader(FileSystemEventHandler):
 
 class StrategyManager:
 
-    def __init__(self, config,db:DBDataframe,client, render_page : RenderPage):
+    def __init__(self, config,db:DBDataframe,client, render_page : RenderPage,orderManager: OrderManager):
         
         self.config=config
         self.logger=logger
+        self.orderManager=orderManager
         self.db = db
         self.render_page=render_page
         self.client = client
@@ -152,6 +154,7 @@ class StrategyManager:
 
                 strat = cls(self)
                 strat.props = self.client.propManager
+                strat.orderManager= self.orderManager
                 strat.load(strat_def)
 
                 if strat.scope != "BACK":
@@ -208,6 +211,7 @@ class StrategyManager:
 
                     new_instance.load(strat_def)
                     new_instance.props = self.client.propManager
+                    new_instance.orderManager= self.orderManager    
 
                     self.logger.info(f"ADD STRATEGY {strat_def} {new_instance}")
 
@@ -233,9 +237,10 @@ class StrategyManager:
     def live_indicators(self,symbol,timeframe,from_ts,to_ts):
         list = []
         for strat in self.strategies:
-            i = strat["instance"].live_indicators(symbol,timeframe,from_ts,to_ts)
-            if i:
-                list.append(i)
+            if strat["instance"].timeframe == timeframe:
+                i = strat["instance"].live_indicators(symbol,timeframe,from_ts,to_ts)
+                if i:
+                    list.append(i)
         return list
 
 

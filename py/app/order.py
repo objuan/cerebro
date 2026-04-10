@@ -910,7 +910,8 @@ class OrderManager:
                 self.ib.cancelOrder(trade.order)
                 logger.info(f"Cancelled order with permId {permId}")
                 return True
-        logger.warning(f"No order found with permId {permId}")
+            else:
+                logger.warning(f"No order found with permId {permId}")
         return False
     
     

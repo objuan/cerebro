@@ -2423,7 +2423,17 @@ const barStyleFnMap = {
         const wickDownColor = candlestickStyle.wickDownColor;
         const currentBar = ensureNotNull(findBar(barIndex, precomputedBars));
         const isUp = ensure(currentBar._internal_value[0 /* PlotRowValueIndex.Open */]) <= ensure(currentBar._internal_value[3 /* PlotRowValueIndex.Close */]);
-        return {
+        const isFlat = ensure(currentBar._internal_value[0]) ==  ensure(currentBar._internal_value[3])
+         &&  ensure(currentBar._internal_value[0]) ==  ensure(currentBar._internal_value[1])
+             &&  ensure(currentBar._internal_value[0]) ==  ensure(currentBar._internal_value[2])
+         ;
+        if (isFlat) {
+           return {
+            _internal_barColor: "black",_internal_barBorderColor:"black",_internal_barWickColor:"black"
+           }
+        }
+        else 
+            return {
             _internal_barColor: currentBar._internal_color ?? (isUp ? upColor : downColor),
             _internal_barBorderColor: currentBar._internal_borderColor ?? (isUp ? borderUpColor : borderDownColor),
             _internal_barWickColor: currentBar._internal_wickColor ?? (isUp ? wickUpColor : wickDownColor),
