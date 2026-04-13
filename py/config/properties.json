@@ -7,12 +7,12 @@
     "day_balance_USD": 500
   },
   "home": {
-    "grid": "1_2"
+    "grid": "1_1"
   },
   "chart": {
     "1": {
-      "grid": "2_2",
-      "symbol": "GLMD",
+      "grid": "1_1",
+      "symbol": "ELAB",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -23,7 +23,7 @@
       },
       "1_1": {
         "1": {
-          "timeframe": "10s",
+          "timeframe": "1m",
           "legend": true
         }
       },
@@ -116,9 +116,9 @@
       }
     },
     "start_len": {
-      "1m": 185.6125378339425,
-      "5m": 85.74222627664801,
-      "10s": 153.08940961002963,
+      "1m": 201.69797978241425,
+      "5m": 478.82710304866475,
+      "10s": 1815.7585020270346,
       "1d": 97.65316869303433,
       "30s": 24.27980041338367
     }
@@ -539,7 +539,8 @@
       "quantity": 100
     },
     "ORBS": {
-      "quantity": 100
+      "quantity": 100,
+      "quantity_rr": false
     },
     "TOP": {
       "quantity": 100
@@ -717,7 +718,8 @@
       "quantity": 100
     },
     "INHD": {
-      "quantity_rr": true
+      "quantity_rr": true,
+      "quantity": 100
     },
     "ARAI": {
       "quantity_rr": false,
@@ -731,6 +733,20 @@
     "ONCO": {
       "quantity_rr": false,
       "quantity": 25
+    },
+    "NUAI": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "SQFT": {
+      "quantity": 100
+    },
+    "PMN": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "GOCO": {
+      "quantity": 100
     }
   },
   "back": {
@@ -747,7 +763,7 @@
   },
   "summary": {
     "filter": {
-      "min_volume": "700000",
+      "min_volume": "500000",
       "min_volume1": 400000
     }
   }

@@ -100,6 +100,9 @@ function onTimeFrameChange(){
 }
 
 function onSave(){
+    const strategy = strategies.value[selectedStrategyIndex.value]
+ form.value.module = strategy.module
+  form.value.class = strategy.class
     backTest.save()
 }
 function execute(){

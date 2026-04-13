@@ -104,6 +104,9 @@ export const backTest = reactive({
         this.history = history
         this.in_data = JSON.parse(history.in_data)
         this.trades =history.trades
+        self.script =null;
+
+        //this.in_params = JSON.parse(history.in_data)
      
 
        // console.log("history", this.trades)    
@@ -139,5 +142,14 @@ export const backTest = reactive({
                 arr.push(trade) 
         }); 
         return arr    
+    },
+    async getStrategyScript(){  
+        if (!self.script )
+        {
+            self.script = await send_get("/back/trade/strategy/get",
+                {"history_id": this.history.id})
+        }
+        return self.script
     }
+
 })

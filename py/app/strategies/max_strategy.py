@@ -22,46 +22,6 @@ from order_book import *
 ########################
 
 
-class _BackStrategy(SmartStrategy):
-    
-    
-    def __init__(self, manager):
-        super().__init__(manager)
-
-
-    async def buy(self,symbol,datetime,price, quantity,label=""):
-
-        self.book.long(symbol, datetime,price, quantity, f"BUY")    
-        await self.add_marker(symbol,"BUY",label,"#000000","arrowUp")
-          
-        logger.info(f"BUY {symbol} {label}  at {price} qty {quantity}     ")
-        #self.book.long(symbol, price, 100,label)
-
-        
-    async def sell(self,symbol,datetime, price, label=""):
-         
-        await   self.add_marker(symbol,"BUY",label,"#000000","arrowDown")
-        trade = self.book.close(symbol,datetime,price)   
-
-        logger.info(f"SELL {label}  {symbol}  pnl : {trade.pnl()}")  
-          
-        #logger.info(f"SELL {symbol} {label}")
-        #self.book.short(symbol, price, 100,label)
-        #self.book.close(symbol,price)
-        return trade
-
-    async def onBackEnd(self):
-        
-        #logger.info(f"marker_map {self.marker_map}")
-
-        def onClose(trade):
-            logger.info(f"CLOSE {trade.symbol}  gain {trade.gain()} pnl : {trade.pnl()}")
-        self.book.end(0,onClose)
-
-        logger.info(f"REPORT {self.book.report()}")
-        pass
-
-
 
 #################
 
@@ -101,14 +61,15 @@ class MAX_DAY(Indicator):
                     self.max[symbol]= max(self.max[symbol], price[symbol_idx[i_idx]])
 
                 dest[symbol_idx[i_idx]] =self.max[symbol]
+        
 
 #################
 
-class BackStrategy(_BackStrategy):
+class MaxStrategy(SmartStrategy):
 
     async def on_start(self):
 
-        self.volume_min_filter= self.params["volume_min_filter"]
+        self.volume_min_filter= 500000# self.params["volume_min_filter"]
         self.inPeriod=False
         self.gain_perc = self.params["gain_perc"]   
         self.trade_last_hh= self.params["trade_last_hh"]
@@ -122,9 +83,16 @@ class BackStrategy(_BackStrategy):
     def populate_indicators(self) :
         #self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))
         day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
-        self.addIndicator(self.timeframe,SMA("sma_9","close",timeperiod=9))
-        self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
+        sma_9 = self.addIndicator(self.timeframe,SMA("sma_9","close",timeperiod=9))
+        gain = self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
+        max_day = self.addIndicator(self.timeframe,MAX_DAY("max_day","close" ) )
+
+        self.add_plot(sma_9, "sma_9","#a70000", "main", style="SparseDotted", lineWidth=2)
+        self.add_plot(max_day, "max_day","#a79600", "main",  lineWidth=1)
+
+        self.add_plot(day_volume_history, "day_volume_history","#0318d3", "sub1", style="Solid", lineWidth=1)
+
 
     def get_quantity(self,price):
         #sl_price = price - price / 100 * self.gain_perc
@@ -132,14 +100,18 @@ class BackStrategy(_BackStrategy):
     
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
-        if not self.backtestMode and self.bootstrapMode:
+        use_day=True
+
+        if (local_index < 2):   
             return
 
-        use_day=False
-
         last = dataframe.iloc[local_index]
-        ts = int(last["timestamp"])
+        prev = dataframe.iloc[local_index-1]
 
+        max_day = last["max_day"]
+        close = last["close"]
+        max_gain = (last["max_day"] - prev["max_day"] ) / prev["max_day"] * 100  
+        
         if not self.has_meta(symbol,"first_enter"): 
             first_enter = StrategyUtils.compute_first_enter(self.client,symbol,dataframe,local_index, use_day)
             #await self.compute_first_enter(symbol, dataframe,local_index, use_day, value= close )
@@ -147,44 +119,67 @@ class BackStrategy(_BackStrategy):
 
         if  not last["timestamp"] > self.get_meta(symbol,"first_enter"):
             return
+        else:
+            if not self.has_meta(symbol,"first_enter_marker"):
+                await self.add_marker(symbol,"SPOT","X","First","#F6F7F8","square",position ="atPriceTop",timestamp=self.get_meta(symbol,"first_enter"),value=close)
+                self.set_meta(symbol, {"first_enter_marker": True })
+            
 
         if  self.market.is_in_time(last["datetime"],
-            get_hour_ms(5,00),get_hour_ms(self.trade_last_hh,00),use_day):
+            get_hour_ms(6,0),get_hour_ms(self.trade_last_hh,00),use_day):
         
+            if not self.has_meta(symbol,"enter_time"):
+                self.set_meta(symbol, {"enter_time": last["timestamp"] })   
+                await self.add_marker(symbol,"SPOT","E","Enter Time","#F6F7F86F","square",position ="atPriceTop")
+
             #########
             
+            #if not self.backtestMode and self.bootstrapMode:
+            #    return
+
             volume = last["day_volume_history"]    
             
-            if volume > self.volume_min_filter:
+            if volume > self.volume_min_filter :#and last["timestamp"]-self.get_meta(symbol,"first_enter")> 60*60*1000: # filtro primo minuto
 
                 #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
+                if not self.book.hasCurrentTrade(symbol):
+                    if max_gain > 1: #close >= max_day and prev["close"] < max_day and 
 
-                if  not self.has_meta(symbol,"valid") and not self.book.hasCurrentTrade(symbol):
-                    self.set_meta(symbol, {"valid": True }) 
+                        quantity = self.get_quantity(close)
 
-                    gain = last["gain"]
-                    if gain < self.gain_perc/2:
-                        
-                        buy_price = dataframe.iloc[local_index]["close"]
-                      
-                     
-                        await self.buy(symbol, ts, buy_price,self.get_quantity(buy_price), f"BUY"  )
+                        await self.buy(symbol, datetime, close,quantity,  f"BUY"  )
 
-                        #logger.info(f"BUY {symbol} {dt} q:{self.get_quantity(buy_price)} at: {buy_price}")
-                        #self.book.long(symbol, buy_price, self.get_quantity(buy_price), f"BUY")    
-                        #self.add_marker(symbol,"BUY","BUY","#000000","arrowUp")
-                  
-                
                 if self.book.hasCurrentTrade(symbol):
                     
-                        
                         gain = self.book.gain(symbol, last["close"]) 
-                   
-                        self.book.set_current_price(symbol, last["close"])           
-                   
-                        if gain < -self.gain_perc/2:
-                            trade = await  self.sell(symbol, ts, last["close"], f"SL"  )
+                        dt = dataframe.iloc[local_index]["datetime"]
 
+                        self.book.set_current_price(symbol, last["close"])           
+                        #logger.info(f"gain {symbol} {dt} gain {gain}")
+
+                        if gain < -self.gain_perc/2:
+                            #trade = self.book.close(symbol, last["close"])
+                            
+                            trade = await  self.sell(symbol, datetime, last["close"], f"SL"  )
+                        
+                            #self.add_marker(symbol,"BUY","SL","#000000","arrowDown")
+                            #self.del_meta(symbol,"valid")  
+                        
                         elif gain > self.gain_perc:
-                           
-                            trade = await  self.sell(symbol, ts, last["close"], f"TP"  )
+                            #trade = self.book.close(symbol, last["close"])
+                            trade = await  self.sell(symbol, datetime, last["close"], f"TP"  )
+
+                            
+
+
+               
+    async def compute_first_enter(self,symbol,dataframe,local_index, use_day,value):
+            if not self.has_meta(symbol,"first_enter"): 
+                
+                first_enter = StrategyUtils.compute_first_enter(self.client,symbol,dataframe,local_index, use_day)
+
+                self.set_meta(symbol, {"first_enter": first_enter }) 
+
+                #logger.info(f"FIRST ENTER {symbol} {first_enter}  ")
+
+                await self.add_marker(symbol,"SPOT","X","First","#F6F7F8","square",position ="atPriceTop",timestamp=first_enter,value=value)

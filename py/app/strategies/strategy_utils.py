@@ -126,7 +126,7 @@ class StrategyUtils:
         return (False, None, None, None,None)
 
    
-    async def compute_first_enter(client,symbol,dataframe,local_index, use_day):
+    def compute_first_enter(client,symbol,dataframe,local_index, use_day):
           
 
                 last = dataframe.iloc[local_index]
@@ -135,8 +135,11 @@ class StrategyUtils:
                 else:
                     date = last["datetime"].date()    
 
-                d_df = client.get_df(f"""SELECT * FROM ib_day_watch  
-                            WHERE date = '{date}' AND symbol = '{symbol}' """)  
+                sql = f"""SELECT * FROM ib_day_watch  
+                            WHERE date = '{date}' AND symbol = '{symbol}' """
+                
+                #logger.info(f"SQL {sql}  ")
+                d_df = client.get_df(sql)  
                 
                 #first_enter = d_df.iloc[0]["ds_timestamp"]
                 if not d_df.empty:  

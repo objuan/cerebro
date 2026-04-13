@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 import pandas as pd
 import logging
 from collections import defaultdict
@@ -8,8 +8,9 @@ logger = logging.getLogger(__name__)
 from utils import *
 
 class Order:
-    def __init__(self, symbol, side, price, quantity, label):
+    def __init__(self, symbol, datetime,side, price, quantity, label):
         self.symbol = symbol
+        self.datetime = datetime    
         self.side = side
         self.price = price
         self.quantity = quantity
@@ -19,10 +20,12 @@ class Order:
         return self.price * self.quantity
 
 class Trade:
-    def __init__(self, symbol, entry_price, exit_price, quantity, side):
+    def __init__(self, symbol, entry_price,entry_datetime, exit_price, exit_datetime, quantity, side):
         self.symbol = symbol
         self.entry_price = entry_price
         self.exit_price = exit_price
+        self.entry_datetime = entry_datetime    
+        self.exit_datetime=exit_datetime
         self.quantity = quantity
         self.side = side
 
@@ -36,7 +39,9 @@ class Trade:
             return (self.entry_price - self.exit_price) * self.quantity
 
     def toDict(self):
-        return {"symbol" : self.symbol,"side" : self.side, "entry_price":self.entry_price, "exit_price": self.exit_price,
+        return {"symbol" : self.symbol,"side" : self.side, "entry_price":self.entry_price,
+                "entry_datetime": self.entry_datetime,
+                 "exit_price": self.exit_price,"exit_datetime": self.exit_datetime, 
                 "quantity": self.quantity , "gain":  self.gain()  }
   
 class Position:
@@ -46,9 +51,10 @@ class Position:
         self.budget = budget
         self.positions = {}
         self.entry_price = {}
+        self.entry_dt = {}
         self.cur_price = {}
 
-    def open_long(self, symbol, price, quantity):
+    def open_long(self, symbol, datetime,price, quantity):
 
         cost = price * quantity
 
@@ -60,11 +66,12 @@ class Position:
 
         self.positions[symbol] = self.positions.get(symbol, 0) + quantity
         self.entry_price[symbol] = price
+        self.entry_dt[symbol] = datetime
         self.cur_price[symbol] = price
 
         return True
 
-    def open_short(self, symbol, price, quantity):
+    def open_short(self, symbol, datetime, price, quantity):
 
         gain = price * quantity
 
@@ -72,6 +79,7 @@ class Position:
 
         self.positions[symbol] = self.positions.get(symbol, 0) - quantity
         self.entry_price[symbol] = price
+        self.entry_dt[symbol] = datetime
         self.cur_price[symbol] = price
 
         return True
@@ -83,6 +91,7 @@ class Position:
 
         qty = self.positions[symbol]
         entry = self.entry_price[symbol]
+        datetime = self.entry_dt[symbol]
 
         if qty > 0:
             pnl = (price - entry) * qty
@@ -93,6 +102,7 @@ class Position:
 
         self.positions.pop(symbol)
         self.entry_price.pop(symbol)
+        self.entry_dt.pop(symbol)
         self.cur_price.pop(symbol)
         return pnl
      
@@ -101,8 +111,6 @@ class Position:
 
     def equity(self):
         return self.budget
-
-
 
 
 class OrderBook:
@@ -114,11 +122,14 @@ class OrderBook:
         self.position = position
         self.currentOrder={}
 
-    def end(self, onClose=None):
+    def getTrades(self) -> List[ Trade]:
+        return self.trades
+    
+    def end(self, datetime,onClose=None):
         list = [x for x in self.currentOrder.keys()]
         for symbol in list:
             order = self.currentOrder[symbol]
-            trade = self.close(symbol, self.position.cur_price[symbol])
+            trade = self.close(symbol,datetime, self.position.cur_price[symbol])
             if onClose:
                 onClose(trade)
 
@@ -134,34 +145,34 @@ class OrderBook:
     def get_first_trade(self):
         return next(iter(self.currentOrder.values()), None)
     
-    def long(self, symbol, price, quantity, label):
+    def long(self, symbol, datetime, price, quantity, label):
+        if self.position.open_long(symbol, datetime,float(price), float(quantity)):
 
-        if self.position.open_long(symbol, float(price), float(quantity)):
-
-            order = Order(symbol, "long",float(price), float(quantity), label)
+            order = Order(symbol,datetime, "long",float(price), float(quantity), label)
             self.orders.append(order)
             self.currentOrder[symbol] = order
             return order
 
-    def short(self, symbol, price, quantity, label):
+    def short(self, symbol, datetime , price, quantity, label):
 
-        if self.position.open_short(symbol, float(price), float(quantity)):
+        if self.position.open_short(symbol, datetime, float(price), float(quantity)):
 
-            order = Order(symbol, "short",float(price), float(quantity), label)
+            order = Order(symbol,datetime, "short",float(price), float(quantity), label)
             self.orders.append(order)
             return order
 
-    def close(self, symbol, price) -> Trade:
+    def close(self, symbol, datetime, price) -> Trade:
 
         if symbol not in self.position.positions:
             return
 
         qty = self.position.positions[symbol]
         entry = self.position.entry_price[symbol]
+        entry_datetime = self.position.entry_dt[symbol]
 
         side = "long" if qty > 0 else "short"
 
-        trade = Trade(symbol, entry, float(price), abs(qty), side)
+        trade = Trade(symbol, entry,entry_datetime, float(price),datetime, abs(qty), side)
 
         self.trades.append(trade)
 
@@ -178,10 +189,11 @@ class OrderBook:
        
         qty = self.position.positions[symbol]
         entry = self.position.entry_price[symbol]
+        ts = self.position.entry_dt[symbol]
 
         gain =  100.0 * (actual_price- entry) / entry
-        self.position.positions[symbol] = qty
-        return gain
+        
+        return gain,ts
     
     def set_current_price(self, symbol, price): 
         if symbol not in self.position.positions:

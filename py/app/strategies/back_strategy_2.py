@@ -56,7 +56,12 @@ class _BackStrategy(SmartStrategy):
 
         def onClose(trade):
             logger.info(f"CLOSE {trade.symbol}  gain {trade.gain()} pnl : {trade.pnl()}")
+
+            self.add_marker(trade.symbol,"BUY","CLOSE","#000000","arrowDown")
+            
         self.book.end(0,onClose)
+
+       
 
         logger.info(f"REPORT {self.book.report()}")
         pass
@@ -104,7 +109,7 @@ class MAX_DAY(Indicator):
 
 #################
 
-class BackStrategy(_BackStrategy):
+class BackStrategy2(_BackStrategy):
 
     async def on_start(self):
 
@@ -112,6 +117,7 @@ class BackStrategy(_BackStrategy):
         self.inPeriod=False
         self.gain_perc = self.params["gain_perc"]   
         self.trade_last_hh= self.params["trade_last_hh"]
+        self.trade_first_hh= 5#self.params["trade_first_hh"]
       
         capital = self.props.get("trade.trade_balance_USD")
         #trade_risk = self.props.get("trade.trade_risk")
@@ -122,24 +128,58 @@ class BackStrategy(_BackStrategy):
     def populate_indicators(self) :
         #self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))
         day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
-        self.addIndicator(self.timeframe,SMA("sma_9","close",timeperiod=9))
-        self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
+        sma_20 = self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
+        gain = self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
+        max_day = self.addIndicator(self.timeframe,MAX_DAY("max_day","close" ) )
+
+        self.add_plot(sma_20, "sma_20","#a70000", "main", style="SparseDotted", lineWidth=2)
+        self.add_plot(max_day, "max_day","#a79600", "main",  lineWidth=1)
+
+        self.add_plot(day_volume_history, "day_volume_history","#0318d3", "sub1", style="Solid", lineWidth=1)
+
 
     def get_quantity(self,price):
         #sl_price = price - price / 100 * self.gain_perc
         return int(self.loss_by_trade  / price )
     
-    async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
+    def tp_take(self,symbol,dataframe: pd.DataFrame,local_index):
+        last = dataframe.iloc[local_index]
+        gain,ts = self.book.gain(symbol, last["close"]) 
+        #logger.info(f"tp_take {symbol} gain {gain} ts {ts}  "   )
 
-        if not self.backtestMode and self.bootstrapMode:
-            return
+        max_time = 120*60
+        min_time = 5*60
+
+        # numero secondi trascorsi dall'entrata in posizione    
+        time_elapsed = (int(last["timestamp"]) - ts) / 1000
+        time_elapsed = max(min_time,time_elapsed)
+        time_elapsed = min(max_time,time_elapsed)
+
+        scale = (max_time - time_elapsed) / (max_time - min_time)
+
+        sgain = self.gain_perc * scale
+
+        logger.info(f"tp_take {symbol} time_elapsed {time_elapsed} gain {gain} sgain {sgain} ")    
+
+        return sgain
+        
+        
+
+    async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
         use_day=False
 
-        last = dataframe.iloc[local_index]
-        ts = int(last["timestamp"])
+        if (local_index < 2):   
+            return
 
+        last = dataframe.iloc[local_index]
+        prev = dataframe.iloc[local_index-1]
+
+        max_day = last["max_day"]
+        close = last["close"]
+        max_day_gain = (last["max_day"] - prev["max_day"] ) / prev["max_day"] * 100  
+        
         if not self.has_meta(symbol,"first_enter"): 
             first_enter = StrategyUtils.compute_first_enter(self.client,symbol,dataframe,local_index, use_day)
             #await self.compute_first_enter(symbol, dataframe,local_index, use_day, value= close )
@@ -147,44 +187,66 @@ class BackStrategy(_BackStrategy):
 
         if  not last["timestamp"] > self.get_meta(symbol,"first_enter"):
             return
+        else:
+            if not self.has_meta(symbol,"first_enter_marker"):
+                await self.add_marker(symbol,"SPOT","X","First","#F6F7F8","square",position ="atPriceTop",timestamp=self.get_meta(symbol,"first_enter"),value=close)
+                self.set_meta(symbol, {"first_enter_marker": True })
+            
 
         if  self.market.is_in_time(last["datetime"],
-            get_hour_ms(5,00),get_hour_ms(self.trade_last_hh,00),use_day):
+            get_hour_ms(self.trade_first_hh,0),get_hour_ms(self.trade_last_hh,00),use_day):
         
+            if not self.has_meta(symbol,"enter_time"):
+                self.set_meta(symbol, {"enter_time": last["timestamp"] })   
+                await self.add_marker(symbol,"SPOT","E","Enter Time","#F6F7F86F","square",position ="atPriceTop")
+
             #########
             
+            #if not self.backtestMode and self.bootstrapMode:
+            #    return
+
             volume = last["day_volume_history"]    
             
-            if volume > self.volume_min_filter:
+            if volume > self.volume_min_filter :#and last["timestamp"]-self.get_meta(symbol,"first_enter")> 60*60*1000: # filtro primo minuto
 
                 #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
+                if not self.book.hasCurrentTrade(symbol):
+                    if max_day_gain > 0:#close >= max_day and prev["close"] < max_day : #max_gain > 0: #
+                        dt = int(dataframe.iloc[local_index]["timestamp"])
 
-                if  not self.has_meta(symbol,"valid") and not self.book.hasCurrentTrade(symbol):
-                    self.set_meta(symbol, {"valid": True }) 
+                        quantity = self.get_quantity(close)
 
-                    gain = last["gain"]
-                    if gain < self.gain_perc/2:
-                        
-                        buy_price = dataframe.iloc[local_index]["close"]
-                      
-                     
-                        await self.buy(symbol, ts, buy_price,self.get_quantity(buy_price), f"BUY"  )
+                        await self.buy(symbol, dt, close,quantity,  f"BUY"  )
 
-                        #logger.info(f"BUY {symbol} {dt} q:{self.get_quantity(buy_price)} at: {buy_price}")
-                        #self.book.long(symbol, buy_price, self.get_quantity(buy_price), f"BUY")    
-                        #self.add_marker(symbol,"BUY","BUY","#000000","arrowUp")
-                  
-                
                 if self.book.hasCurrentTrade(symbol):
                     
-                        
-                        gain = self.book.gain(symbol, last["close"]) 
-                   
-                        self.book.set_current_price(symbol, last["close"])           
-                   
-                        if gain < -self.gain_perc/2:
-                            trade = await  self.sell(symbol, ts, last["close"], f"SL"  )
+                        gain,ts = self.book.gain(symbol, last["close"]) 
+                        time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000
+                
+                        if not self.has_meta(symbol,"max_gain"):  self.set_meta(symbol, {"max_gain": gain })
+                        max_gain = max(gain,self.get_meta(symbol,"max_gain"))
+                        self.set_meta(symbol, {"max_gain": max_gain  })
+                        loss_from_max_gain = max_gain -gain
 
-                        elif gain > self.gain_perc:
-                           
-                            trade = await  self.sell(symbol, ts, last["close"], f"TP"  )
+                        dt = int(dataframe.iloc[local_index]["timestamp"])
+
+                        self.book.set_current_price(symbol, last["close"])   
+
+                        #gain_perc = self.tp_take(symbol,dataframe,local_index   )        
+                        gain_perc= self.gain_perc
+                        
+                        logger.info(f"{symbol} gain {gain} max_gain { max_gain} loss_from_max_gain {loss_from_max_gain}")
+
+                        #safe se non salgo
+                        if max_gain > 5 and gain<5 and time_elapsed_secs > 60*20:
+                            trade = await  self.sell(symbol,dt,  last["close"], f"SD"  )
+
+                        elif gain < -gain_perc/2:
+                            trade = await  self.sell(symbol,dt,  last["close"], f"SL"  )
+                 
+
+                        elif gain > gain_perc:
+                            if last["close"] < last["open"] :
+                                trade = await  self.sell(symbol,dt,  last["close"], f"TP"  )
+
+                         

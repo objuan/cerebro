@@ -47,6 +47,7 @@
         
       </main>
     <BackHistory style="max-height:100px;background-color:aliceblue;"
+        :symbol="selectedSymbol"
         @select="onSelectHystory"></BackHistory>
   </div>
 

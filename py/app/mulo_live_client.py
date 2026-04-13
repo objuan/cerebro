@@ -98,8 +98,9 @@ class MuloLiveClient:
                     async def updateTickers(new_ticker):
                         # --- il tuo codice invariato ---
                         if self.sym_mode and "sym" in new_ticker:
-                            self.sym_time = new_ticker["sym"]
+                            self.sym_time =  datetime.fromtimestamp(new_ticker["sym"])# new_ticker["sym"]
                             self.sym_speed = new_ticker["speed"]
+                            #logger.info(f"SYM UPDATE TIME: {self.sym_time} sp:{self.sym_speed}" )
 
                         elif "evt" in new_ticker:
                             if new_ticker["evt"] == "on_update_symbols":

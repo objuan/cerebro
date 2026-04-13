@@ -32,7 +32,7 @@ class TradeStrategy(SmartStrategy):
         self.tradeInfo = {}
         pass
 
-    def onBackEnd(self):
+    async def onBackEnd(self):
 
         logger.info(f"REPORT {self.book.report()}")
         pass

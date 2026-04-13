@@ -28,59 +28,6 @@ class SmartStrategy(Strategy):
         self.book = OrderBook( self.position )
 
 
-    def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
-        if timeframe in self.marker_map:
-            if not symbol:
-                return self.marker_map[timeframe]
-            else:
-                return self.marker_map[timeframe][self.marker_map[timeframe]["symbol"] == symbol]
-        else:
-            return  pd.DataFrame()
-
-    def spot(self,  symbol, label,color, sourceField):
-        #logger.info(f"SPOT {symbol} {label}")
-        self.add_marker(symbol,"SPOT",label,color,"circle", position ="atPriceMiddle" , sourceField=sourceField)
-
-    '''
-    def buy(self,  symbol, label):
-        logger.info(f"BUY {symbol} {label}")
-        self.add_marker(symbol,"BUY",label,"#060806","arrowUp")
-    '''
-
-    #shapes : arrowUp, arrowDown, circle,square,small_square
-    #atPriceTop,atPriceBottom,atPriceMiddle
-    def add_marker_old(self, symbol,type, label,color,shape, position ="atPriceTop",
-                    _timeframe=None, sourceField = "close", value=None,timestamp=None):
-        timeframe = self.timeframe if _timeframe==None else _timeframe
-        
-        #logger.info(f"self.trade_index {self.trade_index}")
-        candle =  self.trade_dataframe.loc[self.trade_index_global]
-        if not timestamp:
-            timestamp =  candle["timestamp"]
-        if not value:
-            value = candle[sourceField]
-
-       # logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
-
-        if not timeframe in self.marker_map:
-            self.marker_map[timeframe] = pd.DataFrame(
-                    columns=["symbol","timeframe","type", "timestamp", "price", "desc","color","shape","position"]
-                )
-
-        self.marker_map[timeframe].loc[len(self.marker_map[timeframe])] = [
-                symbol,               # symbol
-                timeframe,                # type
-                type,               # symbol
-                timestamp,       # timestamp
-                value,              # price
-                label,           # desc
-                color,
-                shape,
-                position
-            ]
-
-       # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
-     
     async def add_marker(self, symbol,type, label,desc,color,shape="small_square", position ="atPriceTop",
                     _timeframe=None, sourceField = "close", value=None,timestamp=None,ring="news"):
         timeframe = self.timeframe if _timeframe==None else _timeframe
@@ -92,7 +39,7 @@ class SmartStrategy(Strategy):
         if not value:
             value = candle[sourceField]
 
-       # logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
+        #logger.info(f"marker idx {self.trade_index} {type} {symbol} ts: {timestamp} val: {value}")
 
         if not timeframe in self.marker_map:
             self.marker_map[timeframe] = pd.DataFrame(
@@ -112,6 +59,8 @@ class SmartStrategy(Strategy):
             ]
         if not self.bootstrapMode:    
             await self.send_event(symbol, label, desc,desc,color=color, ring=ring)
+
+        #logger.info(f"marker_map {self.marker_map}")
 
        # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
      
@@ -310,22 +259,22 @@ class SmartStrategy(Strategy):
             return
 
         logger.info(f"BUY {symbol} {datetime} {quantity} at {price} [{label}]")
-        await self.add_marker(symbol,"BUY","BUY",label,"#000000FF","arrowUp",position="atPriceBottom",ring="chime")
+        await self.add_marker(symbol,"BUY","BUY",label,"#3CFF00FF","arrowUp",position="atPriceBottom",ring="chime")
 
         #if not self.buyMap[symbol]:
-        self.book.long(symbol, price, quantity,label)
+        self.book.long(symbol, datetime, price, quantity,label)
 
         #super().buy(symbol,label)
         #if not self.bootstrapMode:
         #    await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
 
 
-    async def sell(self,symbol,datetime, price, quantity,label=""):
+    async def sell(self,symbol,datetime, price, label=""):
 
         if self.book.hasCurrentTrade(symbol):
             logger.info(f"SELL  {symbol} {datetime}")
 
-            trade = self.book.close(symbol,price)
+            trade = self.book.close(symbol,datetime,price)
 
             await self.add_marker(symbol, "SELL", "SELL",label, "#FF0404", "arrowDown",position="atPriceBottom")
 

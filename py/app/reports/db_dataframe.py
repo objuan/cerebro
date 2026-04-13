@@ -341,7 +341,7 @@ class DBDataframe_TimeFrame:
            # logger.info(f"ALIGN PRIMA \n{d.tail(5)}")
             #logger.info(f"ALIGN DOPO \n{df.tail(5)}")
 
-            if (df.iloc[-1]["timestamp"]> d.iloc[-1]["timestamp"]) : 
+            if ( len(df["timestamp"])> 2 and df.iloc[-1]["timestamp"]> d.iloc[-1]["timestamp"]) : 
                 #logger.info("UPDATE")
 
                 new_row = df.iloc[[-1]].reindex(columns=self.df.columns)

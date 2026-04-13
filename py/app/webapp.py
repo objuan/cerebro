@@ -1457,7 +1457,7 @@ async def back_get_symbols(date:str):
 
         logger.info(f"{unix_min} {unix_max}")
 
-        df = back_manager.back_symbols(unix_min, unix_max)
+        df = back_manager.back_symbols(date)
         
         return JSONResponse(df.to_dict(orient="records"))
     except:
@@ -1499,6 +1499,11 @@ def back_indicators(symbol,history_id):
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": "Error retrieving indicators"}
+
+@app.get("/back/trade/strategy/get")
+async def back_currentTime(history_id):
+        script =back_manager.get_history_strategy(history_id)
+        return JSONResponse(script)
 
 ###########################################
 
@@ -1667,7 +1672,7 @@ if __name__ =="__main__":
                         if (client.sym_mode):
                             msg = {
                                 "path": "root.clock",
-                                "data": client.sym_time
+                                "data": client.sym_time.timestamp()
                             }
                         else:
                             msg = {

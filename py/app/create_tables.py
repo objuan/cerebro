@@ -313,6 +313,7 @@ CREATE TABLE IF NOT EXISTS  back_session (
     in_data TEXT,
     trades TEXT,       
     markers TEXT,       
+    indicators TEXT,   
     script TEXT,   
     ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   

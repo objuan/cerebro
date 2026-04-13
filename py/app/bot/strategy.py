@@ -402,7 +402,6 @@ class Strategy:
 #############
 
 
-
     def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
         if timeframe in self.marker_map:
             if not symbol:
@@ -567,6 +566,26 @@ class Strategy:
                     d["data"] = df_data.to_dict(orient="records")
                         
                     o["list"].append(d)
+
+        return o
+    
+    def dump_indicators(self):
+     
+        df = self.df(self.timeframe)
+        o=[]
+        for p in  self.plots:
+            for col in p["ind"].target_cols:
+                if (col ==p["source"] or not p["source"]):
+                    #logger.info(f"process {col}")
+                    d = p.copy()
+                    del d["ind"]
+
+                    d["timeframe"] = self.timeframe
+                    df_data = p["ind"].get_render_data(df,col)
+                  
+                    d["data"] = df_data.to_dict(orient="records")
+                        
+                    o.append(d)
 
         return o
     

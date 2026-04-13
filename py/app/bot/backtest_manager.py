@@ -1,5 +1,6 @@
 import logging
 
+
 if __name__ =="__main__":
     import sys
     import os
@@ -43,6 +44,7 @@ from mulo_live_client import MuloLiveClient
 from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC
 from props_manager import PropertyManager
 import importlib
+from order_book import Trade
 
 logger = logging.getLogger(__name__)
 
@@ -127,14 +129,21 @@ class BacktestManager:
         logger.info(f"GET PROFILE { profile_name}")
         df = self.back_profiles(  )
         sdata = df[df["name"]== profile_name].iloc[0]["data"]
-        logger.info(f"SELECT DATA { sdata}")
+        #logger.info(f"SELECT DATA { sdata.tail(1)}")
         data = json.loads(sdata)
 
+        #logger.info(f"SELECT DATA { data.tail(1)}")
+
         date_obj = datetime.strptime(data["date"], "%Y-%m-%d")
+
         # inizio giorno
-        start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+        #start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+        start_of_day = datetime.strptime(data["date"], "%Y-%m-%d").replace(hour=2, minute=0, second=0, microsecond=0)
+        end_of_day = datetime.strptime(data["date"], "%Y-%m-%d").replace(hour=23, minute=0, second=0, microsecond=0)
+        
         # fine giorno
-        end_of_day = datetime.combine(date_obj.date(), datetime.max.time())
+        #nd_of_day = datetime.combine(date_obj.date(), datetime.max.time())
+
         unix_min = int(start_of_day.timestamp())*1000
         unix_max = int(end_of_day.timestamp())*1000
 
@@ -176,7 +185,7 @@ class BacktestManager:
         self.db.begin()
 
 
-    async def start(self):
+    async def start(self) -> List[Trade]:
 
         logger.info(f"START ")
         #self.db = Back_DatabaseManager(self,inData)
@@ -195,27 +204,38 @@ class BacktestManager:
             await self.db.tick(time)
         '''
      
-        self.active_strategy.onBackEnd()
+        await self.active_strategy.onBackEnd()
         trades= json.dumps([t.toDict() for t in self.active_strategy.book.trades])
 
         script=self.active_strategy.code
 
-        markers = self.active_strategy.marker_map[self.active_strategy.timeframe] if self.active_strategy.timeframe in self.active_strategy.marker_map else []
+        #logger.info(f"marker_map {self.active_strategy.marker_map}")   
 
+        markers = self.active_strategy.marker_map[self.active_strategy.timeframe] if self.active_strategy.timeframe in self.active_strategy.marker_map else None
+
+        inds = self.active_strategy.dump_indicators()
+
+        #logger.info(f"inData {self.inData}")   
+        #logger.info(f"trades {trades}")   
         #logger.info(f"markers {markers}")   
+        #logger.info(f"inds {len(inds)}")   
 
         self.client.execute("""
-            INSERT INTO back_session (strategy,dt_from,dt_to, in_data, trades,markers,script)
-        VALUES (?, ?, ?, ?,?, ?, ?)
+            INSERT INTO back_session (strategy,dt_from,dt_to, in_data, trades,markers,indicators,script,ds_timestamp)
+        VALUES (?, ?, ?, ?,?, ?, ?,?,?)
         """, (self.active_strategy.name, self.inData.dt_from, self.inData.dt_to,
                json.dumps(self.inData.to_dict()), 
                json.dumps(trades),
-               json.dumps(markers.to_dict(orient="records")), 
-               script))
+               json.dumps(markers.to_dict(orient="records")) if markers is not None else None   , 
+               json.dumps(inds)  , 
+               script, datetime.now(tz=ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d %H:%M:%S"))
+        )
 
         # save back 
 
         logger.info(f"BACK END")
+
+        return self.active_strategy.book.trades
 
     def reset(self):
         pass
@@ -257,7 +277,7 @@ class BacktestManager:
                     and timestamp<= {to}
                     ORDER BY timestamp DESC"""
 
-        logger.info(f"query {query}")        
+        #logger.info(f"query {query}")        
         #print("query",query)
 
         df = pd.read_sql_query(query, conn)
@@ -267,10 +287,13 @@ class BacktestManager:
         return df 
 
       
-    def back_symbols(self, since : int, to: int ):
+    def back_symbols(self, date):
         
         conn = sqlite3.connect(DB_FILE)
 
+        query = f"""SELECT distinct symbol FROM ib_day_watch
+                        WHERE date = '{date}' order by symbol"""
+        '''
         query = f"""
                    SELECT 
     symbol,
@@ -282,6 +305,7 @@ WHERE timeframe = '1m'
   AND timestamp <= {to}
 GROUP BY symbol;
 """
+        '''
                     
         #print("query",query)
 
@@ -323,6 +347,17 @@ GROUP BY symbol;
         conn.close()    
         return df
 
+    def get_history_strategy(self,history_id):
+        arr={}
+       
+        conn = sqlite3.connect(DB_FILE)
+        query = f""" SELECT * from back_session where id={history_id} """
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()  
+
+        return df["script"].iloc[0]
+
     def get_symbol_history(self,history_id,symbol):
         arr={}
        
@@ -333,12 +368,19 @@ GROUP BY symbol;
         conn.close()   
 
         trades = json.loads(df["trades"].iloc[0])
-        markers = json.loads(df["markers"].iloc[0])
 
+        try:
+            markers = json.loads(df["markers"].iloc[0])
+            #logger.info(f"trades {symbol} {markers}")
+            markers = [x for x in markers if x["symbol"] == symbol]
+        except:
+            markers = []
 
-        logger.info(f"trades {symbol} {markers}")
+        inds = json.loads(df["indicators"].iloc[0])
 
-        markers = [x for x in markers if x["symbol"] == symbol]
+        for ind in inds:
+            ind["data"] = [x for x in ind["data"] if x["symbol"] == symbol]
+        
         '''
         for _trade in _trades:
             trades = json.loads(_trade)
@@ -348,12 +390,12 @@ GROUP BY symbol;
                     #logger.info(f"{trade}")
         '''
         return {"strategy": df["strategy"].iloc[0],
-                "markers": markers, "trades": trades    }
+                "markers": markers, "trades": trades,"inds":inds    }
 
     def get_history_indicators(self,symbol,id):
         h = self.get_symbol_history(id,symbol  )
   
-        return [ {"strategy": h["strategy"], "markers": h["markers"]}]
+        return [ {"strategy": h["strategy"], "markers": h["markers"],"list": h["inds"]}]
 
 
 ###############################
@@ -375,55 +417,90 @@ if __name__ =="__main__":
         manager = BacktestManager(config,client,render_page)
 
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
-   
-       # for _, row_dict in df.iterrows():
-        for date in ["2026-03-30"]: 
-         
-            #date = row_dict["date"] 
+    
+        results= []
+        for date in ["2026-04-10"]: 
 
-            logger.info(f"=========  PROCESS  {date} ====================")
+            for hh in [5]:
+                for min_day_volume in [1_000_000]:
 
-            df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
-                        WHERE date = '{date}' """)
-            list = df["symbol"].tolist()
-            list = list[:80]
+                    for gain_perc in [20]:
 
-            ##list = ["IMNN"]
-            
-            logger.info(f"STAT PROCESS {list}")
-            data = {
-                "badgetUSD": 10000,
-                "symbols": list,
-                "dt_from": f"{date} 0:00:00", # UTC format
-                "dt_to": f"{date} 23:59:00",
-                "module" : "strategies.back_strategy",
-                "class": "BackStrategy",
-                "pre_scan": {
-                    "enabled": False,
-                    "min_day_volume": 5_000_000
-                },
-                "params" : {
-                    "gain_perc" : 10,
-                    "volume_min_filter" :1_000_000,
-                    "trade_last_hh" : 14
-                    },
-                "timeframe" : "1m"
 
-            # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
-            }
-            #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+                        logger.info(f"=========  PROCESS  {date} ====================")
 
-            backtest = BacktestIn(data)
+                        #df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
+                        #            WHERE date = '{date}' order by symbol""")
+                        df = manager.back_symbols(date)
 
-            ### solo una volta
-            #await manager.download_data(backtest)
+                        list = df["symbol"].tolist()
+                        #list = list[:80]
 
-            await manager.load(backtest)
+                        ##list = ["IMNN"]
+                        
+                        logger.info(f"STAT PROCESS {list}")
+                        data = {
+                            "badgetUSD": 1000,
+                            "symbols": list,
+                            "dt_from": f"{date} 2:00:00", # UTC format
+                            "dt_to": f"{date} 23:59:00",
+                            "module" : "strategies.back_strategy_3",
+                            "class": "BackStrategy3",
+                            "pre_scan": {
+                                "enabled": False,
+                                "min_day_volume": 0
+                            },
+                            "params" : {
+                                "gain_perc" : gain_perc,
+                                "volume_min_filter" :min_day_volume,
+                                "trade_first_hh" : hh,
+                                "trade_last_hh" : 11,
+                                "trade_last_mm": 0
+                                },
+                            "timeframe" : "1m"
 
-            await manager.start()
+                        # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+                        }
+                        #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
 
-            manager.reset()
+                        backtest = BacktestIn(data)
 
-        pass
+                        ### solo una volta
+                        #await manager.download_data(backtest)
+
+                        await manager.load(backtest)
+
+                        trades = await manager.start()
+
+                        gain=0
+                        w=0
+                        l=0
+                        for t in trades:
+                            gain += t.gain()
+                            if t.gain()>0:
+                                w+=1
+                            else:
+                                l+=1    
+
+                        results.append(
+                            {
+                                "data": data,
+                                "date": date, 
+                             "gain": gain, 
+                             "trades": trades,
+                               "win": w, 
+                               "loss": l})    
+
+                    
+                    manager.reset()
+
+            pass
+
+        logger.info(f"==============  END  ====================")    
+        for r in results:   
+              logger.info(f"{r['date']} {r['data']['params']}  ")
+              logger.info(f"TRADES {len(r['trades'])}  win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']}")   
+
+
 
     asyncio.run(main())

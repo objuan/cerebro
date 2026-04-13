@@ -4,7 +4,7 @@
 		"ib_port_paper" : 7497,
 		"ib_port_live" : 7496,
 		"ib_client" : 1,
-		"live_mode" : true
+		"live_mode" : false
 	},
 	"instruments":{
 		"stock_update_days" : 7
@@ -52,7 +52,21 @@
 		]
 	},
 	"stategies":[
-		
+
+			{
+			   "module": "back_strategy_2",
+				"class" : "BackStrategy2",
+				"timeframe" : "1m",
+				"scope" : "BACK",
+				"params" :
+				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :1000000,
+                    "trade_last_hh" : 11,
+					"trade_last_mm" : 0
+
+				}
+			},
 			{
 			   "module": "meta_strategy",
 				"class" : "MetaStrategy",
@@ -61,11 +75,25 @@
 				{
 				}
 		},
+				 {
+			   "module": "max_strategy",
+				"class" : "MaxStrategy",
+				"timeframe" : "1m",
+				"scope" : "BACK",
+				"params" :
+				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :500000,
+                    "trade_last_hh" : 11,
+					"trade_last_mm" : 0
+
+				}
+			},
 			{
 			   "module": "trade_strategy",
 				"class" : "TradeStrategy",
 				"timeframe" : "1m",
-				"scope" : "ALL",
+				"scope" : "BACK",
 				"params" :
 				{
 				 	"gain_perc" : 10,
@@ -79,7 +107,7 @@
 			   "module": "trade_strategy_10s",
 				"class" : "TradeStrategy10S",
 				"timeframe" : "10s",
-				"scope" : "LIVE",
+				"scope" : "BACK",
 				"params" :
 				{
 				 	"gain_perc" : 10,
