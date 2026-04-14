@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
+from strategies.strategy_utils import StrategyUtils
 from company_loaders import *
 from collections import deque
 import talib.abstract as ta
@@ -98,6 +99,43 @@ class Indicator:
  
  #################################
 
+class MAX_DAY(Indicator):
+
+    def __init__(self, target_col, price_col: str):
+        super().__init__([target_col])
+        self.price_col = price_col
+        self.target_col = target_col
+        self.max ={}
+        self.first ={}
+       
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+        timestamp = dataframe["timestamp"].to_numpy()
+        dest = dataframe[self.target_col].to_numpy()
+        price = dataframe[self.price_col].to_numpy()
+            
+        start = max(0, from_local_index)
+
+        if not symbol in self.first:
+            first_enter = StrategyUtils.compute_first_enter(self.client,symbol,dataframe,from_local_index, True)
+            #logger.info(f"FIRST ENTER {symbol} {first_enter}  ")    
+            self.first[symbol] = first_enter
+
+        first_enter = self.first[symbol]
+        #logger.info(f"MAX_DAY {symbol} from_local_index {from_local_index}  symbol_idx {symbol_idx}  ")    
+
+        for i_idx in range(start, len(symbol_idx)):
+            if not symbol in self.max:
+                   self.max[symbol] = price[symbol_idx[i_idx]]
+            else:
+                if timestamp[symbol_idx[i_idx]] > first_enter and timestamp[symbol_idx[i_idx-1]] < first_enter:
+                    self.max[symbol] = price[symbol_idx[i_idx]]
+                    #logger.info(f"MAX_DAY INIT {symbol} {price[symbol_idx[i_idx]]}  ")
+                else:
+                    self.max[symbol]= max(self.max[symbol], price[symbol_idx[i_idx]])
+
+                dest[symbol_idx[i_idx]] =self.max[symbol]
+                
 class COPY(Indicator):
   
     def __init__(self,target_col, source:str):

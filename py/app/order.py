@@ -147,6 +147,8 @@ class OrderManager:
         self._last_call_time = {}  # {symbol: timestamp}
         # Assegna gli event handlers
         self.doSmartAbort=False
+        self.strategyManager=None
+        self.lastTradeMap = {}
 
     async def bootstrap(self,ib):
         OrderManager.ib = ib
@@ -203,7 +205,7 @@ class OrderManager:
                 side = row.side
                 data = json.loads(row.data)
 
-                logger.info(f"rebuild_trades row {data}")
+                #logger.info(f"rebuild_trades row {data}")
 
                 price = data["avgFillPrice"]
                 size = data["totalQuantity"]
@@ -325,6 +327,24 @@ class OrderManager:
         data =  trade_to_dict(trade)
         action = data["action"]
         ser = json.dumps(data)
+
+        # 🔍 Controllo duplicato
+        cur.execute('''SELECT 1 FROM ib_orders 
+                    WHERE trade_id=? AND symbol=? AND side=? 
+                    AND status=? AND event_type=? AND data=? 
+                    LIMIT 1''',
+                    (trade.order.permId,
+                    trade.contract.symbol,
+                    action,
+                    trade.orderStatus.status,
+                    type,
+                    ser))
+
+        exists = cur.fetchone()
+        if exists:
+            logger.info("Duplicate order detected → skipping insert & event")
+            return  # 🚫 STOP: niente insert e niente send
+
         cur.execute('''INSERT INTO ib_orders (trade_id, symbol, side,status, event_type, data)
                     VALUES (?, ?, ?, ?, ?,?)''',
                 (trade.order.permId, trade.contract.symbol,action, trade.orderStatus.status,type,ser))
@@ -341,28 +361,21 @@ class OrderManager:
                     "data" : data 
                    }
                  )
-        '''
-            await self.ws.broadcast(
-                {"type": "ORDER", "trade_id": trade.order.permId, "symbol":trade.contract.symbol,
-                 "status" :trade.orderStatus.status,"event_type":type,   "data" : data ,"timestamp" :datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
-            )
-            '''
 
-            #if action =="BUY":
-            #    msg = {"type": "<", "data" : {} }
-            #    await self.ws.broadcast(msg)
 
         if action =="BUY" and trade.orderStatus.status =="Filled" and type=="STATUS":
                 msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
                 #await self.ws.broadcast(msg)
 
                 await self.client.send_trade_event("POSITION_TRADE",msg)
+                await self.strategyManager.on_live_trade_event("POSITION_TRADE",self.getLastTrade(trade.contract.symbol))
             
         if action =="SELL" and trade.orderStatus.status =="Filled" and type=="STATUS":
                 msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
                 #await self.ws.broadcast(msg)
 
                 await self.client.send_trade_event("POSITION_TRADE",msg)
+                await self.strategyManager.on_live_trade_event("POSITION_TRADE",self.getLastTrade(trade.contract.symbol))
 
     async def onNewOrder(self,trade:Trade):
        await self.addOrder(trade, "NEW")
@@ -412,7 +425,9 @@ class OrderManager:
             
         if self.getLastTrade(trade.contract.symbol):
             msg = { "data" :self.getLastTrade(trade.contract.symbol).to_dict()}
+            
             await self.client.send_trade_event("POSITION_TRADE",msg)
+            await self.strategyManager.on_live_trade_event("POSITION_TRADE",self.getLastTrade(trade.contract.symbol))
      
     ###########
 
@@ -670,16 +685,19 @@ class OrderManager:
         return None
 
     async def abort_smart(self,symbol):
-        logger.info(f"abort_smart {symbol} { self.trade.symbol if self.trade else '..'}")
-        self.doSmartAbort=True
-        if self.trade :#and self.trade==symbol:
-            logger.info("FORCE TRADE cancel")
-            self.lastError = None
-            self.ib.cancelOrder(self.trade.order)
-            await asyncio.sleep(2)
-            if self.lastError!= None:
-                if self.lastError["errorCode"] ==  10148:# Order FILLED 
-                    logger.info("BUY DONE AFTER CANCEL")
+        if symbol in self.lastTradeMap:
+            trade = self.lastTradeMap[symbol]
+            del self.lastTradeMap[symbol]
+            logger.info(f"abort_smart {symbol} { trade.symbol if trade else '..'}")
+            self.doSmartAbort=True
+            if trade :#and self.trade==symbol:
+                logger.info("FORCE TRADE cancel")
+                self.lastError = None
+                self.ib.cancelOrder(trade.order)
+                await asyncio.sleep(2)
+                if self.lastError!= None:
+                    if self.lastError["errorCode"] ==  10148:# Order FILLED 
+                        logger.info("BUY DONE AFTER CANCEL")
                
 
     async def _smart_limit_real(self,symbol,op, totalQuantity,ticker):
@@ -699,11 +717,11 @@ class OrderManager:
         self.ib.qualifyContracts(contract)  
         
         timeout = 120          # secondi
-        interval = 2          # ciclo ogni secondo
+        interval = 4          # ciclo ogni secondo
 
         if op =="BUY":
-            timeout = 22
-            interval = 10
+            timeout = 30
+            interval = 6
 
         start_time = time.time()
         
@@ -721,7 +739,7 @@ class OrderManager:
         while time.time() - start_time < timeout and not self.doSmartAbort:
                         
             if trade:
-                logger.info(f"Redo  status {trade.orderStatus.status} ")
+                logger.info(f"Redo  status {symbol} {trade.orderStatus.status} ")
 
                 if self.lastError!= None:
                     if self.lastError["errorCode"] ==  202:# Order Canceled 
@@ -819,8 +837,9 @@ class OrderManager:
 
                     
                     trade:Trade = await self.send_order(contract.symbol,do_order,attempt)
-                    trade.symbol = contract.symbol
-                    self.trade= trade
+                    if trade:
+                        trade.symbol = contract.symbol
+                        self.lastTradeMap[symbol]= trade
                     
                     attempt=attempt+1
                     
@@ -843,7 +862,7 @@ class OrderManager:
                     return None
 
         self.doSmartAbort=False
-        self.trade= None
+        self.lastTradeMap[symbol]= None
         return  {"reqId" : 0, "errorCode": -1, "errorString": "TIMEOUT"} 
 
 

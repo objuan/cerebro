@@ -41,6 +41,7 @@ class Strategy:
         self.manager=manager
         self.render_page=manager.render_page
         self.client = manager.client
+        self.orderManager = manager.orderManager
         self.indicators={}
         self.db_df_map={}
         self.db = None
@@ -387,6 +388,11 @@ class Strategy:
          pass
     
     #######################
+
+    async def on_live_trade_event(self,type, data):
+        pass
+    
+    ############################
 
     async def send_event(self,symbol:str, name:str, small_desc:str,  full_desc:str,color, ring=""):
         if not self.backtestMode and not self.bootstrapMode:

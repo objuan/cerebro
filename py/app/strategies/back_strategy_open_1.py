@@ -70,7 +70,7 @@ class _BackStrategy(SmartStrategy):
 
 #################
 
-class BackStrategy3(_BackStrategy):
+class BackStrategyOpen1(_BackStrategy):
 
     async def on_start(self):
 
@@ -122,6 +122,8 @@ class BackStrategy3(_BackStrategy):
         max_day = last["max_day"]
         close = last["close"]
         sma_20 = last["sma_20"]
+        volume = last["day_volume_history"]    
+         
         max_day_gain = (last["max_day"] - prev["max_day"] ) / prev["max_day"] * 100  
         
         if not self.has_meta(symbol,"first_enter"): 
@@ -135,7 +137,11 @@ class BackStrategy3(_BackStrategy):
             if not self.has_meta(symbol,"first_enter_marker"):
                 await self.add_marker(symbol,"SPOT","X","First","#F6F7F8","square",position ="atPriceTop",timestamp=self.get_meta(symbol,"first_enter"),value=close)
                 self.set_meta(symbol, {"first_enter_marker": True })
-            
+
+         # OPEN CLOSE INFOS
+        if not self.has_meta(symbol,"compute_open"):
+                await self.compute_open(symbol,dataframe,local_index, open_count=15, use_day=use_day)
+
 
         if  self.market.is_in_time(last["datetime"],
             get_hour_ms(self.trade_first_hh,0),get_hour_ms(self.trade_last_hh,00),use_day):
@@ -149,19 +155,27 @@ class BackStrategy3(_BackStrategy):
             #if not self.backtestMode and self.bootstrapMode:
             #    return
 
-            volume = last["day_volume_history"]    
             
             if volume > self.volume_min_filter :#and last["timestamp"]-self.get_meta(symbol,"first_enter")> 60*60*1000: # filtro primo minuto
 
                 #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
                 if not self.book.hasCurrentTrade(symbol):
-                    if max_day_gain > 0 and close > sma_20:
-                        dt = int(dataframe.iloc[local_index]["timestamp"])
 
-                        quantity = self.get_quantity(close)
+                    if self.has_meta(symbol,"compute_open"):
+                        if not self.has_meta(symbol,"up_done" ):
+                            open_perc_min_max = self.get_meta(symbol,"open_perc_min_max",0)   
+                            max_h = self.get_meta(symbol,"open_high",999999 )
 
-                        await self.buy(symbol, dt, close,quantity,  f"BUY"  )
+                            if last["close"] > max_h and open_perc_min_max>5:
+                                    self.set_meta(symbol,{"up_done": False} )
 
+                                    quantity = self.get_quantity(close)
+                                    dt = int(dataframe.iloc[local_index]["timestamp"])
+                                    #await self.add_marker(symbol,"SPOT","UP","UP","#004726","small_square",position ="atPriceTop")
+                                    await self.buy(symbol, dt, close,quantity,  f"BUY"  )
+            
+                #### sell logic
+                
                 if self.book.hasCurrentTrade(symbol):
                     
                         gain,ts = self.book.gain(symbol, last["close"]) 
@@ -181,16 +195,79 @@ class BackStrategy3(_BackStrategy):
                         
                         logger.info(f"{symbol} gain {gain} max_gain { max_gain} loss_from_max_gain {loss_from_max_gain}")
 
+                        h = self.get_meta(symbol,"open_high",999999 )
+
                         #safe se non salgo
-                        if close < sma_20 and time_elapsed_secs > 60*15 :
+                        if close < h and time_elapsed_secs > 60*5 :
                             trade = await  self.sell(symbol,dt,  last["close"], f"SD"  )
-
-                        elif gain < -gain_perc/2:
-                            trade = await  self.sell(symbol,dt,  last["close"], f"SL"  )
-                 
-
                         elif gain > gain_perc:
                             if last["close"] < last["open"] :
                                 trade = await  self.sell(symbol,dt,  last["close"], f"TP"  )
+        else:
+           if not self.has_meta(symbol,"exit_time"):
+                self.set_meta(symbol, {"exit_time": last["timestamp"] })   
+                await self.add_marker(symbol,"SPOT","Y","Exit Time","#F6F7F86F","square",position ="atPriceTop")
 
                          
+    async def compute_open(self,symbol,dataframe,local_index,open_count = 15, use_day=True):
+        trade_last_hh = self.trade_last_hh
+        last = dataframe.iloc[local_index]
+        if  self.market.is_in_time(last["datetime"],
+            get_hour_ms(9,00),get_hour_ms(trade_last_hh,00),use_day):
+            #logger.info(f'{last["datetime"]}')
+
+            if self.market.is_in_time(last["datetime"],
+                get_hour_ms(9,30),get_hour_ms(trade_last_hh,00),use_day):
+                #logger.info(f'{last["datetime"]}')
+
+                is_inside=True
+                if not self.has_meta(symbol,"open_gap"):
+                    last_close = MetaInfo.get(symbol,"last_close")
+                    if not last_close:
+                        last_close, ts_last_close=  await self.client.last_close(symbol,last["datetime"] ) 
+                    
+                    #logger.info(f'last_close {last_close}')
+
+                    if last_close:
+                        self.set_meta(symbol,{"open_gap": 100.0* (last["close"] - last_close) / last["close"] })
+
+                        #pre_gain = MetaInfo.get(symbol,"pre_gain")
+                        logger.info(f"{symbol} t:{last['datetime']} {self.get_meta(symbol,'open_gap')} close:{last['close']} last_close:{last_close}")
+
+                ###### 15 perc ######
+
+                if self.market.is_in_time(last["datetime"],
+                        get_hour_ms(9,45),get_hour_ms(trade_last_hh,00),use_day):
+
+                    if not self.has_meta(symbol,"open_perc"):
+                        window = dataframe.iloc[local_index-open_count:local_index]
+                        low = window["low"].min()
+                        high = window["high"].max()
+
+                        l_h_perc = 100.0 * (high - low) / low
+
+                        first = window.iloc[0]
+                        last = window.iloc[-1]
+
+                        perc = 100.0 * (last["close"] - first["open"]) / first["open"]
+                        '''
+                        first = dataframe.iloc[local_index-15]
+                    
+                        low = min(first["low"] , prev["low"])
+                        high = max(first["high"] , prev["high"])
+                                
+                        l_h_perc = 100.0* (high-low) / low
+                        perc =  100.0 * (prev["close"]- first["open"]) / first["open"]
+                        '''
+                        #logger.info(f"OPEN {symbol} t:{last['datetime']}  OPEN 15M O:{first['open']}  C:{last['close']} perc:{perc} l_h_perc:{l_h_perc} local_index:{local_index} last_idx: { last.name}")
+
+                        self.set_meta(symbol, 
+                                {
+                                    "compute_open" : True,
+                                "open_high" : high,
+                                "open_low": low,
+                                "open_perc" : perc, 
+                                "open_perc_min_max":l_h_perc,
+                                "open_close_idx": local_index,
+                                } )
+        return self.has_meta(symbol,"open_high" )

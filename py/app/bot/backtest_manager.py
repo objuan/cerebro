@@ -61,7 +61,7 @@ class BacktestManager:
     def __init__(self,config, client : MuloLiveClient,render_page : RenderPage):
         self.client=client
         self.config=config
-  
+        self.orderManager=None
         self.render_page = render_page
         self.strategy_folder = self.config["live_service"]["strategy_folder"]
         self.strategies=[]
@@ -419,7 +419,7 @@ if __name__ =="__main__":
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
     
         results= []
-        for date in ["2026-04-10"]: 
+        for date in ["2026-04-13"]: 
 
             for hh in [5]:
                 for min_day_volume in [1_000_000]:
@@ -444,8 +444,8 @@ if __name__ =="__main__":
                             "symbols": list,
                             "dt_from": f"{date} 2:00:00", # UTC format
                             "dt_to": f"{date} 23:59:00",
-                            "module" : "strategies.back_strategy_3",
-                            "class": "BackStrategy3",
+                            "module" : "strategies.back_strategy_open_1",
+                            "class": "BackStrategyOpen1",
                             "pre_scan": {
                                 "enabled": False,
                                 "min_day_volume": 0

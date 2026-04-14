@@ -22,55 +22,8 @@ from order_book import *
 ########################
 
 
-class _BackStrategy(SmartStrategy):
-    
-    
-    def __init__(self, manager):
-        super().__init__(manager)
 
-
-    async def buy(self,symbol,timestamp,price, quantity,label=""):
-
-        self.book.long(symbol, timestamp,price, quantity, f"BUY")    
-        await self.add_marker(symbol,"BUY",label,"#000000","arrowUp")
-          
-        logger.info(f"BUY {datetime.fromtimestamp(timestamp/1000).strftime('%H:%M:%S')} {symbol} {label}  at {price} qty {quantity}     ")
-        #self.book.long(symbol, price, 100,label)
-
-        
-    async def sell(self,symbol,timestamp, price, label=""):
-         
-        await   self.add_marker(symbol,"BUY",label,"#000000","arrowDown")
-        trade = self.book.close(symbol,timestamp,price)   
-
-        logger.info(f"SELL {datetime.fromtimestamp(timestamp/1000).strftime('%H:%M:%S')} {label}  {symbol}  pnl : {trade.pnl()}")  
-          
-        #logger.info(f"SELL {symbol} {label}")
-        #self.book.short(symbol, price, 100,label)
-        #self.book.close(symbol,price)
-        return trade
-
-    async def onBackEnd(self):
-        
-        #logger.info(f"marker_map {self.marker_map}")
-
-        def onClose(trade):
-            logger.info(f"CLOSE {trade.symbol}  gain {trade.gain()} pnl : {trade.pnl()}")
-
-            self.add_marker(trade.symbol,"BUY","CLOSE","#000000","arrowDown")
-            
-        self.book.end(0,onClose)
-
-       
-
-        logger.info(f"REPORT {self.book.report()}")
-        pass
-
-
-
-#################
-
-class BackStrategy3(_BackStrategy):
+class TradeStrategy3(SmartStrategy):
 
     async def on_start(self):
 
@@ -85,8 +38,6 @@ class BackStrategy3(_BackStrategy):
         self.loss_by_trade = 100#capital * trade_risk
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
         pass
-
-
 
     def populate_indicators(self) :
         #self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))
@@ -109,7 +60,7 @@ class BackStrategy3(_BackStrategy):
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
-        use_day=False
+        use_day=True
 
         #logger.info(f"TRADE_SYMBOL_AT {symbol} {local_index}  {dataframe.iloc[local_index]['timestamp']}")  
 

@@ -1,25 +1,10 @@
 from typing import Dict
 import pandas as pd
 import logging
-from datetime import datetime, timedelta
-from bot.indicators import *
-from bot.smart_strategy import SmartStrategy
-from zoneinfo import ZoneInfo
-from market import Market
-from collections import defaultdict
-
+from datetime import datetime, timedelta   
+import pytz
+ 
 logger = logging.getLogger(__name__)
-
-from report import *
-from reports.db_dataframe import *
-from renderpage import RenderPage
-from utils import *
-from reports.report_manager import ReportManager
-
-from order_book import *
-
-
-    
 
 
 ########################

@@ -791,10 +791,12 @@ class MuloLiveClient:
         await self.render_page.sendOrder(data)
 
     async def send_trade_event(self,type, data):
-       
+        '''
+        trade event
+        '''
         try:
             #self.client.send_event("order", )
-            logger.info(f"SEND t: {type} data: {data}")
+            #logger.info(f"SEND t: {type} data: {data}")
 
             data["type"] = type
             data["ts"] =int(time.time() * 1000)
@@ -819,7 +821,7 @@ class MuloLiveClient:
        
         try:
             #self.client.send_event("order", )
-            logger.info(f"SEND t: {type} data: {data}")
+            #logger.info(f"SEND t: {type} data: {data}")
 
             data["type"] = type
             data["ts"] =int(time.time() * 1000)

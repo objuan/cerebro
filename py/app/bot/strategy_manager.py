@@ -130,7 +130,8 @@ class StrategyManager:
                 module_name = self.package_name+"."+strat_def["module"]   # es: strategies.my_strategy
                 class_name = strat_def["class"]
                 scope = strat_def["scope"]  if "scope" in strat_def else ""
-                if scope == "BACK":
+                enabled = strat_def["enabled"]  if "enabled" in strat_def else True
+                if scope == "BACK" or not enabled:
                      continue
 
                 self.logger.info(f"LOAD MODULE {module_name}")
@@ -233,6 +234,11 @@ class StrategyManager:
     async def on_symbol_removed(self,  df : DBDataframe_TimeFrame, symbol):
          for strat in self.strategies:
             await strat["instance"].on_symbols_update(df, [], [symbol])
+
+    async def on_live_trade_event(self,type, data):
+         for strat in self.strategies:
+            await strat["instance"].on_live_trade_event(type,data)
+
 
     def live_indicators(self,symbol,timeframe,from_ts,to_ts):
         list = []

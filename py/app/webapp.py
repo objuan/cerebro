@@ -154,6 +154,7 @@ render_page = RenderPage(ws_manager,ws_manager_orders)
 report.render_page=render_page
 strategy = StrategyManager(config,db,client,render_page, orderManager)
 client.render_page=render_page
+orderManager.strategyManager = strategy
 
 back_manager = BacktestManager(config,client,render_page)
 

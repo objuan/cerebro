@@ -12,7 +12,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "ELAB",
+      "symbol": "RMSG",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -35,7 +35,7 @@
           "timeframe": "10s"
         },
         "3": {
-          "timeframe": "1d"
+          "timeframe": "15m"
         }
       },
       "1_2": {
@@ -116,11 +116,12 @@
       }
     },
     "start_len": {
-      "1m": 201.69797978241425,
-      "5m": 478.82710304866475,
+      "1m": 714.8984081929315,
+      "5m": 407.58470244107747,
       "10s": 1815.7585020270346,
       "1d": 97.65316869303433,
-      "30s": 24.27980041338367
+      "30s": 24.27980041338367,
+      "15m": 571.6327248800636
     }
   },
   "event": {
@@ -300,7 +301,8 @@
       "quantity": 500
     },
     "ANNA": {
-      "quantity": 100
+      "quantity": 100,
+      "quantity_rr": false
     },
     "ONMD": {
       "quantity": 100
@@ -747,6 +749,24 @@
     },
     "GOCO": {
       "quantity": 100
+    },
+    "RCT": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "RMSG": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "ALMU": {
+      "quantity": 100
+    },
+    "IMA": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "HOVR": {
+      "quantity_rr": false
     }
   },
   "back": {

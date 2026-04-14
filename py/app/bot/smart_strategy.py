@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from bot.indicators import Indicator
+
 from company_loaders import *
 from collections import deque
 from utils import SECONDS_TO_TIMEFRAME

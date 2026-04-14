@@ -163,6 +163,7 @@ cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 )''')
 
+
 cur.execute('''CREATE TABLE IF NOT EXISTS ib_order_commissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     trade_id TEXT,
