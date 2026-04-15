@@ -63,7 +63,9 @@
 				 	"gain_perc" : 10,
                     "volume_min_filter" :1000000,
                     "trade_last_hh" : 11,
-					"trade_last_mm" : 0
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
 
 				}
 			},
@@ -71,13 +73,33 @@
 			   "module": "trade_strategy_test",
 				"class" : "TradeStrategyTest",
 				"timeframe" : "1m",
+				"enabled" : true,
 				"scope" : "LIVE",
 				"params" :
 				{
 				 	"gain_perc" : 10,
-                    "volume_min_filter" :1000000,
+                    "volume_min_filter" :500000,
                     "trade_last_hh" : 11,
-					"trade_last_mm" : 0
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
+
+				}
+			},
+			{
+			   "module": "trade_strategy_open_1",
+				"class" : "TradeStrategyOpen1",
+				"timeframe" : "1m",
+				"enabled" : false,
+				"scope" : "LIVE",
+				"params" :
+				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :500000,
+                    "trade_last_hh" : 11,
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
 
 				}
 			},
@@ -151,8 +173,8 @@
 	{
 				"enabled" : true,
 				"ib_client" : 2,
-				"live_max_symbols" :10,
-				"feed_max_symbols" :60,
+				"live_max_symbols" :15,
+				"feed_max_symbols" :70,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
@@ -192,7 +214,7 @@
 						"type": "TOP_PERC_GAIN",
 						"filter": 
 						{
-							"price_min": 1,
+							"price_min": 0.8,
 							"price_max": 20,
 							"float_min" : "500K",
 							"float_max" : "50M"
@@ -218,7 +240,7 @@
 						"type": "TOP_VOLUME_RATE",
 						"filter": 
 						{
-							"price_min": 1,
+							"price_min": 0.8,
 							"price_max": 20,
 							"float_min" : "500K",
 							"float_max" : "50M"

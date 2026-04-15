@@ -2,9 +2,9 @@
   "trade": {
     "rr": 2,
     "trade_risk": 0.1,
-    "day_risk": 0.2,
-    "trade_balance_USD": 200,
-    "day_balance_USD": 500
+    "day_risk": 0,
+    "trade_balance_USD": 500,
+    "day_balance_USD": 1000
   },
   "home": {
     "grid": "1_1"
@@ -12,7 +12,7 @@
   "chart": {
     "1": {
       "grid": "1_1",
-      "symbol": "RMSG",
+      "symbol": "SNAL",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -116,7 +116,7 @@
       }
     },
     "start_len": {
-      "1m": 714.8984081929315,
+      "1m": 323.6456332876086,
       "5m": 407.58470244107747,
       "10s": 1815.7585020270346,
       "1d": 97.65316869303433,
@@ -353,7 +353,8 @@
     },
     "AZI": {
       "quantity": 400,
-      "mode": "DIRECT"
+      "mode": "DIRECT",
+      "quantity_rr": false
     },
     "ANTX": {
       "quantity": 100
@@ -425,7 +426,8 @@
       "quantity": 100
     },
     "RIME": {
-      "quantity": 100
+      "quantity": 100,
+      "quantity_rr": false
     },
     "VEEE": {
       "quantity": 300
@@ -767,6 +769,18 @@
     },
     "HOVR": {
       "quantity_rr": false
+    },
+    "LTRN": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "BTM": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "MRLN": {
+      "quantity_rr": false,
+      "quantity": 100
     }
   },
   "back": {
@@ -783,7 +797,7 @@
   },
   "summary": {
     "filter": {
-      "min_volume": "500000",
+      "min_volume": "1000000",
       "min_volume1": 400000
     }
   }

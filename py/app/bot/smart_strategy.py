@@ -4,6 +4,8 @@ import pandas as pd
 import logging
 from datetime import datetime, timedelta
 
+from order_task import OrderTaskManager
+from balance import Balance, PositionTrade
 from company_loaders import *
 from collections import deque
 from utils import SECONDS_TO_TIMEFRAME
@@ -25,7 +27,8 @@ class SmartStrategy(Strategy):
     def __init__(self, manager):
         super().__init__(manager)
         self.position = Position(10000)
-        self.book = OrderBook( self.position )
+        self._book = OrderBook( self.position )
+        self.slot_count=2
 
 
     async def add_marker(self, symbol,type, label,desc,color,shape="small_square", position ="atPriceTop",
@@ -252,8 +255,122 @@ class SmartStrategy(Strategy):
         await self.send_trade_order(symbol,"bracket",side,quantity,price,tp, sl, desc )
 
     #########
-           
 
+
+    def getSlot(self,symbol):
+        if self.slot_count<=0:  
+            return False
+        else:
+            return True
+
+    def takeSlot(self,symbol):
+        logger.info(f"takeSlot {symbol} slot_count before {self.slot_count}")   
+        self.slot_count-=1
+        
+        
+    def freeSlot(self,symbol):
+        if self.hasCurrentTrade(symbol):    
+            self.slot_count+=1
+            self.send_property("","",{"slot_count":self.slot_count })
+        
+
+    async def on_live_trade_event(self,type, trade:PositionTrade):
+        if type =="POSITION_TRADE":
+            
+            if not trade.isClosed():
+                self.takeSlot(trade.symbol)
+                await self.send_property("","",{"slot_count":self.slot_count })
+
+            self.set_meta( trade.symbol, {"last_trade":trade})   
+            #trade = Trade.from_dict(data)
+            logger.info(f"TRADE EVENT {trade.to_dict()}  ")
+
+    async def buy(self,symbol,timestamp,price, quantity,label=""):
+        if self.hasCurrentTrade(symbol):
+            return
+        
+        if not self.getSlot(symbol):    
+            logger.info(f"NO SLOT FOR {symbol}")    
+            return
+
+        logger.info(f"BUY {symbol} {timestamp} {quantity} at {price} [{label}]")
+        await self.add_marker(symbol,"BUY","BUY",label,"#3CFF00FF","arrowUp",position="atPriceBottom",ring="chime")
+
+        #if not self.buyMap[symbol]:
+        self._book.long(symbol, timestamp, price, quantity,label)
+
+        #super().buy(symbol,label)
+        if not self.bootstrapMode:
+            await self.orderManager.smart_buy_limit(symbol, quantity,self.client.getTicker(symbol))
+            pass
+        #    await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
+
+
+    async def sell(self,symbol,timestamp, price, label=""):
+
+        if self.hasCurrentTrade(symbol):
+            logger.info(f"SELL  {symbol} {timestamp}")
+            
+            self.freeSlot(symbol)   
+            await self.send_property("","",{"slot_count":self.slot_count })
+
+            trade = self._book.close(symbol,timestamp,price)
+
+            await self.add_marker(symbol, "SELL", "SELL",label, "#FF0404", "arrowDown",position="atPriceBottom")
+
+            if not self.bootstrapMode:
+                await self.orderManager.abort_smart(symbol)
+
+                await OrderTaskManager.cancel_orderBySymbol(symbol)
+
+                pos = Balance.get_position(symbol)
+                if (pos and pos.position>0):
+                    logger.info(f"SELL ALL {symbol} {pos.position} ")
+                    ret = await self.orderManager.smart_sell_limit(symbol,pos.position, self.client.getTicker(symbol))
+
+
+            #    await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
+            return trade
+        else:   
+            return None
+    
+    def hasCurrentTrade(self,symbol):
+        if not self.bootstrapMode and not self.backtestMode:
+                if self.has_meta(symbol, "last_trade"):
+                    last_trade : PositionTrade = self.get_meta(symbol, "last_trade")
+                    return last_trade if last_trade.isClosed()==False else None   
+                else:
+                    return None    
+        else:
+           self._book.hasCurrentTrade(symbol)
+
+    def buyGain(self,symbol,close):
+        if not self.bootstrapMode and not self.backtestMode:
+                if self.has_meta(symbol, "last_trade"):
+                    #logger.info(f"BUYGAIN has_meta {symbol} last_trade {self.get_meta(symbol, 'last_trade').to_dict()}")    
+                    last_trade : PositionTrade = self.get_meta(symbol, "last_trade")
+                    if not last_trade.isClosed():
+                        tot = 0.0
+                        c=0
+                        for op in last_trade.list:
+                            if op.side == "BUY":
+                                c=c+1
+                                gain = 100.0 * ((close - op.price) /  op.price)
+                                tot+= gain
+                            
+                        return tot /   c  
+                    else:
+                        return 0    
+                else:
+                    return 0    
+        else:
+            if self._book.hasCurrentTrade(symbol):
+                return self._book.gain(symbol,close)[0]
+            else:
+                return 0
+
+
+    '''
     async def buy(self,symbol,datetime,price, quantity,label=""):
         if self.book.hasCurrentTrade(symbol):
             return
@@ -289,13 +406,8 @@ class SmartStrategy(Strategy):
             return self.book.gain(symbol,close)
         else:
             return 0
-        '''
-        if symbol in self.buyMap and self.buyMap[symbol]:   
-            buy_price = self.buyMap[symbol]["price"]
-            return 100.0 * (close- buy_price) / buy_price
-        else:
-            return 0
-        '''
+        
+    '''
     def setSL(self,symbol, price):
         self.set_meta(symbol,{"SL": price})
 

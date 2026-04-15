@@ -447,7 +447,7 @@ const initWebSocket = () => {
           break;
          case "strategy-prop":
           {
-        //    console.log("strategy-prop",msg);
+            console.log("strategy-prop",msg);
             
            
             tickerStore.pushStrategy( msg)

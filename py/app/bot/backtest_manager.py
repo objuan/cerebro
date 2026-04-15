@@ -419,12 +419,13 @@ if __name__ =="__main__":
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
     
         results= []
-        for date in ["2026-04-13"]: 
+        tot_gain=0.0
+        for date in ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"]: 
 
-            for hh in [5]:
-                for min_day_volume in [1_000_000]:
+            for hh in [11]: #11
+                for min_day_volume in [500_000]:
 
-                    for gain_perc in [20]:
+                    for gain_perc in [10]:
 
 
                         logger.info(f"=========  PROCESS  {date} ====================")
@@ -453,8 +454,8 @@ if __name__ =="__main__":
                             "params" : {
                                 "gain_perc" : gain_perc,
                                 "volume_min_filter" :min_day_volume,
-                                "trade_first_hh" : hh,
-                                "trade_last_hh" : 11,
+                                "trade_first_hh" : 5,
+                                "trade_last_hh" : hh,
                                 "trade_last_mm": 0
                                 },
                             "timeframe" : "1m"
@@ -482,6 +483,7 @@ if __name__ =="__main__":
                             else:
                                 l+=1    
 
+                        tot_gain+=gain
                         results.append(
                             {
                                 "data": data,
@@ -501,6 +503,7 @@ if __name__ =="__main__":
               logger.info(f"{r['date']} {r['data']['params']}  ")
               logger.info(f"TRADES {len(r['trades'])}  win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']}")   
 
-
+        logger.info(f"===============")    
+        logger.info(f"TOT GAIN {tot_gain}")      
 
     asyncio.run(main())

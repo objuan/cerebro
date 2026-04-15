@@ -55,6 +55,12 @@ export const tickerStore = reactive({
         this.items[prop.symbol].strategy.push(prop)
     }
   },
+  strategyProp(){
+     if (this.items[""]) {
+        return this.items[""].strategy;
+    }
+    else return null;
+  },
 
   clear() {
     // svuota l'oggetto mantenendo la reference reattiva
