@@ -2,6 +2,7 @@ from typing import Dict
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
+from balance import PositionTrade
 from strategies.strategy_utils import StrategyUtils
 from bot.indicators import *
 from bot.smart_strategy import SmartStrategy
@@ -34,7 +35,7 @@ class TradeStrategyOpen1(SmartStrategy):
       
         capital = self.props.get("trade.trade_balance_USD")
         #trade_risk = self.props.get("trade.trade_risk")
-        self.loss_by_trade = 100#capital * trade_risk
+        self.loss_by_trade = 50#capital * trade_risk
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
         pass
 
@@ -59,6 +60,8 @@ class TradeStrategyOpen1(SmartStrategy):
         return int(self.loss_by_trade  / price )
     
 
+   
+            
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
         use_day=not self.backtestMode
@@ -77,6 +80,17 @@ class TradeStrategyOpen1(SmartStrategy):
         volume = last["day_volume_history"]    
          
         max_day_gain = (last["max_day"] - prev["max_day"] ) / prev["max_day"] * 100  
+
+        #########################
+        if self.bootstrapMode:
+            if not self.has_meta("__trade","init"):
+                self.set_meta("__trade", {"init": True})   
+                history =  self.orderManager.getTradeHistory(None)
+                for trade in history:
+                    if not trade.isClosed():
+                        self.set_meta( trade.symbol, {"last_trade":trade})   
+                        logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
+            return
 
         ###### FIRST ENTER ########
         if not self.has_meta(symbol,"first_enter"): 
@@ -120,8 +134,10 @@ class TradeStrategyOpen1(SmartStrategy):
                             max_h = self.get_meta(symbol,"open_high",999999 )
 
                             if last["close"] > max_h and open_perc_min_max>5:
+                                if (self.buy_enabled(symbol)):
                                     self.set_meta(symbol,{"up_done": False} )
 
+                                    logger.info(f"{symbol} max_h {last['close']} {max_h} {self._meta[symbol]} ")
                                     quantity = self.get_quantity(close)
                                     dt = int(dataframe.iloc[local_index]["timestamp"])
                                     #await self.add_marker(symbol,"SPOT","UP","UP","#004726","small_square",position ="atPriceTop")
@@ -132,7 +148,7 @@ class TradeStrategyOpen1(SmartStrategy):
                 if self.hasCurrentTrade(symbol):
                     
                         #gain = self.buyGain(symbol,close)
-                        gain,ts = self.book.gain(symbol, last["close"]) 
+                        gain,ts = self.buyGain(symbol, last["close"]) 
                         time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000
                 
                         if not self.has_meta(symbol,"max_gain"):  self.set_meta(symbol, {"max_gain": gain })
@@ -142,22 +158,24 @@ class TradeStrategyOpen1(SmartStrategy):
 
                         dt = int(dataframe.iloc[local_index]["timestamp"])
 
-                        self.book.set_current_price(symbol, last["close"])   
+                        self.set_current_price(symbol, last["close"])   
 
                         #gain_perc = self.tp_take(symbol,dataframe,local_index   )        
                         gain_perc= self.gain_perc
                         
-                        #logger.info(f"{symbol} gain {gain} max_gain { max_gain} loss_from_max_gain {loss_from_max_gain}")
+                        logger.info(f"{symbol} gain {gain} max_gain { max_gain} loss_from_max_gain {loss_from_max_gain}")
 
                         h = self.get_meta(symbol,"open_high",999999 )
 
                         #safe se non salgo
                         if close < h and time_elapsed_secs > 60*5 :
-                            trade = await  self.sell(symbol,dt,  last["close"], f"SD"  )
+                            if (self.tp_enabled(symbol)):
+                                trade = await  self.sell(symbol,dt,  last["close"], f"SD"  )
 
                         elif gain > gain_perc:
                             if last["close"] < last["open"] :
-                                trade = await  self.sell(symbol,dt,  last["close"], f"TP"  )
+                                if (self.sl_enabled(symbol)):
+                                    trade = await  self.sell(symbol,dt,  last["close"], f"TP"  )
         
         else:
            if not self.has_meta(symbol,"exit_time") and self.has_meta(symbol,"enter_time"):

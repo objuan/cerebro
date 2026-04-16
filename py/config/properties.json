@@ -11,8 +11,8 @@
   },
   "chart": {
     "1": {
-      "grid": "1_1",
-      "symbol": "SNAL",
+      "grid": "2_1",
+      "symbol": "BIRD",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -116,9 +116,9 @@
       }
     },
     "start_len": {
-      "1m": 323.6456332876086,
+      "1m": 154.3863499410952,
       "5m": 407.58470244107747,
-      "10s": 1815.7585020270346,
+      "10s": 151.23813440902347,
       "1d": 97.65316869303433,
       "30s": 24.27980041338367,
       "15m": 571.6327248800636
@@ -781,6 +781,10 @@
     "MRLN": {
       "quantity_rr": false,
       "quantity": 100
+    },
+    "SNAL": {
+      "quantity": 100,
+      "quantity_rr": false
     }
   },
   "back": {
@@ -797,8 +801,37 @@
   },
   "summary": {
     "filter": {
-      "min_volume": "1000000",
+      "min_volume": "850000",
       "min_volume1": 400000
+    }
+  },
+  "strategy": {
+    "CIIT": {
+      "tp": true,
+      "sl": true,
+      "buy": false
+    },
+    "AIXI": {
+      "tp": true,
+      "buy": true
+    },
+    "SNAL": {
+      "tp": true,
+      "buy": true
+    },
+    "ARAI": {
+      "buy": true
+    },
+    "OMEX": {
+      "tp": true,
+      "sl": true
+    },
+    "NNBR": {
+      "tp": true,
+      "sl": true
+    },
+    "NCI": {
+      "tp": true
     }
   }
 }

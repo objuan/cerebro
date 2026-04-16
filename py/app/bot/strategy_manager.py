@@ -253,6 +253,11 @@ class StrategyManager:
     def on_plot_lines_changed(self, symbol, tf):
          for strat in self.strategies:
             strat["instance"].on_plot_lines_changed(symbol, tf)
+
+    async def set_prop( self,symbol,  value):
+        for strat in self.strategies:
+             await strat["instance"].set_property(symbol,value)
+
 ############################################
 
 

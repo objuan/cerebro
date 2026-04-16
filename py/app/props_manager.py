@@ -56,8 +56,10 @@ class PropertyManager:
             return value
     
     def get(self, path, def_value=None):
-        
+        #logger.info(f"POP {path} {def_value}")
+
         if path in self.props:
+           # logger.info(f"POP {path} {def_value}")
             return self.resolve(path,self.props[path])
         else:
             list=[]
@@ -65,9 +67,11 @@ class PropertyManager:
                 if k.startswith(path):
                     list.append({k:self.resolve(k,v)})
             if len(list)>0:
+                logger.info(f"POP {path} {list}")
                 return list
         if def_value is not None:
-            self.props[path] = def_value
+           # logger.info(f"POP {path} {def_value}")
+            #self.props[path] = def_value
             return def_value
         return None
     

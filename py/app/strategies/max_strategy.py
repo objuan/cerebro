@@ -77,6 +77,7 @@ class MaxStrategy(SmartStrategy):
         capital = self.props.get("trade.trade_balance_USD")
         #trade_risk = self.props.get("trade.trade_risk")
         self.loss_by_trade = 100#capital * trade_risk
+        self.max_loss = 5
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
         pass
 
@@ -105,6 +106,16 @@ class MaxStrategy(SmartStrategy):
         if (local_index < 2):   
             return
 
+        if self.bootstrapMode:
+            if not self.has_meta("__trade","init"):
+                self.set_meta("__trade", {"init": True})   
+                history =  self.orderManager.getTradeHistory(None)
+                for trade in history:
+                    if not trade.isClosed():
+                        self.set_meta( trade.symbol, {"last_trade":trade})   
+                        logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
+                return
+
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]
 
@@ -112,6 +123,7 @@ class MaxStrategy(SmartStrategy):
         close = last["close"]
         max_gain = (last["max_day"] - prev["max_day"] ) / prev["max_day"] * 100  
         
+        ###### FIRST ENTER ########
         if not self.has_meta(symbol,"first_enter"): 
             first_enter = StrategyUtils.compute_first_enter(self.client,symbol,dataframe,local_index, use_day)
             #await self.compute_first_enter(symbol, dataframe,local_index, use_day, value= close )
@@ -121,12 +133,19 @@ class MaxStrategy(SmartStrategy):
             return
         else:
             if not self.has_meta(symbol,"first_enter_marker"):
-                await self.add_marker(symbol,"SPOT","X","First","#F6F7F8","square",position ="atPriceTop",timestamp=self.get_meta(symbol,"first_enter"),value=close)
                 self.set_meta(symbol, {"first_enter_marker": True })
-            
+                await self.add_marker(symbol,"SPOT","X","First","#F6F7F8","square",position ="atPriceTop",timestamp=self.get_meta(symbol,"first_enter"),value=close)
+                
+         # ##### OPEN CLOSE INFOS #######
+        if not self.has_meta(symbol,"compute_open"):
+                await StrategyUtils.compute_open(self,symbol,dataframe,local_index, open_count=15, use_day=use_day)
 
+
+
+        #######################################
+        #  
         if  self.market.is_in_time(last["datetime"],
-            get_hour_ms(6,0),get_hour_ms(self.trade_last_hh,00),use_day):
+            get_hour_ms(6,0),get_hour_ms(self.trade_last_hh+20,00),use_day):
         
             if not self.has_meta(symbol,"enter_time"):
                 self.set_meta(symbol, {"enter_time": last["timestamp"] })   
@@ -140,34 +159,45 @@ class MaxStrategy(SmartStrategy):
             volume = last["day_volume_history"]    
             
             if volume > self.volume_min_filter :#and last["timestamp"]-self.get_meta(symbol,"first_enter")> 60*60*1000: # filtro primo minuto
+                
+                if not self.has_meta(symbol,"volume"):
+                    self.set_meta(symbol,{"volume":"OK"})
+                    await self.add_marker(symbol,"SPOT","VOL",f"VOL > {self.volume_min_filter}","#BB0B46",position ="atPriceTop")
+       
 
                 #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
-                if not self.book.hasCurrentTrade(symbol):
-                    if max_gain > 1: #close >= max_day and prev["close"] < max_day and 
+                if not self.hasCurrentTrade(symbol):
+                     pass
+                    #if max_gain > 1: #close >= max_day and prev["close"] < max_day and 
 
-                        quantity = self.get_quantity(close)
+                    #   quantity = self.get_quantity(close)
 
-                        await self.buy(symbol, datetime, close,quantity,  f"BUY"  )
+                    #    #await self.buy(symbol, dataframe.iloc[local_index]["timestamp"], close,quantity,  f"BUY"  )
 
-                if self.book.hasCurrentTrade(symbol):
+                if self.hasCurrentTrade(symbol):
                     
-                        gain = self.book.gain(symbol, last["close"]) 
-                        dt = dataframe.iloc[local_index]["datetime"]
+                        gain,ts,pnl = self.buyGain(symbol, last["close"]) 
+                        #logger.info(f"ts {ts}")
+                        time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000
+                        
+                        dt = dataframe.iloc[local_index]["timestamp"]
 
-                        self.book.set_current_price(symbol, last["close"])           
-                        #logger.info(f"gain {symbol} {dt} gain {gain}")
+                        self.set_current_price(symbol, last["close"])           
+                        logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} pnl {pnl}")
 
-                        if gain < -self.gain_perc/2:
-                            #trade = self.book.close(symbol, last["close"])
+                          #if gain < -self.gain_perc/2:
+                        if pnl < -self.max_loss:
+                            #trade = self.close(symbol, last["close"])
                             
-                            trade = await  self.sell(symbol, datetime, last["close"], f"SL"  )
+                            trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
                         
                             #self.add_marker(symbol,"BUY","SL","#000000","arrowDown")
                             #self.del_meta(symbol,"valid")  
                         
                         elif gain > self.gain_perc:
-                            #trade = self.book.close(symbol, last["close"])
-                            trade = await  self.sell(symbol, datetime, last["close"], f"TP"  )
+                
+                            #trade = self.close(symbol, last["close"])
+                            trade = await  self.sell(symbol, dt, last["close"], f"TP"  )
 
                             
 

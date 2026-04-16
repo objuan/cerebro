@@ -53,27 +53,11 @@
 	},
 	"stategies":[
 
-				{
-			   "module": "back_strategy_open_1",
-				"class" : "BackStrategyOpen1",
-				"timeframe" : "1m",
-				"scope" : "BACK",
-				"params" :
-				{
-				 	"gain_perc" : 10,
-                    "volume_min_filter" :1000000,
-                    "trade_last_hh" : 11,
-					"trade_last_mm" : 0,
-					"trade_first_hh" : 5,
-					"min_open_gain": 10
-
-				}
-			},
 			{
 			   "module": "trade_strategy_test",
 				"class" : "TradeStrategyTest",
 				"timeframe" : "1m",
-				"enabled" : true,
+				"enabled" : false,
 				"scope" : "LIVE",
 				"params" :
 				{
@@ -104,14 +88,39 @@
 				}
 			},
 			{
-			   "module": "meta_strategy",
-				"class" : "MetaStrategy",
+			   "module": "max_strategy",
+				"class" : "MaxStrategy",
 				"timeframe" : "1m",
+				"enabled" : true,
+				"scope" : "LIVE",
 				"params" :
 				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :500000,
+                    "trade_last_hh" : 17,
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
+
 				}
-		  },
-				 {
+			},
+				{
+			   "module": "back_strategy_open_1",
+				"class" : "BackStrategyOpen1",
+				"timeframe" : "1m",
+				"scope" : "BACK",
+				"params" :
+				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :1000000,
+                    "trade_last_hh" : 11,
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
+
+				}
+			},
+		 {
 			   "module": "max_strategy",
 				"class" : "MaxStrategy",
 				"enabled" : false,
@@ -156,8 +165,15 @@
 
 				}
 			},
-			
-		{
+			{
+			   "module": "meta_strategy",
+				"class" : "MetaStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+				}
+		  },
+			{
 			    "module": "alarm_strategy",
 				"class" : "AlarmStrategy",
 				"timeframe" : "10s",

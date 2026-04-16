@@ -16,7 +16,7 @@
         (# {{ tradeStore.total }} )
       </div>
       <div>WIN/LOSS <strong>{{ tradeStore.win  }}/{{ tradeStore.loss  }}</strong></div>
-      <div>Slots{{ tickerStore.strategyProp() }}</div>
+     
       <span>
         Ultimo aggiornamento:
          {{ liveData['root.clock'] ? formatUnixDate(liveData['root.clock']) : '...' }}
@@ -77,7 +77,7 @@ import { computed,ref,onMounted,watch } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
 import { formatUnixDate ,formatForTimeInput,mergeDateWithTime, send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { tradeStore } from "@/components/js/tradeStore";
-import { tickerStore } from "@/components/js/tickerStore";
+
 
 const selectedSymTime = ref(null);
 const symSpeed = ref(null)

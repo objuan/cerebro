@@ -3,7 +3,9 @@ import pandas as pd
 import logging
 from datetime import datetime, timedelta   
 import pytz
- 
+from reports.db_dataframe import MetaInfo
+from utils import *
+
 logger = logging.getLogger(__name__)
 
 
@@ -136,3 +138,67 @@ class StrategyUtils:
                 return first_enter
 
               
+    async def compute_open(strategy,symbol,dataframe,local_index,open_count = 15, use_day=True):
+        trade_last_hh = strategy.trade_last_hh
+        last = dataframe.iloc[local_index]
+        if  strategy.market.is_in_time(last["datetime"],
+            get_hour_ms(9,00),get_hour_ms(trade_last_hh,00),use_day):
+            #logger.info(f'{last["datetime"]}')
+
+            if strategy.market.is_in_time(last["datetime"],
+                get_hour_ms(9,30),get_hour_ms(trade_last_hh,00),use_day):
+                #logger.info(f'{last["datetime"]}')
+
+                is_inside=True
+                if not strategy.has_meta(symbol,"open_gap"):
+                    last_close = MetaInfo.get(symbol,"last_close")
+                    if not last_close:
+                        last_close, ts_last_close=  await strategy.client.last_close(symbol,last["datetime"] ) 
+                    
+                    #logger.info(f'last_close {last_close}')
+
+                    if last_close:
+                        strategy.set_meta(symbol,{"open_gap": 100.0* (last["close"] - last_close) / last["close"] })
+
+                        #pre_gain = MetaInfo.get(symbol,"pre_gain")
+                        #logger.info(f"{symbol} t:{last['datetime']} {self.get_meta(symbol,'open_gap')} close:{last['close']} last_close:{last_close}")
+
+                ###### 15 perc ######
+
+                if strategy.market.is_in_time(last["datetime"],
+                        get_hour_ms(9,45),get_hour_ms(trade_last_hh,00),use_day):
+
+                    if not strategy.has_meta(symbol,"open_perc"):
+                        window = dataframe.iloc[local_index-open_count:local_index]
+                        if len(window)>0:   
+                            low = window["low"].min()
+                            high = window["high"].max()
+
+                            l_h_perc = 100.0 * (high - low) / low
+
+                            first = window.iloc[0]
+                            last = window.iloc[-1]
+
+                            perc = 100.0 * (last["close"] - first["open"]) / first["open"]
+                            '''
+                            first = dataframe.iloc[local_index-15]
+                        
+                            low = min(first["low"] , prev["low"])
+                            high = max(first["high"] , prev["high"])
+                                    
+                            l_h_perc = 100.0* (high-low) / low
+                            perc =  100.0 * (prev["close"]- first["open"]) / first["open"]
+                            '''
+                            #logger.info(f"OPEN {symbol} t:{last['datetime']}  OPEN 15M O:{first['open']}  C:{last['close']} perc:{perc} l_h_perc:{l_h_perc} local_index:{local_index} last_idx: { last.name}")
+
+                            strategy.set_meta(symbol, 
+                                    {
+                                        "compute_open" : True,
+                                    "open_high" : high,
+                                    "open_low": low,
+                                    "open_perc" : perc, 
+                                    "open_perc_min_max":l_h_perc,
+                                    "open_close_idx": local_index,
+                                    "open_volume": last["day_volume_history"]   
+                                    } )
+        return strategy.has_meta(symbol,"open_high" )

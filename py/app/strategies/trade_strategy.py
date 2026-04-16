@@ -68,7 +68,17 @@ class TradeStrategy(SmartStrategy):
                             
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
+        if self.bootstrapMode:
+            if not self.has_meta("__trade","init"):
+                self.set_meta("__trade", {"init": True})   
+                history =  self.orderManager.getTradeHistory(None)
+                for trade in history:
+                    if not trade.isClosed():
+                        self.set_meta( trade.symbol, {"last_trade":trade})   
+                        logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
+            return
         
+
         #if not self.backtestMode and self.bootstrapMode:
         #    return
 
@@ -83,7 +93,7 @@ class TradeStrategy(SmartStrategy):
         if local_index<60:
             return
         
-        self.book.set_current_price(symbol, last["close"])    
+        self.set_current_price(symbol, last["close"])    
         
         ##### FIRST ENTER ######
 
@@ -106,7 +116,7 @@ class TradeStrategy(SmartStrategy):
                             #if not self.bootstrapMode:    
                             #    await self.send_event(symbol, "UP", f"UP", f"UP",color="#0B89BB", ring="news")
 
-            #await self.send_property(symbol,self.timeframe , 
+            #await self.set_property(symbol,self.timeframe , 
             #                     {"open_h":  self.get_meta(symbol,"open_high",999999 )}
             #                   )
 
@@ -131,7 +141,7 @@ class TradeStrategy(SmartStrategy):
 
                 #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
 
-                if  not self.has_meta(symbol,"valid") and not self.book.hasCurrentTrade(symbol):
+                if  not self.has_meta(symbol,"valid") and not self.hasCurrentTrade(symbol):
                     #self.set_meta(symbol, {"valid": True }) 
 
                     trend_up =  sma_200 > dataframe.iloc[local_index-60:local_index]["sma_200"].max()
@@ -146,13 +156,14 @@ class TradeStrategy(SmartStrategy):
                         await self.buy(symbol, last["datetime"], buy_price,self.get_quantity(buy_price), f"BUY"  )
 
                 
-                if self.book.hasCurrentTrade(symbol) and self.has_meta(symbol,"valid"):
+                if self.hasCurrentTrade(symbol) and self.has_meta(symbol,"valid"):
                     
                         
-                        gain = self.book.gain(symbol, last["close"]) 
+                        gain,ts = self.buyGain(symbol, last["close"]) 
                         dt = last["datetime"]
+                        time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000
 
-                        #self.book.set_current_price(symbol, last["close"])           
+                        #self.set_current_price(symbol, last["close"])           
                         #logger.info(f"gain {symbol} {dt} gain {gain}")
 
                         if gain < -self.gain_perc:
@@ -160,14 +171,13 @@ class TradeStrategy(SmartStrategy):
                         elif gain > self.gain_perc:
                             trade = await self.sell(symbol, dt, last["close"], -1, f"TP"  )
 
-
                         '''
                         logger.info(f"TIME  {symbol}  {dt}  ") 
 
                         if not self.market.is_in_time(last["datetime"],
                              get_hour_ms(0,0),get_hour_ms(self.trade_last_hh,0),use_day):
                                 
-                                trade = self.book.close(symbol, last["close"])
+                                trade = self.close(symbol, last["close"])
                                 logger.info(f"SELL TIME  {symbol}  {dt}   gain {gain} pnl : {trade.pnl()}")   
 
                                 self.add_marker(symbol,"BUY","TM","#000000","arrowDown")
@@ -176,7 +186,7 @@ class TradeStrategy(SmartStrategy):
         # VOLUME DIFF
         #if volume > self.volume_min_filter:
         vol_diff = volume - prev["day_volume_history"]
-        await self.send_property(symbol,"1m",{"volume_diff":vol_diff})
+        await self.set_property(symbol,"1m",{"volume_diff":vol_diff})
 
         # strenght
         '''
@@ -187,7 +197,7 @@ class TradeStrategy(SmartStrategy):
             v += dataframe.iloc[local_index-i]["day_volume_history"] * dataframe.iloc[local_index-i]["close"]
         v = v / back
         #logger.info(f"{volume} {v} ss {len( [-back,0])}")
-        await self.send_property(symbol,"1m",{"strenght":strength * v})
+        await self.set_property(symbol,"1m",{"strenght":strength * v})
         '''
         
         # MAX LOGIC

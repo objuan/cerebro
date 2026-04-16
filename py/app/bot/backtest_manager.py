@@ -205,7 +205,7 @@ class BacktestManager:
         '''
      
         await self.active_strategy.onBackEnd()
-        trades= json.dumps([t.toDict() for t in self.active_strategy.book.trades])
+        trades= json.dumps([t.toDict() for t in self.active_strategy._book.trades])
 
         script=self.active_strategy.code
 
@@ -235,7 +235,7 @@ class BacktestManager:
 
         logger.info(f"BACK END")
 
-        return self.active_strategy.book.trades
+        return self.active_strategy._book.trades
 
     def reset(self):
         pass

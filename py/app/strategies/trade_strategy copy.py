@@ -129,17 +129,7 @@ class TradeStrategy(SmartStrategy):
 
 
     ######################################
-    async def send_property(self,symbol:str, timeframe ,  value ):
-        if self.backtestMode: return
 
-        if not self.backtestMode and not self.bootstrapMode:
-            #logger.info("send")
-            await self.client.send_strategy_prop("TRADE", symbol,timeframe,value)
-        else:
-            #logger.info(f"send1 {self.backtestMode} {self.bootstrapMode}")
-            pass
-            #self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
-    
     async def send_trade_order(self,symbol:str,type:str,side:str, quantity:str, price, tp, sl,  desc:str):
         if self.backtestMode: return
 
@@ -550,7 +540,7 @@ class TradeStrategy(SmartStrategy):
                 else:
                     await self.send_event(symbol, "MAX", f"max cross >",f"max over ",color="#F3A90A", ring="chime")
 
-        await self.send_property(symbol,self.timeframe , 
+        await self.set_property(symbol,self.timeframe , 
                                  {"trend_len": trend if  not pd.isna(trend) else 0,
                                 "trend_perc" :diff_perc if  not pd.isna(diff_perc) else 0,
                                  "trend_perc_all" :diff_all if  not pd.isna(diff_all) else 0} )

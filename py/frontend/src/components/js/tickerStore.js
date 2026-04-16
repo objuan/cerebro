@@ -4,7 +4,7 @@ export const strategyStore = reactive({
     items: {},
     push(prop){
         
-       // console.log("strategyStore",prop)
+        console.log("strategyStore",prop)
         const key =  `${prop.symbol}.${prop.timeframe}.${prop.source}`
 
         if (!this.items[key]) 
@@ -55,9 +55,9 @@ export const tickerStore = reactive({
         this.items[prop.symbol].strategy.push(prop)
     }
   },
-  strategyProp(){
+  tradeProp(symbol, timeframe){
      if (this.items[""]) {
-        return this.items[""].strategy;
+        return this.items[""].strategy.get(symbol,timeframe,"TRADE");
     }
     else return null;
   },

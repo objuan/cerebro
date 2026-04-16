@@ -57,6 +57,7 @@ class Strategy:
         self.plots = []
         self.legend = []
         self.marker_map= {}
+        self.props=None
     
     def load(self,strat_def):
     
@@ -639,7 +640,8 @@ class Strategy:
              self._meta[symbol][k] = v
     #########
 
-    async def send_property(self,symbol:str, timeframe ,  value ):
+    '''
+    async def set_property(self,symbol:str, timeframe ,  value ):
         if self.backtestMode: return
 
         if not self.backtestMode and not self.bootstrapMode:
@@ -649,7 +651,8 @@ class Strategy:
             #logger.info(f"send1 {self.backtestMode} {self.bootstrapMode}")
             pass
             #self.add_marker(symbol,"SPOT",name,"#060806","square",position ="atPriceTop")
-    
+    '''
+
     async def send_trade_order(self,symbol:str,type:str,side:str, quantity:str, price, tp, sl,  desc:str):
         if self.backtestMode: return
 

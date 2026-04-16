@@ -34,18 +34,19 @@ class TradeStrategyTest(SmartStrategy):
         self.gain_perc = self.params["gain_perc"]   
         self.trade_last_hh= self.params["trade_last_hh"]
         self.trade_first_hh= 5#self.params["trade_first_hh"]
-
-        self.slot_count=2
         
         capital = self.props.get("trade.trade_balance_USD")
         #trade_risk = self.props.get("trade.trade_risk")
         self.loss_by_trade = 100#capital * trade_risk
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
 
-        
+        await self.set_property( "__general", {"trade_enabled": True, "test" : "gg"}  )
+
+        await self.sync_properties()
         pass
 
     ###############################
+
     def populate_indicators(self) :
       
         day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
@@ -60,7 +61,6 @@ class TradeStrategyTest(SmartStrategy):
         #sl_price = price - price / 100 * self.gain_perc
         return int(self.loss_by_trade  / price )
     
-
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
         if self.bootstrapMode:
@@ -71,8 +71,15 @@ class TradeStrategyTest(SmartStrategy):
                     if not trade.isClosed():
                         self.set_meta( trade.symbol, {"last_trade":trade})   
                         logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
-            return
+                return
         
+        '''
+        if not self.bootstrapMode:
+            tp_enable =self.props.get(f"strategy.{symbol}.tp",True)
+            sl_enable =self.props.get(f"strategy.{symbol}.sl",True)
+
+            logger.info(f"{symbol}  tp {tp_enable} sl {sl_enable}")
+        '''
         use_day=True
 
         #logger.info(f"TRADE_SYMBOL_AT {symbol} {local_index}  {dataframe.iloc[local_index]['timestamp']}")  
@@ -88,13 +95,18 @@ class TradeStrategyTest(SmartStrategy):
         if volume> 1_000_000:
             if not self.hasCurrentTrade(symbol):
             
-                if last["sma_9"] >last["sma_15"]:
+                #if last["sma_9"] >last["sma_15"]:
                     await self.buy(symbol,last["timestamp"],close,100,label=f"up")   
 
             else:
-                gain = self.buyGain(symbol,close)
+                gain, ts = self.buyGain(symbol,close)
 
-                logger.info(f"SELL GAIN {symbol} {gain}  ")      
+                time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000
+                self.set_current_price(symbol, last["close"])   
 
-                if gain > 0.5:
-                    trade = await self.sell(symbol,last["timestamp"],close,label=f"gain {gain:.2f}%")                  
+                logger.info(f"SELL GAIN {symbol} {gain}  time_elapsed_secs {time_elapsed_secs} ")      
+
+                if gain > 1:
+                    if (self.tp_enabled(symbol)):
+
+                        trade = await self.sell(symbol,last["timestamp"],close,label=f"gain {gain:.2f}%")                  

@@ -192,8 +192,9 @@ class OrderBook:
         ts = self.position.entry_dt[symbol]
 
         gain =  100.0 * (actual_price- entry) / entry
-        
-        return gain,ts
+        sell = qty * actual_price
+        buy = qty * entry
+        return gain,ts, sell-buy
     
     def set_current_price(self, symbol, price): 
         if symbol not in self.position.positions:

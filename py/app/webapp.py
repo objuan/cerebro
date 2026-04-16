@@ -1526,8 +1526,20 @@ async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Opti
         logger.error(f"\n {all}")
         logger.error("Error",exc_info=True)
         return {"status": "ko"}
-    
-########
+   
+
+@app.post("/live/strategy/set_prop")
+async def live_strategy_set_prop( symbol,  value):
+    logger.info(f"SET STARTEGY PROP {symbol} {value}")   
+    try:
+        await strategy.set_prop(symbol,value)
+
+        return JSONResponse("")
+    except:
+        logger.error("Error",exc_info=True)
+        return {"status": "ko"}
+     
+######################################################
 
 @app.websocket("/ws/live")
 async def ws_tickers(ws: WebSocket):

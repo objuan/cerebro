@@ -3,33 +3,79 @@
     <div class="chart-header">
       <div class="top-row">
          <strong class="text-uppercas symbol">({{number}} )
-          <span class="symbol">{{ currentSymbol }} 
+            <span class="symbol">{{ currentSymbol }} 
+              
+            </span>
             
-          </span>
-          
-          <span class="positon">#{{ position }}</span>
-        </strong>
+            <span class="positon">#{{ position }}</span>
+          </strong>
 
-        <div class="time-bar" style="width: 20px;height: 10px;">
-           <div class="time-bar-fill" :style="{ width: progress(tickerRef) + '%' }"></div>
+          <div class="time-bar" style="width: 20px;height: 10px;">
+            <div class="time-bar-fill" :style="{ width: progress(tickerRef) + '%' }"></div>
           </div>
           
-        <select 
-          v-model="currentSymbol" 
-          @change="onChangeSymbols"
-          class=" form-select-sm bg-dark text-white border-secondary "
-        >
-          <option
-            v-for="s in symbolList"
-            :key="s"
-            :value="s"
+          <select 
+            v-model="currentSymbol" 
+            @change="onChangeSymbols"
+            class=" form-select-sm bg-dark text-white border-secondary "
           >
-            {{ s }}
-          </option>
-        </select>
-        <!-- -->
-        PNL {{tradeStore.symbolSummary(currentSymbol)?.pnl.toFixed(1)}}$
+            <option
+              v-for="s in symbolList"
+              :key="s"
+              :value="s"
+            >
+              {{ s }}
+            </option>
+          </select>
 
+          <!-- -->
+          <div>
+          PNL {{tradeStore.symbolSummary(currentSymbol)?.pnl.toFixed(1)}}$
+          </div>
+          <!-- -->
+          <table style="width:100px">
+            <tr>
+               <td>
+                    <div >
+                      BUY
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              v-model="strategy_buy"
+                              id="rrCheck1"
+                            />
+                      </div>
+              </td>
+              <td>
+                  
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div >
+                  TP
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          v-model="strategy_tp"
+                          id="rrCheck2"
+                        />
+                  </div>
+              </td>
+              <td>
+                  <div >
+                      SL
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              v-model="strategy_sl"
+                              id="rrCheck1"
+                            />
+                      </div>
+              </td>
+            </tr>
+          </table>
+       
         </div>
 
         <div  class="middle-row" style="margin-left:20px; 
@@ -97,6 +143,7 @@ import { staticStore } from '@/components/js/staticStore.js';
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { tradeStore } from "@/components/js/tradeStore";
 
+
 const props = defineProps({
   id: { type: String, required: true },
   number: { type: Number, required: true },
@@ -104,6 +151,7 @@ const props = defineProps({
   timeframe: { type: String, required: false ,default:"10s"},
   plot_config: { type: Object, default: () => ({ main_plot: {} }) }
 });
+
 
 const widgetRefs = ref({})
 
@@ -119,6 +167,9 @@ const rows = ref(1)
 const cols = ref(1)
 const cells = ref([])  // contiene i widget attivi
 const position = ref(null);
+const strategy_tp = ref(true)
+const strategy_sl = ref(true)
+const strategy_buy = ref(true)
 
 const emit = defineEmits(['select'])
 function handleSelect() {
@@ -214,6 +265,10 @@ const onChangeSymbols = async () => {
           val["type"] = "POSITION"
           onPositionUpdated(val);
     });
+
+        strategy_sl.value = staticStore.get("strategy."+currentSymbol.value+".sl", true)
+    strategy_tp.value = staticStore.get("strategy."+currentSymbol.value+".tp", true)
+    strategy_buy.value = staticStore.get("strategy."+currentSymbol.value+".buy", true)
     
     //saveProp( get_layout_key("symbol"), currentSymbol.value );
 };
@@ -252,6 +307,10 @@ onMounted( async() => {
           val["type"] = "POSITION"
           onPositionUpdated(val);
     });
+
+    strategy_sl.value = staticStore.get("strategy."+currentSymbol.value+".sl", true)
+    strategy_tp.value = staticStore.get("strategy."+currentSymbol.value+".tp", true)
+    strategy_buy.value = staticStore.get("strategy."+currentSymbol.value+".buy", true)
     
     onChangeLayouts()
 });
@@ -370,7 +429,24 @@ watch(
   }
 )
 
+watch(strategy_tp,  async (newValue) => {
+ // console.log("quantity",newValue, oldValue)
 
+   staticStore.set("strategy."+currentSymbol.value+".tp", newValue)
+
+});
+watch(strategy_sl,  async (newValue) => {
+ // console.log("quantity",newValue, oldValue)
+
+   staticStore.set("strategy."+currentSymbol.value+".sl", newValue)
+
+});
+watch(strategy_buy,  async (newValue) => {
+  //console.log("quantity",newValue, oldValue)
+
+   staticStore.set("strategy."+currentSymbol.value+".buy", newValue)
+
+});
 </script>
 
 <style scoped>
