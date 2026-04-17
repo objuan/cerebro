@@ -387,7 +387,7 @@ class LiveManager:
         for symbol in symbols:
 
             #await self.fetcher._align_data(symbol, "1d")
-            if False: #self.need_update(symbol):
+            if self.need_update(symbol):
 
                 max_ts = self.fetcher.get_max_time(symbol, "1d")
                 if not max_ts:

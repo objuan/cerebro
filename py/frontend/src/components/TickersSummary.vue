@@ -167,7 +167,7 @@
               </td>
             </tr>
             <tr v-else>
-              <td  style="color:blue" class="volume" colspan="2" v-if="lastTrade(item.symbol).isOpen" >{{formatValue(item.strategy.get(item.symbol,"1m","TRADE")?.volume_diff)}} OPEN {{ tradeStore.currentGain(lastTrade(item.symbol)).toFixed(1) }}% </td>
+              <td  style="color: #F00;" class="volume" colspan="2" v-if="lastTrade(item.symbol).isOpen" >{{formatValue(item.strategy.get(item.symbol,"1m","TRADE")?.volume_diff)}} OPEN {{ tradeStore.currentGain(lastTrade(item.symbol)).toFixed(1) }}% </td>
               <td   style="color:black" class="volume" colspan="2" v-else >Close {{ tradeStore.currentGain(lastTrade(item.symbol)).toFixed(1) }}%</td>
             </tr>
 

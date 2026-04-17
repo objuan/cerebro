@@ -77,7 +77,7 @@ class MaxStrategy(SmartStrategy):
         capital = self.props.get("trade.trade_balance_USD")
         #trade_risk = self.props.get("trade.trade_risk")
         self.loss_by_trade = 100#capital * trade_risk
-        self.max_loss = 5
+        self.max_loss = 40
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
         pass
 
@@ -134,7 +134,7 @@ class MaxStrategy(SmartStrategy):
         else:
             if not self.has_meta(symbol,"first_enter_marker"):
                 self.set_meta(symbol, {"first_enter_marker": True })
-                await self.add_marker(symbol,"SPOT","X","First","#F6F7F8","square",position ="atPriceTop",timestamp=self.get_meta(symbol,"first_enter"),value=close)
+                await self.add_marker(symbol,"SPOT","X","First","#F6F7F8","square",position ="atPriceTop",timestamp=self.get_meta(symbol,"first_enter"),value=close,ring="")
                 
          # ##### OPEN CLOSE INFOS #######
         if not self.has_meta(symbol,"compute_open"):
@@ -145,11 +145,11 @@ class MaxStrategy(SmartStrategy):
         #######################################
         #  
         if  self.market.is_in_time(last["datetime"],
-            get_hour_ms(6,0),get_hour_ms(self.trade_last_hh+20,00),use_day):
+            get_hour_ms(6,0),get_hour_ms(self.trade_last_hh,00),use_day):
         
             if not self.has_meta(symbol,"enter_time"):
                 self.set_meta(symbol, {"enter_time": last["timestamp"] })   
-                await self.add_marker(symbol,"SPOT","E","Enter Time","#F6F7F86F","square",position ="atPriceTop")
+                await self.add_marker(symbol,"SPOT","E","Enter Time","#F6F7F86F","square",position ="atPriceTop", ring="")
 
             #########
             
@@ -162,9 +162,17 @@ class MaxStrategy(SmartStrategy):
                 
                 if not self.has_meta(symbol,"volume"):
                     self.set_meta(symbol,{"volume":"OK"})
-                    await self.add_marker(symbol,"SPOT","VOL",f"VOL > {self.volume_min_filter}","#BB0B46",position ="atPriceTop")
+                    await self.add_marker(symbol,"SPOT","VOL",f"VOL > {self.volume_min_filter}","#BB0B46",position ="atPriceTop",ring="chime")
        
 
+                if self.has_meta(symbol,"compute_open"):
+                    if not self.has_meta(symbol,"up_done" ):
+                        open_perc_min_max = self.get_meta(symbol,"open_perc_min_max",0)   
+                        max_h = self.get_meta(symbol,"open_high",999999 )
+                        if last["close"] > max_h and open_perc_min_max>5:
+                               self.set_meta(symbol,{"up_done":True})
+                               await self.add_marker(symbol,"SPOT","UP","UP","#4C9C00","small_square",position ="atPriceTop")
+                                 
                 #logger.info(f"TRADE {symbol} {dataframe.iloc[local_index]['timestamp']}  valid {self.has_meta(symbol,'valid')}  buy_time {self.get_meta(symbol,'buy_time')}")    
                 if not self.hasCurrentTrade(symbol):
                      pass
@@ -187,20 +195,13 @@ class MaxStrategy(SmartStrategy):
 
                           #if gain < -self.gain_perc/2:
                         if pnl < -self.max_loss:
-                            #trade = self.close(symbol, last["close"])
-                            
-                            trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
-                        
-                            #self.add_marker(symbol,"BUY","SL","#000000","arrowDown")
-                            #self.del_meta(symbol,"valid")  
-                        
-                        elif gain > self.gain_perc:
-                
-                            #trade = self.close(symbol, last["close"])
-                            trade = await  self.sell(symbol, dt, last["close"], f"TP"  )
-
-                            
-
+                            if self.sl_enabled(symbol):
+                                trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
+                                                
+                        elif gain > 1:#self.gain_perc:
+                            if self.tp_enabled(symbol):
+                                #trade = self.close(symbol, last["close"])
+                                trade = await  self.sell(symbol, dt, last["close"], f"TP"  )
 
                
     async def compute_first_enter(self,symbol,dataframe,local_index, use_day,value):

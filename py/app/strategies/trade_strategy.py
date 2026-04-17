@@ -185,8 +185,8 @@ class TradeStrategy(SmartStrategy):
 
         # VOLUME DIFF
         #if volume > self.volume_min_filter:
-        vol_diff = volume - prev["day_volume_history"]
-        await self.set_property(symbol,"1m",{"volume_diff":vol_diff})
+        #vol_diff = volume - prev["day_volume_history"]
+        #await self.set_property(symbol,"1m",{"volume_diff":vol_diff})
 
         # strenght
         '''

@@ -31,7 +31,9 @@ class SmartStrategy(Strategy):
         self.propMap = {}
         #self.slot_count=2
 
-
+    '''
+    ring: [default, alarm, chime, alert1, new_symbol, news ]
+    '''
     async def add_marker(self, symbol,type, label,desc,color,shape="small_square", position ="atPriceTop",
                     _timeframe=None, sourceField = "close", value=None,timestamp=None,ring="news"):
         timeframe = self.timeframe if _timeframe==None else _timeframe

@@ -4,7 +4,7 @@ export const strategyStore = reactive({
     items: {},
     push(prop){
         
-        console.log("strategyStore",prop)
+       // console.log("strategyStore",prop)
         const key =  `${prop.symbol}.${prop.timeframe}.${prop.source}`
 
         if (!this.items[key]) 

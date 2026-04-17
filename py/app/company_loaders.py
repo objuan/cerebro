@@ -131,7 +131,7 @@ class Yahoo:
             else:
                 toupdate=True
         
-        toupdate=False
+        #toupdate=False
         if toupdate:
             logger.debug(f"GETTING {symbol}")
             try:

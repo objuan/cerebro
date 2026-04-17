@@ -39,6 +39,8 @@ class MetaStrategy(SmartStrategy):
 
     def populate_indicators(self) :
         
+        day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
+
         '''
         last_close = self.addIndicator(self.timeframe,META("last_close","last_close"))
         self.add_legend(last_close,"last_close", "last_close", "#000000")
@@ -121,6 +123,14 @@ class MetaStrategy(SmartStrategy):
             gap = 100 * (close - MetaInfo.get(symbol,"last_open")) /  MetaInfo.get(symbol,"last_open")
             MetaInfo.set(symbol,{"gap" : gap})
 
+        last = dataframe.iloc[local_index]
+        prev = dataframe.iloc[local_index-1]
+        volume = last["day_volume_history"]    
+
+        # VOLUME DIFF
+        #if volume > self.volume_min_filter:
+        vol_diff = volume - prev["day_volume_history"]
+        await self.set_property(symbol,{"volume_diff":vol_diff})
     ###########
 
 

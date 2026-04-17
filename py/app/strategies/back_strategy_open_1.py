@@ -224,7 +224,7 @@ class BackStrategyOpen1(_BackStrategy):
                 
                 if self.hasCurrentTrade(symbol):
                     
-                        gain,ts = self.buyGain(symbol, last["close"]) 
+                        gain,ts,pnl = self.buyGain(symbol, last["close"]) 
                         time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000
                 
                         if not self.has_meta(symbol,"max_gain"):  self.set_meta(symbol, {"max_gain": gain })

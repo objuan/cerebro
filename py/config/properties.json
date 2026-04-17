@@ -2,17 +2,17 @@
   "trade": {
     "rr": 2,
     "trade_risk": 0.1,
-    "day_risk": 0,
-    "trade_balance_USD": 500,
+    "day_risk": 0.1,
+    "trade_balance_USD": 50,
     "day_balance_USD": 1000
   },
   "home": {
-    "grid": "1_1"
+    "grid": "1_2"
   },
   "chart": {
     "1": {
-      "grid": "2_1",
-      "symbol": "BIRD",
+      "grid": "2_2",
+      "symbol": "ONFO",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -35,7 +35,7 @@
           "timeframe": "10s"
         },
         "3": {
-          "timeframe": "15m"
+          "timeframe": "1d"
         }
       },
       "1_2": {
@@ -55,8 +55,8 @@
       }
     },
     "2": {
-      "grid": "2_2",
-      "symbol": "ONCO",
+      "grid": "1_1",
+      "symbol": "BTOG",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -102,8 +102,8 @@
       }
     },
     "3": {
-      "grid": "2_1",
-      "symbol": "SKYQ",
+      "grid": "2_2",
+      "symbol": "MYSE",
       "indicator": {
         "1m": "SMA",
         "5m": "SMA",
@@ -113,15 +113,26 @@
         "2": {
           "timeframe": "10s"
         }
+      },
+      "2_2": {
+        "1": {
+          "timeframe": "5m"
+        },
+        "3": {
+          "timeframe": "1d"
+        },
+        "4": {
+          "timeframe": "10s"
+        }
       }
     },
     "start_len": {
-      "1m": 154.3863499410952,
-      "5m": 407.58470244107747,
-      "10s": 151.23813440902347,
-      "1d": 97.65316869303433,
+      "1m": 443.8626986628159,
+      "5m": 40.55417868952725,
+      "10s": 183.30956768373596,
+      "1d": 606.7666042730244,
       "30s": 24.27980041338367,
-      "15m": 571.6327248800636
+      "15m": 119.71124467818683
     }
   },
   "event": {
@@ -445,7 +456,8 @@
       "quantity": 100
     },
     "ONFO": {
-      "quantity": 100
+      "quantity": 100,
+      "quantity_rr": false
     },
     "LIDR": {
       "quantity": 100
@@ -801,7 +813,7 @@
   },
   "summary": {
     "filter": {
-      "min_volume": "850000",
+      "min_volume": "1000000",
       "min_volume1": 400000
     }
   },
@@ -832,6 +844,23 @@
     },
     "NCI": {
       "tp": true
+    },
+    "ONFO": {
+      "tp": false
+    },
+    "RECT": {
+      "tp": false,
+      "sl": false
+    },
+    "RMSG": {
+      "tp": true
+    },
+    "WSHP": {
+      "sl": true,
+      "tp": true
+    },
+    "BTOG": {
+      "sl": false
     }
   }
 }
