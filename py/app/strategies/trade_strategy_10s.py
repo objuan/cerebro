@@ -170,11 +170,11 @@ class TradeStrategy10S(SmartStrategy):
                 #prev_close = prev["close"]
                 #break_max = last["close"] >= MAX and prev_close < MAX
                 
-                '''
+                
                 if (last["MAX"]>  prev["MAX"] ):
                     await self.add_marker(symbol, "SPOT", "MAX10", f"max 10",color="#31F30A", ring="alert1")
             
-
+                '''
                 if last["close"] > self.get_meta(symbol,"max_day_price"):
                     await self.add_marker(symbol, "SPOT", "DAY_MAX", f"day max {day_gain:.1f}",color="#31F30A", ring="alert1")  
                 '''

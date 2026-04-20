@@ -7,12 +7,12 @@
     "day_balance_USD": 1000
   },
   "home": {
-    "grid": "1_2"
+    "grid": "1_1"
   },
   "chart": {
     "1": {
       "grid": "2_2",
-      "symbol": "ONFO",
+      "symbol": "YXT",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -55,8 +55,8 @@
       }
     },
     "2": {
-      "grid": "1_1",
-      "symbol": "BTOG",
+      "grid": "2_2",
+      "symbol": "SNBR",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -127,10 +127,10 @@
       }
     },
     "start_len": {
-      "1m": 443.8626986628159,
-      "5m": 40.55417868952725,
-      "10s": 183.30956768373596,
-      "1d": 606.7666042730244,
+      "1m": 248.1396898395143,
+      "5m": 187.56762335411622,
+      "10s": 1165.2486996657155,
+      "1d": 459.3977977243788,
       "30s": 24.27980041338367,
       "15m": 119.71124467818683
     }
@@ -797,6 +797,14 @@
     "SNAL": {
       "quantity": 100,
       "quantity_rr": false
+    },
+    "EFOI": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "DOMO": {
+      "quantity": 100,
+      "quantity_rr": false
     }
   },
   "back": {
@@ -853,7 +861,7 @@
       "sl": false
     },
     "RMSG": {
-      "tp": true
+      "tp": false
     },
     "WSHP": {
       "sl": true,
@@ -861,6 +869,22 @@
     },
     "BTOG": {
       "sl": false
+    },
+    "ABLV": {
+      "tp": false,
+      "sl": true
+    },
+    "GXAI": {
+      "tp": true
+    },
+    "YXT": {
+      "tp": false
+    },
+    "EFOI": {
+      "tp": true
+    },
+    "SNBR": {
+      "tp": true
     }
   }
 }

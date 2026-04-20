@@ -564,7 +564,23 @@ class MuloLiveClient:
     #######################
     #######################
     
-    def fist_day_price(self, symbol: str):
+    def get_price_at_dt(self, symbol: str, unix_time):
+
+        df = self.get_df(f"""
+            SELECT open
+            FROM ib_ohlc_history
+            WHERE symbol='{symbol}' AND timeframe='1m'
+            AND timestamp > {unix_time}
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """)
+
+        if len(df) > 0:
+            return (float(df.iloc[0]["open"]), unix_time)
+        else:
+            return (0.01, 0)
+        
+    def first_day_price(self, symbol: str):
 
         if not self.sym_mode:
             base_time = datetime.now(tz=ZoneInfo("Europe/Rome"))

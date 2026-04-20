@@ -202,3 +202,21 @@ class StrategyUtils:
                                     "open_volume": last["day_volume_history"]   
                                     } )
         return strategy.has_meta(symbol,"open_high" )
+    
+    async def get_last_close(strategy,symbol, lastCandle, addMarker):
+        if not strategy.has_meta(symbol,"last_close"):
+            last_close, ts_last_close=  await strategy.client.last_close(symbol,lastCandle["datetime"] ) 
+            strategy.set_meta(symbol,{"last_close": last_close})
+            if addMarker:
+                #logger.info(f"get_last_close {symbol} {last_close}")
+                await strategy.add_marker(symbol,"SPOT","=","Last","#000000","square",position ="atPriceTop",timestamp=lastCandle["timestamp"],value=last_close)
+
+        return strategy.get_meta(symbol,"last_close")
+
+
+    async def get_first_day_price(strategy,symbol, lastCandle):
+        if not strategy.has_meta(symbol,"first_day_price"):
+            first_day_price, ts_last_close=  await strategy.client.first_day_price(symbol,lastCandle["datetime"] ) 
+            strategy.set_meta(symbol,{"first_day_price": first_day_price})
+        return strategy.get_meta(symbol,"first_day_price")
+

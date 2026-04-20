@@ -198,7 +198,7 @@ class MaxStrategy(SmartStrategy):
                             if self.sl_enabled(symbol):
                                 trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
                                                 
-                        elif gain > 1:#self.gain_perc:
+                        elif gain > self.gain_perc:
                             if self.tp_enabled(symbol):
                                 #trade = self.close(symbol, last["close"])
                                 trade = await  self.sell(symbol, dt, last["close"], f"TP"  )

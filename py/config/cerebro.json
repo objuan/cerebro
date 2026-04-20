@@ -91,7 +91,7 @@
 			   "module": "max_strategy",
 				"class" : "MaxStrategy",
 				"timeframe" : "1m",
-				"enabled" : true,
+				"enabled" : false,
 				"scope" : "LIVE",
 				"params" :
 				{
@@ -119,9 +119,27 @@
 				}
 			},
 				{
+			   "module": "back_strategy_max_day",
+				"class" : "BackStrategyMaxDay",
+				"timeframe" : "1m",
+				"enabled" : false,
+				"scope" : "BACK",
+				"params" :
+				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :1000000,
+                    "trade_last_hh" : 11,
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
+
+				}
+			},
+				{
 			   "module": "back_strategy_open_1",
 				"class" : "BackStrategyOpen1",
 				"timeframe" : "1m",
+				"enabled" : false,
 				"scope" : "BACK",
 				"params" :
 				{
@@ -208,10 +226,10 @@
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,
-				"mode" : "live",
+				"mode" : "sym",
 				"mode1" : "live|offline|sym",
 				"debug_symbols" : ["EDHL"],
-				"start_scan" : "live",
+				"start_scan" : "keep_last_session",
 				"start_scan1" : "keep_last_session|debug|live",
 				"start_sym_time" : "2026-03-20 10:00:00",
 				"history_provider" :"ib",
