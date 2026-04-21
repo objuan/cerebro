@@ -132,7 +132,7 @@ class TradeStrategy10S(SmartStrategy):
         # str= self.addIndicator(self.timeframe,VolumeStrength("str","close","base_volume", 6))
         ema =  self.addIndicator(self.timeframe,EMA("ema","quote_volume",6))
         self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
-        max= self.addIndicator(self.timeframe,MAX("MAX","close",60))
+        max= self.addIndicator(self.timeframe,MAX("MAX","close",6*10))
 
         #chain= self.addIndicator(self.timeframe,CHAIN("chain","close",3))
       
@@ -163,7 +163,7 @@ class TradeStrategy10S(SmartStrategy):
         gain2 = (last["close"] - prev2["close"]) / prev2["close"] * 100    
 
         if  self.market.is_in_time(last["datetime"],
-            get_hour_ms(5,0),get_hour_ms(self.trade_last_hh,00),use_day):
+            get_hour_ms(4,0),get_hour_ms(self.trade_last_hh,00),use_day):
         
 
             if volume > self.volume_min_filter:
@@ -171,8 +171,8 @@ class TradeStrategy10S(SmartStrategy):
                 #break_max = last["close"] >= MAX and prev_close < MAX
                 
                 
-                if (last["MAX"]>  prev["MAX"] ):
-                    await self.add_marker(symbol, "SPOT", "MAX10", f"max 10",color="#31F30A", ring="alert1")
+                #if (last["MAX"]>  prev["MAX"] ):
+                #    await self.add_marker(symbol, "SPOT", "MAX10", f"max 10",color="#31F30A", ring="alert1")
             
                 '''
                 if last["close"] > self.get_meta(symbol,"max_day_price"):

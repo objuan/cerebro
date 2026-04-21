@@ -66,6 +66,8 @@ class Strategy:
         self.scope =  strat_def["scope"] if "scope" in strat_def else ""
         self.timeframe =  SECONDS_TO_TIMEFRAME[strat_def["timeframe"]]
 
+        logger.info(f"timeframe {self.timeframe}")
+
     def get_fundamentals(self,symbol)->pd.DataFrame:
         return self.client.get_fundamentals(symbol)
    
@@ -176,6 +178,7 @@ class Strategy:
                     idx=idx+1
                 except:
                     logger.error(f"trade_symbol_at  {symbol} index {global_idx}" , exc_info=True)
+                    break
 
         self.bootstrapMode=False
         logger.info(f"bootstrap {self.__class__} tf:{self.timeframe } DONE")   

@@ -21,7 +21,115 @@ from order_book import *
 
 ########################
 
+class STOCH_RSI(Indicator):
+    def __init__(self, target, period=14, smooth_k=3, smooth_d=3):
+        super().__init__([target])
+        self.target = target
+        self.n = period
+        self.smooth_k = smooth_k
+        self.smooth_d = smooth_d
+        self.mem = {}
 
+    def compute_fast(self, symbol, dataframe, symbol_idx, from_local_index):
+        dest = dataframe[self.target].to_numpy()
+        close = dataframe["close"].to_numpy()
+
+        if symbol not in self.mem:
+            self.mem[symbol] = {
+                "avg_gain": 0.0,
+                "avg_loss": 0.0,
+                "count": 0,
+                "last_close": None,
+                "rsi_buffer": [],
+                "stoch_buffer": [],
+                "k_buffer": []
+            }
+
+        m = self.mem[symbol]
+        n = self.n
+
+        for i_idx in range(max(0, from_local_index), len(symbol_idx)):
+            idx = symbol_idx[i_idx]
+
+            # --- INIT ---
+            if m["last_close"] is None:
+                m["last_close"] = close[idx]
+                dest[idx] = np.nan
+                continue
+
+            delta = close[idx] - m["last_close"]
+            m["last_close"] = close[idx]
+
+            gain = max(delta, 0)
+            loss = max(-delta, 0)
+
+            m["count"] += 1
+
+            # --- RSI (Wilder / RMA) ---
+            if m["count"] < n:
+                m["avg_gain"] += gain
+                m["avg_loss"] += loss
+                dest[idx] = np.nan
+                continue
+
+            elif m["count"] == n:
+                m["avg_gain"] = (m["avg_gain"] + gain) / n
+                m["avg_loss"] = (m["avg_loss"] + loss) / n
+
+            else:
+                m["avg_gain"] = (m["avg_gain"] * (n - 1) + gain) / n
+                m["avg_loss"] = (m["avg_loss"] * (n - 1) + loss) / n
+
+            # RSI
+            if m["avg_loss"] == 0:
+                rsi = 100
+            else:
+                rs = m["avg_gain"] / m["avg_loss"]
+                rsi = 100 - (100 / (1 + rs))
+
+            # --- STOCH RSI ---
+            m["rsi_buffer"].append(rsi)
+            if len(m["rsi_buffer"]) > n:
+                m["rsi_buffer"].pop(0)
+
+            if len(m["rsi_buffer"]) < n:
+                dest[idx] = np.nan
+                continue
+
+            low = min(m["rsi_buffer"])
+            high = max(m["rsi_buffer"])
+
+            if high - low == 0:
+                stoch = 0.0   # TradingView
+            else:
+                stoch = (rsi - low) / (high - low)
+
+            stoch *= 100
+
+            # --- %K ---
+            m["stoch_buffer"].append(stoch)
+            if len(m["stoch_buffer"]) > self.smooth_k:
+                m["stoch_buffer"].pop(0)
+
+            if len(m["stoch_buffer"]) < self.smooth_k:
+                dest[idx] = np.nan
+                continue
+
+            k = sum(m["stoch_buffer"]) / self.smooth_k
+
+            # --- %D ---
+            m["k_buffer"].append(k)
+            if len(m["k_buffer"]) > self.smooth_d:
+                m["k_buffer"].pop(0)
+
+            if len(m["k_buffer"]) < self.smooth_d:
+                dest[idx] = np.nan
+                continue
+
+            d = sum(m["k_buffer"]) / self.smooth_d
+
+            # OUTPUT TradingView = %K (default)
+            dest[idx] = k
 
 #################
 
@@ -77,7 +185,7 @@ class MaxStrategy(SmartStrategy):
         capital = self.props.get("trade.trade_balance_USD")
         #trade_risk = self.props.get("trade.trade_risk")
         self.loss_by_trade = 100#capital * trade_risk
-        self.max_loss = 40
+        self.max_loss = 5
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
         pass
 
@@ -88,11 +196,13 @@ class MaxStrategy(SmartStrategy):
         gain = self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
         max_day = self.addIndicator(self.timeframe,MAX_DAY("max_day","close" ) )
+        rsi = self.addIndicator(self.timeframe,STOCH_RSI("rsi"))
 
         self.add_plot(sma_9, "sma_9","#a70000", "main", style="SparseDotted", lineWidth=2)
         self.add_plot(max_day, "max_day","#a79600", "main",  lineWidth=1)
 
-        self.add_plot(day_volume_history, "day_volume_history","#0318d3", "sub1", style="Solid", lineWidth=1)
+        #self.add_plot(day_volume_history, "day_volume_history","#0318d3", "sub1", style="Solid", lineWidth=1)
+        self.add_plot(rsi, "rsi","#0318d3", "sub1", style="Solid", lineWidth=1)
 
 
     def get_quantity(self,price):

@@ -420,12 +420,13 @@ if __name__ =="__main__":
     
         results= []
         tot_gain=0.0
-        for date in ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"]: 
+        for date in ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
+                     ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20"]: 
 
             for hh in [11]: #11
                 for min_day_volume in [500_000]:
 
-                    for gain_perc in [10]:
+                    for gain_perc in [20]:
 
 
                         logger.info(f"=========  PROCESS  {date} ====================")
@@ -445,8 +446,8 @@ if __name__ =="__main__":
                             "symbols": list,
                             "dt_from": f"{date} 2:00:00", # UTC format
                             "dt_to": f"{date} 23:59:00",
-                            "module" : "strategies.back_strategy_open_1",
-                            "class": "BackStrategyOpen1",
+                             "module" : "strategies.back_strategy_down",
+                            "class": "BackStrategyDown",
                             "pre_scan": {
                                 "enabled": False,
                                 "min_day_volume": 0
@@ -456,7 +457,8 @@ if __name__ =="__main__":
                                 "volume_min_filter" :min_day_volume,
                                 "trade_first_hh" : 5,
                                 "trade_last_hh" : hh,
-                                "trade_last_mm": 0
+                                "trade_last_mm": 0,
+                                "min_open_gain": gain_perc
                                 },
                             "timeframe" : "1m"
 

@@ -7,23 +7,23 @@
     "day_balance_USD": 1000
   },
   "home": {
-    "grid": "1_1"
+    "grid": "1_2"
   },
   "chart": {
     "1": {
       "grid": "2_2",
-      "symbol": "YXT",
+      "symbol": "DFSC",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
         "30s": "vwap",
-        "5m": "SMA",
+        "5m": "vwap",
         "1d": "SMA",
         "15m": "SMA"
       },
       "1_1": {
         "1": {
-          "timeframe": "1m",
+          "timeframe": "5m",
           "legend": true
         }
       },
@@ -56,7 +56,7 @@
     },
     "2": {
       "grid": "2_2",
-      "symbol": "SNBR",
+      "symbol": "RMSG",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
@@ -103,7 +103,7 @@
     },
     "3": {
       "grid": "2_2",
-      "symbol": "MYSE",
+      "symbol": "FGI",
       "indicator": {
         "1m": "SMA",
         "5m": "SMA",
@@ -127,10 +127,10 @@
       }
     },
     "start_len": {
-      "1m": 248.1396898395143,
-      "5m": 187.56762335411622,
-      "10s": 1165.2486996657155,
-      "1d": 459.3977977243788,
+      "1m": 134.827547127161,
+      "5m": 32.22945752399846,
+      "10s": 83.57300275482089,
+      "1d": 545.9899438457217,
       "30s": 24.27980041338367,
       "15m": 119.71124467818683
     }
@@ -453,7 +453,8 @@
       "quantity": 300
     },
     "DFLI": {
-      "quantity": 100
+      "quantity": 100,
+      "quantity_rr": false
     },
     "ONFO": {
       "quantity": 100,
@@ -773,7 +774,8 @@
       "quantity_rr": false
     },
     "ALMU": {
-      "quantity": 100
+      "quantity": 100,
+      "quantity_rr": false
     },
     "IMA": {
       "quantity": 100,
@@ -805,6 +807,50 @@
     "DOMO": {
       "quantity": 100,
       "quantity_rr": false
+    },
+    "CMND": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "ENVB": {
+      "quantity_rr": false,
+      "quantity": 100
+    },
+    "WLDS": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "JTAI": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "DFNS": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "ARTL": {
+      "quantity_rr": false,
+      "quantity": 100
+    },
+    "RECT": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "FUSE": {
+      "quantity": 100
+    },
+    "MNTS": {
+      "quantity": 100,
+      "quantity_rr": false
+    },
+    "DARE": {
+      "quantity": 100
+    },
+    "NPT": {
+      "quantity": 100
+    },
+    "ICG": {
+      "quantity": 100
     }
   },
   "back": {
@@ -884,6 +930,37 @@
       "tp": true
     },
     "SNBR": {
+      "tp": true
+    },
+    "CMND": {
+      "tp": false,
+      "sl": true
+    },
+    "SKYQ": {
+      "tp": true
+    },
+    "ENVB": {
+      "tp": true,
+      "sl": true
+    },
+    "JTAI": {
+      "tp": false,
+      "sl": true
+    },
+    "ARTL": {
+      "tp": true
+    },
+    "WLDS": {
+      "tp": false,
+      "sl": true
+    },
+    "BIRD": {
+      "tp": false
+    },
+    "TURB": {
+      "tp": true
+    },
+    "DFSC": {
       "tp": true
     }
   }
