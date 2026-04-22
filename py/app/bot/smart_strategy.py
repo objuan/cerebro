@@ -31,11 +31,15 @@ class SmartStrategy(Strategy):
         self.propMap = {}
         #self.slot_count=2
 
+    def get_quantity(self,loss_by_trade,price):
+        #sl_price = price - price / 100 * self.gain_perc
+        return int(loss_by_trade  / price )
+
     '''
     ring: [default, alarm, chime, alert1, new_symbol, news ]
     '''
     async def add_marker(self, symbol,type, label,desc,color,shape="small_square", position ="atPriceTop",
-                    _timeframe=None, sourceField = "close", value=None,timestamp=None,ring="news"):
+                    _timeframe=None, sourceField = "close", value=None,timestamp=None,ring="news",sendEvent=True):
         timeframe = self.timeframe if _timeframe==None else _timeframe
         
         #logger.info(f"self.trade_index {self.trade_index}")
@@ -63,7 +67,7 @@ class SmartStrategy(Strategy):
                 shape,
                 position
             ]
-        if not self.bootstrapMode:    
+        if not self.bootstrapMode and sendEvent:    
             await self.send_event(symbol, label, desc,desc,color=color, ring=ring)
 
         #logger.info(f"marker_map {self.marker_map}")
@@ -378,6 +382,16 @@ class SmartStrategy(Strategy):
         else:
            return self._book.hasCurrentTrade(symbol)
 
+    def getCurrentTrade(self,symbol):
+        if not self.bootstrapMode and not self.backtestMode:
+                if self.has_meta(symbol, "last_trade"):
+                    last_trade : PositionTrade = self.get_meta(symbol, "last_trade")
+                    return last_trade if last_trade.isClosed()==False else None   
+                else:
+                    return None    
+        else:
+           return self._book.getCurrentTrade(symbol)
+        
     def buyGain(self,symbol,close):
         if not self.bootstrapMode and not self.backtestMode:
                 if self.has_meta(symbol, "last_trade"):

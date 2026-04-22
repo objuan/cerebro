@@ -181,7 +181,7 @@ class TradeStrategy10S(SmartStrategy):
                 
                 if gain2 > self.gain_2_perc:
                     if (gain > gain2/2):
-                        await self.add_marker(symbol, "SPOT", "GAIN", f"Gain 10 {gain:.1f}/{gain2:.1f}",color="#575757", ring="alert1")
+                        await self.add_marker(symbol, "SPOT", "GAIN", f"Gain 10 {gain:.1f}/{gain2:.1f}",color="#575757",ring="")# ring="alert1")
 
 
        

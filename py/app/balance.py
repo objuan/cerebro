@@ -26,6 +26,7 @@ class TradeOp:
         self.side=side
         self.price=price
         self.size=size
+        self.quantity = size
         self.time = time
         self.pnl = pnl
         self.comm = comm
@@ -52,6 +53,20 @@ class PositionTrade:
             return self.list[-1].side == "SELL"
         else:
             return False
+        
+    @property
+    def price(self):
+        if self.list>0:
+            return self.list[-1].price
+        else:
+            return 0
+    
+    @property
+    def quantity(self):
+        if self.list>0:
+            return self.list[-1].quantity
+        else:
+            return 0
         
     def eval(self):
  

@@ -418,94 +418,113 @@ if __name__ =="__main__":
 
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
     
-        results= []
+        all_results= []
         tot_gain=0.0
-        for date in ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
-                     ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20"]: 
 
-            for hh in [11]: #11
-                for min_day_volume in [500_000]:
+        dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
+                             ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21"]
+        #dates = ["2026-04-21"]
 
-                    for gain_perc in [20]:
+        for chain_up_max in [4]: #11
+            for min_day_volume in [500_000]:
 
+                for gain_perc in [20]:
+                    for min_open_gain in [20]:
+                            
+                        results= []
+                        tot_gain=0.0
 
-                        logger.info(f"=========  PROCESS  {date} ====================")
+                        #logger.info(f"==============  START  ====================")    
+                        params = {
+                                
+                                    "gain_perc" : gain_perc,
+                                    "volume_min_filter" :min_day_volume,
+                                    "trade_last_hh" : 13,
+                                    "min_open_gain": min_open_gain,
+                                    "chain_up_max": chain_up_max
+                                    }
 
-                        #df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
-                        #            WHERE date = '{date}' order by symbol""")
-                        df = manager.back_symbols(date)
+                        ret = {"params" : params, "results": results}
+                        all_results.append(ret)
 
-                        list = df["symbol"].tolist()
-                        #list = list[:80]
+                        for date in dates:
 
-                        ##list = ["IMNN"]
-                        
-                        logger.info(f"STAT PROCESS {list}")
-                        data = {
-                            "badgetUSD": 1000,
-                            "symbols": list,
-                            "dt_from": f"{date} 2:00:00", # UTC format
-                            "dt_to": f"{date} 23:59:00",
-                             "module" : "strategies.back_strategy_down",
-                            "class": "BackStrategyDown",
-                            "pre_scan": {
-                                "enabled": False,
-                                "min_day_volume": 0
-                            },
-                            "params" : {
-                                "gain_perc" : gain_perc,
-                                "volume_min_filter" :min_day_volume,
-                                "trade_first_hh" : 5,
-                                "trade_last_hh" : hh,
-                                "trade_last_mm": 0,
-                                "min_open_gain": gain_perc
+                            logger.info(f"=========  PROCESS  {date} ====================")
+
+                            #df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
+                            #            WHERE date = '{date}' order by symbol""")
+                            df = manager.back_symbols(date)
+
+                            list = df["symbol"].tolist()
+                            #list = list[:80]
+
+                            ##list = ["IMNN"]
+                            
+                            logger.info(f"STAT PROCESS {list}")
+                            data = {
+                                "badgetUSD": 1000,
+                                "symbols": list,
+                                "dt_from": f"{date} 2:00:00", # UTC format
+                                "dt_to": f"{date} 23:59:00",
+                                "module" : "strategies.back_strategy_down",
+                                "class": "BackStrategyDown",
+                                "pre_scan": {
+                                    "enabled": False,
+                                    "min_day_volume": 0
                                 },
-                            "timeframe" : "1m"
+                                "params" :params,
+                                "timeframe" : "1m"
 
-                        # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
-                        }
-                        #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+                            # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+                            }
+                            #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
 
-                        backtest = BacktestIn(data)
+                            backtest = BacktestIn(data)
 
-                        ### solo una volta
-                        #await manager.download_data(backtest)
+                            ### solo una volta
+                            #await manager.download_data(backtest)
 
-                        await manager.load(backtest)
+                            await manager.load(backtest)
 
-                        trades = await manager.start()
+                            trades = await manager.start()
 
-                        gain=0
-                        w=0
-                        l=0
-                        for t in trades:
-                            gain += t.gain()
-                            if t.gain()>0:
-                                w+=1
-                            else:
-                                l+=1    
+                            gain=0
+                            w=0
+                            l=0
+                            for t in trades:
+                                gain += t.gain()
+                                if t.gain()>0:
+                                    w+=1
+                                else:
+                                    l+=1    
 
-                        tot_gain+=gain
-                        results.append(
-                            {
-                                "data": data,
-                                "date": date, 
-                             "gain": gain, 
-                             "trades": trades,
-                               "win": w, 
-                               "loss": l})    
+                            tot_gain+=gain
+                            results.append(
+                                {
+                                    "data": data,
+                                    "date": date, 
+                                "gain": gain, 
+                                "trades": trades,
+                                "win": w, 
+                                "loss": l})    
 
                     
-                    manager.reset()
+           
+                        
 
-            pass
+        ##############
 
-        logger.info(f"==============  END  ====================")    
-        for r in results:   
-              logger.info(f"{r['date']} {r['data']['params']}  ")
-              logger.info(f"TRADES {len(r['trades'])}  win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']}")   
+        for ret in all_results:
+                        result = ret["results"]
+                        params = ret["params"]
 
-        logger.info(f"===============")    
-        logger.info(f"TOT GAIN {tot_gain}")      
+                        logger.info(f"==================================")    
+                        logger.info(f"{params}")  
+                        for r in results:   
+                            logger.info(f"{r['date']} TRADES {len(r['trades'])}  win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']}")   
+
+                        logger.info(f"=====")    
+                        logger.info(f"TOT GAIN {tot_gain}")      
+
 
     asyncio.run(main())

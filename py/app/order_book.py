@@ -139,6 +139,10 @@ class OrderBook:
     def hasCurrentTrade(self,symbol):
         return symbol in self.currentOrder
 
+    def getCurrentTrade(self,symbol)-> Order:
+        if  symbol in self.currentOrder:
+            return self.currentOrder[symbol]
+    
     def has_any_trade(self):
         return bool(self.currentOrder)
 

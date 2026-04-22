@@ -85,7 +85,7 @@ class Back_DBDataframe_TimeFrame:
 
         self.all_df = self.main_df.back_manager.back_data(inData.symbols,self.timeframe,since, to)
 
-        logger.info(f"<< {self.all_df}")
+        #logger.info(f"<< {self.all_df}")
     
 
         self.all_df["local_time"] = pd.to_datetime(self.all_df["timestamp"], unit="ms") \

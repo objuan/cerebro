@@ -1,7 +1,7 @@
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from bot.indicators import VWAP
+from bot.indicators import VWAP_OLD
 from company_loaders import *
 from collections import deque
 import numpy as np
@@ -48,7 +48,7 @@ class ReportManager:
 
         self.first_open=[]
 
-        self.ind_vwap = VWAP("vwap")
+        self.ind_vwap = VWAP_OLD("vwap")
 
         await self.tick()
         #self.fill()

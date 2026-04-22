@@ -99,6 +99,219 @@ class Indicator:
  
  #################################
 
+class TRADE_DATE(Indicator):
+    def __init__(self, target):
+        super().__init__([target])
+        self.target=target
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+        # 1. Riferimenti agli array numpy per le performance ⚡
+        dest = dataframe[self.target].to_numpy()
+        source = dataframe["timestamp"].to_numpy()
+
+        # 2. Definiamo il range di calcolo
+        # Partiamo da from_local_index per non ricalcolare il passato
+        start = max(0, from_local_index)
+        
+        # 3. Estraiamo e convertiamo solo i nuovi timestamp
+        # Se source è in secondi, unit='s'. Se millisecondi, unit='ms'
+        new_timestamps = source[symbol_idx[start:]]
+        new_dates = pd.to_datetime(new_timestamps, unit='ms').strftime('%Y%m%d').astype(int)
+
+        #logger.info(f"{new_dates}")
+        # 4. Assegnazione incrementale
+        for i, i_idx in enumerate(range(start, len(symbol_idx))):
+            idx = symbol_idx[i_idx]
+            dest[idx] = new_dates[i]
+
+             
+class VWAP(Indicator):
+    def __init__(self, target_col, price_col: str, volume_col: str):
+        super().__init__([target_col])
+        self.price_col = price_col
+        self.volume_col = volume_col
+        self.target_col = target_col
+        self.cum_pv = {}    # Somma cumulativa di (Prezzo * Volume)
+        self.cum_vol = {}   # Somma cumulativa del Volume
+        # Non serve più self.first perché usiamo la colonna 'date'
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+        # Estraiamo i dati necessari come array numpy per la velocità ⚡
+        dates = dataframe["date"].to_numpy()
+        prices = dataframe[self.price_col].to_numpy()
+        volumes = dataframe[self.volume_col].to_numpy()
+        dest = dataframe[self.target_col].to_numpy()
+            
+        start = max(0, from_local_index)
+
+        # Inizializziamo gli accumulatori per il simbolo se non esistono
+        if symbol not in self.cum_pv:
+            self.cum_pv[symbol] = 0.0
+            self.cum_vol[symbol] = 0.0
+
+        for i_idx in range(start, len(symbol_idx)):
+            idx = symbol_idx[i_idx]
+            
+            # 1. Identifichiamo il cambio di giorno 🌅
+            # Se è la prima riga assoluta o se la data corrente è diversa dalla precedente
+            is_new_day = False
+            if i_idx == 0:
+                is_new_day = True
+            else:
+                prev_idx = symbol_idx[i_idx - 1]
+                if dates[idx] != dates[prev_idx]:
+                    is_new_day = True
+
+            # 2. Logica di Reset o Accumulo
+            if is_new_day:
+                self.cum_pv[symbol] = prices[idx] * volumes[idx]
+                self.cum_vol[symbol] = volumes[idx]
+            else:
+                self.cum_pv[symbol] += prices[idx] * volumes[idx]
+                self.cum_vol[symbol] += volumes[idx]
+
+            # 3. Calcolo finale del valore VWAP
+            if self.cum_vol[symbol] > 0:
+                dest[idx] = self.cum_pv[symbol] / self.cum_vol[symbol]
+            else:
+                dest[idx] = prices[idx]
+
+class CHAIN(Indicator):
+    def __init__(self, target,upMode):
+        super().__init__([target])
+        self.target=target
+        self.upMode=upMode
+        self.map = {}
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+        # 1. Riferimenti agli array numpy per le performance ⚡
+        dest = dataframe[self.target].to_numpy()
+        close = dataframe["close"].to_numpy()
+        open = dataframe["open"].to_numpy()
+
+        count = 0
+        if from_local_index>0:
+            count = dest[symbol_idx[from_local_index-1]]
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            idx = symbol_idx[i_idx]
+            if  (self.upMode and close[idx] > open[idx]) or (not self.upMode and close[idx] < open[idx]) :
+                count=count+1
+            else:
+                count=0
+            dest[idx] =int(count)
+
+#########
+#   
+class STOCH_RSI(Indicator):
+    def __init__(self, target, period=14, smooth_k=3, smooth_d=3):
+        super().__init__([target])
+        self.target = target
+        self.n = period
+        self.smooth_k = smooth_k
+        self.smooth_d = smooth_d
+        self.mem = {}
+
+    def compute_fast(self, symbol, dataframe, symbol_idx, from_local_index):
+        dest = dataframe[self.target].to_numpy()
+        close = dataframe["close"].to_numpy()
+
+        if symbol not in self.mem:
+            self.mem[symbol] = {
+                "avg_gain": 0.0,
+                "avg_loss": 0.0,
+                "count": 0,
+                "last_close": None,
+                "rsi_buffer": [],
+                "stoch_buffer": [],
+                "k_buffer": []
+            }
+
+        m = self.mem[symbol]
+        n = self.n
+
+        for i_idx in range(max(0, from_local_index), len(symbol_idx)):
+            idx = symbol_idx[i_idx]
+
+            # --- INIT ---
+            if m["last_close"] is None:
+                m["last_close"] = close[idx]
+                dest[idx] = np.nan
+                continue
+
+            delta = close[idx] - m["last_close"]
+            m["last_close"] = close[idx]
+
+            gain = max(delta, 0)
+            loss = max(-delta, 0)
+
+            m["count"] += 1
+
+            # --- RSI (Wilder / RMA) ---
+            if m["count"] < n:
+                m["avg_gain"] += gain
+                m["avg_loss"] += loss
+                dest[idx] = np.nan
+                continue
+
+            elif m["count"] == n:
+                m["avg_gain"] = (m["avg_gain"] + gain) / n
+                m["avg_loss"] = (m["avg_loss"] + loss) / n
+
+            else:
+                m["avg_gain"] = (m["avg_gain"] * (n - 1) + gain) / n
+                m["avg_loss"] = (m["avg_loss"] * (n - 1) + loss) / n
+
+            # RSI
+            if m["avg_loss"] == 0:
+                rsi = 100
+            else:
+                rs = m["avg_gain"] / m["avg_loss"]
+                rsi = 100 - (100 / (1 + rs))
+
+            # --- STOCH RSI ---
+            m["rsi_buffer"].append(rsi)
+            if len(m["rsi_buffer"]) > n:
+                m["rsi_buffer"].pop(0)
+
+            if len(m["rsi_buffer"]) < n:
+                dest[idx] = np.nan
+                continue
+
+            low = min(m["rsi_buffer"])
+            high = max(m["rsi_buffer"])
+
+            if high - low == 0:
+                stoch = 0.0   # TradingView
+            else:
+                stoch = (rsi - low) / (high - low)
+
+            stoch *= 100
+
+            # --- %K ---
+            m["stoch_buffer"].append(stoch)
+            if len(m["stoch_buffer"]) > self.smooth_k:
+                m["stoch_buffer"].pop(0)
+
+            if len(m["stoch_buffer"]) < self.smooth_k:
+                dest[idx] = np.nan
+                continue
+
+            k = sum(m["stoch_buffer"]) / self.smooth_k
+
+            # --- %D ---
+            m["k_buffer"].append(k)
+            if len(m["k_buffer"]) > self.smooth_d:
+                m["k_buffer"].pop(0)
+
+            if len(m["k_buffer"]) < self.smooth_d:
+                dest[idx] = np.nan
+                continue
+
+            d = sum(m["k_buffer"]) / self.smooth_d
+
+            # OUTPUT TradingView = %K (default)
+            dest[idx] = k
+            
 class MAX_DAY(Indicator):
 
     def __init__(self, target_col, price_col: str):
@@ -595,7 +808,7 @@ class EMA(Indicator):
         dataframe.loc[group.index[start_pos:],self.target_col] = ema_values
 
 '''
-class VWAP(Indicator):
+class VWAP_OLD(Indicator):
     def __init__(self,target_col, price_name="close"):
         super().__init__([target_col])
         self.target_col=target_col

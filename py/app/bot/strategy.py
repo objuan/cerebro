@@ -152,9 +152,9 @@ class Strategy:
             self._fill_indicators(tf,0,None)
             db_df.on_df_last_added+= self.on_df_last_added
 
-        for tf,df in self.df_map.items():
-            #df_ = df.loc[df["symbol"] == "HCTI"]
-            logger.debug(f"END {tf}\n{df.tail(10)}")
+        #for tf,df in self.df_map.items():
+        #    #df_ = df.loc[df["symbol"] == "HCTI"]
+        #    logger.debug(f"END {tf}\n{df.tail(10)}")
 
         # trade
         df = self.df_map[self.timeframe]
