@@ -39,8 +39,8 @@ class BackStrategyDown(SmartStrategy):
       
         capital = self.props.get("trade.trade_balance_USD")
         #trade_risk = self.props.get("trade.trade_risk")
-        self.loss_by_trade = 100#capital * trade_risk
-        self.max_loss  = 10
+        self.loss_by_trade = 50#capital * trade_risk
+        self.max_loss  = 5
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
 
         self.max_price= {}

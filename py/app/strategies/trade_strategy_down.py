@@ -40,11 +40,12 @@ class TradeStrategyDown(SmartStrategy):
       
         capital = self.props.get("trade.trade_balance_USD")
         #trade_risk = self.props.get("trade.trade_risk")
-        self.loss_by_trade = 80#capital * trade_risk
-        self.max_loss  = 8
+        self.loss_by_trade = 50#capital * trade_risk
+        self.max_loss  = 5
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
 
         self.max_price= {}
+        self.max_gain= {}
 
         pass
 
@@ -91,7 +92,8 @@ class TradeStrategyDown(SmartStrategy):
         if (local_index < 2):   
             return
         
-        if self.bootstrapMode:
+          
+        if self.bootstrapMode and self.orderManager:
             if not self.has_meta("__trade","init"):
                 self.set_meta("__trade", {"init": True})   
                 history =  self.orderManager.getTradeHistory(None)
@@ -100,8 +102,7 @@ class TradeStrategyDown(SmartStrategy):
                         self.set_meta( trade.symbol, {"last_trade":trade})   
                         logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
                 return
-
-
+            
         #if symbol =="SKYQ":
         #    logger.info(f"TRADE_SYMBOL_AT \n{symbol} {dataframe.iloc[local_index]}")  
 
@@ -158,11 +159,8 @@ class TradeStrategyDown(SmartStrategy):
                 
                 if chain_gain > self.min_open_gain:
 
-                    await self.add_marker(symbol,"SPOT",f"Ch {chain_gain:.1f}",f"CH {chain_gain:.1f}","#F6F7F86F","square",position ="atPriceTop")
+                    await self.add_marker(symbol,"SPOT",f"Ch {chain_gain:.1f}",f"Ch {chain_gain}","#F6F7F86F","square",position ="atPriceTop")
                     await self.add_marker(symbol,"SPOT",f"half",f"half","#F6F7F86F","square",position ="atPriceTop", value = half,sendEvent=False)
-
-                    if not self.bootstrapMode:
-                        send_telegram_message(f"UP UP {symbol}  {chain_gain:.1f} %")
 
                     self.set_meta(symbol,{"chain_gain" : chain_gain,
                                            "chain_len" : chain_up,
@@ -170,6 +168,9 @@ class TradeStrategyDown(SmartStrategy):
                                            "half":half,
                                            "timestamp" : int(last["timestamp"]),
                                            "state" : 0,"low": low} )
+                    
+                    if not self.bootstrapMode:
+                        send_telegram_message(f"UP UP {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {symbol}  {chain_gain:.1f} %")
             
             #if not self.backtestMode and self.bootstrapMode:
             #    return
@@ -181,6 +182,9 @@ class TradeStrategyDown(SmartStrategy):
 
                     if self.has_meta(symbol, "state"):
                         state =self.get_meta(symbol,"state") 
+                        low=self.get_meta(symbol,"low")
+                        low = low + low * 0.05
+
                         if state == 0:
                             signal = self.get_meta(symbol,"half")
                             #logger.info(f"{symbol} {close} < {fibo_66}")
@@ -193,53 +197,59 @@ class TradeStrategyDown(SmartStrategy):
                             signal = self.get_meta(symbol,"half")
                             time_elapsed_secs = (int(last["timestamp"]) - self.get_meta(symbol,"timestamp")) / 1000    
                             
-                            if close > last["open"]  and close <signal and time_elapsed_secs < 60*60:
+                            if close > last["open"]  and close <signal:# and time_elapsed_secs < 60*60:
                                 await self.add_marker(symbol,"SPOT",f"V",f"FIND","#8500A76D","square",position ="atPriceTop", ring="chime")
                             
-                                if (last["close"] > sma20 and prev["rsi"] < 5) or (last["close"] < sma20 and prev["rsi"] < 5 and chain_up>=2 ):#and  rsi  > 5 and
+                                if last["close"] > sma20 and prev["rsi"] < 5  and  rsi  > 5 :
                                     sl = last["low"] - last["low"]* 0.01
                                     self.set_meta(symbol,{"sl": sl })
 
                                     quantity = self.get_quantity(self.loss_by_trade,close)
                                     self.max_price[symbol] =close
-                                    await self.add_marker(symbol,"SPOT",f"BUY",f"BUY","#0B00A76C","square",position ="atPriceTop", ring="chime")
+                                    self.max_gain[symbol] =0
+                                   # await self.buy(symbol, int(dataframe.iloc[local_index]["timestamp"]), close,quantity,  f"BUY"  )
 
-                                    if not self.bootstrapMode:
-                                        send_telegram_message(f"BUY {symbol} ")
-                  
-           
+                                '''
+                                if last["close"] > low and prev["rsi"] < 5  and  rsi  > 5 :
+                                    sl = last["low"] - last["low"]* 0.01
+                                    self.set_meta(symbol,{"sl": sl })
+
+                                    quantity = self.get_quantity(self.loss_by_trade,close)
+                                    self.max_price[symbol] =close
+                                    await self.buy(symbol, int(dataframe.iloc[local_index]["timestamp"]), close,quantity,  f"BUY"  )
+                                '''
+
                 if self.hasCurrentTrade(symbol):
 
                         sl = self.get_meta(symbol,"sl")
+                      
+
 
                         gain,ts,pnl = self.buyGain(symbol, last["close"]) 
                         #logger.info(f"ts {ts}")
                         time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000    
                         #self.max_price[symbol] = max(self.max_price[symbol] , close)
-                        dt = int(dataframe.iloc[local_index]["timestamp"])
-                        
-                        logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} pnl {pnl} sl {sl}")
+                        #self.max_gain[symbol] = max(self.max_gain[symbol] , gain)
+
                         #
                         trade = self.getCurrentTrade(symbol)
 
                         #price_diff = self.max_price[symbol]- close
                         #loss_from_max = price_diff * trade.quantity
 
-                        '''
-                        price_diff =  self.max_price[symbol]  - trade.price
+                        #price_diff =  self.max_price[symbol]  - trade.price
 
-                        SL = trade.price - self.max_loss/trade.quantity + price_diff/2
+                       # SL = trade.price - self.max_loss/trade.quantity + price_diff/2
                         
-                        
+                        dt = int(dataframe.iloc[local_index]["timestamp"])
 
                         self.set_current_price(symbol, last["close"])           
 
-                        logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} pnl {pnl} sl {sl}")
+                        #logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} pnl {pnl} sl {sl}")
                         #logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} price_diff {price_diff} loss_from_max {loss_from_max}")
-                        #logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} close {close} max {self.max_price[symbol]} SL {SL} ")
+                        #logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} close {close} max {self.max_price[symbol]} gmax {self.max_gain[symbol]} SL {SL} ")
 
                         #if loss_from_max > self.max_loss:
-                        '''
                         '''
                         if close < SL:
                             if self.sl_enabled(symbol):
@@ -253,14 +263,19 @@ class TradeStrategyDown(SmartStrategy):
                                 await  self.sell(symbol, dt, last["close"], f"TIME"  )
                                 self.del_meta(symbol,"state")
                         '''
-
-                        if close < sl:#-self.magain_percx_loss:
+                        '''
+                        if gain < self.max_gain[symbol] * 0.66 and time_elapsed_secs > 5*60:
+                           if self.sl_enabled(symbol):
+                                trade = await  self.sell(symbol, dt, last["close"], f"GAIN"  )
+                                self.del_meta(symbol,"state")         
+                        '''
+                        if sl and close < sl:#-self.magain_percx_loss:
                             if self.sl_enabled(symbol):
                                 trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
                                 self.del_meta(symbol,"state")
-                                                
+
+                        
                         elif gain > self.gain_perc:
                             if self.tp_enabled(symbol):
                                 trade = await  self.sell(symbol, dt, last["close"], f"TP"  )
                                 self.del_meta(symbol,"state")
-                        ''''''

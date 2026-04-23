@@ -80,7 +80,7 @@
 				{
 				 	"gain_perc" : 20,
                     "volume_min_filter" :500000,
-                    "trade_last_hh" : 13,
+                    "trade_last_hh" : 15,
 					"chain_up_max" : 4,
 					"min_open_gain": 20
 

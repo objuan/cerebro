@@ -2,6 +2,7 @@ from typing import Dict
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
+from telegram import send_telegram_message
 from strategies.strategy_utils import StrategyUtils
 from bot.indicators import *
 from bot.smart_strategy import SmartStrategy
@@ -44,6 +45,7 @@ class BackStrategyDown(SmartStrategy):
         logger.info(f"LOSS BY TRADE {self.loss_by_trade}")   
 
         self.max_price= {}
+        self.max_gain= {}
 
         pass
 
@@ -90,6 +92,17 @@ class BackStrategyDown(SmartStrategy):
         if (local_index < 2):   
             return
         
+          
+        if self.bootstrapMode and self.orderManager:
+            if not self.has_meta("__trade","init"):
+                self.set_meta("__trade", {"init": True})   
+                history =  self.orderManager.getTradeHistory(None)
+                for trade in history:
+                    if not trade.isClosed():
+                        self.set_meta( trade.symbol, {"last_trade":trade})   
+                        logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
+                return
+            
         #if symbol =="SKYQ":
         #    logger.info(f"TRADE_SYMBOL_AT \n{symbol} {dataframe.iloc[local_index]}")  
 
@@ -155,6 +168,9 @@ class BackStrategyDown(SmartStrategy):
                                            "half":half,
                                            "timestamp" : int(last["timestamp"]),
                                            "state" : 0,"low": low} )
+                    
+                    if not self.bootstrapMode:
+                        send_telegram_message(f"UP UP {symbol}  {chain_gain:.1f} %")
             
             #if not self.backtestMode and self.bootstrapMode:
             #    return
@@ -190,6 +206,7 @@ class BackStrategyDown(SmartStrategy):
 
                                     quantity = self.get_quantity(self.loss_by_trade,close)
                                     self.max_price[symbol] =close
+                                    self.max_gain[symbol] =0
                                     await self.buy(symbol, int(dataframe.iloc[local_index]["timestamp"]), close,quantity,  f"BUY"  )
 
                                 '''
@@ -210,6 +227,7 @@ class BackStrategyDown(SmartStrategy):
                         #logger.info(f"ts {ts}")
                         time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000    
                         self.max_price[symbol] = max(self.max_price[symbol] , close)
+                        self.max_gain[symbol] = max(self.max_gain[symbol] , gain)
 
                         #
                         trade = self.getCurrentTrade(symbol)
@@ -227,7 +245,7 @@ class BackStrategyDown(SmartStrategy):
 
                         #logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} pnl {pnl} sl {sl}")
                         #logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} price_diff {price_diff} loss_from_max {loss_from_max}")
-                        logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} close {close} max {self.max_price[symbol]} SL {SL} ")
+                        logger.info(f"SELL GAIN {symbol} {time_elapsed_secs} gain {gain} close {close} max {self.max_price[symbol]} gmax {self.max_gain[symbol]} SL {SL} ")
 
                         #if loss_from_max > self.max_loss:
                         '''
@@ -243,15 +261,20 @@ class BackStrategyDown(SmartStrategy):
                                 await  self.sell(symbol, dt, last["close"], f"TIME"  )
                                 self.del_meta(symbol,"state")
                         '''
-
-                        if close < SL:#-self.magain_percx_loss:
+                        '''
+                        if gain < self.max_gain[symbol] * 0.66 and time_elapsed_secs > 5*60:
+                           if self.sl_enabled(symbol):
+                                trade = await  self.sell(symbol, dt, last["close"], f"GAIN"  )
+                                self.del_meta(symbol,"state")         
+                        '''
+                        if close < sl:#-self.magain_percx_loss:
                             if self.sl_enabled(symbol):
                                 trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
                                 self.del_meta(symbol,"state")
 
-                        '''
+                        
                         elif gain > self.gain_perc:
                             if self.tp_enabled(symbol):
                                 trade = await  self.sell(symbol, dt, last["close"], f"TP"  )
                                 self.del_meta(symbol,"state")
-                        '''
+                        
