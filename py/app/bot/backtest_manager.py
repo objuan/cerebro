@@ -286,7 +286,27 @@ class BacktestManager:
         conn.close()    
         return df 
 
+    
+    def back_ai_symbols(self, date):
+        
+        conn = sqlite3.connect(DB_FILE)
+
+        query = f"""SELECT DISTINCT SYMBOL 
+FROM ai_trainingset 
+WHERE 
+DATE = '{date}'
+AND live = '1' 
+AND volume >= 1000000 
+AND gain > 20"""
       
+                    
+        #print("query",query)
+
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+        conn.close()    
+        return df 
+    
     def back_symbols(self, date):
         
         conn = sqlite3.connect(DB_FILE)
@@ -339,7 +359,7 @@ GROUP BY symbol;
 
     async def get_history(self,strategy,dt_from,dt_to):
         conn = sqlite3.connect(DB_FILE)
-        query = f""" SELECT * from back_session where strategy='{strategy}' and dt_from >= '{dt_from}' and dt_to <= '{dt_to}' order by ds_timestamp desc limit 10"""
+        query = f""" SELECT * from back_session where strategy='{strategy}' and dt_from >= '{dt_from}' and dt_to <= '{dt_to}' order by ds_timestamp desc limit 5"""
         df = pd.read_sql_query(query, conn)
         #logger.info(f"get_history {query} {df}")
 
@@ -420,10 +440,12 @@ if __name__ =="__main__":
     
         all_results= []
         tot_gain=0.0
+        all_w=0
+        all_l=0
 
         dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
-                             ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21"]
-        dates = ["2026-04-22"]
+                             ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22"]
+        #dates = ["2026-04-23"]
 
         for chain_up_max in [4]: #11
             for min_day_volume in [500_000]:
@@ -453,8 +475,9 @@ if __name__ =="__main__":
 
                             #df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
                             #            WHERE date = '{date}' order by symbol""")
-                            df = manager.back_symbols(date)
-
+                            #df = manager.back_symbols(date)
+                            df = manager.back_ai_symbols(date)
+                           
                             list = df["symbol"].tolist()
                             #list = list[:80]
 
@@ -466,14 +489,14 @@ if __name__ =="__main__":
                                 "symbols": list,
                                 "dt_from": f"{date} 2:00:00", # UTC format
                                 "dt_to": f"{date} 23:59:00",
-                                "module" : "strategies.back_strategy_down1",
-                                "class": "BackStrategyDown",
+                                "module" : "strategies.back_strategy_10s_orig",
+                                "class": "BackStrategy10s_Orig",
                                 "pre_scan": {
                                     "enabled": False,
                                     "min_day_volume": 0
                                 },
                                 "params" :params,
-                                "timeframe" : "1m"
+                                "timeframe" : "10s"
 
                             # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
                             }
@@ -495,8 +518,10 @@ if __name__ =="__main__":
                                 gain += t.gain()
                                 if t.gain()>0:
                                     w+=1
+                                    all_w+=1
                                 else:
                                     l+=1    
+                                    all_l+=1
 
                             tot_gain+=gain
                             results.append(
@@ -524,7 +549,7 @@ if __name__ =="__main__":
                             logger.info(f"{r['date']} TRADES {len(r['trades'])}  win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']}")   
 
                         logger.info(f"=====")    
-                        logger.info(f"TOT GAIN {tot_gain}")      
+                        logger.info(f"TOT GAIN {tot_gain} win {all_w} / {all_l}")      
 
 
     asyncio.run(main())

@@ -609,12 +609,23 @@ class OrderManager:
     async def smart_sell_limit(self,symbol,totalQuantity,ticker):
         return  await self._smart_limit(symbol, "SELL",totalQuantity, ticker)
      
+    async def smart_buy_market(self,symbol,totalQuantity,ticker):
+        return await self._smart_market(symbol, "BUY",totalQuantity, ticker)
+  
+    async def smart_sell_market(self,symbol,totalQuantity,ticker):
+        return await self._smart_market(symbol, "SELL",totalQuantity, ticker)
+
+    async def _smart_market(self,symbol,op, totalQuantity,ticker):
+        if self.sym_mode:
+            await self._smart_limit_sym(symbol,op,totalQuantity,ticker)
+        else:
+            await self._smart_limit_real(symbol,op,totalQuantity,ticker,"MARKET")
 
     async def _smart_limit(self,symbol,op, totalQuantity,ticker):
         if self.sym_mode:
             await self._smart_limit_sym(symbol,op,totalQuantity,ticker)
         else:
-            await self._smart_limit_real(symbol,op,totalQuantity,ticker)
+            await self._smart_limit_real(symbol,op,totalQuantity,ticker,"LIMIT")
 
     async def _smart_limit_sym(self,symbol,op, totalQuantity,ticker):
         logger.info(f"SMART SYM {op} LIMIT ORDER {symbol} q:{totalQuantity}")
@@ -700,7 +711,10 @@ class OrderManager:
                         logger.info("BUY DONE AFTER CANCEL")
                
 
-    async def _smart_limit_real(self,symbol,op, totalQuantity,ticker):
+    '''
+    order_type = ["LIMIT","MARKET"]
+    '''
+    async def _smart_limit_real(self,symbol,op, totalQuantity,ticker,order_type):
 
         self.doSmartAbort=False
         now = time.time()
@@ -712,7 +726,7 @@ class OrderManager:
         '''
         return error if != None
         '''
-        logger.info(f"SMART {op} LIMIT ORDER {symbol} q:{totalQuantity}")
+        logger.info(f"SMART {op} LIMIT ORDER {symbol} q:{totalQuantity} type{order_type}")
         contract = Stock(symbol, 'SMART', 'USD')
         self.ib.qualifyContracts(contract)  
         
@@ -796,10 +810,10 @@ class OrderManager:
                             formatted_price = self.format_price(contract,price)
                         #formatted_price = round(ticker["last"] / tick_size) * tick_size
 
-                        logger.info(f">> LimitOrder : {symbol} ({attempt}) {op} {totalQuantity} at {ticker['last']} -> {formatted_price} (tick_size:{tick_size}) ")
+                        logger.info(f">> {order_type} : {symbol} ({attempt}) {op} {totalQuantity} at {ticker['last']} -> {formatted_price} (tick_size:{tick_size}) ")
 
                         # 🔹 ORDINE
-                        if True:
+                        if order_type=="LIMIT":
                             # MARKET
                             entry = LimitOrder(
                                 action=op,
@@ -809,7 +823,16 @@ class OrderManager:
                                 #tif='IOC' , #o tutto o niente
                                 outsideRth=True
                             )
-                        else:
+                        elif order_type=="MARKET":
+                            entry = MarketOrder(
+                            action=op,              # "BUY" o "SELL"
+                                totalQuantity=totalQuantity,
+                                tif='DAY',              # oppure 'IOC'
+                                outsideRth=True
+                            )
+                    
+                            
+                        '''
                             # PRE / AFTER
                             entry = LimitOrder(
                                 action=op,
@@ -819,7 +842,7 @@ class OrderManager:
                                 #tif='FOK' , #o tutto o niente
                                 outsideRth=True
                             )
-
+                        '''
 
                         ''' per vedere commissioni
                         order.whatIf = True

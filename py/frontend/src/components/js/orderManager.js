@@ -78,6 +78,16 @@ export async function order_limit(symbol, qty){
     })
 }
 
+export async function order_market_buy(symbol, qty){
+    console.log("order_market_buy", symbol,qty)
+
+    send_get("/order/smart/market/buy", {
+        "symbol" : symbol,
+        "qty": qty,
+    })
+}
+
+
 
 export async function clear_all_orders(symbol){
     console.log("clear_all_orders", symbol,)

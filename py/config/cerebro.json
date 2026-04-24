@@ -4,7 +4,7 @@
 		"ib_port_paper" : 7497,
 		"ib_port_live" : 7496,
 		"ib_client" : 1,
-		"live_mode" : true
+		"live_mode" : false
 	},
 	"instruments":{
 		"stock_update_days" : 7
@@ -133,12 +133,28 @@
                     "trade_last_hh" : 17
 
 				}
-			},
+			},				
+			{
+			   "module": "back_strategy_10s_orig",
+				"class" : "BackStrategy10s_Orig",
+				"timeframe" : "10s",
+				"enabled" : true,
+				"scope" : "BACK",
+				"params" :
 				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :1000000,
+                    "trade_last_hh" : 11,
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
+				}
+			}	,			
+			{
 			   "module": "back_strategy_down",
 				"class" : "BackStrategyDown",
 				"timeframe" : "1m",
-				"enabled" : true,
+				"enabled" : false,
 				"scope" : "BACK",
 				"params" :
 				{

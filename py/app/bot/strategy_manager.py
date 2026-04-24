@@ -239,7 +239,6 @@ class StrategyManager:
          for strat in self.strategies:
             await strat["instance"].on_live_trade_event(type,data)
 
-
     def live_indicators(self,symbol,timeframe,from_ts,to_ts):
         list = []
         for strat in self.strategies:

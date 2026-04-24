@@ -698,7 +698,17 @@ async def do_buy_breakout_no_slippage(symbol, qty, price):
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
-    
+
+@app.get("/order/smart/market/buy")
+async def do_limit_order(symbol, qty):
+    try:
+        logger.info(f"/order/limit {symbol} {qty}")
+        await orderManager.smart_buy_market(symbol, qty,client.getTicker(symbol))
+        return {"status": "ok" }
+    except:
+        logger.error("ERROR", exc_info=True)
+        return {"status": "error" }
+      
 # no nsi ferma ?????
 @app.get("/order/smart/limit")
 async def do_limit_order(symbol, qty):

@@ -61,8 +61,9 @@
            <div class="row r1">
                   <div class="d-flex align-items-center gap-0" v-if="tradeMode=='DIRECT'">
                     <button    class="btn btn-sm btn-success"
-                          @click="send_limit_order()"
+                          @click="send_order('LIMIT')"
                         >BUY</button>
+                     
 
                      <div class="flex-grow-1 text-center">
                           Buy <strong>{{ tradeQuantity }}</strong> at 
@@ -165,7 +166,8 @@ import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il p
 import { staticStore } from '@/components/js/staticStore.js';
 import {send_post} from '@/components/js/utils.js'
 import { eventBus } from "@/components/js/eventBus";
-import {sell_smart,order_limit,clear_all_orders,order_bracket,order_tp_sl,order_single,order_existing_do_tp_sl} from "@/components/js/orderManager";
+import {sell_smart,order_limit,order_market_buy,
+  clear_all_orders,order_bracket,order_tp_sl,order_single,order_existing_do_tp_sl} from "@/components/js/orderManager";
 import  TradeHistoryWidget  from './TradeHistoryWidget.vue'
 import { tradeStore } from "@/components/js/tradeStore";
 
@@ -259,7 +261,7 @@ function setMode(mode){
    staticStore.set(get_key("mode"),mode );  
 }
 
-function send_limit_order(){
+function send_order(mode){
   const val =  tradeQuantity.value * ticker.value.last
   if (val>0){
     const day_balance_USD =  liveData.value['trade.day_balance_USD']
@@ -284,8 +286,10 @@ function send_limit_order(){
       const ok = confirm("Hai già una posizione aperta. Vuoi continuare?")
       if(!ok) return
     }
-
-    order_limit(props.symbol,tradeQuantity.value)
+    if (mode =="LIMIT")
+      order_limit(props.symbol,tradeQuantity.value)
+    else  if (mode =="MARKET")
+      order_market_buy(props.symbol,tradeQuantity.value)
   }
 }
 

@@ -320,3 +320,19 @@ CREATE TABLE IF NOT EXISTS  back_session (
   
 );
             """)
+
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS  ai_trainingset (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol VARCHAR(255),
+    live CHAR(1),
+    gain REAL,
+    volume REAL,
+    date TEXT,
+    start TEXT,
+    end TEXT,
+    in_data TEXT
+     
+);
+            """)

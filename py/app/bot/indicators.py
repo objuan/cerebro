@@ -71,6 +71,9 @@ class Indicator:
             #logger.info(f"!! indicator {symbol} {self.__class__.__name__} l:{from_local_index}")
             
         if hasattr(self,"compute_fast"):
+            if len(self.target_cols)==1 and not self.target_cols[0] in dataframe.columns:
+                dataframe[self.target_cols[0] ] = 0.0
+
             mask = dataframe["symbol"].to_numpy() == symbol
             idx = np.where(mask)[0]
             self.compute_fast(symbol,dataframe,idx,from_local_index)
@@ -506,6 +509,45 @@ class MAX(Indicator):
             m=0.0
             for j_idx in range(max(0,i_idx- self.window+1), i_idx+1 ):
                 m= max(m,source[symbol_idx[j_idx]])
+            dest[symbol_idx[i_idx]] =m
+
+class MIN(Indicator):
+  
+    def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
+        self.source_col=source_col
+        self.target_col=target_col
+        self.window=timeperiod
+    
+ 
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+       
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source_col].to_numpy()
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            m=9999999
+            for j_idx in range(max(0,i_idx- self.window+1), i_idx+1 ):
+                m= min(m,source[symbol_idx[j_idx]])
+            dest[symbol_idx[i_idx]] =m
+
+class SUM(Indicator):
+  
+    def __init__(self,target_col, source_col:str, timeperiod:int):
+        super().__init__([target_col])
+        self.source_col=source_col
+        self.target_col=target_col
+        self.window=timeperiod
+    
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+       
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source_col].to_numpy()
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            m=0.0
+            for j_idx in range(max(0,i_idx- self.window+1), i_idx+1 ):
+                m= m + source[symbol_idx[j_idx]]
             dest[symbol_idx[i_idx]] =m
 
 class MAX_ALL(Indicator):
