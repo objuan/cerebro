@@ -29,7 +29,190 @@ class SmartStrategy(Strategy):
         self.position = Position(10000)
         self._book = OrderBook( self.position )
         self.propMap = {}
+
+        self.buffers = {}   # {symbol: DataFrame}
+        self.last_candle_key = {}  # {symbol: timestamp}
+        self.local_df = {}   # {symbol: DataFrame finale}
+        
+        self.localIndicators = []  
+        self.localPlots=[]
+
         #self.slot_count=2
+
+    '''
+    '''
+
+    def addLocalIndicator(self, ind:Indicator):
+        self.localIndicators.append(ind)
+        ind.client = self.client
+        return ind
+    
+    def addLocalPlot(self,ind : Indicator ,name :str,  color:str,panel: str ='main',source = None, style="Solid",lineWidth=1):
+        if not source:
+            source = ind.target_cols[0]
+        self.localPlots.append({"ind": ind ,"name" : name ,"source" : source, "color" : color, "panel" : panel,"style":style,"lineWidth": lineWidth})
+        pass
+    
+    def get_key(self,timeframe,dt ):
+        if timeframe =="1m":
+            return dt.minute
+        elif timeframe =="30s":
+                # 0 oppure 1
+            half = dt.second // 30
+            return (dt.minute, half)
+             
+    def compute_local_df(self,timeframe, symbol:str, dataframe: pd.DataFrame,local_index : int):
+
+        row = dataframe.iloc[local_index]
+        #timestamp = pd.to_datetime(row['timestamp'])
+        datetime = row["datetime"]
+        timestamp = row["timestamp"]
+
+     
+        
+        # inizializza strutture
+        if symbol not in self.buffers:
+            self.buffers[symbol] = []
+            self.last_candle_key[symbol] = self.get_key(timeframe,datetime)
+            self.local_df[symbol] = pd.DataFrame(columns=[
+                'symbol','datetime','timestamp', 'open','high', 'low',   'close', 'base_volume'
+            ])
+
+        # aggiungi al buffer
+        self.buffers[symbol].append({
+            'timestamp': timestamp,
+            'datetime': datetime,
+            'open':  row['open'],
+            'high':  row['high'],
+            'low':  row['low'],
+            'close':  row['close'],
+            'base_volume': row.get('base_volume', 0)
+        })
+
+        key = self.get_key(timeframe,datetime)
+        # 🔑 chiusura candela quando secondi == 0
+        if key != self.last_candle_key[symbol]:
+            self.last_candle_key[symbol]=key
+            
+            actual = self.buffers[symbol][-1]
+            self.buffers[symbol] = self.buffers[symbol][:-1]
+
+            buf = pd.DataFrame(self.buffers[symbol])
+
+            if len(buf) == 0:
+                return None
+
+            open_ = buf.iloc[0]['open']
+            close_ = buf.iloc[-1]['close']
+            high_ = buf['high'].max()
+            low_ = buf['low'].min()
+            volume_ = int(buf['base_volume'].sum())
+
+            #timestamp = buf.iloc[0]['timestamp']
+            # timestamp della candela = minuto appena chiuso
+            datetime = buf.iloc[0]['datetime']#.replace(second=0, microsecond=0)
+
+            new_row = {
+                'symbol' : symbol,
+                'datetime' : datetime,
+                'timestamp':  int(datetime.timestamp())*1000,#candle_time.totimestamp(),
+                'open': open_,
+                'high': high_,
+                'low': low_,
+                'close': close_,
+                'base_volume': volume_
+            }
+
+            self.local_df[symbol] = pd.concat([
+                self.local_df[symbol],
+                pd.DataFrame([new_row])
+            ], ignore_index=True)
+
+            # reset buffer (inizia nuova candela)
+            self.buffers[symbol] = [actual]
+
+            try:
+
+                for  ind in self.localIndicators:  
+                   # logger.info(f"{ self.local_df[symbol]}")
+                    ind.apply(symbol,  self.local_df[symbol] ,  self.local_df[symbol] , len(self.local_df[symbol])-1)
+            except:
+                logger.error("error",exc_info=True)
+
+            return new_row
+        else:
+            return None
+
+
+    def dump_indicators(self):
+        ret = super().dump_indicators()
+
+        base_seconds = TIMEFRAME_SECONDS[self.timeframe]
+        sub_seconds = TIMEFRAME_SECONDS[self.sub_timeframe]
+
+        steps = 1;#int(sub_seconds / base_seconds)-1
+        time_step = base_seconds*1000
+
+        #df = self.df(self.timeframe)
+        
+        o=[]
+        for p in  self.localPlots:
+            for col in p["ind"].target_cols:
+                if (col ==p["source"] or not p["source"]):
+
+                    d = p.copy()
+                    del d["ind"]
+
+                    d["timeframe"] = self.timeframe
+                   # df_data = p["ind"].get_render_data(df,col)
+
+                    #df_data = pd.DataFrame(columns=[
+                    #    'symbol','value','time'
+                    #])
+                    expanded_rows = []
+
+                    
+                    for symbol,df in self.local_df.items():
+                    #logger.info(f"process {col}")
+                        try:
+                            _df_data = (
+                                df[["symbol", "timestamp", col]]
+                                .dropna(subset=[col])
+                                .rename(columns={
+                                    col: "value",
+                                    "timestamp": "time"
+                                })
+                            )
+                        
+                            
+                            # espando 
+                            #expanded_rows = []
+
+                        #  print(steps,time_step,df_data)
+                            for _, row in _df_data.iterrows():
+                                for i in range(steps):
+                                    new_time = int(row["time"]) + i * time_step
+
+                                    expanded_rows.append({
+                                        "symbol": row["symbol"],
+                                        "time": new_time,
+                                        "value": row["value"]
+                                    })
+                        except:
+                            logger.error("Bad indicator "+ col)
+                        
+                    df_data = pd.DataFrame(expanded_rows)            
+                    df_data.to_csv("df_data.csv", index=False)
+
+                    #print(df_data.head(30))
+                    d["data"] = df_data.to_dict(orient="records")
+                        
+                    o.append(d)
+
+        return o
+    
+
+    # ################
 
     def get_quantity(self,loss_by_trade,price):
         #sl_price = price - price / 100 * self.gain_perc

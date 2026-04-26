@@ -445,7 +445,7 @@ if __name__ =="__main__":
 
         dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
                              ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22"]
-        #dates = ["2026-04-23"]
+        dates = ["2026-04-24"]
 
         for chain_up_max in [4]: #11
             for min_day_volume in [500_000]:
@@ -475,8 +475,8 @@ if __name__ =="__main__":
 
                             #df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
                             #            WHERE date = '{date}' order by symbol""")
-                            #df = manager.back_symbols(date)
-                            df = manager.back_ai_symbols(date)
+                            df = manager.back_symbols(date)
+                            #df = manager.back_ai_symbols(date)
                            
                             list = df["symbol"].tolist()
                             #list = list[:80]

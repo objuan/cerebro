@@ -4,7 +4,7 @@
 		"ib_port_paper" : 7497,
 		"ib_port_live" : 7496,
 		"ib_client" : 1,
-		"live_mode" : false
+		"live_mode" : true
 	},
 	"instruments":{
 		"stock_update_days" : 7
@@ -74,7 +74,7 @@
 			   "module": "trade_strategy_down",
 				"class" : "TradeStrategyDown",
 				"timeframe" : "1m",
-				"enabled" : true,
+				"enabled" : false,
 				"scope" : "LIVE",
 				"params" :
 				{
@@ -121,8 +121,8 @@
 				}
 			},
 			{
-			   "module": "trade_strategy_10s",
-				"class" : "TradeStrategy10S",
+			   "module": "trade_strategy_10s_orig",
+				"class" : "TradeStrategy10s_Orig",
 				"timeframe" : "10s",
 				"enabled" : true,
 				"scope" : "LIVE",

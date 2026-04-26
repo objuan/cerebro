@@ -23,7 +23,7 @@ from order_book import *
 
 #################
 
-class BackStrategy10s_Orig(SmartStrategy):
+class TradeStrategy10s_Orig(SmartStrategy):
 
     async def on_start(self):
 
