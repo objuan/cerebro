@@ -37,6 +37,8 @@ class SmartStrategy(Strategy):
         self.localIndicators = []  
         self.localPlots=[]
 
+        self.sub_timeframe=None
+
         #self.slot_count=2
 
     '''
@@ -145,71 +147,74 @@ class SmartStrategy(Strategy):
 
 
     def dump_indicators(self):
-        ret = super().dump_indicators()
+        if  not self.sub_timeframe:
+            return super().dump_indicators()
+        else:
+            ret = super().dump_indicators()
 
-        base_seconds = TIMEFRAME_SECONDS[self.timeframe]
-        sub_seconds = TIMEFRAME_SECONDS[self.sub_timeframe]
+            base_seconds = TIMEFRAME_SECONDS[self.timeframe]
+            sub_seconds = TIMEFRAME_SECONDS[self.sub_timeframe]
 
-        steps = 1;#int(sub_seconds / base_seconds)-1
-        time_step = base_seconds*1000
+            steps = 1;#int(sub_seconds / base_seconds)-1
+            time_step = base_seconds*1000
 
-        #df = self.df(self.timeframe)
-        
-        o=[]
-        for p in  self.localPlots:
-            for col in p["ind"].target_cols:
-                if (col ==p["source"] or not p["source"]):
+            #df = self.df(self.timeframe)
+            
+            o=[]
+            for p in  self.localPlots:
+                for col in p["ind"].target_cols:
+                    if (col ==p["source"] or not p["source"]):
 
-                    d = p.copy()
-                    del d["ind"]
+                        d = p.copy()
+                        del d["ind"]
 
-                    d["timeframe"] = self.timeframe
-                   # df_data = p["ind"].get_render_data(df,col)
+                        d["timeframe"] = self.timeframe
+                    # df_data = p["ind"].get_render_data(df,col)
 
-                    #df_data = pd.DataFrame(columns=[
-                    #    'symbol','value','time'
-                    #])
-                    expanded_rows = []
+                        #df_data = pd.DataFrame(columns=[
+                        #    'symbol','value','time'
+                        #])
+                        expanded_rows = []
 
-                    
-                    for symbol,df in self.local_df.items():
-                    #logger.info(f"process {col}")
-                        try:
-                            _df_data = (
-                                df[["symbol", "timestamp", col]]
-                                .dropna(subset=[col])
-                                .rename(columns={
-                                    col: "value",
-                                    "timestamp": "time"
-                                })
-                            )
                         
-                            
-                            # espando 
-                            #expanded_rows = []
-
-                        #  print(steps,time_step,df_data)
-                            for _, row in _df_data.iterrows():
-                                for i in range(steps):
-                                    new_time = int(row["time"]) + i * time_step
-
-                                    expanded_rows.append({
-                                        "symbol": row["symbol"],
-                                        "time": new_time,
-                                        "value": row["value"]
+                        for symbol,df in self.local_df.items():
+                        #logger.info(f"process {col}")
+                            try:
+                                _df_data = (
+                                    df[["symbol", "timestamp", col]]
+                                    .dropna(subset=[col])
+                                    .rename(columns={
+                                        col: "value",
+                                        "timestamp": "time"
                                     })
-                        except:
-                            logger.error("Bad indicator "+ col)
-                        
-                    df_data = pd.DataFrame(expanded_rows)            
-                    df_data.to_csv("df_data.csv", index=False)
+                                )
+                            
+                                
+                                # espando 
+                                #expanded_rows = []
 
-                    #print(df_data.head(30))
-                    d["data"] = df_data.to_dict(orient="records")
-                        
-                    o.append(d)
+                            #  print(steps,time_step,df_data)
+                                for _, row in _df_data.iterrows():
+                                    for i in range(steps):
+                                        new_time = int(row["time"]) + i * time_step
 
-        return o
+                                        expanded_rows.append({
+                                            "symbol": row["symbol"],
+                                            "time": new_time,
+                                            "value": row["value"]
+                                        })
+                            except:
+                                logger.error("Bad indicator "+ col)
+                            
+                        df_data = pd.DataFrame(expanded_rows)            
+                        df_data.to_csv("df_data.csv", index=False)
+
+                        #print(df_data.head(30))
+                        d["data"] = df_data.to_dict(orient="records")
+                            
+                        o.append(d)
+
+            return o
     
 
     # ################

@@ -444,8 +444,8 @@ if __name__ =="__main__":
         all_l=0
 
         dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
-                             ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22"]
-        dates = ["2026-04-24"]
+                             ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24"]
+        #dates = ["2026-04-24"]
 
         for chain_up_max in [4]: #11
             for min_day_volume in [500_000]:
@@ -482,56 +482,57 @@ if __name__ =="__main__":
                             #list = list[:80]
 
                             ##list = ["IMNN"]
+                            if len(list)>0:
                             
-                            logger.info(f"STAT PROCESS {list}")
-                            data = {
-                                "badgetUSD": 1000,
-                                "symbols": list,
-                                "dt_from": f"{date} 2:00:00", # UTC format
-                                "dt_to": f"{date} 23:59:00",
-                                "module" : "strategies.back_strategy_10s_orig",
-                                "class": "BackStrategy10s_Orig",
-                                "pre_scan": {
-                                    "enabled": False,
-                                    "min_day_volume": 0
-                                },
-                                "params" :params,
-                                "timeframe" : "10s"
+                                logger.info(f"STAT PROCESS {list}")
+                                data = {
+                                    "badgetUSD": 1000,
+                                    "symbols": list,
+                                    "dt_from": f"{date} 2:00:00", # UTC format
+                                    "dt_to": f"{date} 23:59:00",
+                                    "module" : "strategies.back_strategy_10s_orig",
+                                    "class": "BackStrategy10s_Orig",
+                                    "pre_scan": {
+                                        "enabled": False,
+                                        "min_day_volume": 0
+                                    },
+                                    "params" :params,
+                                    "timeframe" : "10s"
 
-                            # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
-                            }
-                            #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+                                # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+                                }
+                                #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
 
-                            backtest = BacktestIn(data)
+                                backtest = BacktestIn(data)
 
-                            ### solo una volta
-                            #await manager.download_data(backtest)
+                                ### solo una volta
+                                #await manager.download_data(backtest)
 
-                            await manager.load(backtest)
+                                await manager.load(backtest)
 
-                            trades = await manager.start()
+                                trades = await manager.start()
 
-                            gain=0
-                            w=0
-                            l=0
-                            for t in trades:
-                                gain += t.gain()
-                                if t.gain()>0:
-                                    w+=1
-                                    all_w+=1
-                                else:
-                                    l+=1    
-                                    all_l+=1
+                                gain=0
+                                w=0
+                                l=0
+                                for t in trades:
+                                    gain += t.gain()
+                                    if t.gain()>0:
+                                        w+=1
+                                        all_w+=1
+                                    else:
+                                        l+=1    
+                                        all_l+=1
 
-                            tot_gain+=gain
-                            results.append(
-                                {
-                                    "data": data,
-                                    "date": date, 
-                                "gain": gain, 
-                                "trades": trades,
-                                "win": w, 
-                                "loss": l})    
+                                tot_gain+=gain
+                                results.append(
+                                    {
+                                        "data": data,
+                                        "date": date, 
+                                    "gain": gain, 
+                                    "trades": trades,
+                                    "win": w, 
+                                    "loss": l})    
 
                     
            

@@ -28,6 +28,7 @@ class AiTrainingStrategy(SmartStrategy):
     async def on_start(self):
         self.chain_up_max=4
         self.min_open_gain= 10
+        self.volume_min_filter = 500_000
         
         self.find_map = {}
 
@@ -90,9 +91,10 @@ class AiTrainingStrategy(SmartStrategy):
         volume = last["day_volume_history"]   
         
 
-        #if volume > self.volume_min_filter 
+        if volume < self.volume_min_filter:
+            return
 
-        if chain_up>=2 and chain_up <= self.chain_up_max:
+        if chain_up>=2 :#and chain_up <= self.chain_up_max:
                 #logger.info(f"chain_len {chain_len}")
                 chain_start = dataframe.iloc[local_index-chain_up+1]
 
