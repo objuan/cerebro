@@ -29,7 +29,7 @@ class TradeStrategy10s_Orig(SmartStrategy):
 
         self.sub_timeframe = "30s"
         self.min_gain = 20
-        self.min_volume = 100000
+        self.min_volume = 50000
         self.min_day_volume= 500_000
 
         self.loss_by_trade=50
@@ -109,9 +109,10 @@ class TradeStrategy10s_Orig(SmartStrategy):
         ###################
 
         df = self.local_df[symbol]
-        if len(df)<1:
+        if len(df)<2:
             return
         last_1m =  df.iloc[-1]
+        prev_1m =  df.iloc[-2]
 
         chain_up = int(last_1m["chain_up"])
         sma_20 = last["sma_20"]
@@ -137,13 +138,19 @@ class TradeStrategy10s_Orig(SmartStrategy):
             
             #logger.info(f"{last_1m}")
 
-            if chain_up>=2 and chain_up <=4:
+            if chain_up>=2 :#and chain_up <=4:
 
                 chain_start = df.iloc[-chain_up+1]
-                diff = last_1m["high"] - chain_start["low"]
-                chain_gain =  (diff) / chain_start["low"] * 100  
+             
+                
+                #diff = last_1m["high"] - chain_start["low"]
+                #chain_gain =  (diff) / chain_start["low"] * 100  
+                #if chain_gain>=self.min_gain and last["close"] > sma_20:
 
-                if chain_gain>=self.min_gain and last["close"] > sma_20:
+                diff = last_1m["close"] - chain_start["open"]
+                chain_gain =  (diff) / chain_start["open"] * 100  
+
+                if chain_gain>=20 and last["close"] > sma_20:
 
                     #logger.info(df.head(10))    
                     await self.add_marker(symbol,"SPOT",f"Ch {chain_gain:.1f}",f"Ch {chain_gain}","#F6F7F86F","square",position ="atPriceTop")
@@ -162,9 +169,11 @@ class TradeStrategy10s_Orig(SmartStrategy):
                             send_telegram_message(f"BUY {symbol} {last['datetime']} q:{quantity} g:{chain_gain:.1f} %")
             
 
-        if self.hasCurrentTrade(symbol):
+        elif self.hasCurrentTrade(symbol):
 
                     gain,ts,pnl = self.buyGain(symbol, last["close"]) 
+
+                    gain_30s =( last_1m["close"] - prev_1m["close"]) / prev_1m["close"] * 100
 
                     #logger.info(f"SELL GAIN {symbol}  gain {gain} ts{ts} pnl {pnl}")
 
@@ -178,8 +187,22 @@ class TradeStrategy10s_Orig(SmartStrategy):
                     
                     logger.info(f"SELL GAIN {symbol}  {last['datetime']} secs: {time_elapsed_secs} gain {gain} pnl {pnl} max {self.max_gain[symbol] } chain_down {chain_down}")
 
-                    if last["close"] < sma_20:
+                    # giu subito
+                    if (gain_30s<=0 and not self.has_meta(symbol,"done")):
                         trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
-                        
+                        if not self.bootstrapMode:
+                            send_telegram_message(f"SELL {symbol}  {last['datetime']} g:{gain:.1f} %")
+                    else:
+                        self.set_meta(symbol, {"done":True})
+
+                    #max gain
+                    if self.max_gain[symbol]>40 and self.max_gain[symbol]-gain > 10 :
+                        trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
+                        if not self.bootstrapMode:
+                            send_telegram_message(f"SELL {symbol}  {last['datetime']} g:{gain:.1f} %")
+
+                    # to low
+                    if last["close"] < sma_20 or chain_down>=3 : #or gain > 10: or chain_down>=3 
+                        trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
                         if not self.bootstrapMode:
                             send_telegram_message(f"SELL {symbol}  {last['datetime']} g:{gain:.1f} %")

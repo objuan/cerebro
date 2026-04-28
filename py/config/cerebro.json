@@ -133,28 +133,12 @@
                     "trade_last_hh" : 17
 
 				}
-			},				
+			},	
 			{
-			   "module": "back_strategy_10s_orig",
-				"class" : "BackStrategy10s_Orig",
-				"timeframe" : "10s",
+			   "module": "back_strategy_5m",
+				"class" : "BackStrategy5m",
+				"timeframe" : "5m",
 				"enabled" : true,
-				"scope" : "BACK",
-				"params" :
-				{
-				 	"gain_perc" : 10,
-                    "volume_min_filter" :1000000,
-                    "trade_last_hh" : 11,
-					"trade_last_mm" : 0,
-					"trade_first_hh" : 5,
-					"min_open_gain": 10
-				}
-			}	,			
-			{
-			   "module": "back_strategy_down",
-				"class" : "BackStrategyDown",
-				"timeframe" : "1m",
-				"enabled" : false,
 				"scope" : "BACK",
 				"params" :
 				{
@@ -166,7 +150,24 @@
 					"min_open_gain": 10
 
 				}
-			},
+			},			
+			{
+			   "module": "back_strategy_10s_orig",
+				"class" : "BackStrategy10s_Orig",
+				"timeframe" : "10s",
+				"enabled" : false,
+				"scope" : "BACK",
+				"params" :
+				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :1000000,
+                    "trade_last_hh" : 11,
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
+				}
+			}	,			
+		
 				{
 			   "module": "back_strategy_open_1",
 				"class" : "BackStrategyOpen1",
