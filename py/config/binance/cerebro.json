@@ -1,0 +1,142 @@
+{
+	"general":
+	{
+		"ib_port_paper" : 7497,
+		"ib_port_live" : 7496,
+		"ib_client" : 1,
+		"live_mode" : true
+	},
+	"instruments":{
+		"stock_update_days" : 7
+	},
+	"markets":
+	{
+
+	}
+	,"order":
+	{
+		"mode" : "task_all"
+	},
+	"reports":
+	{
+		"shapshot_time" : 10
+	},
+	
+	"stategies":[
+
+
+	],
+	
+
+	"live_service":
+	{
+				"enabled" : true,
+				"ib_client" : 2,
+				"live_max_symbols" :15,
+				"feed_max_symbols" :70,
+				"RETENTION_HOURS" : 48,
+				"CLEANUP_INTERVAL_HOURS" : 8,
+				"fetch_enabled" : true,
+				"mode" : "live",
+				"mode1" : "live|offline|sym",
+				"debug_symbols" : ["EDHL"],
+				"start_scan" : "live",
+				"start_scan1" : "keep_last_session|debug|live",
+				"start_sym_time" : "2026-03-20 10:00:00",
+				"history_provider" :"ib",
+				"root_folder"  :"app",
+				"strategy_folder"  :"strategies",
+				"scheduler":[
+					{
+						"name" : "GAIN",
+						"update_time" : 30,
+						"live_mode" : "MERGE",
+						"merge_weight" :"100%",
+						"discard_rule" : "LESS_GAIN"
+					}
+				],
+				"types": "TOP_PERC_GAIN|TOP_PERC_LOSE|HOT_BY_PRICE_RANGE|TOP_VOLUME_RATE|HIGH_OPEN_GAP|LOW_OPEN_GAP|TOP_TRADE_RATE|MOST_ACTIVE|HIGH_OPEN_GAP|HIGH_PRICE",
+				"profiles": 
+				[
+					{
+						"name" : "GAIN",
+						"instrument": "STK",
+						"location": "STK.NASDAQ",
+						"type": "TOP_PERC_GAIN",
+						"filter": 
+						{
+							"price_min": 0.8,
+							"price_max": 20,
+							"float_min" : "500K",
+							"float_max" : "50M"
+						}
+					},
+					{
+						"name" : "LOSE",
+						"instrument": "STK",
+						"location": "STK.NASDAQ",
+						"type": "TOP_PERC_LOSE",
+						"filter": 
+						{
+							"price_min": 0.5,
+							"price_max": 5,
+							"float_min" : "500K",
+							"float_max" : "50M"
+						}
+					},
+					{
+						"name" : "VOLR",
+						"instrument": "STK",
+						"location": "STK.NASDAQ",
+						"type": "TOP_VOLUME_RATE",
+						"filter": 
+						{
+							"price_min": 0.8,
+							"price_max": 20,
+							"float_min" : "500K",
+							"float_max" : "50M"
+						}
+					}
+				]
+
+				,"_comment" : "Dataframe database update time by timeframe"
+				,"TIMEFRAME_UPDATE_SECONDS" : {
+					"10s": 10,
+					"30s": 30,
+					"1m": 5,
+					"5m": 300,
+					"15m": 900,
+					"30m": 1800,
+					"1h": 3600,
+					"2h": 7200,
+					"4h": 14400,
+					"1d": 43200
+				},
+				"TIMEFRAME_LEN_CANDLES" : {
+					"10s": 30,
+					"30s": 30,
+					"1m": "15d",
+					"5m": "30d",
+					"15m": "60d",
+					"30m": "60d",
+					"1h": "60d",
+					"2h": "60d",
+					"4h": "120d",
+					"1d": "365d"
+				}
+				,"TIMEFRAME_CHART_CANDLES" : {
+					"10s": 1000,
+					"30s": 1000,
+					"1m": 1000,
+					"5m": 5000,
+					"15m": 5000,
+					"30m": 5000,
+					"1h":  5000,
+					"2h":  5000,
+					"4h": 5000,
+					"1d":  5000
+				}
+	}
+
+		
+}

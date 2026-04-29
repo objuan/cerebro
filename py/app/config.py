@@ -1,10 +1,24 @@
 import json
 import os
+import sys
 import logging
 
-DB_FILE = "db/crypto.db"
-CONFIG_FILE = "config/cerebro.json"
-PROPS_FILE = "config/properties.json"
+print(f"Args: {sys.argv}")
+
+BINANCE_MODE = False
+if len(sys.argv) > 1:
+        BINANCE_MODE =  sys.argv[1] =="BINANCE"
+
+print(f"BINANCE_MODE: {BINANCE_MODE}")
+
+if not BINANCE_MODE:
+    DB_FILE = "db/crypto.db"
+    CONFIG_FILE = "config/cerebro.json"
+    PROPS_FILE = "config/properties.json"
+else:
+    DB_FILE = "db/binance.db"
+    CONFIG_FILE = "config/binance/cerebro.json"
+    PROPS_FILE = "config/binance/properties.json"
 
 
 logger = logging.getLogger(__name__)

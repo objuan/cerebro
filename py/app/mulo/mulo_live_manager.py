@@ -24,7 +24,8 @@ from rich.live import Live
 #from message_bridge import *
 import uvicorn
 
-from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC
+from mulo.binance_streamer import BinanceStreamer
+from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC,BINANCE_MODE
 from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts, convert_json,AsyncScheduler,candles_from_seconds
 from company_loaders import *
@@ -65,6 +66,8 @@ if use_display:
 else:
     live_display=None
 '''
+BINANCE_WS = "wss://stream.binance.com:9443/ws/!ticker@arr"
+#wss://stream.binance.com:9443/stream?streams=btcusdt@ticker/ethusdt@ticker
 
 if use_yahoo:
     ws_yahoo = yf.AsyncWebSocket()
@@ -165,8 +168,17 @@ class LiveScanner:
 class LiveManager:
 
     def __init__(self,ib,config,fetcher:MuloJob,scanner:Scanner,ws_manager,ms:MarketService,on_display):
-        self.ib=ib
-        fetcher.ib = ib
+        if BINANCE_MODE:
+            self.b_client = ib
+            fetcher.b_client = ib
+            self.ib = None
+
+            self.b_streamer = BinanceStreamer()
+
+        else:
+            self.ib=ib
+            fetcher.ib = ib
+
         self.ms=ms
         self.on_display=on_display
         self.config=config
@@ -228,8 +240,8 @@ class LiveManager:
                 logger.warning(f"reqId={reqId}: {errorString}")
             else:
                 logger.error(f"{errorCode} reqId={reqId}: {errorString}")
-        if ib:
-            ib.errorEvent += onError
+        if self.ib:
+            self.ib.errorEvent += onError
 
     def getTicker(self,symbol)-> Ticker:
          return self.tickers[symbol]
@@ -383,7 +395,7 @@ class LiveManager:
         return toupdate
     
     async def align_symbols(self, symbols):
-        
+            
         for symbol in symbols:
 
             #await self.fetcher._align_data(symbol, "1d")
@@ -397,19 +409,60 @@ class LiveManager:
                     dt_start =  datetime.utcfromtimestamp(max_ts/1000)
                 
                 logger.info(f"1D dt_start {dt_start}")
-                df = yf.download(
-                                tickers=symbol,
-                                start=dt_start.strftime("%Y-%m-%d"),
-                                interval="1d",
-                                auto_adjust=False,
-                                prepost=True,        # include premarket + afterhours
-                                progress=False,
-                            )
+
+                if BINANCE_MODE:
+                    interval='1d'
+                    klines = self.b_client.get_historical_klines(
+                        symbol,
+                        interval,
+                        dt_start.strftime("%Y-%m-%d")  # es: "2024-01-01"
+                    )
+                    #logger.info(f"{klines}")
+                    df = pd.DataFrame(klines, columns=[
+                        "Open time", "Open", "High", "Low", "Close", "Volume",
+                        "Close time", "Quote asset volume", "Number of trades",
+                        "Taker buy base", "Taker buy quote", "Ignore"
+                    ])
+                    if not df.empty:
+                        df = df.iloc[:-1]
+
+                    # conversioni
+                    df["Datetime"] = pd.to_datetime(df["Open time"], unit='ms')
+                    #df["Close time"] = pd.to_datetime(df["Close time"], unit='ms')
+                    df["timestamp"] = (df["Open time"] // 1000).astype(int)
+
+                    numeric_cols = ["Open", "High", "Low", "Close", "Volume"]
+                    df[numeric_cols] = df[numeric_cols].astype(float)
+
+                    df.set_index("Open time", inplace=True)
+                    logger.info(f"\n{df}")
+                    
+                    #exit(0)
+                    if not df.empty:
+                        await self.fetcher.process_data("exchange",symbol, "1d", self.fetcher.conn, df,True)
+
+                else:
+                    df = yf.download(
+                                    tickers=symbol,
+                                    start=dt_start.strftime("%Y-%m-%d"),
+                                    interval="1d",
+                                    auto_adjust=False,
+                                    prepost=True,        # include premarket + afterhours
+                                    progress=False,
+                                )
 
                 logger.info(f"df \n{df}")
                 if not df.empty:
                     await self.fetcher.process_data("exchange",symbol, "1d", self.fetcher.conn, df,True)
                 
+        ###########
+
+        #ret,data = await self.fetcher.align_data(symbols[0])
+
+        #await self.fetcher.process_data_batch("",symbols[0], "1m",self.fetcher.conn_exe, ,False)
+
+
+        #exit(0)
         ############
 
         sem = asyncio.Semaphore(20)
@@ -430,8 +483,9 @@ class LiveManager:
         for symbol, data in dict(results).items():
             logger.info(f"{symbol} #{len(data) if data is not None else 0}  ")
 
-            exchange = self.fetcher.get_exchange(symbol)
-            await self.fetcher.process_data_batch(exchange,symbol, "1m",self.fetcher.conn_exe, data,False)
+            #exchange = self.fetcher.get_exchange(symbol)
+            await self.fetcher.process_data_batch("",symbol, "1m",self.fetcher.conn_exe, data,False)
+
         #logger.info(dict(results))
 
         '''
@@ -487,8 +541,12 @@ class LiveManager:
                 logger.info(f"ADD TICKER {symbol}")
                 to_add.append(symbol)
 
-        if self.ib:
+        if BINANCE_MODE:
             await self.align_symbols(to_add)
+            pass
+        else:
+            if self.ib:
+                await self.align_symbols(to_add)
 
         logger.info(f"START FEEDs")
 
@@ -506,11 +564,7 @@ class LiveManager:
                 '''
                 logger.info(f"NEW TICKER {symbol}")
 
-                exchange = "SMART"#symbol_map[symbol]
-                contract = Stock(symbol, exchange, 'USD')
-
-                logger.info(f">> Open  feeds {contract}")
-
+               
                 # Request market data for the contract
 
                 if use_yahoo:
@@ -518,28 +572,48 @@ class LiveManager:
                     #await ws_yahoo.subscribe(symbol)
                     #market_data={"symbol":symbol }
                 else:
-    
-                    self.ib.qualifyContracts(contract)
-                
-                    #reqId = self.ib.client.getReqId()
-                    #self.reqId2contract[reqId] = contract
-            
-                    ticker = self.ib.reqMktData(contract, "", snapshot=False, regulatorySnapshot=False,mktDataOptions=[])#, reqId=reqId)
-                    ticker.gain = 0
-                    ticker.last = 0
-                    ticker.start_time = datetime.now()
-                    ticker.last_close = await self.fetcher.last_close(symbol)
-                    ticker.symbol = symbol
-                    '''
-                    if scan:
-                        ticker.scan_list = [scan]
+                    
+                    if BINANCE_MODE:
+                        contract=None
+                        ticker = Ticker
+                        ticker.gain = 0
+                        ticker.last = 0
+                        ticker.start_time = datetime.now()
+                        ticker.last_close = await self.fetcher.last_close(symbol)
+                        ticker.symbol = symbol
+                        ticker.is_live = True
+                        #if self.config["live_service"]["mode"] != "offline":
+                        #    ticker.updateEvent += self.on_tick
+                        
+                        
                     else:
-                        ticker.scan_list = []
-                    '''
+                        exchange = "SMART"#symbol_map[symbol]
+                        contract = Stock(symbol, exchange, 'USD')
 
-                    ticker.is_live = True
-                    if self.config["live_service"]["mode"] != "offline":
-                        ticker.updateEvent += self.on_tick
+                        logger.info(f">> Open  feeds {contract}")
+
+
+                        self.ib.qualifyContracts(contract)
+                    
+                        #reqId = self.ib.client.getReqId()
+                        #self.reqId2contract[reqId] = contract
+                
+                        ticker = self.ib.reqMktData(contract, "", snapshot=False, regulatorySnapshot=False,mktDataOptions=[])#, reqId=reqId)
+                        ticker.gain = 0
+                        ticker.last = 0
+                        ticker.start_time = datetime.now()
+                        ticker.last_close = await self.fetcher.last_close(symbol)
+                        ticker.symbol = symbol
+                        '''
+                        if scan:
+                            ticker.scan_list = [scan]
+                        else:
+                            ticker.scan_list = []
+                        '''
+
+                        ticker.is_live = True
+                        if self.config["live_service"]["mode"] != "offline":
+                            ticker.updateEvent += self.on_tick
                     
                 self.tickers[symbol]  = ticker
                 self.ticker_contracts[symbol]  = contract
@@ -547,6 +621,7 @@ class LiveManager:
                 if scan:
                     self.fetcher.add_day_symbol(scan.name,symbol)
 
+       
         #####
 
         '''
@@ -568,6 +643,9 @@ class LiveManager:
             #if (ticker.time  and  not math.isnan(ticker.last)) or self.run_mode=="offline":
             #if (ticker.time  ) or self.run_mode=="offline":
                 symbols.append(symbol)
+
+        if BINANCE_MODE and (len(symbol_list_add)>0 or len(symbol_list_remove)>0 ):
+             await self.b_streamer.set_symbols(symbols)
 
         await self.fetcher.on_update_live_symbols(symbols,True)
 
@@ -616,15 +694,17 @@ class LiveManager:
                 #logger.info(f"!!!!!!! {symbol}")
                 data=[]
                 #table = Table("Symbol", "Last", "Ask", "Bid", "10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
-                if use_yahoo:
+                if BINANCE_MODE:
                     ts = ticker.time#_time.time()
                 else:
-                    ts = ticker.time.timestamp()
+                    if use_yahoo:
+                        ts = ticker.time#_time.time()
+                    else:
+                        ts = ticker.time.timestamp()
 
                 if math.isnan(ticker.last ):
                     return
 
-                
                 # Update history
                 if symbol not in self.ticker_history:
                     self.ticker_history[symbol] = {}
@@ -786,7 +866,14 @@ class LiveManager:
                                    f"{ticker.last_close:.6f}", f"{ticker.gain:.1f}%",hls[0], hls[1], hls[2], hls[3])           
                     #live_display.update(table)
           
-    
+    async def binance_tick_tickers(self):   
+        while True:
+                    try:
+                        await self.scheduler.tick()
+                    except:
+                        logger.error("ERR", exc_info=True)
+                    await asyncio.sleep(0.1)
+     
     async def ib_tick_tickers(self):
            
         while True:
@@ -991,11 +1078,16 @@ class LiveManager:
 
     async def start_batch(self): 
         logger.info(f"LIVE mode {self.run_mode}")
+
         if self.run_mode != "sym":
-            if use_yahoo:
-                _tick_tickers = asyncio.create_task(self.yahoo_tick_tickers())
+            if BINANCE_MODE:
+                #await self.b_streamer.start()
+                _tick_tickers = asyncio.create_task(self.binance_tick_tickers())
             else:
-               _tick_tickers = asyncio.create_task(self.ib_tick_tickers())
+                if use_yahoo:
+                    _tick_tickers = asyncio.create_task(self.yahoo_tick_tickers())
+                else:
+                    _tick_tickers = asyncio.create_task(self.ib_tick_tickers())
         else:
             _tick_tickers = asyncio.create_task(self.sym_tick_tickers())
 
@@ -1040,7 +1132,7 @@ class LiveManager:
 
                     df_symbols =self.fetcher.get_df(f"SELECT symbol,ib_conid as conidex , exchange as listing_exchange FROM STOCKS where symbol in ({filter})")
                     
-                    
+
                     await self.manage_live(None,symbols , [])
 
                     '''
@@ -1064,6 +1156,13 @@ class LiveManager:
                 #self.candle_updater = MuloCandleUpdater(self.ib,config,self.fetcher)
                 #self.candle_updater.start()
 
+                if BINANCE_MODE:
+                    async def onReceive(symbol,price,volume,quote_volume,time):
+                        #logger.info(f"{symbol} → {price:.2f} v: {volume} time : {time}")
+                        t = Ticker(last= price, volume= int(volume), time=int(time), ask=0, bid=0 )
+                        await self.add_ticker(symbol,t,None)
+                        
+                    await self.b_streamer.start(onReceive)
 
                 await self.manage_live(None,self.fetcher.get_day_symbols() , [])
 

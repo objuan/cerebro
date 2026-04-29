@@ -20,7 +20,7 @@ import warnings
 from company_loaders import *
 from market import *
 from dataclasses import dataclass
-from config import TF_SEC_TO_DESC
+from config import TF_SEC_TO_DESC,BINANCE_MODE
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,8 @@ class MuloJob:
         self.TIMEFRAME_LEN_CANDLES =config["live_service"]["TIMEFRAME_LEN_CANDLES"]  
         self.history_provider = config["live_service"]["history_provider"]
         #self.useHistoryYahoo = self.history_provider=="yahoo"
-        self.market = MarketService(config).getMarket("AUTO")
+        if not BINANCE_MODE:
+            self.market = MarketService(config).getMarket("AUTO")
         self.marketZone = None
 
         self.conn_exe=sqlite3.connect(db_file, isolation_level=None)
@@ -175,7 +176,10 @@ class MuloJob:
         dt = dt[:-2] + ":" + dt[-2:]
 
         ds_run_time  = datetime.utcnow().isoformat()
-        ex = self.get_exchange(symbol)
+        if BINANCE_MODE:
+            ex="binance"
+        else:
+            ex = self.get_exchange(symbol)
         tf = TF_SEC_TO_DESC[new_ticker["tf"]]
 
         sql=f"""
@@ -256,31 +260,16 @@ class MuloJob:
         self.sql_symbols = str(self.symbols)[1:-1]
 
         if len(self.symbols) > 0:
-            self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
+                self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
         else:
             logger.error(f"Empty symbol list !!! {new_symbols}")
             return
+          
         #for s in self.symbols:
         #    self.tickers[s] = Ticker(symbol=s)
 
         logger.info(f"LISTEN SYMBOLS {self.symbols}")
 
-       
-
-        '''
-        self.symbol_to_exchange_map = {}
-        for _, row in self.df_fundamentals.iterrows():
-            self.symbol_to_exchange_map[row["symbol"]] = row["exchange"]
-        '''
-      
-        # startup 
-        '''
-        if liveMode:
-            for symbol in to_add:
-                for k,interval in TF_SEC_TO_DESC.items():
-                    #if int(k) > 30:
-                        await self._align_data(symbol,interval)
-        '''
 
     ##############
 
@@ -421,19 +410,24 @@ class MuloJob:
             df = df.reset_index()
 
         df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
-
-        if useYahoo:
-            dateName = "Date" if "Date" in df.columns else "Datetime"
-            df["Datetime"] = df[dateName] 
-            df["timestamp"] = df[dateName].astype("int64") // 10**6 # // 10**9
+        
+        if BINANCE_MODE:
+            provider = "binance"
         else:
-            if timeframe == "1d":
-                df["timestamp"] = (
-                    pd.to_datetime(df["Datetime"], utc=True)
-                    .view("int64") // 10**9
-                ).astype("int64")
+            provider = "yahoo" if useYahoo else "ib"
+
+            if useYahoo:
+                    dateName = "Date" if "Date" in df.columns else "Datetime"
+                    df["Datetime"] = df[dateName] 
+                    df["timestamp"] = df[dateName].astype("int64") // 10**6 # // 10**9
             else:
-                df["timestamp"] = df["Datetime"].astype("int64") // 10**9
+                    if timeframe == "1d":
+                        df["timestamp"] = (
+                            pd.to_datetime(df["Datetime"], utc=True)
+                            .view("int64") // 10**9
+                        ).astype("int64")
+                    else:
+                        df["timestamp"] = df["Datetime"].astype("int64") // 10**9
 
         ohlcv = [
             (b.timestamp * 1000, b.Open, b.High, b.Low, b.Close, b.Volume, str(b.Datetime))
@@ -443,10 +437,10 @@ class MuloJob:
         # rimuove ultima candela parziale
         ohlcv = ohlcv[:-1]
 
+        logger.info(f"ohlcv \n{ohlcv}")
+
         if not ohlcv:
             return False
-
-        provider = "yahoo" if useYahoo else "ib"
 
         rows = [
             (
@@ -506,18 +500,22 @@ class MuloJob:
 
                 #logger.info(f"\n{df}")
 
-                if useYahoo:
-                    dateName = "Date" if "Date" in df.columns else "Datetime"
-                    df["Datetime"] = df[dateName] 
-                    df["timestamp"] = df[dateName].astype("int64") // 10**9 # // 10**9
+                if BINANCE_MODE:
+                    provider ="binance"
                 else:
-                    if timeframe == "1d":
-                        df["timestamp"] = (
-                            pd.to_datetime(df["Datetime"], utc=True)
-                            .view("int64") // 10**9
-                        ).astype("int64")
+                    provider = "yahoo" if useYahoo else "ib"
+                    if useYahoo:
+                        dateName = "Date" if "Date" in df.columns else "Datetime"
+                        df["Datetime"] = df[dateName] 
+                        df["timestamp"] = df[dateName].astype("int64") // 10**9 # // 10**9
                     else:
-                        df["timestamp"] = df["Datetime"].astype("int64") // 10**9
+                        if timeframe == "1d":
+                            df["timestamp"] = (
+                                pd.to_datetime(df["Datetime"], utc=True)
+                                .view("int64") // 10**9
+                            ).astype("int64")
+                        else:
+                            df["timestamp"] = df["Datetime"].astype("int64") // 10**9
 
 
                 logger.info(f"..\n{df.tail(1)}")
@@ -533,7 +531,7 @@ class MuloJob:
 
                 logger.debug(f"Rows fetched: {len(ohlcv)}")
 
-                provider = "yahoo" if useYahoo else "ib"
+                
 
                 if not ohlcv:
                     return False
@@ -588,36 +586,119 @@ class MuloJob:
                     """, (symbol,timeframe,))
 
         return m.iloc[0][0]
-        
+    
+    def get_klines_batch(self, symbol, interval, start_dt, end_dt):
+        all_klines = []
+
+        start_ts = int(start_dt.timestamp() * 1000)
+        end_ts = int(end_dt.timestamp() * 1000)
+
+        while start_ts < end_ts:
+            klines = self.b_client.get_historical_klines(
+                symbol=symbol,
+                interval=interval,
+                start_str=start_ts,
+                end_str=end_ts,
+                limit=1000
+            )
+
+            if not klines:
+                break
+
+            all_klines.extend(klines)
+
+            # ultimo timestamp ricevuto
+            last_open_time = klines[-1][0]
+
+            # evita loop infinito
+            if last_open_time == start_ts:
+                break
+
+            # prossimo blocco (aggiungi 1 ms per non duplicare)
+            start_ts = last_open_time + 1
+
+        return all_klines
+            
     async def align_data(self,symbol):
+           
+    
                 self.db_clear_live(symbol,"1m")
-                end = datetime.now(timezone.utc).strftime('%Y%m%d-%H:%M:%S')
+                end = datetime.now(timezone.utc).strftime('%Y-%m-%d-%H:%M:%S')
 
                 max_ts = self.get_max_time(symbol, "1m")
 
                 logger.info(f"Prev ts {symbol} {max_ts}")
 
-                if not max_ts:
-                    time = since_to_durationStr(int(60 * 60 * 24*7 ))
-                else:
-                    update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_ts)/1000)
-                    candles= candles_from_seconds(update_delta_min.total_seconds(),'1m')
-                    time = since_to_durationStr(int(update_delta_min.total_seconds()) )
-                
-                
-                    logger.info(f">> Fetching history {symbol} delta:{time} d:{update_delta_min} #{candles}")
            
-                contract =   Stock(symbol, 'SMART', 'USD')
-               
-                bars =  await self.ib.reqHistoricalDataAsync(
-                            contract,
-                            endDateTime=end,
-                            durationStr=time,#tf_to_ib_period[timeframe],      # period back: 2 giorni
-                            barSizeSetting='1 min', #'1 min', # 1 minuto
-                            whatToShow='TRADES',
-                            useRTH=False,           # includi orari estesi
-                            formatDate=2 #unixtime
-                        )
+                if BINANCE_MODE:
+                    #end = datetime.now().astimezone(timezone.utc).strftime('%Y-%m-%d-%H:%M:%S')
+
+                    logger.info(f"end {end}")
+                    if not max_ts:
+                        dt_start = datetime.now(timezone.utc) - timedelta(days=7)
+                        #dt_start = datetime.now().astimezone(timezone.utc) - timedelta(days=1)
+                        start = dt_start.strftime('%Y-%m-%d-%H:%M:%S')
+                    else:
+                        dt_start = datetime.utcfromtimestamp(max_ts / 1000)
+                        start = dt_start.strftime('%Y%m%d-%H:%M:%S')
+
+                    klines = self.get_klines_batch(
+                        symbol=symbol,
+                        interval='1m',
+                        start_dt=dt_start,
+                        end_dt= datetime.now(timezone.utc)
+                    )
+                    #await self.b_client.close_connection()
+
+                    df = pd.DataFrame(klines, columns=[
+                        "Open time", "Open", "High", "Low", "Close", "Volume",
+                        "Close time", "Quote asset volume", "Number of trades",
+                        "Taker buy base", "Taker buy quote", "Ignore"
+                    ])
+                    df["Datetime"] = pd.to_datetime(df["Open time"], unit='ms')
+                    df["timestamp"] = (df["Open time"] // 1000).astype(int)
+
+                    numeric_cols = ["Open", "High", "Low", "Close", "Volume"]
+                    df[numeric_cols] = df[numeric_cols].astype(float)
+                     #df = df.iloc[:-1]
+                    #logger.info(f"\n{df}")
+
+                    if df is None or df.empty:
+                        return symbol, None
+                    '''
+                    df = df.rename(columns={
+                                    "open": "Open",
+                                    "high": "High",
+                                    "low": "Low",
+                                    "close": "Close",
+                                    "volume": "Volume",
+                                    "date" :"Datetime",
+                                    "average" : "VWAP"
+                                })
+                    '''
+                    return symbol, df
+                
+                else:
+                    if not max_ts:
+                        time = since_to_durationStr(int(60 * 60 * 24*7 ))
+                    else:
+                        update_delta_min = datetime.now() - datetime.fromtimestamp(float(max_ts)/1000)
+                        candles= candles_from_seconds(update_delta_min.total_seconds(),'1m')
+                        time = since_to_durationStr(int(update_delta_min.total_seconds()) )
+                    
+                    logger.info(f">> Fetching history {symbol} delta:{time} d:{update_delta_min} #{candles}")
+                
+                    contract =   Stock(symbol, 'SMART', 'USD')
+                
+                    bars =  await self.ib.reqHistoricalDataAsync(
+                                contract,
+                                endDateTime=end,
+                                durationStr=time,#tf_to_ib_period[timeframe],      # period back: 2 giorni
+                                barSizeSetting='1 min', #'1 min', # 1 minuto
+                                whatToShow='TRADES',
+                                useRTH=False,           # includi orari estesi
+                                formatDate=2 #unixtime
+                            )
                 try:
                     df = util.df(bars)
                     

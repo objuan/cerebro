@@ -34,7 +34,7 @@ util.startLoop()  # uncomment this line when in a notebook
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC
+from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC,BINANCE_MODE
 from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts, convert_json,AsyncScheduler
 from company_loaders import *
@@ -46,11 +46,17 @@ from mulo.mulo_job import MuloJob
 from mulo.mulo_scanner import Scanner
 from mulo.mulo_live_manager import  LiveScanner,LiveManager
 
+from mulo.binance_scanner import BinanceScanner
+from binance.client import Client
+
 #intervals = [10, 30, 60, 300]  # seconds for 10s, 30s, 1m, 5m
 #intervals = [10]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
-LOG_FILE="logs/tws_brokerlive.log"
+if BINANCE_MODE:
+    LOG_FILE="logs/binance_brokerlive.log"
+else:
+    LOG_FILE="logs/tws_brokerlive.log"
 
 use_yahoo=False
 use_display = False
@@ -273,7 +279,10 @@ async def main():
 
     global live
     logger.info("=================================================")
-    logger.info("               IBROKER MULE TICKERS V1.0")
+    if BINANCE_MODE:
+        logger.info("               BINANCE MULE TICKERS V1.0")
+    else:
+        logger.info("               IBROKER MULE TICKERS V1.0")
     logger.info("=================================================")
     logger.info(f"RUN MODE {run_mode}")   
 
@@ -287,42 +296,50 @@ async def main():
         await live.scanData("MOST_ACTIVE")
     
     try:
-            
-            if run_mode!= "sym":
-                    ib = IB()
-                    #if config["live_service"]["mode"] != "offline":
-                    try:
-                        live_mode = config["general"]["live_mode"] == True
-                        port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]  
-
-                        logger.info(f"live_mode:{live_mode} Connecting to IB on port {port} with clientId {config['live_service']['ib_client']}") 
-
-                        ib.connect('127.0.0.1', port, clientId=config["live_service"]["ib_client"])
-                    except:
-                        ib = None
-                        if config["live_service"]["mode"] != "offline":
-                            logger.error("IB NOT FOUND !!!!", exc_info=True)
-
-                    #OrderManager(config,ib)
+            if BINANCE_MODE:
                 
-                    scanner = Scanner(ib,config,ms)
+                b_client = Client()
+                scanner = BinanceScanner(b_client,config,ms)
 
-                    def on_display(table):
-                        live_display.update(table)
-                    if use_display:
-                        live = LiveManager(ib,config,fetcher,scanner,ws_manager,ms,on_display)
-                    else:
-                        live = LiveManager(ib,config,fetcher,scanner,ws_manager,ms,None)
+                live = LiveManager(b_client,config,fetcher,scanner,ws_manager,ms,None)
 
+                pass
             else:
-                    #OrderManager(config,None)
-                    #Balance(config,None)
-                    scanner = Scanner(None,config,ms)
+                if run_mode!= "sym":
+                        ib = IB()
+                        #if config["live_service"]["mode"] != "offline":
+                        try:
+                            live_mode = config["general"]["live_mode"] == True
+                            port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]  
 
-                    #ib = IB()
-                    #ib.connect('127.0.0.1', config["live_service"]["ib_port"], clientId=config["live_service"]["ib_client"])
+                            logger.info(f"live_mode:{live_mode} Connecting to IB on port {port} with clientId {config['live_service']['ib_client']}") 
 
-                    live = LiveManager(None,config,fetcher,scanner,ws_manager,ms,None)
+                            ib.connect('127.0.0.1', port, clientId=config["live_service"]["ib_client"])
+                        except:
+                            ib = None
+                            if config["live_service"]["mode"] != "offline":
+                                logger.error("IB NOT FOUND !!!!", exc_info=True)
+
+                        #OrderManager(config,ib)
+                    
+                        scanner = Scanner(ib,config,ms)
+
+                        def on_display(table):
+                            live_display.update(table)
+                        if use_display:
+                            live = LiveManager(ib,config,fetcher,scanner,ws_manager,ms,on_display)
+                        else:
+                            live = LiveManager(ib,config,fetcher,scanner,ws_manager,ms,None)
+
+                else:
+                        #OrderManager(config,None)
+                        #Balance(config,None)
+                        scanner = Scanner(None,config,ms)
+
+                        #ib = IB()
+                        #ib.connect('127.0.0.1', config["live_service"]["ib_port"], clientId=config["live_service"]["ib_client"])
+
+                        live = LiveManager(None,config,fetcher,scanner,ws_manager,ms,None)
 
 
             if use_display:
@@ -331,7 +348,7 @@ async def main():
             u_config = uvicorn.Config(
                 app=app, 
                 host="0.0.0.0", 
-                port=3000,
+                port=3000 if not BINANCE_MODE else 4000,
                 log_level="info",
                 #access_log=False
             )

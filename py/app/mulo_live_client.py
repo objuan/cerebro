@@ -20,7 +20,7 @@ from market import *
 from dataclasses import dataclass
 warnings.filterwarnings("ignore")
 #from scanner.crypto import ohlc_history_manager
-from config import TF_SEC_TO_DESC
+from config import TF_SEC_TO_DESC,BINANCE_MODE
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,11 @@ class MuloLiveClient:
         self.symbol_to_exchange_map={}
         self.df_fundamentals = None
 
-        self.market = MarketService(config).getMarket("AUTO")
+        if BINANCE_MODE:
+            self.market = None
+        else:
+            self.market = MarketService(config).getMarket("AUTO")
+
         self.sym_mode = config["live_service"]["mode"] =="sym"
         self.sym_time = None
         self.sym_start_time = None
@@ -73,7 +77,10 @@ class MuloLiveClient:
     import websockets
 
     async def batch(self):
-        uri = "ws://localhost:3000/ws/tickers"
+        if BINANCE_MODE:
+            uri = "ws://localhost:4000/ws/tickers"
+        else:
+            uri = "ws://localhost:3000/ws/tickers"
 
         while True:  # 🔁 loop di riconnessione
             try:
@@ -997,7 +1004,10 @@ class MuloLiveClient:
     
     async def send_cmd(self,rest_point, msg=None):
         
-        url = "http://127.0.0.1:3000/"+rest_point
+        if BINANCE_MODE:
+            url = "http://127.0.0.1:4000/"+rest_point
+        else:
+            url = "http://127.0.0.1:3000/"+rest_point
 
         logger.info(f">> {url} {msg}")
         if msg:

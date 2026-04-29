@@ -31,7 +31,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi import WebSocket, WebSocketDisconnect
 util.startLoop()  # uncomment this line when in a notebook
+
 from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC
+'''
+if __name__ =="__main__":
+
+    print(f"Args: {sys.argv}")
+
+    config.BINANCE_MODE = True
+    if len(sys.argv) > 1:
+        config.BINANCE_MODE =  sys.argv[1]
+
+    print(f"BINANCE_MODE: {config.BINANCE_MODE}")
+'''
 from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
@@ -54,7 +66,10 @@ print(" STAT FROM ",os.getcwd())
 
 #DEFOUT = "app/layouts/default_layout.json"
 LOG_DIR = "logs"
-LOG_FILE = os.path.join(LOG_DIR, "app.log")
+if BINANCE_MODE:
+    LOG_FILE = os.path.join(LOG_DIR, "b_app.log")
+else:
+    LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
 ############# LOGS #############
 #print(" STAT FROM ",os.getcwd())
@@ -120,7 +135,10 @@ run_mode = config["live_service"].get("mode","sym")
 
 #fetcher = MuloJob(DB_FILE,config)
 ms = MarketService(config)          # o datetime.now()
-market = ms.getMarket("AUTO")
+if BINANCE_MODE:
+    market=None
+else:
+    market = ms.getMarket("AUTO")
 
 ws_manager = WSManager()
 ws_manager_orders = WSManager()
@@ -267,7 +285,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Next.js / React
+        "http://localhost:4000",  # Next.js / React
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:4000",
         "http://127.0.0.1:8080",
         "http://localhost:8080"
     ],
@@ -1591,6 +1611,13 @@ if __name__ =="__main__":
     #############
 
     logger.info(f"RUN MODE {run_mode}")   
+    logger.info(f"Args: {sys.argv}")
+
+    #binance_mode = False
+    #if len(sys.argv) > 1:
+    #    binance_mode =  sys.argv[1]
+
+    logger.info(f"binance_mode: {BINANCE_MODE}")
 
     util.startLoop()   # 🔑 IMPORTANTISSIMO
 
@@ -1602,39 +1629,42 @@ if __name__ =="__main__":
         client.ib_loop = asyncio.get_event_loop()   # NON get_running_loop
         
         if run_mode!= "sym":
+
+            live_mode = config["general"]["live_mode"]   
+
+            if BINANCE_MODE:
+                ib=None
+            else:
+                ib = IB()
+                util.patchAsyncio()
+
+                #ib.connect('127.0.0.1', config["general"]["ib_port"], clientId=config["general"]["ib_client"])
+                await ib.connectAsync(
+                        host="127.0.0.1",
+                        port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]  ,
+                        clientId=config["general"]["ib_client"],
+                        timeout=10
+                    )
             
-            ib = IB()
-            util.patchAsyncio()
-
-            live_mode = config["general"]["live_mode"] 
-
-            #ib.connect('127.0.0.1', config["general"]["ib_port"], clientId=config["general"]["ib_client"])
-            await ib.connectAsync(
-                    host="127.0.0.1",
-                    port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]  ,
-                    clientId=config["general"]["ib_client"],
-                    timeout=10
+                contract = Stock(
+                    "NVDA",
+                    "SMART",
+                    "USD",
+                    primaryExchange="NASDAQ"
                 )
-            
-            contract = Stock(
-                "NVDA",
-                "SMART",
-                "USD",
-                primaryExchange="NASDAQ"
-            )
 
-            # ✅ QUALIFY ASYNC
-            contracts = await ib.qualifyContractsAsync(contract)
-            contract = contracts[0]
+                # ✅ QUALIFY ASYNC
+                contracts = await ib.qualifyContractsAsync(contract)
+                contract = contracts[0]
 
-            logger.info(f"TEST CONTACT : {contract}")
+                logger.info(f"TEST CONTACT : {contract}")
 
-            #orderManager.ib = ib
-            #orderManager.ws = ws_manager_orders
-            await orderManager.bootstrap(ib)#,ws_manager_orders)
-            # Subscribe to news bulletins
-            ib.reqNewsBulletins(allMessages=True)
-            Balance(config,ib,props=propManager )
+                #orderManager.ib = ib
+                #orderManager.ws = ws_manager_orders
+                await orderManager.bootstrap(ib)#,ws_manager_orders)
+                # Subscribe to news bulletins
+                ib.reqNewsBulletins(allMessages=True)
+                Balance(config,ib,props=propManager )
 
         else:
             #orderManager.ws = ws_manager_orders
@@ -1642,14 +1672,23 @@ if __name__ =="__main__":
             Balance(config,None,props=propManager)
 
         try:
-        
-            u_config = uvicorn.Config(
-                app=app, 
-                host="0.0.0.0", 
-                port=8000,
-                log_level="info",
-                #access_log=False
-            )
+            
+            if BINANCE_MODE:
+                u_config = uvicorn.Config(
+                    app=app, 
+                    host="0.0.0.0", 
+                    port=8000,
+                    log_level="info",
+                    #access_log=False
+                )
+            else:
+                u_config = uvicorn.Config(
+                    app=app, 
+                    host="0.0.0.0", 
+                    port=9000,
+                    log_level="info",
+                    #access_log=False
+                )
             server = uvicorn.Server(u_config)
          
             _server_task = asyncio.create_task(server.serve())

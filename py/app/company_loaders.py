@@ -8,7 +8,7 @@ import pandas as pd
 import logging
 from datetime import datetime
 from utils import convert_json
-from config import DB_FILE,CONFIG_FILE
+from config import DB_FILE,CONFIG_FILE,BINANCE_MODE
 import yfinance as yf
 from tqdm import tqdm
 
@@ -135,24 +135,42 @@ class Yahoo:
         if toupdate:
             logger.debug(f"GETTING {symbol}")
             try:
-                t = yf.Ticker(symbol)
-                info = t.info
-            
-                data =  {
-                        "symbol": symbol,
-                        "name": info.get("shortName"),
-                        "exchange": info.get("exchange"),
-                        "sector": info.get("sectorKey"),
-                        "price": info.get("regularMarketPrice"),
-                        "currency": info.get("currency"),   
-                        "volume": info.get("volume"),
-                        "avg_volume": info.get("averageVolume"),
-                        "market_cap": info.get("marketCap"),
-                        "float": info.get("floatShares"),
-                        "shares_outstanding": info.get("sharesOutstanding"),
-                    }
+                if BINANCE_MODE:
+                    data =  {
+                            "symbol": symbol,
+                            "name": symbol,
+                            "exchange": "BINANCE",
+                            "sector": 0,
+                            "price": 0,
+                            "currency": "",   
+                            "volume": 0,
+                            "avg_volume": 0,
+                            "market_cap": 0,
+                            "float": 0,
+                            "shares_outstanding": 0,
+                        }
 
-                self.save_row(data)
+                    self.save_row(data)
+                    pass
+                else:
+                    t = yf.Ticker(symbol)
+                    info = t.info
+                
+                    data =  {
+                            "symbol": symbol,
+                            "name": info.get("shortName"),
+                            "exchange": info.get("exchange"),
+                            "sector": info.get("sectorKey"),
+                            "price": info.get("regularMarketPrice"),
+                            "currency": info.get("currency"),   
+                            "volume": info.get("volume"),
+                            "avg_volume": info.get("averageVolume"),
+                            "market_cap": info.get("marketCap"),
+                            "float": info.get("floatShares"),
+                            "shares_outstanding": info.get("sharesOutstanding"),
+                        }
+
+                    self.save_row(data)
 
             except Exception:
                 logger.error("Errro", exc_info=True)
