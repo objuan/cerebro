@@ -2,6 +2,12 @@ import asyncio
 from binance import AsyncClient, BinanceSocketManager
 import logging
 
+if __name__ =="__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s"
+    )
+
 logger = logging.getLogger()
 
 class BinanceStreamer:
@@ -12,7 +18,8 @@ class BinanceStreamer:
         self.stream_task = None
         self.symbols = []
         self.running = False
-
+        self.summary = {}
+     
     async def start(self, onReceive):
         self.onReceive=onReceive
         self.client = await AsyncClient.create()
@@ -47,9 +54,17 @@ class BinanceStreamer:
         if not self.symbols:
             return
         #logger.info("1")
-        streams = [f"{s.lower()}@ticker" for s in self.symbols]
+        #streams = [f"{s.lower()}@ticker" for s in self.symbols]
+        #streams = [f"{s.lower()}@aggTrade" for s in self.symbols]
+        streams = []
+        for s in self.symbols:
+            s = s.lower()
+            streams.append(f"{s}@aggTrade")
+            streams.append(f"{s}@ticker")
+            
         #logger.info("2")
         socket = self.bm.multiplex_socket(streams)
+        
         #logger.info("3")
         try:
           
@@ -61,22 +76,48 @@ class BinanceStreamer:
                     msg = await stream.recv()
                     
                     try:
-                      #logger.info(f"{msg}")
+                        
 
                         if "data" in msg:
-                            ticker = msg["data"]
+                            event = msg["data"]
+                            #logger.info(f"{event}")
 
-                            symbol = ticker["s"]
-                            price = float(ticker["c"])
-                            volume = float(ticker["v"])      # volume base asset
-                            quote_volume = float(ticker["q"]) # volume in USDT
+                            symbol = event["s"]
+                            if not symbol in self.summary:
+                                self.summary[symbol]={"v_acc": 0 ,"qv_day": 0,"v_day" : 0 , "g_day" : 0}
+                               
+                            sum = self.summary[symbol]
 
-                            timestamp = ticker["E"] /1000 # ms
+                            if event["e"] == "24hrTicker":
+                                sum["g_day"] = float(event["P"]) # in perc
+                                sum["v_day"] =float(event["v"])
+                                sum["qv_day"] =float(event["q"]) # volume in USDC
 
-                            #change = float(ticker["P"])
-                            #logger.info(f"{symbol} → {price:.2f} ({volume:.2f}) {timestamp} {self.onReceive}")
+                            if event["e"] == "aggTrade":
 
-                            await self.onReceive(symbol,price,volume,quote_volume,timestamp)
+                                #logger.info(f"{sum}")
+                                qty = float(event["q"])      # 🔥 quantità reale trade
+                                price = float(event["p"])
+                                
+                                volume = qty
+                                quote_volume = qty * price
+                                timestamp = event["T"] /1000 # ms
+
+                                sum["v_acc"]+=volume
+                            
+                                '''
+                                price = float(ticker["c"])
+                                volume = float(ticker["v"])      # volume base asset
+                                quote_volume = float(ticker["q"]) # volume in USDT
+                                gain_24 = float(ticker["p"])
+                                
+                                timestamp = ticker["E"] /1000 # ms
+                                '''
+
+                                #change = float(ticker["P"])
+                                #logger.info(f"{symbol} → {price:.2f} ({volume:.2f}) {timestamp} {self.onReceive}")
+
+                                await self.onReceive(symbol,timestamp, price, sum["v_acc"],sum["v_day"] ,sum["qv_day"],sum["g_day"])
 
                             #logger.info(f"{symbol} → {price:.2f} ({volume:.2f}) {timestamp} {self.onReceive}")
                     except:
@@ -86,3 +127,25 @@ class BinanceStreamer:
             logger.error("🔁 Stream riavviato")
         except Exception as e:
             logger.error("❌ Errore stream:", e)
+
+if __name__ =="__main__":
+
+  
+ 
+    async def main():
+
+        s = BinanceStreamer()
+        
+        async def onReceive(symbol,time, price,volume_acc,day_volume, day_quotevolume,gain_24_perc):
+             pass               
+             logger.info(f"{symbol} →  {time} {price:.2f} acc: {volume_acc} v : {day_volume} q : {day_quotevolume} g:{gain_24_perc}")
+                                           
+                          
+        await s.start(onReceive)
+
+        await s.set_symbols(["DOGEUSDC"])
+
+        while True:
+            await asyncio.sleep(0.1)
+    
+    asyncio.run(main())

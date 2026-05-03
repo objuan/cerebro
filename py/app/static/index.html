@@ -65,7 +65,7 @@ report_map=[];
 
 // ===========  EVENTS =============
 
-const ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
+const ws = new WebSocket("ws://"+process.env.VUE_APP_API_URL+"/ws/live");
 ws.onmessage = (event) => {
   //console.log(event.data)
   const msg = JSON.parse(event.data);

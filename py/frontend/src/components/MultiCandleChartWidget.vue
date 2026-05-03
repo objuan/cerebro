@@ -2,8 +2,8 @@
   <div ref="multi_container" @mousedown="handleSelect" class="border rounded bg-dark text-white shadow-sm">
     <div class="chart-header">
       <div class="top-row">
-         <strong class="text-uppercas symbol">({{number}} )
-            <span class="symbol">{{ currentSymbol }} 
+         <strong class="text-uppercas symbol" style="min-width: 100px;">({{number}} )
+            <span class="symbol">{{ formatSymbol(currentSymbol,false) }} 
               
             </span>
             
@@ -137,7 +137,7 @@ import CandleChartWidget from './CandleChartWidget.vue';
 import { computed } from 'vue';
 import  TradeConsole  from './TradeConsole.vue'
 import { eventBus } from "@/components/js/eventBus";
-import {send_get} from '@/components/js/utils.js' // saveProp
+import {send_get,formatSymbol} from '@/components/js/utils.js' // saveProp
 //import { liveStore } from '@/components/js/liveStore.js';
 import { staticStore } from '@/components/js/staticStore.js';
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
@@ -293,7 +293,7 @@ onMounted( async() => {
     eventBus.on("update-portfolio", onPositionUpdated);
     eventBus.on("update-position", onPositionUpdated);
 
-    let responses = await fetch(`http://127.0.0.1:8000/api/symbols`);
+    let responses = await fetch(`http://${process.env.VUE_APP_API_URL}/api/symbols`);
     let datas = await responses.json();
     symbolList.value= datas["symbols"];
 
@@ -323,7 +323,7 @@ onBeforeUnmount(() => {
 
 const updateAll = async ()=>
 {
-    let responses = await fetch(`http://localhost:8000/api/fundamentals?symbol=${currentSymbol.value} `);
+    let responses = await fetch(`http://${process.env.VUE_APP_API_URL}/api/fundamentals?symbol=${currentSymbol.value} `);
     let datas = await responses.json();
     //console.log("fundamentals ",datas); 
 
@@ -385,6 +385,7 @@ function onTickerReceived(msg)
       //console.log("MultiCandleChartWidget on_ticker",msg) 
       tickerHTML.value= ` Last: <span style='color:yellow'><b> ${msg["last"]} </b></span>  Gain: <span style='color:${color}'><b>${msg["gain"].toFixed(2)} %</b></span>  
            <span style='color:yellow'> Vol: ${window.formatValue(msg["day_volume"])} </span>
+             <span style='color:red'> Vol: ${window.formatValue(msg["day_volume"]* msg["last"])} $</span>
           GAP: ${tickerRef.value.summary?.gap.value?.toFixed(1)}%`  ;
 
       for (const id in widgetRefs.value) {
@@ -530,7 +531,7 @@ watch(strategy_buy,  async (newValue) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 700px;
+  min-width: 700px;
 }
 
 .middle-row {

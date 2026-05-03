@@ -70,7 +70,7 @@
 <script setup>
 import { computed,onMounted,onBeforeUnmount,ref  } from 'vue'
 import { eventBus } from "@/components/js/eventBus";
-import { formatValue,interpolateColor} from "@/components/js/utils";// scaleColor
+import { formatValue,interpolateColor,formatSymbol} from "@/components/js/utils";// scaleColor
 import { reportStore as report } from "@/components/js/reportStore";
 
 defineProps({
@@ -175,11 +175,11 @@ function formatField(value, colData){
                 class="text-blue-600 hover:underline"
                 @click.prevent="onSymbolClick(row.symbol)"
               >
-                ${value}
+                ${formatSymbol(value)}
               </a>`
   }
   if (type =="str"){
-     return value;
+     return "value";
   }
   return value
 }

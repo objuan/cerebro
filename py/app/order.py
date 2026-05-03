@@ -128,195 +128,12 @@ def get_trades(symbol = None,onlyActive = False):
 ##########################
 
 class OrderManager:
-
-    ib=None
-    #ws :WSManager = None
-    task_orders = []
-
-    tick_cache = {}
-    
-
     def __init__(self,config,client):
         self.config=config
         self.client=client
-        self.lastError="" 
-        self.sym_mode = config["live_service"]["mode"] =="sym"
-        
-        self.exec_to_order = {}
-        self.order_commissions = {}
-        self._last_call_time = {}  # {symbol: timestamp}
-        # Assegna gli event handlers
-        self.doSmartAbort=False
-        self.strategyManager=None
-        self.lastTradeMap = {}
-
-    async def bootstrap(self,ib):
-        OrderManager.ib = ib
     
-        async def onError( reqId, errorCode, errorString, contract):
-            logger.error(f"errorCode {errorCode} {errorString} {contract}")
-
-            
-            self.lastError = {"reqId" : reqId, "errorCode": errorCode, "errorString": errorString} 
-
-            #if  self.client..ws:
-           
-                #data["type"] = "ORDER"
-            #ser = json.dumps( self.lastError)
-
-            if errorCode in [2104, 2105, 2106,2107,2108]:
-                await self.client.send_message_event(self.lastError )
-            else:
-                await self.client.send_error_event(self.lastError )
-
-            '''     
-                await self.ws.broadcast(
-                    {"type": "ERROR", "data":ser }
-                )
-                '''
-
-            if errorCode == 110:
-                pass
-            if errorCode == 162:
-                return  # ignorato
-           
-        if ib:
-            self.ib.cancelOrderEvent += self.onCancelOrder
-            self.ib.openOrderEvent += self.onOpenOrder
-            self.ib.orderStatusEvent += self.onOrderStatus
-            self.ib.newOrderEvent += self.onNewOrder
-            self.ib.newOrderEvent += self.onNewOrder
-            self.ib.errorEvent += onError
-            #self.ib.execDetailsEvent  += self.onExec
-            self.ib.commissionReportEvent += self.onCommission
-        pass 
-
-    #############
-
-    def rebuild_trades(self, df) -> List[PositionTrade]:
-        trades = []
-
-        # group per symbol
-        for symbol, g in df.groupby("symbol"):
-            current = None
-
-            # scorri dall'ultima riga alla prima
-            for row in g.iloc[::-1].itertuples(index=False):
-                side = row.side
-                data = json.loads(row.data)
-
-                #logger.info(f"rebuild_trades row {data}")
-
-                price = data["avgFillPrice"]
-                size = data["totalQuantity"]
-                trade_id = data["trade_id"]
-
-                time = data["log"][-1]["time"]
-                dt = datetime.fromisoformat(time)
-                unix_time = dt.timestamp()
-
-                pnl=0
-                comm=0
-                df = self.client.get_df(f""" select * from ib_order_commissions  
-                      WHERE trade_id = '{trade_id}'  """)
-                if len(df)>0:
-                    pnl = + df.iloc[0]["pnl"]
-                    comm =  df.iloc[0]["commission"]
-
-                if side == "BUY":
-                    if current is None:
-                        current = PositionTrade(symbol)
-                        trades.append(current)
-
-                    current.appendBuy(price, size, unix_time,pnl,comm)
-                    
-                elif side == "SELL":
-                    if current is not None:
-                        current.appendSell(price, size, unix_time,pnl,comm)
-
-                        if current.isClosed:
-                            current = None
-
-        #logger.info(f"trades {len(trades)}")
-        return trades
-
-    def getTradeHistory(self,symbol)-> List[PositionTrade]:
-        
-        if symbol:
-            df = self.client.get_df(f"""
-                   SELECT o.*
-                    FROM ib_orders o
-                    JOIN (
-                        SELECT trade_id, MAX(id) AS max_id
-                        FROM ib_orders
-                        WHERE status = 'Filled'
-                        AND SYMBOL = '{symbol}' 
-                        AND event_type = 'STATUS'
-                        GROUP BY trade_id
-                    ) t
-                    ON o.id = t.max_id
-                    ORDER BY o.symbol ASC, o.id DESC
-                    LIMIT 10;
-                    """)
-        else:
-            #DAY
-            df = self.client.get_df(f"""
-                   SELECT o.*
-                    FROM ib_orders o
-                    JOIN (
-                        SELECT trade_id, MAX(id) AS max_id
-                        FROM ib_orders
-                        WHERE status = 'Filled'
-                        AND event_type = 'STATUS'
-                        AND timestamp >= datetime('now', 'start of day')
-                        GROUP BY trade_id
-                    ) t
-                    ON o.id = t.max_id
-                    ORDER BY o.symbol ASC, o.id DESC;
-                    """)
-        
-        trades = self.rebuild_trades(df)
-        
-        #PositionTrade
-
-        return trades
-
-    def getLastTrade(self,symbol)-> PositionTrade:
-        
-        df = self.client.get_df(f"""
-                select * from ib_orders 
-                WHERE SYMBOL = '{symbol}' AND status = 'Filled' AND event_type = 'STATUS'
-                order by id desc 
-                LIMIT 10
-                """)
-        
-        trades = self.rebuild_trades(df)
-        
-        #PositionTrade
-        if len(trades)>0:
-            return trades[-1]
-        else:
-            return None
-
-    def getTradeByTradeID(self,trade_id)-> PositionTrade:
-        
-        df = self.client.get_df(f"""
-                select * from ib_orders 
-                WHERE trade_id = '{trade_id}' 
-                AND status = 'Filled' AND event_type = 'STATUS'
-                order by id desc 
-                LIMIT 10
-                """)
-        
-        trades = self.rebuild_trades(df)
-        
-        #PositionTrade
-        if len(trades)>0:
-            return trades[-1]
-        else:
-            return None
-        
-    #####################
+    async def bootstrap(self,ib):
+        pass
 
 
     async def addOrder(self,trade:Trade,type):
@@ -393,6 +210,229 @@ class OrderManager:
        await self.addOrder(trade, "STATUS")
 
     #############
+
+    ####################################
+
+    def getTradeByTradeID(self,trade_id)-> PositionTrade:
+        
+        df = self.client.get_df(f"""
+                select * from ib_orders 
+                WHERE trade_id = '{trade_id}' 
+                AND status = 'Filled' AND event_type = 'STATUS'
+                order by id desc 
+                LIMIT 10
+                """)
+        
+        trades = self.rebuild_trades(df)
+        
+        #PositionTrade
+        if len(trades)>0:
+            return trades[-1]
+        else:
+            return None
+        
+
+    def rebuild_trades(self, df) -> List[PositionTrade]:
+        trades = []
+
+        # group per symbol
+        for symbol, g in df.groupby("symbol"):
+            current = None
+
+            # scorri dall'ultima riga alla prima
+            for row in g.iloc[::-1].itertuples(index=False):
+                side = row.side
+                data = json.loads(row.data)
+
+                #logger.info(f"rebuild_trades row {data}")
+
+                price = data["avgFillPrice"]
+                size = data["totalQuantity"]
+                trade_id = data["trade_id"]
+
+                time = data["log"][-1]["time"]
+                dt = datetime.fromisoformat(time)
+                unix_time = dt.timestamp()
+
+                pnl=0
+                comm=0
+                df = self.client.get_df(f""" select * from ib_order_commissions  
+                      WHERE trade_id = '{trade_id}'  """)
+                if len(df)>0:
+                    pnl = + df.iloc[0]["pnl"]
+                    comm =  df.iloc[0]["commission"]
+
+                if side == "BUY":
+                    if current is None:
+                        current = PositionTrade(symbol)
+                        trades.append(current)
+
+                    current.appendBuy(price, size, unix_time,pnl,comm)
+                    
+                elif side == "SELL":
+                    if current is not None:
+                        current.appendSell(price, size, unix_time,pnl,comm)
+
+                        if current.isClosed:
+                            current = None
+
+        #logger.info(f"trades {len(trades)}")
+        return trades
+
+    
+    def getTradeHistory(self,symbol)-> List[PositionTrade]:
+        
+        if symbol:
+            df = self.client.get_df(f"""
+                   SELECT o.*
+                    FROM ib_orders o
+                    JOIN (
+                        SELECT trade_id, MAX(id) AS max_id
+                        FROM ib_orders
+                        WHERE status = 'Filled'
+                        AND SYMBOL = '{symbol}' 
+                        AND event_type = 'STATUS'
+                        GROUP BY trade_id
+                    ) t
+                    ON o.id = t.max_id
+                    ORDER BY o.symbol ASC, o.id DESC
+                    LIMIT 10;
+                    """)
+        else:
+            #DAY
+            df = self.client.get_df(f"""
+                   SELECT o.*
+                    FROM ib_orders o
+                    JOIN (
+                        SELECT trade_id, MAX(id) AS max_id
+                        FROM ib_orders
+                        WHERE status = 'Filled'
+                        AND event_type = 'STATUS'
+                        AND timestamp >= datetime('now', 'start of day')
+                        GROUP BY trade_id
+                    ) t
+                    ON o.id = t.max_id
+                    ORDER BY o.symbol ASC, o.id DESC;
+                    """)
+        
+        trades = self.rebuild_trades(df)
+        
+        #PositionTrade
+
+        return trades
+    
+    def getLastTrade(self,symbol)-> PositionTrade:
+        
+        df = self.client.get_df(f"""
+                select * from ib_orders 
+                WHERE SYMBOL = '{symbol}' AND status = 'Filled' AND event_type = 'STATUS'
+                order by id desc 
+                LIMIT 10
+                """)
+        
+        trades = self.rebuild_trades(df)
+        
+        #PositionTrade
+        if len(trades)>0:
+            return trades[-1]
+        else:
+            return None
+
+    #########
+
+    async def smart_buy_limit(self,symbol,totalQuantity,ticker):
+        pass
+
+    async def smart_sell_limit(self,symbol,totalQuantity,ticker):
+        pass
+    
+    def sell_all(self,symbol):
+        self._sell(symbol,100)
+
+    def sell(self,symbol,perc):
+        pass
+        
+         
+    #####
+
+    async def onTicker(self,symbol,lastPrice):
+        pass
+
+    async def batch(self):
+        while True:
+            await asyncio.sleep(1)
+            
+###########################################
+
+class IB_OrderManager(OrderManager):
+    ib=None
+    #ws :WSManager = None
+    task_orders = []
+
+    tick_cache = {}
+    
+
+    def __init__(self,config,client):
+        self.config=config
+        self.client=client
+        self.lastError="" 
+        self.sym_mode = config["live_service"]["mode"] =="sym"
+        
+        self.exec_to_order = {}
+        self.order_commissions = {}
+        self._last_call_time = {}  # {symbol: timestamp}
+        # Assegna gli event handlers
+        self.doSmartAbort=False
+        self.strategyManager=None
+        self.lastTradeMap = {}
+
+    async def bootstrap(self,ib):
+        OrderManager.ib = ib
+        self.ib=ib
+
+        logger.info(f"ib {ib}")
+    
+        async def onError( reqId, errorCode, errorString, contract):
+            logger.error(f"errorCode {errorCode} {errorString} {contract}")
+
+            
+            self.lastError = {"reqId" : reqId, "errorCode": errorCode, "errorString": errorString} 
+
+            #if  self.client..ws:
+           
+                #data["type"] = "ORDER"
+            #ser = json.dumps( self.lastError)
+
+            if errorCode in [2104, 2105, 2106,2107,2108]:
+                await self.client.send_message_event(self.lastError )
+            else:
+                await self.client.send_error_event(self.lastError )
+
+            '''     
+                await self.ws.broadcast(
+                    {"type": "ERROR", "data":ser }
+                )
+                '''
+
+            if errorCode == 110:
+                pass
+            if errorCode == 162:
+                return  # ignorato
+           
+        if ib:
+            self.ib.cancelOrderEvent += self.onCancelOrder
+            self.ib.openOrderEvent += self.onOpenOrder
+            self.ib.orderStatusEvent += self.onOrderStatus
+            self.ib.newOrderEvent += self.onNewOrder
+            self.ib.newOrderEvent += self.onNewOrder
+            self.ib.errorEvent += onError
+            #self.ib.execDetailsEvent  += self.onExec
+            self.ib.commissionReportEvent += self.onCommission
+        pass 
+
+    #############
+
+ 
     '''
     def onExec(self,trade, fill):
         
@@ -889,10 +929,6 @@ class OrderManager:
         return  {"reqId" : 0, "errorCode": -1, "errorString": "TIMEOUT"} 
 
 
-
-    def sell_all(self,symbol):
-        self._sell(symbol,100)
-
     def sell(self,symbol,perc):
         '''
         Vende tutte le azioni possedute per il simbolo specificato.
@@ -968,11 +1004,6 @@ class OrderManager:
                 self.ib.cancelOrder(trade.order)
                 logger.info(f"Cancelled order with symbol {symbol}")
               
-     
-    #####
-
-    async def onTicker(self,symbol,lastPrice):
-        pass
 
     #########
 

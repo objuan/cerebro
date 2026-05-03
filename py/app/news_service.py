@@ -452,11 +452,29 @@ class MARKETAUX_Provider(MetaData_Provider):
 
 
 #############################################################
-
 class NewService:
+    def __init__(self,config):
+        self.config=config
+
+    async def bootstrap(self):
+        pass
+    
+    async def tick(self):
+        pass
+
+    async def on_symbols_update(self,symbols, to_add, to_remove):
+        pass
+
+    async def find(self,symbol):
+        return None
+    async def scan(self,symbols,onEndHandler=None,force=False):
+        pass
+        
+#####################
+
+class IB_NewService(NewService):
 
     def __init__(self,config):
-
         self.config=config
 
         self.providers1= [

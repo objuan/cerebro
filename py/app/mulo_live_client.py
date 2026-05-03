@@ -57,7 +57,8 @@ class MuloLiveClient:
         self.on_ticker_receive = MyEvent()
 
         propManager.add_computed("root.sym_mode", lambda: self.sym_mode )
-        propManager.add_computed("root.tz", lambda:  MZ_TABLE[self.getCurrentZone()] )
+        if not BINANCE_MODE:
+            propManager.add_computed("root.tz", lambda:  MZ_TABLE[self.getCurrentZone()] )
         propManager.add_computed("root.sym_start_time", lambda: self.sym_start_time )
         propManager.add_computed("root.sym_start_speed", lambda: self.sym_start_speed )
      
@@ -103,6 +104,8 @@ class MuloLiveClient:
                     await websocket.send(json.dumps(message))
 
                     async def updateTickers(new_ticker):
+
+                        #logger.info(f"{new_ticker}")
                         # --- il tuo codice invariato ---
                         if self.sym_mode and "sym" in new_ticker:
                             self.sym_time =  datetime.fromtimestamp(new_ticker["sym"])# new_ticker["sym"]
@@ -124,6 +127,14 @@ class MuloLiveClient:
 
                                 if self.sym_mode:
                                     await self.on_partial_candle_receive(new_ticker)
+                                
+                                gain=0
+                                if BINANCE_MODE:
+                                    gain = new_ticker["gain"]
+                                else:
+                                    if new_ticker["s"] in self.tickers:
+                                        t = self.tickers[new_ticker["s"]]
+                                        gain =  ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100
 
                                 if new_ticker["s"] in self.tickers:
                                     t = self.tickers[new_ticker["s"]]
@@ -135,13 +146,21 @@ class MuloLiveClient:
                                         "bid": new_ticker["bid"],
                                         "low": new_ticker["l"],
                                         "high": new_ticker["h"],
-                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100,
+                                        "gain": gain,
                                         "ts": new_ticker["ts"]
                                     })
                                     await self.on_ticker_receive(t)
 
                             else:
                                 await self.on_partial_candle_receive(new_ticker)
+
+                                gain=0
+                                if BINANCE_MODE:
+                                    gain = new_ticker["gain"]
+                                else:
+                                    if new_ticker["s"] in self.tickers:
+                                        t = self.tickers[new_ticker["s"]]
+                                        gain =  ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100
 
                                 if new_ticker["tf"] == "10s" and new_ticker["s"] in self.tickers:
                                     t = self.tickers[new_ticker["s"]]
@@ -153,16 +172,17 @@ class MuloLiveClient:
                                         "bid": new_ticker["bid"],
                                         "low": new_ticker["l"],
                                         "high": new_ticker["h"],
-                                        "gain": ((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100,
+                                        "gain": gain,#((new_ticker["c"]-t["last_close"]) / t["last_close"]) * 100,
                                         "ts": new_ticker["ts"]
                                     })
 
-                                    if "open_price" not in t and self.market.isLiveZone():
-                                        open_price, ts_open = await self.last_open(new_ticker["s"])
-                                        t.update({
-                                            "open_price": open_price,
-                                            "ts_open_price": int(ts_open)
-                                        })
+                                    if not BINANCE_MODE:
+                                        if "open_price" not in t and self.market.isLiveZone():
+                                            open_price, ts_open = await self.last_open(new_ticker["s"])
+                                            t.update({
+                                                "open_price": open_price,
+                                                "ts_open_price": int(ts_open)
+                                            })
 
                                     await self.on_ticker_receive(t)
 

@@ -138,7 +138,7 @@
 			   "module": "back_strategy_5m",
 				"class" : "BackStrategy5m",
 				"timeframe" : "5m",
-				"enabled" : true,
+				"enabled" : false,
 				"scope" : "BACK",
 				"params" :
 				{
@@ -155,7 +155,7 @@
 			   "module": "back_strategy_10s_orig",
 				"class" : "BackStrategy10s_Orig",
 				"timeframe" : "10s",
-				"enabled" : false,
+				"enabled" : true,
 				"scope" : "BACK",
 				"params" :
 				{

@@ -195,7 +195,7 @@ class Balance:
 
     async def bootstrap():
         
-        if  Balance.run_mode  != "sym":
+        if  Balance.run_mode  != "sym" and Balance.ib:
             for value in Balance.ib.accountValues():    
                     #logger.info(f"accountValues: {v}") 
                     if value.tag == "CashBalance" and value.currency == "USD":

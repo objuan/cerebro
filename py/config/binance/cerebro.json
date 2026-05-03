@@ -24,7 +24,22 @@
 	
 	"stategies":[
 
-
+		{
+			   "module": "meta_strategy",
+				"class" : "MetaStrategy",
+				"timeframe" : "1m",
+				"params" :
+				{
+				}
+		  },
+			{
+			    "module": "alarm_strategy",
+				"class" : "AlarmStrategy",
+				"timeframe" : "10s",
+				"params" :
+				{
+				}
+		}
 	],
 	
 

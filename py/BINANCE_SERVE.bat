@@ -9,8 +9,7 @@ cd /d "C:\\Lavoro\\cerebro\\py\\frontend"
 
 REM Avvia script
 echo Starting ...
-rem npm  run serve
-set VUE_APP_API_URL=localhost:8000&& npm run serve
+set VUE_APP_API_URL=localhost:9000&& npm  run serve -- --port 9080
 
 REM Se crasha, logga
 echo Process exited at %date% %time% >> "%LOGFILE%"

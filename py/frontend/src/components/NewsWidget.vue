@@ -121,7 +121,7 @@ function load(){
   }
 }
 function proxyImage(url){
-  return `http://localhost:8000/img-proxy?WHERE=${encodeURIComponent(url)}`
+  return `http://${process.env.VUE_APP_API_URL}/img-proxy?WHERE=${encodeURIComponent(url)}`
 }
 
 function  formatDate(unixSeconds) {

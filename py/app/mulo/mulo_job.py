@@ -686,7 +686,7 @@ class MuloJob:
                         candles= candles_from_seconds(update_delta_min.total_seconds(),'1m')
                         time = since_to_durationStr(int(update_delta_min.total_seconds()) )
                     
-                    logger.info(f">> Fetching history {symbol} delta:{time} d:{update_delta_min} #{candles}")
+                        logger.info(f">> Fetching history {symbol} delta:{time} d:{update_delta_min} #{candles}")
                 
                     contract =   Stock(symbol, 'SMART', 'USD')
                 

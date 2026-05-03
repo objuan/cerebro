@@ -281,7 +281,7 @@ function onChartSelect(data){
 // =============================================
 
 const initWebSocket_mulo = () => {
-  ws = new WebSocket("ws://127.0.0.1:8000/ws/orders");
+  ws = new WebSocket("ws://"+process.env.VUE_APP_API_URL+"/ws/orders");
   ws.onmessage = (event) => {
    
     const msg = JSON.parse(event.data);
@@ -378,7 +378,9 @@ const initWebSocket_mulo = () => {
 };
 
 const initWebSocket = () => {
-  ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
+  //ws = new WebSocket("ws://127.0.0.1:8000/ws/live");
+  console.log("SERVER URL ","ws://"+process.env.VUE_APP_API_URL+"/ws/live")
+  ws = new WebSocket("ws://"+process.env.VUE_APP_API_URL+"/ws/live");
 
   ws.onmessage = (event) => {
     //console.log(">>",event.data)

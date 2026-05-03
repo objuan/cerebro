@@ -1,9 +1,13 @@
+import sys
+#if __name__ =="__main__":
+#    sys.argv.append("BINANCE")
+
 import asyncio
 from contextlib import asynccontextmanager
 import json
 import sqlite3
 from datetime import datetime,time
-import sys
+
 import time as _time
 import math
 import os
@@ -18,7 +22,7 @@ import pandas as pd
 import logging
 from logging.handlers import RotatingFileHandler
 from ib_insync import *
-from news_service import NewService
+from news_service import NewService,IB_NewService
 from utils import convert_json
 from rich.console import Console
 from rich.table import Table
@@ -48,7 +52,7 @@ from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
 from renderpage import WSManager
-from order import OrderManager
+from order import OrderManager,IB_OrderManager
 from balance import Balance
 from order_task import OrderTaskManager
 from trade_manager import TradeManager
@@ -146,12 +150,19 @@ ws_manager_orders = WSManager()
 #OrdskManager.ws = ws_manager_orders
 Balance.ws = ws_manager_orders
 propManager = PropertyManager()
+propManager.set("system.mode","BINANCE" if BINANCE_MODE else "IB")
 
 client = MuloLiveClient(DB_FILE,config,propManager)
 
-orderManager = OrderManager(config,client)
+if BINANCE_MODE:
+    orderManager = OrderManager(config,client)
 
-newService = NewService(config)
+    newService = NewService(config)
+else:
+    orderManager = IB_OrderManager(config,client)
+
+    newService = IB_NewService(config)
+
 client.newService=newService
 
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
@@ -289,7 +300,9 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:4000",
         "http://127.0.0.1:8080",
-        "http://localhost:8080"
+        "http://localhost:8080",
+        "http://127.0.0.1:9080",
+        "http://localhost:9080"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -1634,6 +1647,7 @@ if __name__ =="__main__":
 
             if BINANCE_MODE:
                 ib=None
+                Balance(config,ib,props=propManager )
             else:
                 ib = IB()
                 util.patchAsyncio()
@@ -1677,7 +1691,7 @@ if __name__ =="__main__":
                 u_config = uvicorn.Config(
                     app=app, 
                     host="0.0.0.0", 
-                    port=8000,
+                    port=9000,
                     log_level="info",
                     #access_log=False
                 )
@@ -1685,7 +1699,7 @@ if __name__ =="__main__":
                 u_config = uvicorn.Config(
                     app=app, 
                     host="0.0.0.0", 
-                    port=9000,
+                    port=8000,
                     log_level="info",
                     #access_log=False
                 )

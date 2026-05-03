@@ -132,7 +132,7 @@
                 <td>
                    <div class="fw-bold">
                         <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item.symbol)">
-                              {{ item.symbol }} 
+                             {{ formatSymbol(item.symbol) }} 
                             </a>
 
                     </div>
@@ -149,7 +149,12 @@
             <tr style="height : 30%">
               <td class="volume">
                 <span :style="{ color: rankColor(item.summary?.day_volume,{ r: 0, g: 0, b: 0 },{ r: 0,  g: 170, b: 90 }) }">
-                    {{ formatValue(item.report?.day_volume) }}
+                    <div v-if="isBinance(item.symbol)">
+                      {{ formatValue(item.report?.day_volume * item.last ) }}
+                    </div>
+                    <div v-else>
+                      {{ formatValue(item.report?.day_volume) }}
+                    </div>
                 </span>
                   
               </td>
@@ -423,7 +428,7 @@
 import {  ref, computed, onMounted, onUnmounted ,onBeforeUnmount ,watch} from 'vue';
 //import { computed } from 'vue';
 //import { liveStore } from '@/components/liveStore.js'; // Assicurati che il percorso sia corretto
-import { send_get,formatValue,newsColor,rankColor } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_get,formatValue,newsColor,rankColor,formatSymbol,isBinance } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { eventBus } from "@/components/js/eventBus";
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { reportStore as report } from "@/components/js/reportStore";

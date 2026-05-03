@@ -6,6 +6,20 @@ export const audioMap = {
   new_symbol : new Audio("/media/universfield-new-notification-026-380249.mp3"),
   news : new Audio("/media/universfield-new-notification-026-380249.mp3")
 } 
+export function isBinance(symbol){
+    return symbol.endsWith("USDC");
+}
+
+export function formatSymbol(symbol,compactMode=true){
+    if (symbol.endsWith("USDC")) {
+      if (compactMode)
+        return symbol.slice(0, -4);
+      else
+        return symbol.slice(0, -4)+" /"+symbol.slice(-4).toLowerCase();
+  }
+    else
+        return symbol
+}
 
 export const formatUnixDate = (unixTime) => {
   if (!unixTime) return '...';
@@ -199,7 +213,7 @@ export async function send_mulo_post(url, payload) {
 
 export async function send_post(url, payload) {
 
-    let res = await fetch("http://localhost:8000"+url, {
+    let res = await fetch("http://"+process.env.VUE_APP_API_URL+url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -221,7 +235,7 @@ export async function send_delete(url, payload = null) {
         options.body = JSON.stringify(payload);
     }
 
-    const res = await fetch("http://localhost:8000" + url, options);
+    const res = await fetch("http://"+process.env.VUE_APP_API_URL + url, options);
 
     if (!res.ok) {
         throw new Error("Errore nella DELETE");
@@ -234,7 +248,7 @@ export async function send_get(url, params = {}) {
     const query = new URLSearchParams(params).toString();
 
     const res = await fetch(
-        "http://localhost:8000" + url + (query ? `?${query}` : ""),
+        "http://"+process.env.VUE_APP_API_URL + url + (query ? `?${query}` : ""),
         {
             method: "GET",
             headers: { "Content-Type": "application/json" },
@@ -262,7 +276,7 @@ export async function Translate(phrase)
 
 export async function saveChartLine(symbol, timeframe, data) {
 
-    let res = await fetch("http://localhost:8000/api/chart/save", {
+    let res = await fetch("http://"+process.env.VUE_APP_API_URL+"/api/chart/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

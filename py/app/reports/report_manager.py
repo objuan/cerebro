@@ -169,7 +169,7 @@ class ReportManager:
 
             await self.scheduler.tick()
 
-            isLiveZone = self.job.market.isLiveZone()
+           # isLiveZone = self.job.market.isLiveZone()
 
             # situazione attuale
 

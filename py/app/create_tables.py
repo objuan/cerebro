@@ -1,3 +1,7 @@
+import sys
+if __name__ =="__main__":
+    sys.argv.append("BINANCE")
+
 import asyncio
 from contextlib import asynccontextmanager
 import json
@@ -234,6 +238,7 @@ CREATE TABLE IF NOT EXISTS trade_marker (
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source VARCHAR(255),
     type VARCHAR(255),
     name VARCHAR(255),
     symbol VARCHAR(20),

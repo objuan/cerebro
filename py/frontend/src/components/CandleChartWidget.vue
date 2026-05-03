@@ -547,7 +547,7 @@ async function handleRefresh (resetWindow )
 
     clearStrategyIndicators(context())
 
-    const response = await fetch(`http://127.0.0.1:8000/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
+    const response = await fetch(`http://${process.env.VUE_APP_API_URL}/api/ohlc_chart?symbol=${currentSymbol.value}&timeframe=${currentTimeframe.value}`);
     
     const data = await response.json();
     //console.log("response",data)
@@ -1057,7 +1057,7 @@ onMounted(  () => {
   eventBus.on("trade-last-changed", onTradeLastUpdated);
   eventBus.on("strategy-trade",   onStrategyTrade);
 
-  fetch("http://127.0.0.1:8000/api/chart/indicator/list")
+  fetch("http://"+process.env.VUE_APP_API_URL+"/api/chart/indicator/list")
   .then(res => res.json())
   .then(list => {
     //console.log("list", list )

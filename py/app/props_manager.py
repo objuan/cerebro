@@ -45,7 +45,7 @@ class PropertyManager:
         self.props = {}
         self.filename = filename
         self.load()
-        #print(f"PROPS { self.props}")
+        logger.info(f"PROPS { self.props}")
 
     def resolve(self,key,value):
         #if callable(value):
@@ -92,7 +92,7 @@ class PropertyManager:
                 snap.append(path+"="+str(value()))
         return snap
 
-    async def set(self, path, value, onChange):
+    async def set(self, path, value, onChange=None):
         snap=self.get_computed_snap()
         #logger.info(f"COMPUTED {snap}")
         self.props[path] = value

@@ -54,74 +54,75 @@ class MetaStrategy(SmartStrategy):
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
-        zone =  self.client.market.getCurrentZone() 
-        #if self.bootstrapMode:
-        #    return
-        
-        if not symbol in  self.firstTime:
-            self.firstTime[symbol]=True
-            last_close, ts_last_close=  await self.client.last_close(symbol)
-            MetaInfo.set(symbol,{"last_close": last_close,"ts_last_close" : ts_last_close})
+        if self.client.market:
+            zone =  self.client.market.getCurrentZone() 
+            #if self.bootstrapMode:
+            #    return
+            
+            if not symbol in  self.firstTime:
+                self.firstTime[symbol]=True
+                last_close, ts_last_close=  await self.client.last_close(symbol)
+                MetaInfo.set(symbol,{"last_close": last_close,"ts_last_close" : ts_last_close})
 
-            #logger.info(f"DO {symbol} {   last_close}")
-            #logger.info(f"last_close {symbol} {local_index} \n{dataframe.tail(5)}" )
+                #logger.info(f"DO {symbol} {   last_close}")
+                #logger.info(f"last_close {symbol} {local_index} \n{dataframe.tail(5)}" )
 
-        if zone != MarketZone.LIVE:
-            self.zone = zone
-            if  zone in [MarketZone.CLOSED ,MarketZone.PRE] :## not self.has_meta(symbol,"last_open") or
-                
-                close = dataframe.iloc[local_index]["close"]
-                if close:
+            if zone != MarketZone.LIVE:
+                self.zone = zone
+                if  zone in [MarketZone.CLOSED ,MarketZone.PRE] :## not self.has_meta(symbol,"last_open") or
+                    
+                    close = dataframe.iloc[local_index]["close"]
+                    if close:
+                        mask = (
+                                (dataframe["timestamp"] >= MetaInfo.get(symbol,"ts_last_close"))# &
+                                #(dataframe["timestamp"] <=  MetaInfo.get(symbol,"ts_last_open"))
+                            )
+
+                        MetaInfo.set(symbol,{"pre_low":  float(dataframe.loc[mask, "low"].min()), 
+                                            "pre_high" : float(dataframe.loc[mask, "high"].max())})
+
+                        pre_gain= 100 * (close -   MetaInfo.get(symbol,"last_close")) /   MetaInfo.get(symbol,"last_close")
+                        pre_gain_LH= float(100 * (  MetaInfo.get(symbol,"pre_high") -   MetaInfo.get(symbol,"pre_low")) /   MetaInfo.get(symbol,"pre_low"))
+
+                        MetaInfo.set(symbol,{"pre_gain":  pre_gain , "pre_gain_LH" : pre_gain_LH})
+                        
+                        MetaInfo.set(symbol,{"gap" : pre_gain})
+
+                        #logger.info(f"DO {symbol} {   pre_gain}")
+
+                        #logger.info(f"OPEN {symbol} {  self.get_all_meta(symbol) }")
+                    
+                '''
+                else:
+                    mask = dataframe["timestamp"] >=  MetaInfo.get(symbol,"ts_last_close")
+                    MetaInfo.set(symbol,{  "pre_low":  float(dataframe.loc[mask, "low"].min()), 
+                                            "pre_high" : float(dataframe.loc[mask, "high"].max())})
+                '''
+                    #logger.info(f"PRE {symbol} {  self.get_all_meta(symbol) }")
+            else:
+                # OPEN -> last_open, gap
+                if not MetaInfo.has(symbol,"last_open"):
+                    last_open, ts_last_open=  await self.client.last_open(symbol)
+                    MetaInfo.set(symbol,{"last_open":  last_open, "ts_last_open" : ts_last_open})
+
+                    close = dataframe.iloc[local_index]["close"]
                     mask = (
-                            (dataframe["timestamp"] >= MetaInfo.get(symbol,"ts_last_close"))# &
-                            #(dataframe["timestamp"] <=  MetaInfo.get(symbol,"ts_last_open"))
-                        )
+                                (dataframe["timestamp"] >= MetaInfo.get(symbol,"ts_last_close")) &
+                                (dataframe["timestamp"] <= ts_last_open)
+                            )
 
                     MetaInfo.set(symbol,{"pre_low":  float(dataframe.loc[mask, "low"].min()), 
-                                        "pre_high" : float(dataframe.loc[mask, "high"].max())})
-
+                                            "pre_high" : float(dataframe.loc[mask, "high"].max())})
                     pre_gain= 100 * (close -   MetaInfo.get(symbol,"last_close")) /   MetaInfo.get(symbol,"last_close")
                     pre_gain_LH= float(100 * (  MetaInfo.get(symbol,"pre_high") -   MetaInfo.get(symbol,"pre_low")) /   MetaInfo.get(symbol,"pre_low"))
 
                     MetaInfo.set(symbol,{"pre_gain":  pre_gain , "pre_gain_LH" : pre_gain_LH})
-                    
-                    MetaInfo.set(symbol,{"gap" : pre_gain})
+                
 
-                    #logger.info(f"DO {symbol} {   pre_gain}")
-
-                    #logger.info(f"OPEN {symbol} {  self.get_all_meta(symbol) }")
-                   
-            '''
-            else:
-                mask = dataframe["timestamp"] >=  MetaInfo.get(symbol,"ts_last_close")
-                MetaInfo.set(symbol,{  "pre_low":  float(dataframe.loc[mask, "low"].min()), 
-                                        "pre_high" : float(dataframe.loc[mask, "high"].max())})
-            '''
-                #logger.info(f"PRE {symbol} {  self.get_all_meta(symbol) }")
-        else:
-            # OPEN -> last_open, gap
-            if not MetaInfo.has(symbol,"last_open"):
-                last_open, ts_last_open=  await self.client.last_open(symbol)
-                MetaInfo.set(symbol,{"last_open":  last_open, "ts_last_open" : ts_last_open})
-
+                ## CALCOLO GAP SU close <> last_open
                 close = dataframe.iloc[local_index]["close"]
-                mask = (
-                            (dataframe["timestamp"] >= MetaInfo.get(symbol,"ts_last_close")) &
-                            (dataframe["timestamp"] <= ts_last_open)
-                        )
-
-                MetaInfo.set(symbol,{"pre_low":  float(dataframe.loc[mask, "low"].min()), 
-                                        "pre_high" : float(dataframe.loc[mask, "high"].max())})
-                pre_gain= 100 * (close -   MetaInfo.get(symbol,"last_close")) /   MetaInfo.get(symbol,"last_close")
-                pre_gain_LH= float(100 * (  MetaInfo.get(symbol,"pre_high") -   MetaInfo.get(symbol,"pre_low")) /   MetaInfo.get(symbol,"pre_low"))
-
-                MetaInfo.set(symbol,{"pre_gain":  pre_gain , "pre_gain_LH" : pre_gain_LH})
-            
-
-            ## CALCOLO GAP SU close <> last_open
-            close = dataframe.iloc[local_index]["close"]
-            gap = 100 * (close - MetaInfo.get(symbol,"last_open")) /  MetaInfo.get(symbol,"last_open")
-            MetaInfo.set(symbol,{"gap" : gap})
+                gap = 100 * (close - MetaInfo.get(symbol,"last_open")) /  MetaInfo.get(symbol,"last_open")
+                MetaInfo.set(symbol,{"gap" : gap})
 
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]

@@ -11,6 +11,7 @@ import signal
 import json
 from typing import Optional
 from collections import deque
+from numpy import nan
 import requests
 import urllib3
 import yfinance as yf
@@ -23,6 +24,8 @@ from rich.table import Table
 from rich.live import Live
 #from message_bridge import *
 import uvicorn
+from datetime import datetime
+from typing import ClassVar, List, Optional, Union
 
 from mulo.binance_streamer import BinanceStreamer
 from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC,BINANCE_MODE
@@ -73,6 +76,7 @@ if use_yahoo:
     ws_yahoo = yf.AsyncWebSocket()
 
 sym_time = None
+
 
 #####################
 
@@ -247,10 +251,12 @@ class LiveManager:
          return self.tickers[symbol]
     
     def ordered_tickers(self):
-         return sorted(  self.tickers.values(),
-                        key=lambda t: t.gain,
-                        reverse=True)
-         
+           return sorted(
+            (t for t in self.tickers.values() if t.last != 0),
+            key=lambda t: t.gain,
+            reverse=True
+        )
+            
     ################
 
     async def scanData(self, live: LiveScanner)-> bool:
@@ -395,7 +401,11 @@ class LiveManager:
         return toupdate
     
     async def align_symbols(self, symbols):
-            
+
+        #TODO REMOVE    
+        if BINANCE_MODE:
+            return
+        
         for symbol in symbols:
 
             #await self.fetcher._align_data(symbol, "1d")
@@ -575,13 +585,15 @@ class LiveManager:
                     
                     if BINANCE_MODE:
                         contract=None
-                        ticker = Ticker
+                        ticker = Ticker()
                         ticker.gain = 0
                         ticker.last = 0
                         ticker.start_time = datetime.now()
                         ticker.last_close = await self.fetcher.last_close(symbol)
                         ticker.symbol = symbol
                         ticker.is_live = True
+
+                        #logger.info(f"TICKER .. {ticker.symbol} {ticker.last_close}")
                         #if self.config["live_service"]["mode"] != "offline":
                         #    ticker.updateEvent += self.on_tick
                         
@@ -617,6 +629,8 @@ class LiveManager:
                     
                 self.tickers[symbol]  = ticker
                 self.ticker_contracts[symbol]  = contract
+
+                #logger.info(f"TICKER 11. {ticker.symbol} {ticker.last_close}")
 
                 if scan:
                     self.fetcher.add_day_symbol(scan.name,symbol)
@@ -691,7 +705,7 @@ class LiveManager:
     ##########################################################
 
     async def add_ticker(self,symbol,ticker, table):
-                #logger.info(f"!!!!!!! {symbol}")
+                #logger.info(f"!!!!!!! {symbol} {ticker}  {ticker.symbol}")
                 data=[]
                 #table = Table("Symbol", "Last", "Ask", "Bid", "10s OHLC", "30s OHLC", "1m OHLC", "5m OHLC", title="LIVE TICKERS")
                 if BINANCE_MODE:
@@ -719,33 +733,28 @@ class LiveManager:
                 #if symbol =="USAR":
                 #    logger.info(f" onTicker{ticker.volume}")
 
-                day_volume = ticker.volume #day volume
-              
-                day_volume = max(0, 0 if math.isnan(day_volume) else day_volume)
+                acc_volume = ticker.volume #day volume
+                acc_volume = max(0, 0 if math.isnan(acc_volume) else acc_volume)
 
-                if ticker.last_close>0:
-                    ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
+                day_volume = acc_volume
+
+                if BINANCE_MODE:
+                    ticker.gain = ticker.gain_24
+                    day_volume = ticker.day_volume
                 else:
-                    ticker.gain=0
+                    if ticker.last_close>0:
+                        ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
+                    else:
+                        ticker.gain=0
                     
                 hls=None
                 if not math.isnan(ticker.gain):
 
                     #await OrderTaskManager.onTicker(symbol,ticker)
-                    
-                    '''
-                    if not symbol in self.ticker_map:
-                        self.ticker_map[symbol] ={}
-                    tick = self.ticker_map[symbol]
-                    tick["last"] = ticker.last
-                    tick["ask"] = ticker.ask
-                    tick["bid"] = ticker.bid
-                    tick["volume"] = ticker.volume
-                    tick["ts"] = ts
-                    '''
-
                     # Compute OHLC for each interval
                     hls = []
+
+                    must_vol_mult = not (use_yahoo or BINANCE_MODE)
            
                     for interval in intervals:
                         
@@ -763,9 +772,9 @@ class LiveManager:
                             if candle is not None:  # se esisteva, va inviata
                                 #logger.info("send")
                                 # send
-                                volume = day_volume - candle["last_volume"]
+                                volume = acc_volume - candle["last_volume"]
                                 volume = max(0,volume)
-                                if volume == day_volume:
+                                if volume == acc_volume:
                                     volume = 0
                                 
                                 data = {
@@ -776,12 +785,13 @@ class LiveManager:
                                     "c": ticker.last if candle["close"] == 0 else candle["close"],
                                     "h":  ticker.last if candle["high"] == 0 else candle["high"],
                                     "l":  ticker.last if candle["low"] == 0 else candle["low"],
-                                    "v": volume if use_yahoo else volume * 100,
+                                    "v": volume if not must_vol_mult else volume * 100,
                                     "ts": int(candle["start"]) * 1000,
                                     "dts": start_time,
                                     "bid": ticker.bid if ticker.bid  else 0,
                                     "ask": ticker.ask if ticker.ask  else 0, #bidSize,askSize,minTick
-                                    "day_v": day_volume if use_yahoo else day_volume * 100
+                                    "day_v": day_volume if not must_vol_mult else day_volume * 100,
+                                    "gain" : ticker.gain
                                 }
 
                                 #logger.info(f"add {data} \n{ticker}")
@@ -801,7 +811,7 @@ class LiveManager:
                                 "low": ticker.last,
                                 "close": ticker.last,
                                 "volume": 0,
-                                "last_volume": day_volume
+                                "last_volume": acc_volume
                             }
 
                             history[interval] = candle
@@ -815,7 +825,7 @@ class LiveManager:
                                 candle["low"] = min(candle["low"], ticker.last)
 
                                 #vol_diff = ticker.volume - candle["last_volume"]
-                                candle["volume"]  = max(0,day_volume - candle["last_volume"])
+                                candle["volume"]  = max(0,acc_volume - candle["last_volume"])
                                 candle["close"] = ticker.last
 
                                 data = {
@@ -826,12 +836,13 @@ class LiveManager:
                                         "c": candle["close"],
                                         "h": candle["high"],
                                         "l": candle["low"],
-                                        "v": candle["volume"] if use_yahoo else  candle["volume"] * 100,
+                                        "v": candle["volume"] if not must_vol_mult else  candle["volume"] * 100,
                                         "ts": int(candle["start"]) * 1000,
                                         "dts": start_time,
                                         "bid": ticker.bid,
                                         "ask": ticker.ask,
-                                        "day_v": day_volume if use_yahoo else day_volume * 100
+                                        "day_v": day_volume if not must_vol_mult else day_volume * 100,
+                                        "gain" : ticker.gain
                                     }
 
                             
@@ -1157,10 +1168,20 @@ class LiveManager:
                 #self.candle_updater.start()
 
                 if BINANCE_MODE:
-                    async def onReceive(symbol,price,volume,quote_volume,time):
-                        #logger.info(f"{symbol} → {price:.2f} v: {volume} time : {time}")
-                        t = Ticker(last= price, volume= int(volume), time=int(time), ask=0, bid=0 )
-                        await self.add_ticker(symbol,t,None)
+                    async def onReceive(symbol,time, price,volume_acc,day_volume, day_quotevolume,gain_24_perc):
+                        if symbol in self.tickers:
+                            ticker = self.tickers[symbol]
+                            ticker.volume =  int(volume_acc)
+                            ticker.time =  int(time)
+                            ticker.last = price
+                            ticker.gain_24=gain_24_perc
+                            ticker.day_volume = day_volume
+                            ticker.day_quotevolume = day_quotevolume
+                            #logger.info(f"{symbol} → {price:.2f} v: {volume} time : {time}")
+                           
+                            await self.add_ticker(symbol,ticker,None)
+                        else:
+                            logger.warning(f"Ticker not found {symbol}")
                         
                     await self.b_streamer.start(onReceive)
 
