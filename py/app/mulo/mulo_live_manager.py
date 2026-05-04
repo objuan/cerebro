@@ -403,8 +403,8 @@ class LiveManager:
     async def align_symbols(self, symbols):
 
         #TODO REMOVE    
-        if BINANCE_MODE:
-            return
+        #if BINANCE_MODE:
+        #    return
         
         for symbol in symbols:
 
@@ -445,7 +445,7 @@ class LiveManager:
                     df[numeric_cols] = df[numeric_cols].astype(float)
 
                     df.set_index("Open time", inplace=True)
-                    logger.info(f"\n{df}")
+                    #logger.info(f"\n{df}")
                     
                     #exit(0)
                     if not df.empty:
@@ -461,7 +461,7 @@ class LiveManager:
                                     progress=False,
                                 )
 
-                logger.info(f"df \n{df}")
+                #logger.info(f"df \n{df}")
                 if not df.empty:
                     await self.fetcher.process_data("exchange",symbol, "1d", self.fetcher.conn, df,True)
                 

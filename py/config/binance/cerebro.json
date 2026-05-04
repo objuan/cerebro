@@ -23,7 +23,23 @@
 	},
 	
 	"stategies":[
+		{
+			   "module": "back_strategy_BI_1",
+				"class" : "BackStrategyBinance1",
+				"timeframe" : "1m",
+				"enabled" : false,
+				"scope" : "BACK",
+				"params" :
+				{
+				 	"gain_perc" : 10,
+                    "volume_min_filter" :1000000,
+                    "trade_last_hh" : 11,
+					"trade_last_mm" : 0,
+					"trade_first_hh" : 5,
+					"min_open_gain": 10
 
+				}
+			},			
 		{
 			   "module": "meta_strategy",
 				"class" : "MetaStrategy",
@@ -47,8 +63,8 @@
 	{
 				"enabled" : true,
 				"ib_client" : 2,
-				"live_max_symbols" :15,
-				"feed_max_symbols" :70,
+				"live_max_symbols" :50,
+				"feed_max_symbols" :100,
 				"RETENTION_HOURS" : 48,
 				"CLEANUP_INTERVAL_HOURS" : 8,
 				"fetch_enabled" : true,

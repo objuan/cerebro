@@ -311,21 +311,51 @@ AND gain > 20"""
         
         conn = sqlite3.connect(DB_FILE)
 
-        query = f"""SELECT distinct symbol FROM ib_day_watch
-                        WHERE date = '{date}' order by symbol"""
-        '''
-        query = f"""
-                   SELECT 
-    symbol,
-    MIN(timestamp) AS min_timestamp,
-    MAX(timestamp) AS max_timestamp
-FROM ib_ohlc_history
-WHERE timeframe = '1m'
-  AND timestamp >= {since}
-  AND timestamp <= {to}
-GROUP BY symbol;
-"""
-        '''
+        if BINANCE_MODE:
+                
+                date_obj = datetime.strptime(date, "%Y-%m-%d")
+                # inizio giorno
+                start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+                # fine giorno
+                end_of_day = datetime.combine(date_obj.date(), datetime.max.time())
+                unix_min = int(start_of_day.timestamp())*1000
+                unix_max = int(end_of_day.timestamp())*1000
+
+                logger.info(f"{unix_min} {unix_max}")
+                
+                #dt = datetime.strptime(date, "%Y-%m-%d")
+                #since = int(dt.replace(hour=0, minute=0, second=0).timestamp())
+                #to = int(dt.replace(hour=23, minute=59, second=59).timestamp())
+
+                query = f"""
+                    SELECT 
+                    symbol,
+                    MIN(timestamp) AS min_timestamp,
+                    MAX(timestamp) AS max_timestamp
+                    FROM ib_ohlc_history
+                    WHERE timeframe = '1m'
+                    AND timestamp >= {unix_min}
+                    AND timestamp <= {unix_max}
+                    GROUP BY symbol;"""
+
+            #query = f"""SELECT distinct symbol FROM ib_day_watch
+            #                WHERE date = '{date}' order by symbol"""
+        else:
+            query = f"""SELECT distinct symbol FROM ib_day_watch
+                            WHERE date = '{date}' order by symbol"""
+            '''
+            query = f"""
+                    SELECT 
+        symbol,
+        MIN(timestamp) AS min_timestamp,
+        MAX(timestamp) AS max_timestamp
+    FROM ib_ohlc_history
+    WHERE timeframe = '1m'
+    AND timestamp >= {since}
+    AND timestamp <= {to}
+    GROUP BY symbol;
+    """
+            '''
                     
         #print("query",query)
 
@@ -445,7 +475,7 @@ if __name__ =="__main__":
 
         dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
                              ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24"]
-        #dates = ["2026-04-24"]
+        dates = ["2026-05-03","2026-05-02","2026-05-01","2026-04-30","2026-04-29","2026-04-28"]
 
         for chain_up_max in [4]: #11
             for min_day_volume in [500_000]:
@@ -490,8 +520,10 @@ if __name__ =="__main__":
                                     "symbols": list,
                                     "dt_from": f"{date} 2:00:00", # UTC format
                                     "dt_to": f"{date} 23:59:00",
-                                    "module" : "strategies.back_strategy_10s_orig",
-                                    "class": "BackStrategy10s_Orig",
+                                     "module" : "strategies.back_strategy_BI_1",
+                                     "class" : "BackStrategyBinance1",
+                                  #  "module" : "strategies.back_strategy_10s_orig",
+                                  #  "class": "BackStrategy10s_Orig",
                                     "pre_scan": {
                                         "enabled": False,
                                         "min_day_volume": 0

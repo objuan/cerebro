@@ -621,15 +621,16 @@ class TOUCH(Indicator):
  
 class DAY_VOLUME(Indicator):
   
-    def __init__(self,target_col):
+    def __init__(self,target_col, volume_name = "base_volume"):
         super().__init__([target_col])
         self.target_col=target_col    
+        self.volume_name=volume_name
         
  
     def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
        
         dest = dataframe[self.target_col].to_numpy()
-        source = dataframe["base_volume"].to_numpy()
+        source = dataframe[self.volume_name].to_numpy()
         source_ts = dataframe["timestamp"].to_numpy()
 
         DAY = 86400*1000

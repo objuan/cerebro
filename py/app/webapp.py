@@ -1,6 +1,6 @@
 import sys
-#if __name__ =="__main__":
-#    sys.argv.append("BINANCE")
+if __name__ =="__main__":
+    sys.argv.append("BINANCE")
 
 import asyncio
 from contextlib import asynccontextmanager
@@ -1491,15 +1491,7 @@ async def back_execute():
 @app.get("/back/symbols")
 async def back_get_symbols(date:str):
     try:
-        date_obj = datetime.strptime(date, "%Y-%m-%d")
-        # inizio giorno
-        start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
-        # fine giorno
-        end_of_day = datetime.combine(date_obj.date(), datetime.max.time())
-        unix_min = int(start_of_day.timestamp())*1000
-        unix_max = int(end_of_day.timestamp())*1000
-
-        logger.info(f"{unix_min} {unix_max}")
+     
 
         df = back_manager.back_symbols(date)
         
