@@ -1,4 +1,5 @@
 import asyncio
+from decimal import Decimal
 from binance import AsyncClient, BinanceSocketManager
 import logging
 
@@ -117,7 +118,7 @@ class BinanceStreamer:
                                 #change = float(ticker["P"])
                                 #logger.info(f"{symbol} → {price:.2f} ({volume:.2f}) {timestamp} {self.onReceive}")
 
-                                await self.onReceive(symbol,timestamp, price, sum["v_acc"],sum["v_day"] ,sum["qv_day"],sum["g_day"])
+                                await self.onReceive(symbol,timestamp, price, volume,sum["v_acc"],sum["v_day"] ,sum["qv_day"],sum["g_day"])
 
                             #logger.info(f"{symbol} → {price:.2f} ({volume:.2f}) {timestamp} {self.onReceive}")
                     except:
@@ -136,14 +137,14 @@ if __name__ =="__main__":
 
         s = BinanceStreamer()
         
-        async def onReceive(symbol,time, price,volume_acc,day_volume, day_quotevolume,gain_24_perc):
+        async def onReceive(symbol,time, price,volume, volume_acc,day_volume, day_quotevolume,gain_24_perc):
              pass               
-             logger.info(f"{symbol} →  {time} {price:.2f} acc: {volume_acc} v : {day_volume} q : {day_quotevolume} g:{gain_24_perc}")
+             logger.info(f"{symbol} →  {time} {price:.2f} v:{volume} acc: {volume_acc} v : {day_volume} q : {day_quotevolume} g:{gain_24_perc}")
                                            
                           
         await s.start(onReceive)
 
-        await s.set_symbols(["DOGEUSDC"])
+        await s.set_symbols(["TSTUSDC"])
 
         while True:
             await asyncio.sleep(0.1)

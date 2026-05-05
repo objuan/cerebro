@@ -52,7 +52,8 @@ from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
 from renderpage import WSManager
-from order import OrderManager,IB_OrderManager
+from order import Binance_OrderManager
+from ib_order import IB_OrderManager
 from balance import Balance
 from order_task import OrderTaskManager
 from trade_manager import TradeManager
@@ -155,7 +156,7 @@ propManager.set("system.mode","BINANCE" if BINANCE_MODE else "IB")
 client = MuloLiveClient(DB_FILE,config,propManager)
 
 if BINANCE_MODE:
-    orderManager = OrderManager(config,client)
+    orderManager = Binance_OrderManager(config,client)
 
     newService = NewService(config)
 else:
@@ -733,15 +734,16 @@ async def do_buy_breakout_no_slippage(symbol, qty, price):
         return {"status": "error" }
 
 @app.get("/order/smart/market/buy")
-async def do_limit_order(symbol, qty):
+async def do_limit_order_buy(symbol, qty):
     try:
-        logger.info(f"/order/limit {symbol} {qty}")
+        logger.info(f"BUY MARKET /order/limit {symbol} {qty}")
         await orderManager.smart_buy_market(symbol, qty,client.getTicker(symbol))
         return {"status": "ok" }
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
-      
+
+    
 # no nsi ferma ?????
 @app.get("/order/smart/limit")
 async def do_limit_order(symbol, qty):
@@ -843,6 +845,8 @@ async def do_sell_at_level(symbol:str, qty:float,price:float,desc:str):
     except:
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
+
+    
     
 @app.get("/order/sell/market/all")
 async def do_sell_order(symbol):
@@ -853,26 +857,9 @@ async def do_sell_order(symbol):
         logger.error("ERROR", exc_info=True)
         return {"status": "error" }
 
-@app.get("/order/sell/smart")
-async def do_sell_smart(symbol,perc):
-    try:
 
-        pos = Balance.get_position(symbol)
-        if (pos and pos.position>0):
-            sell_pos = float(perc) * pos.position
-            logger.info(f"SELL ALL {symbol} {pos.position} => {sell_pos} ")
-            ret = await orderManager.smart_sell_limit(symbol,sell_pos, client.getTicker(symbol))
 
-            if not ret:
-                return {"status": "ok", "message": f"Orders cancelled {symbol}"}
-            else:
-                return {"status": "warn", "message": f"No order founds fo {symbol}"}
-        else:
-            return {"status": "ok", "message": f"Orders cancelled {symbol}"}
-    except Exception as e:
-        logger.error("ERROR", exc_info=True)
-        return {"status": "error", "message": str(e)}
-    
+
 @app.get("/order/list")
 async def get_orders(start: Optional[str] = None):
     if not start:
@@ -909,7 +896,7 @@ async def get_orders(start: Optional[str] = None):
 @app.get("/order/cancel")
 async def cancel_order(permId: int):
     try:
-        result = orderManager.cancel_order(permId)
+        result = await orderManager.cancel_order(permId)
         if result:
             return {"status": "ok", "message": f"Order with permId {permId} cancelled"}
         else:
@@ -921,17 +908,24 @@ async def cancel_order(permId: int):
 #############
 
 @app.get("/order/clear_all")
-async def clar_all_orders(symbol: str):
+async def clar_all_orders(symbol: str, type):
     try:
         
         await orderManager.abort_smart(symbol)
 
         await OrderTaskManager.cancel_orderBySymbol(symbol)
 
-        pos = Balance.get_position(symbol)
+        quote_symbol= symbol
+        if symbol.endswith("USDC"):
+            quote_symbol = symbol[:-4]
+
+        pos = Balance.get_position(quote_symbol)
         if (pos and pos.position>0):
-            logger.info(f"SELL ALL {symbol} {pos.position} ")
-            ret = await orderManager.smart_sell_limit(symbol,pos.position, client.getTicker(symbol))
+            logger.info(f"SELL ALL {quote_symbol} {pos.position} ")
+            if type =="LIMIT":
+                ret = await orderManager.smart_sell_limit(symbol,pos.position, client.getTicker(symbol))
+            else:
+                ret = await orderManager.smart_sell_market(symbol,pos.position, client.getTicker(symbol))
 
         #OrderManager.cancel_orderBySymbol(symbol)
             
@@ -1715,7 +1709,8 @@ if __name__ =="__main__":
 
                 await strategy.bootstrap()
                 
-                #await orderManager.bootstrap()
+                if BINANCE_MODE:
+                    await orderManager.bootstrap(None)
                 
                 await OrderTaskManager.bootstrap()
                 
@@ -1778,9 +1773,10 @@ if __name__ =="__main__":
         except:
             logger.error("ERROR", exc_info=True)
             ancora=False
-            if run_mode!= "sym":
-                print("Disconnecting from TWS...")
-                ib.disconnect()
+            if not BINANCE_MODE:
+                if run_mode!= "sym":
+                    print("Disconnecting from TWS...")
+                    ib.disconnect()
             exit(0)
             logger.error("EXIT")
 

@@ -4,7 +4,7 @@ import datetime
 ib = IB()
 
 # Connect to TWS (use '127.0.0.1' and port 7497 for demo, 7496 for live trading)
-ib.connect('127.0.0.1', 7497, clientId=1)
+ib.connect('127.0.0.1', 7496, clientId=1)
 
 # Define a contract (VALE stock on SMART exchange, traded in USD)
 #contract = Stock('VALE', 'SMART', 'USD')
@@ -25,7 +25,8 @@ bars = ib.reqHistoricalData(
     contract3,
     endDateTime='',
     durationStr='1 D',      # period back: 2 giorni
-    barSizeSetting='10 secs', # 1 minuto
+    #barSizeSetting='10 secs', # 1 minuto
+    barSizeSetting='1 m', # 1 minuto
     whatToShow='TRADES',
     useRTH=True,           # includi orari estesi
     formatDate=1,

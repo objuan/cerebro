@@ -24,7 +24,8 @@
                         class="text-black-600 hover:underline"
                         @click.prevent="onSymbolClick(props.symbol)"
                       >
-                        {{ props.symbol }}
+                      
+                        {{ formatSymbol(props.symbol) }}
                       </a>
               </div>
 
@@ -122,6 +123,13 @@ const playSound = (ringName) => {
   audioMap[idx].muted = false;
 };
 
+function formatSymbol(symbol){
+   if (symbol.endsWith('USDC')){
+     return symbol.slice(0, -4);
+  }
+  else
+    return symbol
+}
 
 function my_ramp_perc(v, color){
   const f =  Math.min(10,v) / 10

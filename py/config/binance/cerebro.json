@@ -11,7 +11,17 @@
 	},
 	"markets":
 	{
-
+		"BINANCE":{
+			"MODE" : "PAPER",
+			"PROD":{
+				"API_KEY" : "o5JfUfoq1AXoxQBmPekLYLTfqoSgDmcacikFx7uHgDScTKfb3AYlfpKmB5bL4Jvo",
+				"API_SECRET": "AqArz5WJOIOluzs9jvtAr8oaDIlEGQXtdPPI8M1Six2TPi4fdA6Byi2wdJqWNiil"
+			},
+			"PAPER":{
+				"API_KEY" : "PaslcrGoFRT7vfV6OAbO0djOj49xxOLKNU6IoOw23quQTRz1u4xSCpIi9xXHcumY",
+				"API_SECRET": "GehQSX3UmcKLSpC79QJHmFGkYoj2sQIUiO8D2lXZ2r17wXcc3qKFCInoUYGvWYqu"
+			}
+		}
 	}
 	,"order":
 	{
@@ -23,6 +33,18 @@
 	},
 	
 	"stategies":[
+			{
+			   "module": "trade_strategy_IB",
+				"class" : "TradeStrategyIB",
+				"timeframe" : "1m",
+				"enabled" : true,
+				"scope" : "LIVE",
+				"params" :
+				{
+                    "volume_min_filter" :1000000
+
+				}
+			},		
 		{
 			   "module": "back_strategy_BI_1",
 				"class" : "BackStrategyBinance1",
@@ -44,6 +66,7 @@
 			   "module": "meta_strategy",
 				"class" : "MetaStrategy",
 				"timeframe" : "1m",
+				"enabled" : true,
 				"params" :
 				{
 				}
@@ -156,9 +179,9 @@
 					"1d": "365d"
 				}
 				,"TIMEFRAME_CHART_CANDLES" : {
-					"10s": 1000,
-					"30s": 1000,
-					"1m": 1000,
+					"10s": 2000,
+					"30s": 2000,
+					"1m": 1500,
 					"5m": 5000,
 					"15m": 5000,
 					"30m": 5000,

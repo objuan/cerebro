@@ -131,7 +131,7 @@ class MetaStrategy(SmartStrategy):
         # VOLUME DIFF
         #if volume > self.volume_min_filter:
         vol_diff = volume - prev["day_volume_history"]
-        await self.set_property(symbol,{"volume_diff":vol_diff})
+        await self.set_property(symbol,{"volume_diff":vol_diff, "volume_diff_quote" : vol_diff* last['close']})
     ###########
 
 

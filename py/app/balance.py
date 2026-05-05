@@ -1,4 +1,10 @@
 from ib_insync import *
+import sys
+
+if __name__ =="__main__":
+    sys.argv.append("BINANCE")
+
+from binance import AsyncClient,BinanceSocketManager
 import asyncio
 import time
 import pandas as pd
@@ -7,7 +13,7 @@ import logging
 import json
 import math
 import sqlite3
-from config import DB_FILE,CONFIG_FILE
+from config import DB_FILE,CONFIG_FILE,BINANCE_MODE
 from utils import convert_json
 from renderpage import WSManager
 import traceback
@@ -15,6 +21,7 @@ from collections import deque
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
+
 
 #conn = sqlite3.connect(DB_FILE, isolation_level=None)
 #cur = conn.cursor()
@@ -177,47 +184,92 @@ class Balance:
 
     def __init__(self,config,ib,props):
         Balance.props=props
+        Balance.config=config
         Balance.ib=ib
         Balance.positionMap={}
         Balance.run_mode = config["live_service"].get("mode","sym") 
         Balance.cash_usd=0
         Balance.cash_eur=0
        
-        if ib:
-            Balance.ib.updatePortfolioEvent  += Balance.onUpdatePortfolio
-            Balance.ib.positionEvent   += Balance.onPositionEvent 
-            Balance.ib.accountSummaryEvent     += Balance.onAccountSummaryEvent   
-            Balance.ib.accountValueEvent     += Balance.onAccountValueEvent 
-            
+        if BINANCE_MODE:
+            pass
+        else:
+            if ib:
+                Balance.ib.updatePortfolioEvent  += Balance.onUpdatePortfolio
+                Balance.ib.positionEvent   += Balance.onPositionEvent 
+                Balance.ib.accountSummaryEvent     += Balance.onAccountSummaryEvent   
+                Balance.ib.accountValueEvent     += Balance.onAccountValueEvent 
+                
             
             #d = {v.tag: v.value for v in values}
             #logger.info(f"accountValues: {values}") 
 
     async def bootstrap():
         
-        if  Balance.run_mode  != "sym" and Balance.ib:
-            for value in Balance.ib.accountValues():    
-                    #logger.info(f"accountValues: {v}") 
-                    if value.tag == "CashBalance" and value.currency == "USD":
-                        Balance.cash_usd = float(value.value)
-                    
-                    if value.tag == "CashBalance" and value.currency == "EUR":
-                        Balance.cash_eur = float(value.value)
+        if BINANCE_MODE:
+            if  Balance.run_mode  != "sym":
+                mode = Balance.config["markets"]["BINANCE"]["MODE"]
+                logger.info(f"BINANCE MODE: {mode}")
+                API_KEY = Balance.config["markets"]["BINANCE"][mode]["API_KEY"]
+                API_SECRET = Balance.config["markets"]["BINANCE"][mode]["API_SECRET"]
 
-            positions  = Balance.ib.positions()
-            logger.info(f"positions: {positions}")  
-            #list = []
-            for p in positions:
-                await Balance.update(p.contract.symbol,{"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
-                #list.append({"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
+                #logger.info(f"BINANCE API_KEY: {API_KEY}")
+                
+                client = await AsyncClient.create(API_KEY, API_SECRET,  testnet=mode=="PAPER")
 
-            def get_cash_usd ():
-                return Balance.cash_usd 
-            Balance.props.add_computed("account.cash_usd", get_cash_usd)
+                account = await client.get_account()
+                '''
+                balances = {
+                    b["asset"]: float(b["free"]) + float(b["locked"])
+                    for b in account["balances"]
+                    if float(b["free"]) > 0 or float(b["locked"]) > 0
+                }
+                '''
+                for b in account["balances"]:
+                    if float(b["free"]) > 0 or float(b["locked"]) > 0:
+                        symbol =  b["asset"]
+                        pos = float(b["free"]) + float(b["locked"])
 
-            def get_cash_eur ():
-                return Balance.cash_eur
-            Balance.props.add_computed("account.cash_eur", get_cash_eur)
+                        #logger.info(balances)
+                        await Balance.update(symbol,{"symbol": symbol, "position":pos, "avgCost":0})
+                
+                '''
+                bsm = BinanceSocketManager(client)
+
+                socket = bsm.user_socket()
+
+                async with socket as stream:
+                    while True:
+                        msg = await stream.recv()
+                        logger.info(msg)
+                '''
+                        
+                #await client.close_connection()
+
+        else:
+            if  Balance.run_mode  != "sym" and Balance.ib:
+                for value in Balance.ib.accountValues():    
+                        #logger.info(f"accountValues: {v}") 
+                        if value.tag == "CashBalance" and value.currency == "USD":
+                            Balance.cash_usd = float(value.value)
+                        
+                        if value.tag == "CashBalance" and value.currency == "EUR":
+                            Balance.cash_eur = float(value.value)
+
+                positions  = Balance.ib.positions()
+                logger.info(f"positions: {positions}")  
+                #list = []
+                for p in positions:
+                    await Balance.update(p.contract.symbol,{"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
+                    #list.append({"symbol": p.contract.symbol, "position": p.position, "avgCost":p.avgCost})
+
+                def get_cash_usd ():
+                    return Balance.cash_usd 
+                Balance.props.add_computed("account.cash_usd", get_cash_usd)
+
+                def get_cash_eur ():
+                    return Balance.cash_eur
+                Balance.props.add_computed("account.cash_eur", get_cash_eur)
          
     
     def to_dict():
@@ -231,7 +283,7 @@ class Balance:
     
     async def update(symbol, data):
 
-        logger.info(f"BALANCE  {data}")
+        #logger.info(f"BALANCE  {data}")
         if not symbol in Balance.positionMap:
             Balance.positionMap[ symbol] = Position(symbol)
 
@@ -302,3 +354,27 @@ class Balance:
             Balance.cash_eur = float(value.value)
             if Balance.ws:
                 await Balance.ws.broadcast({"type":"props", "path": "account.cash_eur", "value":Balance.cash_eur } )
+
+########################################
+
+if __name__ =="__main__":
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    config = convert_json(config)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s")
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    async def main():
+        b = Balance(config,None, None)
+        await Balance.bootstrap()
+
+        #logger.info(Balance.to_dict())
+    
+        while True:
+            asyncio.sleep(1)
+
+    asyncio.run(main())

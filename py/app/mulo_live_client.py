@@ -56,11 +56,12 @@ class MuloLiveClient:
         self.on_full_candle_receive = MyEvent()
         self.on_ticker_receive = MyEvent()
 
-        propManager.add_computed("root.sym_mode", lambda: self.sym_mode )
-        if not BINANCE_MODE:
-            propManager.add_computed("root.tz", lambda:  MZ_TABLE[self.getCurrentZone()] )
-        propManager.add_computed("root.sym_start_time", lambda: self.sym_start_time )
-        propManager.add_computed("root.sym_start_speed", lambda: self.sym_start_speed )
+        if propManager:
+            propManager.add_computed("root.sym_mode", lambda: self.sym_mode )
+            if not BINANCE_MODE:
+                propManager.add_computed("root.tz", lambda:  MZ_TABLE[self.getCurrentZone()] )
+            propManager.add_computed("root.sym_start_time", lambda: self.sym_start_time )
+            propManager.add_computed("root.sym_start_speed", lambda: self.sym_start_speed )
      
      
     async def bootstrap(self):
@@ -848,12 +849,13 @@ class MuloLiveClient:
                 query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
                 self.execute(query, ("order",data['data']['symbol'], type,  int(time.time() * 1000), json.dumps(data) ))
 
-            await self.render_page.sendOrder(data)
-            '''
-            await self.render_page.sendOrder(
-                {"type": type, "data" : data}
-            )
-            '''
+            if self.render_page:
+                await self.render_page.sendOrder(data)
+                '''
+                await self.render_page.sendOrder(
+                    {"type": type, "data" : data}
+                )
+                '''
 
             #logger.info(f"SEND DONE")
         except:
@@ -873,7 +875,8 @@ class MuloLiveClient:
                 query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
                 self.execute(query, ("order",data["symbol"], type,  int(time.time() * 1000), json.dumps(data) ))
 
-            await self.render_page.sendOrder(data)
+            if self.render_page:
+                await self.render_page.sendOrder(data)
             '''
             await self.render_page.sendOrder(
                 {"type": type, "data" : data}

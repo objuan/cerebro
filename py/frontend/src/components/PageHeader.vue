@@ -5,7 +5,7 @@
 
       <h1 class="h3 mb-0 text-primary">
         <router-link to="/">
-    {{ title }}
+    {{ title }} {{ sub_title }}
     </router-link>
 
     
@@ -81,6 +81,7 @@ import { tradeStore } from "@/components/js/tradeStore";
 
 const selectedSymTime = ref(null);
 const symSpeed = ref(null)
+const sub_title=  ref("");
 
 // Esponiamo i dati dello store al template
 const liveData = computed(() => liveStore.state.dataByPath);
@@ -150,7 +151,7 @@ defineProps({
 })
 
 onMounted(() => {
-
+  sub_title.value =process.env.VUE_APP_MODE
 });
 
 watch(

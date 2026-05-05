@@ -89,20 +89,12 @@ export async function order_market_buy(symbol, qty){
 
 
 
-export async function clear_all_orders(symbol){
-    console.log("clear_all_orders", symbol,)
+export async function clear_all_orders(symbol,type){
+    console.log("clear_all_orders", symbol,type)
 
     send_get("/order/clear_all", {
         "symbol" : symbol,
+        "type": type
     })
 }
 
-
-export async function sell_smart(symbol,perc){
-    console.log("sell", symbol,perc)
-
-    send_get("/order/sell/smart", {
-        "symbol" : symbol,
-        "perc": perc
-    })
-}

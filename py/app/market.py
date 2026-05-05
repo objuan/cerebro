@@ -5,7 +5,7 @@ from datetime import time as _time
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from typing import Dict, List
-from config import DB_FILE,CONFIG_FILE
+from config import DB_FILE,CONFIG_FILE,BINANCE_MODE
 from utils import convert_json
 from enum import Enum
 
@@ -146,32 +146,33 @@ class MarketService:
         
         markets = {}
 
-        for name, cfg in data.items():
-            markets[name] = Market(
-                name=name,
-                exchanges=cfg["exchanges"],
-                timezone=cfg["timezone"],
-                premarket=Session(
-                    parse_time(cfg["premarket"]["start"]),
-                    parse_time(cfg["premarket"]["end"])
-                ),
-                market=Session(
-                    parse_time(cfg["market"]["start"]),
-                    parse_time(cfg["market"]["end"])
-                ),
-                after=Session(
-                    parse_time(cfg["after"]["start"]),
-                    parse_time(cfg["after"]["end"])
+        if not BINANCE_MODE:
+            for name, cfg in data.items():
+                markets[name] = Market(
+                    name=name,
+                    exchanges=cfg["exchanges"],
+                    timezone=cfg["timezone"],
+                    premarket=Session(
+                        parse_time(cfg["premarket"]["start"]),
+                        parse_time(cfg["premarket"]["end"])
+                    ),
+                    market=Session(
+                        parse_time(cfg["market"]["start"]),
+                        parse_time(cfg["market"]["end"])
+                    ),
+                    after=Session(
+                        parse_time(cfg["after"]["start"]),
+                        parse_time(cfg["after"]["end"])
+                    )
                 )
-            )
-            markets[name].start()
+                markets[name].start()
 
-        self.markets = markets
-        self._exchange_map: dict[str, Market] = {}
+            self.markets = markets
+            self._exchange_map: dict[str, Market] = {}
 
-        for market in markets.values():
-            for ex in market.exchanges:
-                self._exchange_map[ex.upper()] = market
+            for market in markets.values():
+                for ex in market.exchanges:
+                    self._exchange_map[ex.upper()] = market
 
     def getMarket(self, exchange: str) -> Market:
         ex = exchange.upper()

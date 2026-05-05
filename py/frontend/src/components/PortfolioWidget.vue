@@ -75,7 +75,11 @@ defineExpose({
   handleMessage,
 });
 
-const rows = computed(() => Object.values(portfolio));
+const rows = computed(() => 
+  Object.values(portfolio).sort((a, b) =>
+    a.symbol.localeCompare(b.symbol)
+  )
+);
 
 const cash_usd = computed(() => liveStore.get("account.cash_usd") || 0);  
 const cash_eur = computed(() => liveStore.get("account.cash_eur") || 0);  

@@ -168,7 +168,7 @@
                   {{formatValue(item.strategy.get(item.symbol,"1m","TRADE")?.volume_diff)}}
               </td>
               <td class="volume" >
-                   {{ ( formatValue( item.strategy.get(item.symbol,"1m","TRADE")?.volume_diff * item.last))}}$
+                   {{ ( formatValue( item.strategy.get(item.symbol,"1m","TRADE")?.volume_diff_quote))}}$
               </td>
             </tr>
             <tr v-else>
@@ -493,7 +493,10 @@ function updateTickers()
     sortedTickers.value= [...list]
        .filter(t => 
           t.secs_from &&
-          (t.report?.day_volume ?? 0) >= minVolume.value
+          (
+              (process.env.VUE_APP_MODE =="" && (t.report?.day_volume ?? 0) >= minVolume.value)
+           || ((process.env.VUE_APP_MODE =="BINANCE" && (t.report?.day_volume * t.last ?? 0) >= minVolume.value))
+          )
         )  // tiene solo quelli con secs_from
       .sort((a, b) => {
         /*

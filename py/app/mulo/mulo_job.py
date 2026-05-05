@@ -679,6 +679,8 @@ class MuloJob:
                     return symbol, df
                 
                 else:
+                    end = datetime.now(timezone.utc).strftime('%Y%m%d %H:%M:%S')
+
                     if not max_ts:
                         time = since_to_durationStr(int(60 * 60 * 24*7 ))
                     else:

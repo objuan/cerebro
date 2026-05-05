@@ -48,6 +48,9 @@ function addToast(ts,source,icon, symbol,summary, message, type,subtype,color) {
   //console.log("diffSeconds",dt, diffSeconds,source)
 
   const id = Date.now() + Math.random()
+  if (symbol.endsWith('USDC')){
+     symbol = symbol.slice(0, -4);
+  }
   const toast = { ts, source,id, icon, symbol,summary, message, type,subtype, color }
 
   store.push(toast);
@@ -87,9 +90,9 @@ function onOrderReceived(msg) {
 
       let color = STATUS_COLORS[msg.status]
 
-      const  summary =`${ msg.action } ${msg.filled}/${msg.totalQuantity } ${msg.status} `;
+      const  summary =`${ msg.action } ${msg.lastFillPrice }  ${msg.status} `;
 
-      const  smsg =`${ msg.action } filled:${msg.filled}/${msg.totalQuantity } <br> price: ${msg.lmtPrice} <br> state:${msg.status} `;
+      const  smsg =`${ msg.action } filled:${msg.filled}/${msg.totalQuantity } <br> price: ${msg.lastFillPrice} <br> state:${msg.status} `;
 
       addToast(msg.ts, "order",icon,msg.symbol,summary, smsg, "info","order",color)
     }

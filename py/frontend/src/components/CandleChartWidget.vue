@@ -165,10 +165,10 @@
                 {{ ind.name }}
               </span>
               <span v-if="ind.type == 'strategy'">
-                {{ Number(ind.value)?.toFixed(4) }}
+                {{ formatFloatValue(ind.value) }}
               </span>
               <span v-else-if="ind.type == 'legend'">
-                {{ Number(ind.value)?.toFixed(4) }}
+                {{ formatFloatValue(ind.value)}}
               </span>
               <div v-else >
                   <input 
@@ -233,7 +233,7 @@ import { createChart, CrosshairMode,  CandlestickSeries,
 LineStyle } from '@/components/js/ind.js' // '@pipsend/charts'; //createTradingLine
 
 import { eventBus } from "@/components/js/eventBus";
-import { send_delete,send_get, send_post,formatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
+import { send_delete,send_get, send_post,formatValue, formatFloatValue } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { drawHorizontalLine,clearDrawings,
     // setTradeMarker,updateTradeMarker,updateTaskMarker,clearLine,updateVerticalLineData
    updateStrategyIndicators,clearStrategyIndicators,
@@ -1177,7 +1177,13 @@ const buildChart =  () => {
     wickUpColor: '#26a69a',
     wickDownColor: '#ef5350',
 
-    priceScaleId: "right"
+    priceScaleId: "right",
+    
+    priceFormat: {
+                        type: 'price',
+                        precision: 4,     // 👈 numero decimali
+                        minMove: 0.0001   // 👈 deve combaciare
+                      }
   });
 
   painter.setChart(chart,series)
@@ -1260,8 +1266,8 @@ const buildChart =  () => {
       strategy_index_list.value.forEach( ind=>
       {
           const v = ind.data_cache[timeKey]
-          ind.value = v;
-         // console.log("i ",v )
+          ind.value = v;// formatFloatValue(v);
+          //console.log("i ",v )
       });
       lbl=""
       

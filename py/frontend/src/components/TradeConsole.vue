@@ -48,7 +48,7 @@
                   <button class="btn btn-sm "
                       :class="tradeMode === 'DIRECT' ? 'btn-success active-mode' : 'btn-outline-success'"
                         @click="setMode('DIRECT')">DIRECT</button>
-
+                  &nbsp;
                   <button class="btn btn-sm "
                         :class="tradeMode === 'MARKER' ? 'btn-success active-mode' : 'btn-outline-success'"
                         @click="setMode('MARKER')" >MARKER</button>
@@ -62,8 +62,10 @@
                   <div class="d-flex align-items-center gap-0" v-if="tradeMode=='DIRECT'">
                     <button    class="btn btn-sm btn-success"
                           @click="send_order('LIMIT')"
-                        >BUY</button>
-                     
+                        >B LIMIT</button>
+                      <button    class="btn btn-sm btn-warning"
+                          @click="send_order('MARKET')"
+                        >B MARKET</button>
 
                      <div class="flex-grow-1 text-center">
                           Buy <strong>{{ tradeQuantity }}</strong> at 
@@ -134,10 +136,11 @@
       </div>  
 
      <!-- sell-->
-      <table>
+      <table style="min-width:150px">
         <tr>
           <td>
-              <button class="btn btn-sm btn-danger" @click="clear_all()"  >SELL ALL</button>
+              <button class="btn btn-sm btn-danger" @click="clear_all('LIMIT')"  >S LIMIT</button>
+              <button class="btn btn-sm btn-danger" @click="clear_all('MARKET')"  >S MARK</button>
           </td>
         </tr>
         <tr>
@@ -308,11 +311,11 @@ function send_order_marker(){
 }
 
 
-function clear_all(){
-  clear_all_orders(props.symbol);
+function clear_all(type){
+  clear_all_orders(props.symbol,type);
 }
 function sell_half(){
-  sell_smart(props.symbol,50);
+  sell_smart(props.symbol,50,"LIMIT");
 }
 
 async function cancelTaskOrder(){

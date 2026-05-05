@@ -174,6 +174,12 @@ export async  function updateStrategyIndicators(context,
                       priceLineVisible: false,
                       lastValueVisible: false,
                       crosshairMarkerVisible: false,
+                       priceFormat: {
+                        type: 'price',
+                        precision: 4,     // 👈 numero decimali
+                        minMove: 0.0001   // 👈 deve combaciare
+                      }
+                      
                     },1);
                       data.line = line
                   }

@@ -7,7 +7,7 @@
               
             </span>
             
-            <span class="positon">#{{ position }}</span>
+            <span class="positon">#{{ position?.toFixed(0) }}</span>
           </strong>
 
           <div class="time-bar" style="width: 20px;height: 10px;">
@@ -192,6 +192,13 @@ const progress = (item) => {
   
 }
   
+const symbolQuote = computed( ()=>{
+ if (currentSymbol.value.endsWith('USDC'))
+     return currentSymbol.value.slice(0, -4);
+  else
+      return currentSymbol.value
+})
+
 
 const tickerRef = computed( ()=>{
   return tickerList.get_ticker(currentSymbol.value)
@@ -398,7 +405,7 @@ function onTickerReceived(msg)
 
 function onPositionUpdated(msg){
   //console.log("onPositionUpdated", msg)
-   if (msg.symbol == props.symbol)
+   if (msg.symbol == symbolQuote.value)
    {
       position.value = msg.position
   }

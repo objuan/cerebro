@@ -163,6 +163,18 @@ export function formatValue(v,decimals=1) {
     return v.toFixed(decimals).toString();
 }
 
+export function formatFloatValue(v) {
+    v = parseFloat(v);
+    if (isNaN(v)) return v;
+    
+  
+    if (v >= 1_000_000) {
+        return (v / 1_000_000).toFixed(1) + ' M';
+    }
+    return v.toFixed(4);
+    
+}
+
 export function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
     const dx = x2 - x1;
     const dy = y2 - y1;
