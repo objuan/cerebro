@@ -110,8 +110,6 @@ class Strategy:
                     except:
                         logger.error("error",exc_info=True)
 
-    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
-        return None
 
     async def on_start(self):
         pass
@@ -410,16 +408,65 @@ class Strategy:
 
     #######
 #############
+    
+    async def orders_marker(self, timeframe, symbol:str = None)-> pd.DataFrame:
+        orders = await self.orderManager.get_last_orders(symbol,10)
 
+        df = pd.DataFrame(
+                    columns=["symbol","timeframe","type", "timestamp", "price", "desc","color","shape","position"]
+                )
+       
+        for order in orders:
+            #logger.info(order)
 
-    def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
+            timestamp =  order["time"]
+            value =  order["lastFillPrice"]
+            label =  "Buy" if order["action"] =="BUY" else "Sell"
+            color =  "#0f5c00" if order["action"] =="BUY" else  "#001483" 
+            shape ="circle"
+            position="atPriceBottom"
+            type= "SPOT"
+
+            df.loc[len(df)] = [
+                    symbol,               # symbol
+                    timeframe,                # type
+                    type,               # symbol
+                    timestamp,       # timestamp
+                    value,              # price
+                    label,           # desc
+                    color,
+                    shape,
+                    position
+                ]
+        
+        return df
+        logger.info(f"\n{df}")
+
+    async def marker(self,timeframe:str, symbol:str = None)-> pd.DataFrame:
+      
+        df_orders = await self.orders_marker(self.timeframe,symbol)
+        df=pd.DataFrame()
+
         if timeframe in self.marker_map:
             if not symbol:
-                return self.marker_map[timeframe]
+                df= self.marker_map[timeframe]
             else:
-                return self.marker_map[timeframe][self.marker_map[timeframe]["symbol"] == symbol]
-        else:
-            return  pd.DataFrame()
+                df= self.marker_map[timeframe][self.marker_map[timeframe]["symbol"] == symbol]
+
+        #logger.info(f"\n{orders}")
+
+        #logger.info(f"\n{df}")
+        
+        df = pd.concat(
+            [df, df_orders],
+            ignore_index=True
+        )
+        df = df.sort_values(by="timestamp")
+
+        #logger.info(f"\n{df}")
+
+        return df
+        
 
     def spot(self,  symbol, label,color, sourceField):
         #logger.info(f"SPOT {symbol} {label}")
@@ -430,6 +477,7 @@ class Strategy:
         self.add_marker(symbol,"BUY",label,"#060806","arrowUp")
 
 
+    #type SPOT, BUY
     #shapes : arrowUp, arrowDown, circle,square,small_square
     #atPriceTop,atPriceBottom,atPriceMiddle
     def add_marker(self, symbol,type, label,color,shape, position ="atPriceTop",
@@ -464,7 +512,7 @@ class Strategy:
 
        # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
      
-    def live_markers(self,symbol,timeframe,from_ts,to_ts):
+    async def live_markers(self,symbol,timeframe,from_ts,to_ts):
         if not timeframe:
             timeframe = self.timeframe
         '''
@@ -475,7 +523,7 @@ class Strategy:
         else:
             df = self.marker(timeframe,symbol)
         '''
-        df = self.get_df_windows( self.marker(timeframe,symbol),from_ts,to_ts)
+        df = self.get_df_windows(await self.marker(timeframe,symbol),from_ts,to_ts)
 
         if df.empty:
             return []
@@ -527,7 +575,7 @@ class Strategy:
         df.dropna()
         return df
         
-    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
+    async def live_indicators(self,symbol,timeframe,from_ts,to_ts):
      
         if not timeframe:
             timeframe = self.timeframe
@@ -553,11 +601,11 @@ class Strategy:
         if df.empty:
             return{"strategy": __name__ 
                    ,"legends" : []
-                   ,"markers": self.live_markers(symbol,timeframe,from_ts,to_ts)}
+                   ,"markers": await self.live_markers(symbol,timeframe,from_ts,to_ts)}
         
         #logger.info(f"out \n{df}")
         o = {"strategy": __name__ ,
-             "markers": self.live_markers(symbol,timeframe,from_ts,to_ts), 
+             "markers": await self.live_markers(symbol,timeframe,from_ts,to_ts), 
              "legends": self.live_legend(symbol,timeframe,from_ts,to_ts), 
              "list" : []}
 

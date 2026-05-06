@@ -213,7 +213,7 @@ const gridStyle = computed(() => ({
   display: 'grid',
   width: '100%',
   //height: '100%',
-  height: 'calc(100% - 140px)',
+  height: 'calc(100% - 190px)',
   gridTemplateColumns: `repeat(${cols.value}, 1fr)`,
   gridTemplateRows: `repeat(${rows.value}, 1fr)`,
   gap: '6px',
@@ -476,7 +476,7 @@ watch(strategy_buy,  async (newValue) => {
 }
 .in-charts-grid {
   width: 100%;
-  height: calc(100% - 140px);
+  height: calc(100% - 190px);
   padding: 6px;
   box-sizing: border-box;
   background-color: azure;

@@ -455,6 +455,40 @@ class Binance_OrderManager(OrderManager):
         asyncio.create_task(self.user_stream_loop())
         
 
+    async def get_last_orders(self,symbol, limit):
+        orders = await self.binance_client.get_all_orders(
+            symbol=symbol,
+            limit=limit
+        )
+        list = []
+        for order in orders:
+             #logger.info(order)
+            state = Binance_OrderManager.status_map[order["status"]]
+            if state =="Filled":
+                #logger.info(order)
+                avg_price = float(order['cummulativeQuoteQty']) / float(order['executedQty'])
+
+                trade =  {
+                        "trade_id": order["orderId"],
+                        "orderId": order["orderId"],
+                        "time": order["time"],
+                        "symbol": order["symbol"],
+                        "exchange":"BINANCE",
+                        "action": order["side"],
+                        "orderType": order["type"],
+                        "totalQuantity": order["origQty"],
+                        "lmtPrice": getattr(order, "price", None),
+                        "status": state,
+                        "filled": state=="Filled",
+                        "remaining": 0,
+                        "avgFillPrice": avg_price,
+                        "lastFillPrice": avg_price
+           
+                    }
+                list.append(trade)
+                #logger.info(trade)
+        return list
+        
     status_map = {
         "CANCELED" : "Cancelled",
         "NEW" : "Submitted",

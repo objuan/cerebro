@@ -239,11 +239,11 @@ class StrategyManager:
          for strat in self.strategies:
             await strat["instance"].on_live_trade_event(type,data)
 
-    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
+    async def live_indicators(self,symbol,timeframe,from_ts,to_ts):
         list = []
         for strat in self.strategies:
             if strat["instance"].timeframe == timeframe:
-                i = strat["instance"].live_indicators(symbol,timeframe,from_ts,to_ts)
+                i = await strat["instance"].live_indicators(symbol,timeframe,from_ts,to_ts)
                 if i:
                     list.append(i)
         return list

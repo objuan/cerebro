@@ -225,6 +225,7 @@ class SmartStrategy(Strategy):
 
     '''
     ring: [default, alarm, chime, alert1, new_symbol, news ]
+    atPriceBottom atPriceTop
     '''
     async def add_marker(self, symbol,type, label,desc,color,shape="small_square", position ="atPriceTop",
                     _timeframe=None, sourceField = "close", value=None,timestamp=None,ring="news",sendEvent=True):
@@ -263,7 +264,7 @@ class SmartStrategy(Strategy):
        # self.marker_map["symbol"].append({"type":"buy", "symbol" : symbol, "ts": int(timestamp), "value": price, "desc": label})
      
 
-    def live_markers(self,symbol,timeframe,from_ts,to_ts):
+    async def live_markers(self,symbol,timeframe,from_ts,to_ts):
         if not timeframe:
             timeframe = self.timeframe
         '''
@@ -274,7 +275,7 @@ class SmartStrategy(Strategy):
         else:
             df = self.marker(timeframe,symbol)
         '''
-        df = self.get_df_windows( self.marker(timeframe,symbol),from_ts,to_ts)
+        df = self.get_df_windows( await self.marker(timeframe,symbol),from_ts,to_ts)
 
         if df.empty:
             return []
@@ -326,7 +327,7 @@ class SmartStrategy(Strategy):
         df.dropna()
         return df
         
-    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
+    async def live_indicators(self,symbol,timeframe,from_ts,to_ts):
      
         if not timeframe:
             timeframe = self.timeframe
@@ -352,11 +353,11 @@ class SmartStrategy(Strategy):
         if df.empty:
             return{"strategy": __name__ 
                    ,"legends" : []
-                   ,"markers": self.live_markers(symbol,timeframe,from_ts,to_ts)}
+                   ,"markers": await self.live_markers(symbol,timeframe,from_ts,to_ts)}
         
         #logger.info(f"out \n{df}")
         o = {"strategy": __name__ ,
-             "markers": self.live_markers(symbol,timeframe,from_ts,to_ts), 
+             "markers": await self.live_markers(symbol,timeframe,from_ts,to_ts), 
              "legends": self.live_legend(symbol,timeframe,from_ts,to_ts), 
              "list" : []}
 

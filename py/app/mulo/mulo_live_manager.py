@@ -322,10 +322,10 @@ class LiveManager:
                 
                 #symbols = [x.contract.symbol for x in to_remove]
                 symbols = [
-                    x.contract.symbol
+                    x.symbol
                     for x in to_remove
                     if ((datetime.now() - x.start_time).total_seconds() > 60
-                    and not self.fetcher.is_in_white_list(x.contract.symbol))
+                    and not self.fetcher.is_in_white_list(x.symbol))
                 ]
 
                 logger.info(f"REMOVE LAST symbols {symbols}")
@@ -341,13 +341,14 @@ class LiveManager:
                         
                         '''
                         #exchange = "SMART"#symbol_map[symbol]
-                        contract = self.ticker_contracts[symbol]# Stock(symbol, exchange, 'USD')
-                        logger.info(f">> Close  feeds {contract}")
-                        try:
-                            self.ib.cancelMktData(contract)
-                        except:
-                            logger.error("CANCEL ERROR", exc_info=True)
-                        self.ib.sleep(1)
+                        if not BINANCE_MODE:
+                            contract = self.ticker_contracts[symbol]# Stock(symbol, exchange, 'USD')
+                            logger.info(f">> Close  feeds {contract}")
+                            try:
+                                self.ib.cancelMktData(contract)
+                            except:
+                                logger.error("CANCEL ERROR", exc_info=True)
+                            self.ib.sleep(1)
 
                         if symbol in self.tickers:
                             del  self.tickers[symbol]
@@ -733,15 +734,17 @@ class LiveManager:
                 #if symbol =="USAR":
                 #    logger.info(f" onTicker{ticker.volume}")
 
-                acc_volume = ticker.volume #day volume
-                acc_volume = max(0, 0 if math.isnan(acc_volume) else acc_volume)
+                #acc_volume = ticker.volume #day volume
+                #acc_volume = max(0, 0 if math.isnan(acc_volume) else acc_volume)
 
-                day_volume = acc_volume
+                #day_volume = acc_volume
 
                 if BINANCE_MODE:
                     ticker.gain = ticker.gain_24
                     day_volume = ticker.day_volume
                 else:
+                    day_volume = ticker.volume
+
                     if ticker.last_close>0:
                         ticker.gain = ((ticker.last - ticker.last_close)/ ticker.last_close) * 100
                     else:
@@ -772,10 +775,14 @@ class LiveManager:
                             if candle is not None:  # se esisteva, va inviata
                                 #logger.info("send")
                                 # send
-                                volume = acc_volume - candle["last_volume"]
-                                volume = max(0,volume)
-                                if volume == acc_volume:
-                                    volume = 0
+                                
+                                if BINANCE_MODE:
+                                    volume = candle["volume"]
+                                else:
+                                    volume = day_volume - candle["last_volume"]
+                                    volume = max(0,volume)
+                                    if volume == day_volume:
+                                        volume = 0
                                 
                                 data = {
                                     "m": "full",
@@ -811,7 +818,7 @@ class LiveManager:
                                 "low": ticker.last,
                                 "close": ticker.last,
                                 "volume": 0,
-                                "last_volume": acc_volume
+                                "last_volume": 0 if BINANCE_MODE else day_volume
                             }
 
                             history[interval] = candle
@@ -820,12 +827,15 @@ class LiveManager:
                         else:
                              # check ticker changed
                             
-                            if  ticker.last !=  candle["close"]:
+                            if  BINANCE_MODE or ticker.last !=  candle["close"]:
                                 candle["high"] = max(candle["high"], ticker.last)
                                 candle["low"] = min(candle["low"], ticker.last)
 
                                 #vol_diff = ticker.volume - candle["last_volume"]
-                                candle["volume"]  = max(0,acc_volume - candle["last_volume"])
+                                if BINANCE_MODE:
+                                    candle["volume"]  = candle["volume"]  + ticker.volume
+                                else:
+                                    candle["volume"]  = max(0,ticker.volume - candle["last_volume"])
                                 candle["close"] = ticker.last
 
                                 data = {

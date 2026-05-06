@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from decimal import Decimal
 from binance import AsyncClient, BinanceSocketManager
 import logging
@@ -138,13 +139,22 @@ if __name__ =="__main__":
         s = BinanceStreamer()
         
         async def onReceive(symbol,time, price,volume, volume_acc,day_volume, day_quotevolume,gain_24_perc):
-             pass               
-             logger.info(f"{symbol} →  {time} {price:.2f} v:{volume} acc: {volume_acc} v : {day_volume} q : {day_quotevolume} g:{gain_24_perc}")
-                                           
+            dt =  datetime.utcfromtimestamp(time)
+            
+
+            line = f"{symbol},{time},{dt}, {price:.4f},{volume},{volume_acc},{day_volume},{day_quotevolume},{gain_24_perc}\n"
+
+            #logger.info(f"{symbol} →  {time} {price:.2f} v:{volume} acc: {volume_acc} v : {day_volume} q : {day_quotevolume} g:{gain_24_perc}")
+            logger.info(line)
+            # Scrittura async-safe (semplice)
+            async with asyncio.Lock():
+                with open("market_data.csv", "a") as f:
+                    f.write(line)
+                                                
                           
         await s.start(onReceive)
 
-        await s.set_symbols(["TSTUSDC"])
+        await s.set_symbols(["DOGSUSDC"])
 
         while True:
             await asyncio.sleep(0.1)

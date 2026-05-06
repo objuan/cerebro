@@ -19,7 +19,7 @@ export const tradeStore = reactive({
     if (!data.isOpen)
        data.gain = this.computeGain(data).gain
 
-     console.log("tradeStore", data)
+     //console.log("tradeStore", data)
      if (!this.items[symbol]) {
         this.items[symbol] = [];
       }

@@ -145,8 +145,8 @@ class BackStrategy10s(SmartStrategy):
 
 
 
-    def live_indicators(self,symbol,timeframe,from_ts,to_ts):
-        data = super().live_indicators(symbol, timeframe,from_ts,to_ts)
+    async def live_indicators(self,symbol,timeframe,from_ts,to_ts):
+        data = await super().live_indicators(symbol, timeframe,from_ts,to_ts)
         list = data["list"]
         logger.info(f"sssssssss {list}")
     

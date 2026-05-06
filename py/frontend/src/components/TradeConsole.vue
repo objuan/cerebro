@@ -276,7 +276,7 @@ function send_order(mode){
         const ok = confirm("Hai già perso il badget del giorno ("+day_PNL.toFixed(1)+"/"+max_day_loss+"), vuoi continuare ?" )
         if(!ok) return
     }
-    if (val < 100)
+    if (val < 50)
     {
         const ok = confirm("Prezzo finale troppo piccolo, vuoi continuare ?" )
         if(!ok) return

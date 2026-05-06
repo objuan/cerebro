@@ -157,8 +157,9 @@
          <EventHistory />
 
     </main>
-     <EventToast  />
-<PainterEditor></PainterEditor>
+    <EventToast  />
+    <PainterEditor></PainterEditor>
+    <BottomWidget ref="bottomWidget" style="height: 50px;background-color: #cccccc;"></BottomWidget>
   </div>
 </template>
 
@@ -191,6 +192,7 @@ import { tickerStore } from "@/components/js/tickerStore";
 import { newsStore } from "@/components/js/newsStore";
 import { initProps } from "@/components/js/common";
 import PainterEditor from '@/components/PainterEditor.vue';
+import BottomWidget from '@/components/BottomWidget.vue';
 
 // --- STATO REATTIVO ---
 
@@ -201,6 +203,7 @@ const rankRef= ref(null);
 const tradeRef= ref(null);
 const tradeConfigRef= ref(null);
 const scanRef = ref(null);
+const bottomWidget = ref(null)
 //const toastRef= ref(null);
 
 const widgetRefs = ref({})
@@ -421,7 +424,12 @@ const initWebSocket = () => {
                 const comp = widgetRefs.value[id]
                 if (comp)
                   comp.on_candle(msg.data)
+
+                  
               }
+              bottomWidget.value.on_candle(msg.data)
+
+
               //#componentInstance.on_candle(msg.data);  
           }
           break;

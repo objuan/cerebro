@@ -1259,7 +1259,7 @@ const buildChart =  () => {
       let color = data.close >= data.open ? '#4bffb5' : '#ff4976';  
       let lbl = `<span style="color:${color}"> C: <strong>${data.close.toFixed(4)}</strong> O: <strong>${data.open.toFixed(4)}</strong> `;
       lbl += `L: <strong>${data.low.toFixed(4)}</strong> H: <strong>${data.high.toFixed(4)}</strong>`;
-      lbl += ` V: <strong>${formatValue(vol)}</strong></span>`;
+      lbl += ` V: <strong>${formatValue(vol)}</strong> V$: <strong>${formatValue(vol * data.close)}</strong></span>`;
       legendHtml.value = lbl;
 
       //console.log(strategy_index_list)

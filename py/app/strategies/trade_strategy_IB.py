@@ -34,14 +34,20 @@ class TradeStrategyIB(SmartStrategy):
     #def extra_dataframes(self)->List[str]:
     #    return ['15m']
 
+
+  
+
     def populate_indicators(self) :
       
         vol_day= self.addIndicator("1m",SUM("vol_day","quote_volume",1440))
 
-        self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
-        max= self.addIndicator(self.timeframe,MAX("MAX","close",6*10))
+        #self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
+        max_1h= self.addIndicator(self.timeframe,MAX("MAX_1H","close",6*10))
 
-        self.add_plot(max, "MAX","#926B00FF", "main", source="MAX",style="Solid", lineWidth=1)
+        max_1d= self.addIndicator(self.timeframe,MAX("MAX_1D","close",60 * 24))
+
+        self.add_plot(max_1h, "MAX_1H","#926B00FF", "main",style="Dotted", lineWidth=1)
+        self.add_plot(max_1d, "MAX_1D","#009266FF", "main", style="Solid", lineWidth=1)
 
         self.add_plot(vol_day, "vol_day","#003000FF", "sub",style="Solid", lineWidth=1)
 
@@ -60,7 +66,8 @@ class TradeStrategyIB(SmartStrategy):
         prev2 = dataframe.iloc[local_index-2]
 
         vol_day = last["vol_day"]           
-        max = last["MAX"]    
+        MAX_1H = last["MAX_1H"]    
+        MAX_1D = last["MAX_1D"]    
 
         #gain2 =  last["gain"] 
         gain = (last["close"] - prev["close"]) / prev["close"] * 100    
@@ -69,7 +76,13 @@ class TradeStrategyIB(SmartStrategy):
         if vol_day > self.volume_min_filter:
             
             if gain >= 2:
-                   await self.add_marker(symbol,"SPOT",f"Gain {gain:.1f}",f"Gain {gain}","#F6F7F86F","square",position ="atPriceTop")
+                   await self.add_marker(symbol,"SPOT",f"Gain {gain:.1f}",f"Gain {gain:.1f}","#F6F7F86F","square",position ="atPriceTop")
 
-            if max > prev["MAX"]:
-                   await self.add_marker(symbol,"SPOT",f"MAX",f"MAX","#0861BB6E","square",position ="atPriceTop")
+            if MAX_1H > prev["MAX_1H"]:
+                   await self.add_marker(symbol,"SPOT",f"MAX 1H",f"MAX 1H","#0861BB6E","square",position ="atPriceTop")
+            
+            if MAX_1D > prev["MAX_1D"]:
+                   await self.add_marker(symbol,"SPOT",f"MAX 1D",f"MAX 1D","#08BB356D","square",position ="atPriceTop")
+            
+            if gain>0 and last["quote_volume"] > 20_000:
+                   await self.add_marker(symbol,"SPOT",f"VOL>20K",f"VOL>20K","#BB089D6C","square",position ="atPriceBottom")

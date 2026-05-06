@@ -1548,7 +1548,7 @@ async def live_strategy_indicators( symbol: Optional[str] = None,timeframe: Opti
            #logger.info(f"BACK LAST TS {to_ts}")
             
 
-        all = strategy.live_indicators(symbol,timeframe,from_ts,to_ts)
+        all = await strategy.live_indicators(symbol,timeframe,from_ts,to_ts)
         #logger.info(f"\n {type(all)}")
         return JSONResponse(all)
     except:

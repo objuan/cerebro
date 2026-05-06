@@ -54,16 +54,20 @@ class BackStrategyBinance1(SmartStrategy):
     def populate_indicators(self) :
         #self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))
 
-        day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history",volume_name="quote_volume"))
-        sma_20 = self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
+        #day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history",volume_name="quote_volume"))
+        vol_day= self.addIndicator("1m",SUM("vol_day","quote_volume",1440))
+        
+        sma_10 = self.addIndicator(self.timeframe,EMA("sma_10","close",timeperiod=20))
         sma_50 = self.addIndicator(self.timeframe,SMA("sma_50","close",timeperiod=50))
-        gain = self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
+        sma_200 = self.addIndicator(self.timeframe,SMA("sma_200","close",timeperiod=200))
+        #gain = self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=1))
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
       
-        self.add_plot(sma_20, "sma_20","#a70000", "main", style="SparseDotted", lineWidth=1)
-        self.add_plot(sma_50 , "sma_50 ","#4800a7", "main", style="SparseDotted", lineWidth=1)
+        self.add_plot(sma_10, "sma_10","#a70000", "main", style="Solid", lineWidth=1)
+        self.add_plot(sma_50 , "sma_50","#4800a7", "main", style="Solid", lineWidth=1)
+        self.add_plot(sma_200 , "sma_200","#00a7a7", "main", style="Solid", lineWidth=1)
        
-        self.add_plot(day_volume_history, "day_volume_history","#0318d3", "sub1", style="Solid", lineWidth=1)
+        self.add_plot(vol_day, "vol_day","#0318d3", "sub1", style="Solid", lineWidth=1)
         #self.add_plot(bad, "bad","#0318d3", "sub1", style="Solid", lineWidth=1)
 
 
@@ -78,33 +82,45 @@ class BackStrategyBinance1(SmartStrategy):
         #if symbol != "YGGUSDC":
         #    return
         
-        if (local_index < 2):   
+        if (local_index < 200):   
             return
 
         last = dataframe.iloc[local_index]
-        day_volume_history = last["day_volume_history"]    
-        if (day_volume_history < 1_000_000):
+        vol_day = last["vol_day"]    
+        if (vol_day < 1_000_000):
              return
 
-        
         prev = dataframe.iloc[local_index-1]
 
         close = last["close"]
-        sma_20 = last["sma_20"]
+        sma_10 = last["sma_10"]
         sma_50 = last["sma_50"]
+        sma_200 = last["sma_200"]
         quote_volume = last["quote_volume"]    
-
+        
         if (local_index ==20):   
             logger.info(f"dataframe \n{dataframe.columns}")      
 
         #logger.info(f"TRADE_SYMBOL_AT {symbol} {local_index}  {last['datetime']} {last['day_volume']}")  
 
         if not self.hasCurrentTrade(symbol):
-            if quote_volume > 100_000 and close > last['open']:
-                #if sma_20>sma_50 and close > sma_20:
+            
+            prev_200 = dataframe.iloc[local_index-60]["sma_200"]
+            prev_50 = dataframe.iloc[local_index-60]["sma_200"]
+            prev_2 = dataframe.iloc[local_index-2]["close"]
 
-                    quantity = self.get_quantity(last["close"])  
-                    await self.buy(symbol, int(last["timestamp"]), last["close"], quantity, "buy")
+            trend_200_1h_perc = (sma_200 -  prev_200) / prev_200 * 100
+            trend_50_1h_perc = (sma_50 -  prev_50) / prev_50 * 100
+
+            gain_prev = (prev["close"] - prev_2 )/prev_2*100
+            gain = (close - prev["close"] )/prev["close"]*100
+
+            if quote_volume > 10_000 and trend_200_1h_perc>0.5 and trend_50_1h_perc > 0.5 :
+                #if sma_50> sma_200 and sma_10 > sma_50 and close > sma_10  and close > last['open']:
+                #if sma_20>sma_50 and close > sma_20:
+                    if gain_prev > 2 and gain>0.1 :
+                        quantity = self.get_quantity(last["close"])  
+                        await self.buy(symbol, int(last["timestamp"]), last["close"], quantity, "buy")
                    
 
         elif self.hasCurrentTrade(symbol):
@@ -126,8 +142,8 @@ class BackStrategyBinance1(SmartStrategy):
 
                  
                     #if last["close"] < sma_20 : #or gain > 10: or chain_down>=3 
-                    if gain > 5:
+                    if gain > 10:
                         trade = await  self.sell(symbol, dt, last["close"], f"TP"  )
-                    if gain < -2.5:
+                    if gain < -5:
                         trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
                      
