@@ -3,6 +3,8 @@ if __name__ =="__main__":
     import sys
     import os
     from logging.handlers import RotatingFileHandler
+    sys.argv.append("BINANCE")
+    
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     LOG_DIR = "logs"
     LOG_FILE = os.path.join(LOG_DIR, "ai_loader.log")
@@ -83,7 +85,10 @@ if __name__ =="__main__":
                              ,"2026-04-22","2026-04-23","2026-04-24"]
         #dates = ["2026-04-21"]
 
-       
+        dates = ["2026-05-04","2026-05-05","2026-05-03","2026-05-02","2026-05-01"]
+        
+        dates = ["2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
+    
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
 
         #dates = df['date'].tolist()
@@ -110,12 +115,17 @@ if __name__ =="__main__":
 
                             ##list = ["IMNN"]
                             
+                            date_1 = datetime.strptime(date, "%Y-%m-%d")
+                            giorno_precedente = date_1 - timedelta(days=1)
+                            date_1 = giorno_precedente.strftime("%Y-%m-%d")
+
+
                             logger.info(f"STAT PROCESS {list}")
                             data = {
                                 "badgetUSD": 1000,
                                 "symbols": list,
-                                "dt_from": f"{date} 2:00:00", # UTC format
-                                "dt_to": f"{date} 23:59:00",
+                                "dt_from": f"{date_1} 2:00:00", # UTC format
+                                 "dt_to": f"{date} 23:59:00",
                                 "module" : "bot.ai_training_strategy",
                                 "class": "AiTrainingStrategy",
                                 "pre_scan": {

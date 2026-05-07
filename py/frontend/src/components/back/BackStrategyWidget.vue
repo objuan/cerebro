@@ -64,6 +64,9 @@
     <button @click="execute" :disabled="jsonError" class="button">
       Execute
     </button>
+    <button @click="executeSymbol" :disabled="jsonError" class="button">
+      Execute Symbol
+    </button>
   </div>
 </template>
 
@@ -108,7 +111,9 @@ function onSave(){
 function execute(){
     backTest.execute()
 } 
-
+function executeSymbol(){
+    backTest.executeSymbol()
+} 
 onMounted(async () => {
   try {
     const data = await send_get("/back/strategy/list")

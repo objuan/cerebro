@@ -1178,7 +1178,10 @@ class LiveManager:
                 #self.candle_updater.start()
 
                 if BINANCE_MODE:
-                    async def onReceive(symbol,time, price,volume, volume_acc,day_volume, day_quotevolume,gain_24_perc):
+                    async def onReceive(symbol,time, price,volume, volume_acc,day_volume, day_quotevolume,gain_24_perc,inQueue):
+                        if inQueue>=10:
+                            logger.warning(f"Queue {inQueue}")
+
                         if symbol in self.tickers:
                             ticker = self.tickers[symbol]
                             ticker.volume =  volume

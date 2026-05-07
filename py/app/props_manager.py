@@ -41,11 +41,11 @@ def path_dict_to_json(path_dict):
 
 class PropertyManager:
     def __init__(self, filename=PROPS_FILE):
-        logger.info(f"PropertyManager {filename}")
+       # logger.info(f"PropertyManager {filename}")
         self.props = {}
         self.filename = filename
         self.load()
-        logger.info(f"PROPS { self.props}")
+        #logger.info(f"PROPS { self.props}")
 
     def resolve(self,key,value):
         #if callable(value):

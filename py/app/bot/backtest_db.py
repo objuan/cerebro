@@ -223,7 +223,7 @@ class Back_DatabaseManager:
             _max= max(_max,db.max_time)
             tf = min(tf , TIMEFRAME_SECONDS[timeframe]*1000 )
 
-        logger.info(f"TEST PERIOD : {_min} {_max}")
+        #logger.info(f"TEST PERIOD : {_min} {_max}")
 
         logger.info(f"TEST PERIOD : {ts_to_local_str(_min)} {ts_to_local_str(_max)} tf: {tf}")
 

@@ -84,6 +84,7 @@ const symbolList = computed( ()=>
   //)
 
 function onSymbolClick(symbol){
+  selectedSymbol.value= null;
   selectedSymbol.value = symbol
 }
 function onSelectHystory(item) {

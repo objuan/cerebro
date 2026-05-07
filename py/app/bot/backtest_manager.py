@@ -5,6 +5,9 @@ if __name__ =="__main__":
     import sys
     import os
     from logging.handlers import RotatingFileHandler
+
+    sys.argv.append("BINANCE")
+    
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     LOG_DIR = "logs"
     LOG_FILE = os.path.join(LOG_DIR, "back.log")
@@ -77,7 +80,7 @@ class BacktestManager:
                     self.strategies.append(strat_def)
 
     def setEnabled(self,enabled):
-        logger.info(f"BACK MODE {enabled}")
+        #logger.info(f"BACK MODE {enabled}")
         if self.enabled!= enabled:
             self.enabled=enabled
            
@@ -159,7 +162,14 @@ class BacktestManager:
         backData =  BacktestIn(in_data)
         backData.symbols = [ x["symbol"] for  x in data["symbols"]]
 
-        backData.dt_from = start_of_day.strftime("%Y-%m-%d %H:%M:%S")
+        giorno_precedente = start_of_day - timedelta(days=1)
+       
+
+        
+        backData.dt_from = giorno_precedente.strftime("%Y-%m-%d %H:%M:%S")
+
+        #backData.dt_from = start_of_day.strftime("%Y-%m-%d %H:%M:%S")
+
         backData.dt_to =end_of_day.strftime("%Y-%m-%d %H:%M:%S")
         if  data["module"].startswith("strategies."):
             backData.module = data["module"]
@@ -473,9 +483,14 @@ if __name__ =="__main__":
         all_w=0
         all_l=0
 
-        dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
-                             ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24"]
-        dates = ["2026-05-03","2026-05-02","2026-05-01","2026-04-30","2026-04-29","2026-04-28"]
+        #dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
+        #                     ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24"]
+
+        #dates = ["2026-05-03","2026-05-02","2026-05-01","2026-04-30","2026-04-29","2026-04-28"]
+
+        dates = ["2026-05-04","2026-05-05","2026-05-03"]
+        #dates = ["2026-05-04","2026-05-05","2026-05-03","2026-05-02","2026-05-01"]
+        dates = ["2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
 
         for chain_up_max in [4]: #11
             for min_day_volume in [500_000]:
@@ -505,8 +520,8 @@ if __name__ =="__main__":
 
                             #df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
                             #            WHERE date = '{date}' order by symbol""")
-                            df = manager.back_symbols(date)
-                            #df = manager.back_ai_symbols(date)
+                            #df = manager.back_symbols(date)
+                            df = manager.back_ai_symbols(date)
                            
                             list = df["symbol"].tolist()
                             #list = list[:80]
@@ -515,10 +530,15 @@ if __name__ =="__main__":
                             if len(list)>0:
                             
                                 logger.info(f"STAT PROCESS {list}")
+
+                                date_1 = datetime.strptime(date, "%Y-%m-%d")
+                                giorno_precedente = date_1 - timedelta(days=1)
+                                date_1 = giorno_precedente.strftime("%Y-%m-%d")
+
                                 data = {
                                     "badgetUSD": 1000,
                                     "symbols": list,
-                                    "dt_from": f"{date} 2:00:00", # UTC format
+                                    "dt_from": f"{date_1} 2:00:00", # UTC format
                                     "dt_to": f"{date} 23:59:00",
                                      "module" : "strategies.back_strategy_BI_1",
                                      "class" : "BackStrategyBinance1",
@@ -529,7 +549,7 @@ if __name__ =="__main__":
                                         "min_day_volume": 0
                                     },
                                     "params" :params,
-                                    "timeframe" : "10s"
+                                    "timeframe" : "1m"
 
                                 # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
                                 }

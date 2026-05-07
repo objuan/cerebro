@@ -1482,6 +1482,18 @@ async def back_execute():
         logger.error("ERROR", exc_info=True)
         return  {"status": "ko"}   
 
+@app.get("/back/profile/execute/symbol")
+async def back_execute_symbol(symbol:str):
+    try:
+        backData = back_manager.get_profile_data(back_profile_name) 
+        backData.symbols = [symbol]
+        await back_manager.load(backData)
+        await back_manager.start()
+        return  {"status": "ko"}   
+    except :
+        logger.error("ERROR", exc_info=True)
+        return  {"status": "ko"}   
+    
 @app.get("/back/symbols")
 async def back_get_symbols(date:str):
     try:
@@ -1510,7 +1522,13 @@ async def back_currentTime(strategy,date):
             strategy = "strategies."+strategy.strip()
 
         date_obj = datetime.strptime(date, "%Y-%m-%d")
-        start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+     
+        if BINANCE_MODE:
+            date_obj1 = date_obj - timedelta(days=1)
+            start_of_day = datetime.combine(date_obj1.date(), datetime.min.time())
+        else:
+            start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
+
         # fine giorno
         end_of_day = datetime.combine(
             date_obj.date(),

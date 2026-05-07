@@ -450,12 +450,19 @@ class Binance_OrderManager(OrderManager):
         API_KEY = self.config["markets"]["BINANCE"][mode]["API_KEY"]
         API_SECRET = self.config["markets"]["BINANCE"][mode]["API_SECRET"]
 
-        self.binance_client = await AsyncClient.create(API_KEY, API_SECRET,  testnet=mode=="PAPER")
+        self.binance_client=None
+        try:
+            self.binance_client = await AsyncClient.create(API_KEY, API_SECRET,  testnet=mode=="PAPER")
+        except:
+            logger.error("",exc_info=True)
 
         asyncio.create_task(self.user_stream_loop())
         
 
     async def get_last_orders(self,symbol, limit):
+        if not self.binance_client:
+            return []
+        
         orders = await self.binance_client.get_all_orders(
             symbol=symbol,
             limit=limit
@@ -788,6 +795,9 @@ class Binance_OrderManager(OrderManager):
    
         while True:
             try:
+                if not self.binance_client:
+                    await asyncio.sleep(1)
+                    continue
                 bsm = BinanceSocketManager(self.binance_client)
                 socket = bsm.user_socket()
 

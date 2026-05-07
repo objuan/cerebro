@@ -214,37 +214,39 @@ class Balance:
                 API_SECRET = Balance.config["markets"]["BINANCE"][mode]["API_SECRET"]
 
                 #logger.info(f"BINANCE API_KEY: {API_KEY}")
-                
-                client = await AsyncClient.create(API_KEY, API_SECRET,  testnet=mode=="PAPER")
+                try:
+                    client = await AsyncClient.create(API_KEY, API_SECRET,  testnet=mode=="PAPER")
 
-                account = await client.get_account()
-                '''
-                balances = {
-                    b["asset"]: float(b["free"]) + float(b["locked"])
-                    for b in account["balances"]
-                    if float(b["free"]) > 0 or float(b["locked"]) > 0
-                }
-                '''
-                for b in account["balances"]:
-                    if float(b["free"]) > 0 or float(b["locked"]) > 0:
-                        symbol =  b["asset"]
-                        pos = float(b["free"]) + float(b["locked"])
+                    account = await client.get_account()
+                    '''
+                    balances = {
+                        b["asset"]: float(b["free"]) + float(b["locked"])
+                        for b in account["balances"]
+                        if float(b["free"]) > 0 or float(b["locked"]) > 0
+                    }
+                    '''
+                    for b in account["balances"]:
+                        if float(b["free"]) > 0 or float(b["locked"]) > 0:
+                            symbol =  b["asset"]
+                            pos = float(b["free"]) + float(b["locked"])
 
-                        #logger.info(balances)
-                        await Balance.update(symbol,{"symbol": symbol, "position":pos, "avgCost":0})
-                
-                '''
-                bsm = BinanceSocketManager(client)
+                            #logger.info(balances)
+                            await Balance.update(symbol,{"symbol": symbol, "position":pos, "avgCost":0})
+                    
+                    '''
+                    bsm = BinanceSocketManager(client)
 
-                socket = bsm.user_socket()
+                    socket = bsm.user_socket()
 
-                async with socket as stream:
-                    while True:
-                        msg = await stream.recv()
-                        logger.info(msg)
-                '''
-                        
-                #await client.close_connection()
+                    async with socket as stream:
+                        while True:
+                            msg = await stream.recv()
+                            logger.info(msg)
+                    '''
+                            
+                    #await client.close_connection()
+                except:
+                    logger.error("",exc_info=True)
 
         else:
             if  Balance.run_mode  != "sym" and Balance.ib:

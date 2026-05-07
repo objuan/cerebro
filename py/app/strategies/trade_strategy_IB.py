@@ -31,15 +31,15 @@ class TradeStrategyIB(SmartStrategy):
         self.gain_2_perc= 2#self.params["gain_2_perc"]
         #self.trade_last_hh= self.params["trade_last_hh"]
 
-    #def extra_dataframes(self)->List[str]:
-    #    return ['15m']
-
-
-  
+    def extra_dataframes(self)->List[str]:
+        return ['15m']
 
     def populate_indicators(self) :
       
+        max_1w= self.addIndicator("15m",MAX("MAX_1W","close",4*24*7))
+
         vol_day= self.addIndicator("1m",SUM("vol_day","quote_volume",1440))
+        vol_sma= self.addIndicator("1m",SMA("vol_sma","quote_volume",1440))
 
         #self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         max_1h= self.addIndicator(self.timeframe,MAX("MAX_1H","close",6*10))
@@ -60,29 +60,45 @@ class TradeStrategyIB(SmartStrategy):
         if local_index < 2:
             return
    
-
+        
         last = dataframe.iloc[local_index]
-        prev = dataframe.iloc[local_index-1]
-        prev2 = dataframe.iloc[local_index-2]
-
         vol_day = last["vol_day"]           
-        MAX_1H = last["MAX_1H"]    
-        MAX_1D = last["MAX_1D"]    
-
-        #gain2 =  last["gain"] 
-        gain = (last["close"] - prev["close"]) / prev["close"] * 100    
-        gain2 = (last["close"] - prev2["close"]) / prev2["close"] * 100    
 
         if vol_day > self.volume_min_filter:
             
+            prev = dataframe.iloc[local_index-1]
+            prev2 = dataframe.iloc[local_index-2]
+
+            vol_sma = last["vol_sma"]    
+            MAX_1H = last["MAX_1H"]    
+            MAX_1D = last["MAX_1D"]    
+            
+            df_15m= self.df("15m",symbol)
+            
+            max_1w = df_15m.iloc[-1]["MAX_1W"]
+
+            #gain2 =  last["gain"] 
+            gain = (last["close"] - prev["close"]) / prev["close"] * 100    
+            gain2 = (last["close"] - prev2["close"]) / prev2["close"] * 100    
+
+            #last_1d = self.df("1d",symbol).iloc[-1]
+            #last_1d = df_1d.iloc[-1]
+            #if symbol =="ZECUSDC":
+            #     logger.info(f"\n{max_1w}")
+
             if gain >= 2:
                    await self.add_marker(symbol,"SPOT",f"Gain {gain:.1f}",f"Gain {gain:.1f}","#F6F7F86F","square",position ="atPriceTop")
 
-            if MAX_1H > prev["MAX_1H"]:
-                   await self.add_marker(symbol,"SPOT",f"MAX 1H",f"MAX 1H","#0861BB6E","square",position ="atPriceTop")
-            
-            if MAX_1D > prev["MAX_1D"]:
+            if last["close"] > max_1w and not self.has_meta(symbol,"max_1w" ):
+                   self.set_meta(symbol, {"max_1w":True})
+                   await self.add_marker(symbol,"SPOT",f"MAX 1W",f"MAX 1W","#BB9A086C","square",position ="atPriceTop")
+           
+            elif MAX_1D > prev["MAX_1D"]:
                    await self.add_marker(symbol,"SPOT",f"MAX 1D",f"MAX 1D","#08BB356D","square",position ="atPriceTop")
             
-            if gain>0 and last["quote_volume"] > 20_000:
-                   await self.add_marker(symbol,"SPOT",f"VOL>20K",f"VOL>20K","#BB089D6C","square",position ="atPriceBottom")
+            elif MAX_1H > prev["MAX_1H"]:
+                   await self.add_marker(symbol,"SPOT",f"MAX 1H",f"MAX 1H","#0861BB6E","square",position ="atPriceTop")
+
+            vol_perc =  (last["quote_volume"]- vol_sma) /vol_sma * 100
+            if gain>0 and vol_perc>100:
+                   await self.add_marker(symbol,"SPOT",f"VOL>{vol_perc:.1f}%",f"VOL>{vol_perc:.1f}%","#BB089D6C","square",position ="atPriceBottom")

@@ -178,6 +178,152 @@ class VWAP(Indicator):
             else:
                 dest[idx] = prices[idx]
 
+class VWAPBands(Indicator):
+    def __init__(self, vwap_col, upper_col, lower_col, perc_col,pos_col, price_col: str, volume_col: str, window=1440, k=2):
+        super().__init__([vwap_col, upper_col, lower_col,pos_col,perc_col])
+
+        self.price_col = price_col
+        self.volume_col = volume_col
+        self.perc_col = perc_col
+        self.pos_col=pos_col
+
+        self.vwap_col = vwap_col
+        self.upper_col = upper_col
+        self.lower_col = lower_col
+
+        self.window = window
+        self.k = k
+
+        self.buffers = {}
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+
+        prices = dataframe[self.price_col].to_numpy()
+        volumes = dataframe[self.volume_col].to_numpy()
+
+        vwap_arr = dataframe[self.vwap_col].to_numpy()
+        upper_arr = dataframe[self.upper_col].to_numpy()
+        lower_arr = dataframe[self.lower_col].to_numpy()
+        perc_arr = dataframe[self.perc_col].to_numpy()
+        pos_arr = dataframe[self.pos_col].to_numpy()
+
+        if symbol not in self.buffers:
+            self.buffers[symbol] = {
+                "pv_q": deque(),
+                "vol_q": deque(),
+                "p2v_q": deque(),
+                "sum_pv": 0.0,
+                "sum_vol": 0.0,
+                "sum_p2v": 0.0
+            }
+
+        buf = self.buffers[symbol]
+
+        start = max(0, from_local_index)
+
+        for i_idx in range(start, len(symbol_idx)):
+            idx = symbol_idx[i_idx]
+
+            p = prices[idx]
+            v = volumes[idx]
+
+            pv = p * v
+            p2v = (p * p) * v
+
+            # add
+            buf["pv_q"].append(pv)
+            buf["vol_q"].append(v)
+            buf["p2v_q"].append(p2v)
+
+            buf["sum_pv"] += pv
+            buf["sum_vol"] += v
+            buf["sum_p2v"] += p2v
+
+            # remove old
+            if len(buf["pv_q"]) > self.window:
+                buf["sum_pv"] -= buf["pv_q"].popleft()
+                buf["sum_vol"] -= buf["vol_q"].popleft()
+                buf["sum_p2v"] -= buf["p2v_q"].popleft()
+
+            if buf["sum_vol"] > 0:
+                vwap = buf["sum_pv"] / buf["sum_vol"]
+
+                # varianza pesata
+                variance = (buf["sum_p2v"] / buf["sum_vol"]) - (vwap * vwap)
+                variance = max(variance, 0.0)
+
+                std = math.sqrt(variance)
+
+                upper = vwap + self.k * std
+                lower = vwap - self.k * std
+
+                vwap_arr[idx] = vwap
+                upper_arr[idx] = upper
+                lower_arr[idx] = lower
+
+                perc_arr[idx] =  (upper-lower) / (lower) * 100
+                pos_arr[idx] =  (p - lower) / (upper-lower) * 100
+
+            else:
+                vwap_arr[idx] = p
+                upper_arr[idx] = p
+                lower_arr[idx] = p
+                perc_arr[idx] = 0
+                pos_arr[idx] = 50
+
+class VWAPRolling(Indicator):
+    def __init__(self, target_col, price_col: str, volume_col: str, window=1440):
+        super().__init__([target_col])
+        self.price_col = price_col
+        self.volume_col = volume_col
+        self.target_col = target_col
+        self.window = window
+
+        # buffer per simbolo
+        self.buffers = {}
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+
+        prices = dataframe[self.price_col].to_numpy()
+        volumes = dataframe[self.volume_col].to_numpy()
+        dest = dataframe[self.target_col].to_numpy()
+
+        if symbol not in self.buffers:
+            self.buffers[symbol] = {
+                "pv_queue": deque(),
+                "vol_queue": deque(),
+                "sum_pv": 0.0,
+                "sum_vol": 0.0
+            }
+
+        buf = self.buffers[symbol]
+
+        start = max(0, from_local_index)
+
+        for i_idx in range(start, len(symbol_idx)):
+            idx = symbol_idx[i_idx]
+
+            pv = prices[idx] * volumes[idx]
+            vol = volumes[idx]
+
+            # aggiungi nuovo
+            buf["pv_queue"].append(pv)
+            buf["vol_queue"].append(vol)
+
+            buf["sum_pv"] += pv
+            buf["sum_vol"] += vol
+
+            # rimuovi vecchio (rolling window)
+            if len(buf["pv_queue"]) > self.window:
+                buf["sum_pv"] -= buf["pv_queue"].popleft()
+                buf["sum_vol"] -= buf["vol_queue"].popleft()
+
+            # calcolo VWAP
+            if buf["sum_vol"] > 0:
+                dest[idx] = buf["sum_pv"] / buf["sum_vol"]
+            else:
+                dest[idx] = prices[idx]
+
 class CHAIN(Indicator):
     def __init__(self, target,upMode):
         super().__init__([target])

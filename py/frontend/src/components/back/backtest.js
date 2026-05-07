@@ -20,6 +20,7 @@ export const backTest = reactive({
     selectedHistory : "",
 
     async load(){
+        this.test_symbol = null
         this.profiles = await send_get("/back/profiles")
         console.log("profiles",this.profiles)   
         this.inData = new BacktestIn()
@@ -36,7 +37,11 @@ export const backTest = reactive({
         await send_get("/back/profile/execute")
         await this.updateHistoryList()
     },
-
+   async executeSymbol(){
+        console.log("executeSymbol",this.test_symbol)
+        await send_get("/back/profile/execute/symbol",{"symbol":this.test_symbol })
+        await this.updateHistoryList()
+    },
     async select(profileName){
         this.profileName=profileName
         const profile = this.profiles.find(

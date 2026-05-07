@@ -950,7 +950,8 @@ function onKeyDoown(event){
 onMounted(  () => {
 
  // console.log("onMounted")
-
+  backTest.test_symbol = props.symbol
+  
   painter =  createPainter(context(),mainChartRef,overlay, trade_quantity)
   painter.subscribeTradeBoxAdded(onTradeBoxAdded)
   painter.subscribeTradeBoxChanged(onTradeBoxChanged)

@@ -62,23 +62,25 @@ class AiTrainingStrategy(SmartStrategy):
 
     def populate_indicators(self) :
        
-        day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
-        sma_20 = self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
-        chain_up = self.addIndicator(self.timeframe,CHAIN("chain_up",True))
+        vol_day= self.addIndicator(self.timeframe,SUM("vol_day","quote_volume",1440))
+
+        #day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
+        #sma_20 = self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
+        #chain_up = self.addIndicator(self.timeframe,CHAIN("chain_up",True))
 
  
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
         use_day=False
 
-        if (local_index < 2):   
+        if (local_index < 1440):   
             return
 
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]
 
         close = last["close"]
-       
+
         if not self.has_meta(symbol,"first_enter"): 
             first_enter = StrategyUtils.compute_first_enter(self.client,symbol,dataframe,local_index, use_day)
             #await self.compute_first_enter(symbol, dataframe,local_index, use_day, value= close )
@@ -87,13 +89,23 @@ class AiTrainingStrategy(SmartStrategy):
         #if  not last["timestamp"] > self.get_meta(symbol,"first_enter"):
         #    return
      
-        chain_up = int(last["chain_up"]) if pd.notna(last["chain_up"]) else 0
-        volume = last["day_volume_history"]   
+        #chain_up = int(last["chain_up"]) if pd.notna(last["chain_up"]) else 0
+
+        volume = last["vol_day"]   
         
 
         if volume < self.volume_min_filter:
             return
 
+        if not symbol in self.find_map:
+                self.find_map[symbol] = []
+                find_list =  self.find_map[symbol]
+
+                find_list.append({ "live" :'1', "volume" : volume, "start" :int(last['timestamp']) , "end" :  int(last['timestamp']) , "low":  0, "high":  last['high']})
+
+        
+            
+        '''
         if chain_up>=2 :#and chain_up <= self.chain_up_max:
                 #logger.info(f"chain_len {chain_len}")
                 chain_start = dataframe.iloc[local_index-chain_up+1]
@@ -125,4 +137,4 @@ class AiTrainingStrategy(SmartStrategy):
                             find_list.append({ "live" :'1' if live else '0', "volume" : volume, "start" :int(last['timestamp']) , "end" :  int(last['timestamp']) , "low":  chain_start['low'], "high":  last['high']})
                             logger.info(f"FIND FIRST {datetime} {symbol} gain {chain_gain} %")
 
-               
+            '''
