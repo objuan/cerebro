@@ -19,51 +19,7 @@ from reports.report_manager import ReportManager
 from order_book import *
 #from strategy.order_strategy import *
 
-           
-class W_TREND(Indicator):
-  
-    def __init__(self,target_col, target_col_sign, source:str):
-        super().__init__([target_col,target_col_sign])
-        self.source=source
-        self.target_col=target_col
-        self.target_col_sign=target_col_sign
-
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-        
-        dest = dataframe[self.target_col].to_numpy()
-        dest_sign = dataframe[self.target_col_sign].to_numpy()
-
-        source = dataframe[self.source].to_numpy()
-
-        close = dataframe["close"].to_numpy()
-
-        count = 0
-        sign = 0
-        if from_local_index>0:
-            count = dest[symbol_idx[from_local_index-1]]
-            sign = dest_sign[symbol_idx[from_local_index-1]]
-
-        #if not symbol in self.map:
-        #     self.map[symbol] = 0
-
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            i = symbol_idx[i_idx]
-
-            new_sign =  1 if close[i] > source[i] else -1
-            #logger.info(f'{close[i]} {source[i]} {sign} -> {new_sign}')
-            if sign != new_sign:
-                 sign = new_sign
-                 count = 1
-            else:
-                 count=count+1
-            
-            dest[i] = count
-            dest_sign[i]=sign
-
-            #logger.info(f'{dest[i] } {dest_sign[i]}')
-                 
-            #dest[symbol_idx[i_idx]] = source[symbol_idx[i_idx]]
-
+     
 
 #################
 
@@ -104,14 +60,14 @@ class BackStrategyBinance1(SmartStrategy):
         #max_1d= self.addIndicator(self.timeframe,MAX("MAX_1D","close",60 * 24))
 
         #sma_20 = self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
-        #sma_50 = self.addIndicator(self.timeframe,SMA("sma_50","close",timeperiod=50))
-        #sma_200 = self.addIndicator(self.timeframe,SMA("sma_200","close",timeperiod=200))
+        sma_50 = self.addIndicator(self.timeframe,SMA("sma_50","close",timeperiod=50))
+        sma_200 = self.addIndicator(self.timeframe,SMA("sma_200","close",timeperiod=200))
         #gain = self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=1))
         #self.addIndicator(self.timeframe,SMA("sma_20","close",timeperiod=20))
       
         #self.add_plot(sma_20, "sma_20","#a70000", "main", style="Solid", lineWidth=1)
         #self.add_plot(sma_50 , "sma_50","#4800a7", "main", style="Solid", lineWidth=1)
-        #self.add_plot(sma_200 , "sma_200","#00a7a7", "main", style="Solid", lineWidth=1)
+        self.add_plot(sma_200 , "sma_200","#00a7a7", "main", style="Solid", lineWidth=1)
        
         #self.add_plot(vol_day, "vol_day","#0318d3", "sub1", style="Solid", lineWidth=1)
         #self.add_plot(bad, "bad","#0318d3", "sub1", style="Solid", lineWidth=1)
@@ -134,9 +90,10 @@ class BackStrategyBinance1(SmartStrategy):
         
         #self.add_plot(rsi, "rsi","#0318d3", "sub1", style="Solid", lineWidth=1)
         self.add_plot(vwap_trend, "thread","#0318d3","sub1", "vwap_trend" ,style="Solid", lineWidth=1)
-        self.add_plot(vwap_trend, "thread sign","#1bd303","sub1","vwap_trend_sign", style="Solid", lineWidth=1)
+        #self.add_plot(vwap_trend, "thread sign","#1bd303","sub1","vwap_trend_sign", style="Solid", lineWidth=1)
         
         #self.add_plot(vwap, "vwap_perc","#1bd303","sub1","vwap_perc", style="Solid", lineWidth=1)
+        self.add_plot(vwap, "vwap_perc","#1bd303","sub1","vwap_perc", style="Solid", lineWidth=1)
         self.add_plot(vwap, "vwap_pos","#d30337","sub1","vwap_pos", style="Solid", lineWidth=1)
 
 
@@ -149,20 +106,24 @@ class BackStrategyBinance1(SmartStrategy):
         #if symbol != "YGGUSDC":
         #    return
         
-        if (local_index < 1440):   
-            return
+        #if (local_index < 1440):   
+        #    return
 
         last = dataframe.iloc[local_index]
-        vol_day = last["vol_day"]    
-        if (vol_day < 1_000_000):
-             return
-
         prev = dataframe.iloc[local_index-1]
+        
+        vol_day = last["vol_day"]    
+        #if (vol_day < 100_000):
+        #     return
+        #
+        #if not self.has_meta(symbol,"first"):
+        #    self.set_meta(symbol, {"first": True})
+        #    await self.add_marker(symbol,"SPOT",f"F",f"F","#08BB266C","square",position ="atPriceTop")
 
         #close = last["close"]
         #sma_20 = last["sma_20"]
-        #sma_50 = last["sma_50"]
-        #sma_200 = last["sma_200"]
+        sma_50 = last["sma_50"]
+        sma_200 = last["sma_200"]
         #quote_volume = last["quote_volume"]    
 
         #MAX_1D = last["MAX_1D"]   
@@ -174,8 +135,10 @@ class BackStrategyBinance1(SmartStrategy):
         vol = last["quote_volume"]
         #vol_sma = last["vol_sma"]
         vwap = last["vwap"]
+        vwap_up = last["vwap_up"]
         vwap_down = last["vwap_down"]
 
+        trend_gain =  last["vwap_perc"]
         trend_pos =  last["vwap_pos"]
         trend =  last["vwap_trend"] * last["vwap_trend_sign"]
         last_trend =  prev["vwap_trend"] * prev["vwap_trend_sign"]
@@ -186,26 +149,100 @@ class BackStrategyBinance1(SmartStrategy):
 
         #volume_spike = vol > vol_sma * 1.5
 
-        base = dataframe.iloc[local_index-60*4]
-
-        # distanza dal vwap (evita comprare troppo in alto)
-        near_vwap = abs(price - vwap) / vwap < 0.01
-        near_vwap_low = (price - vwap_down) / vwap  * 100
+        #base = dataframe.iloc[local_index-60*4]
 
         #logger.info(f"TRADE_SYMBOL_AT {symbol} {local_index}  {last['datetime']} {last['day_volume']}")  
 
+        if not self.has_meta(symbol,"momentum"):
+            self.set_meta(symbol, {"momentum": {"list": [], "prev" : None,"first_mid" : None}})
+    
+        mode="LOW"
+
+        if True:
+                momentum = self.get_meta(symbol, "momentum")
+  
+                prev_mom = momentum["prev"]
+                last_list_mom = momentum["list"][-1] if len(momentum["list"]) >0 else None
+
+                new_mom=None
+                if trend_pos < 5:
+                    new_mom = {"type": "m", "ts": last["timestamp"] ,"close": price, "mid" :  vwap_down + (vwap-vwap_down)/2}
+                    momentum["first_mid"] =None
+                if trend_pos > 45 and trend_pos < 55:
+                    new_mom = {"type": "=", "ts": last["timestamp"]  ,"close": price,"mid" : vwap }
+                if trend_pos > 95:
+                    new_mom = {"type": "M", "ts": last["timestamp"]  ,"close": price,"mid" :vwap + (vwap_up -vwap)/2 }
+                    momentum["first_mid"] =None
+
+                #[if last_list_mom != None and last_list_mom["type"] != "=" and new_mom != None and new_mom["type"] == "=":
+                 #   await self.add_marker(symbol,"SPOT","B","B","#BB08946C","square",position ="atPriceTop")
+
+                if prev_mom==None and new_mom!=None:
+                    if last_list_mom != None and last_list_mom["type"] != "=" and new_mom["type"] == "=":
+                        momentum["first_mid"] = new_mom
+                       #await self.add_marker(symbol,"SPOT","B","B","#BB08946C","square",position ="atPriceTop")
+
+                if prev_mom!=None and new_mom==None:
+                    
+                    if last_list_mom == None or (last_list_mom and last_list_mom["type"] != prev_mom["type"]):
+                        # è cambiato
+                        skip=False
+                        if prev_mom["type"] == "=":
+                            if last_list_mom != None:
+                                if last_list_mom["type"]  == "M" and price > last_list_mom["close"]:# and price > last_list_mom["mid"] :
+                                    skip=True
+                                if last_list_mom["type"]  == "m" and price < last_list_mom["close"]:# and price > last_list_mom["mid"] :
+                                    skip=True
+                        
+                        if not skip:
+                            momentum["list"].append(prev_mom)
+                            if prev_mom["type"] =="=" and  momentum["first_mid"]:
+                                first =  momentum["first_mid"]
+                                await self.add_marker(symbol,"SPOT","B","B","#BB08946C","square",position ="atPriceTop",value= first["close"], timestamp=first["ts"])
+
+                            await self.add_marker(symbol,"SPOT",prev_mom["type"],prev_mom["type"],"#BB08946C","square",position ="atPriceTop")
+                
+
+                momentum["prev"] = new_mom
+
         if not self.hasCurrentTrade(symbol):
-            
-            if last_trend>120 and trend < 0:
-                 
-                await self.buy(
-                        symbol,
-                        int(last["timestamp"]),
-                        price,
-                        1,
-                        "BUY"
+            if trend > 60*2 and vol_day > 500_000:
+                await self.buy( symbol, int(last["timestamp"]),price,  1, "BUY" )
+                
+        if False:
+            '''
+                if trend>60*6 :#mode == "LOW":
+                    await self.buy( symbol, int(last["timestamp"]),price,  1, "BUY" )
+
+                    
+                    ########
+                    body = last["close"]- last["open"] 
+                    range_ = last["high"]- last["low"] 
+                    lowerwick = min(last["open"],last["close"])-  last["low"] 
+                    upperwick =  last["high"] - max(last["open"],last["close"]) 
+                    bullish_reversal = (
+                        last["close"]  > last["open"]  and
+                        lowerwick > body * 2.0 and
+                        upperwick < body and
+                        last["close"]  > prev["close"] and
+                        last["close"]  > ( last["low"]  + range_ * 0.7)
                     )
-              
+                    ########
+
+                    if last_trend<60*6 and trend_pos <=-100 and bullish_reversal:
+                        await self.add_marker(symbol,"SPOT",f"D",f"D","#08BB266C","square",position ="atPriceTop")
+                
+                        #await self.buy( symbol, int(last["timestamp"]),price,  1, "BUY" )
+            '''
+            #34 %
+            '''
+            in rialzo, toggo il centro
+            if last_trend>60*6 and trend_pos <=55 :#and last["close"] > sma_200 :
+            #if trend_pos > 100 and 
+                 
+                self.del_meta(symbol, "over")
+               await self.buy( symbol, int(last["timestamp"]),price,  1, "BUY" )
+            '''  
              # pullback + trend
             '''
             if (
@@ -218,13 +255,7 @@ class BackStrategyBinance1(SmartStrategy):
             ):
                 quantity = 100#self.getQuantity(symbol, price)
 
-                await self.buy(
-                    symbol,
-                    int(last["timestamp"]),
-                    price,
-                    quantity,
-                    "LONG_MOMENTUM"
-                )
+               await self.buy( symbol, int(last["timestamp"]),price,  1, "BUY" )
             '''
             '''
             MAX_1D_PREV = prev["MAX_1D"]   
@@ -255,26 +286,41 @@ class BackStrategyBinance1(SmartStrategy):
                    
 
         elif self.hasCurrentTrade(symbol):
-                    
-                    gain,ts,pnl = self.buyGain(symbol, last["close"]) 
+                return
+                gain,ts,pnl = self.buyGain(symbol, last["close"]) 
 
-                    self.set_current_price(symbol, last["close"])         
+                self.set_current_price(symbol, last["close"])         
         
-                   #logger.info(f"SELL GAIN {symbol}  gain {gain} ts{ts} pnl {pnl}")
+                #logger.info(f"SELL GAIN {symbol}  gain {gain} ts{ts} pnl {pnl}")
 
-                    dt = int(dataframe.iloc[local_index]["timestamp"])
-                    #self.set_current_price(symbol, last["close"])         
-                    time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000   
+                dt = int(dataframe.iloc[local_index]["timestamp"])
+                #self.set_current_price(symbol, last["close"])         
+                time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000   
                     
                    
-                    #self.max_gain[symbol] = max(self.max_gain[symbol] , gain)
+                #self.max_gain[symbol] = max(self.max_gain[symbol] , gain)
                     
-                    #logger.info(f"SELL GAIN {symbol}  {last['datetime']} secs: {time_elapsed_secs} gain {gain} pnl {pnl}  ")
+                #logger.info(f"SELL GAIN {symbol}  {last['datetime']} secs: {time_elapsed_secs} gain {gain} pnl {pnl}  ")
 
-                    if trend_pos> 90:
-                        trade = await  self.sell(symbol, dt, last["close"], f"TP"  )
-                    elif gain < -5:
-                        trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
+                if mode =="LOW":
+                    if trend_pos > 45:  
+                         await  self.sell(symbol, dt, last["close"], f"TP"  )
+                    if  gain < -trend_gain/10:
+                            trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
+        
+                if mode =="TREND":
+                    if self.has_meta(symbol,"over"):
+                         if last["close"]< sma_50:
+                            await  self.sell(symbol, dt, last["close"], f"TP"  )
+                    else:
+                        if trend_pos > 90:  
+                            #trade = await  self.sell(symbol, dt, last["close"], f"TP"  )
+                            self.set_meta(symbol, {"over": True})
+                        #elif trend_pos< 50:
+                        elif  gain < -trend_gain/10:
+                            trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
+                    #elif gain < -5:
+                    #    trade = await  self.sell(symbol, dt, last["close"], f"SL"  )
                     #elif trend_down:
                     #    trade = await  self.sell(symbol, dt, last["close"], f"TR"  )
                     

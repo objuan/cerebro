@@ -262,7 +262,10 @@ class VWAPBands(Indicator):
                 lower_arr[idx] = lower
 
                 perc_arr[idx] =  (upper-lower) / (lower) * 100
-                pos_arr[idx] =  (p - lower) / (upper-lower) * 100
+                if upper-lower !=0:
+                    pos_arr[idx] =  (p - lower) / (upper-lower) * 100
+                else:
+                     pos_arr[idx] = 50 
 
             else:
                 vwap_arr[idx] = p
@@ -270,6 +273,52 @@ class VWAPBands(Indicator):
                 lower_arr[idx] = p
                 perc_arr[idx] = 0
                 pos_arr[idx] = 50
+
+      
+class W_TREND(Indicator):
+  
+    def __init__(self,target_col, target_col_sign, source:str):
+        super().__init__([target_col,target_col_sign])
+        self.source=source
+        self.target_col=target_col
+        self.target_col_sign=target_col_sign
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+        
+        dest = dataframe[self.target_col].to_numpy()
+        dest_sign = dataframe[self.target_col_sign].to_numpy()
+
+        source = dataframe[self.source].to_numpy()
+
+        close = dataframe["close"].to_numpy()
+
+        count = 0
+        sign = 0
+        if from_local_index>0:
+            count = dest[symbol_idx[from_local_index-1]]
+            sign = dest_sign[symbol_idx[from_local_index-1]]
+
+        #if not symbol in self.map:
+        #     self.map[symbol] = 0
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            i = symbol_idx[i_idx]
+
+            new_sign =  1 if close[i] > source[i] else -1
+            #logger.info(f'{close[i]} {source[i]} {sign} -> {new_sign}')
+            if sign != new_sign:
+                 sign = new_sign
+                 count = 1
+            else:
+                 count=count+1
+            
+            dest[i] = count
+            dest_sign[i]=sign
+
+            #logger.info(f'{dest[i] } {dest_sign[i]}')
+                 
+            #dest[symbol_idx[i_idx]] = source[symbol_idx[i_idx]]
+
 
 class VWAPRolling(Indicator):
     def __init__(self, target_col, price_col: str, volume_col: str, window=1440):
@@ -571,7 +620,7 @@ class DIFF_PERC(Indicator):
         for idx in [ symbol_idx[i_idx] for i_idx in range(warmup,len(symbol_idx) )]:
             dest[idx] = 100.0 * (source_signal[idx] - source_base[idx]) / source_base[idx]
 
-class SMA(Indicator):
+class SMA_old(Indicator):
   
     def __init__(self,target_col, source_col:str, timeperiod:int):
         super().__init__([target_col])
@@ -603,6 +652,41 @@ class SMA(Indicator):
                     #logger.info(f"sum {i_idx} {symbol_idx[i_idx]}= {sum}")
                     dest[symbol_idx[i_idx]] =sum
 
+class SMA(Indicator):
+
+    def __init__(self, target_col, source_col: str, timeperiod: int):
+        super().__init__([target_col])
+        self.source_col = source_col
+        self.target_col = target_col
+        self.window = timeperiod
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source_col].to_numpy()
+
+        w = self.window
+
+        # start corretto per mantenere continuità rolling
+        start = max(0, from_local_index - w + 1)
+
+        rolling_sum = 0.0
+
+        for i in range(start, len(symbol_idx)):
+
+            idx = symbol_idx[i]
+
+            rolling_sum += source[idx]
+
+            # rimuove elemento uscito dalla finestra
+            if i >= w:
+                old_idx = symbol_idx[i - w]
+                rolling_sum -= source[old_idx]
+
+            # dimensione finestra reale iniziale
+            current_window = min(i + 1, w)
+
+            dest[idx] = rolling_sum / current_window
 
 class EMA(Indicator):
   
@@ -638,63 +722,108 @@ class EMA(Indicator):
             )
 
 class MAX(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
+
+    def __init__(self, target_col, source_col: str, timeperiod: int):
         super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-    
- 
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-       
+        self.source_col = source_col
+        self.target_col = target_col
+        self.window = timeperiod
+
+    def compute_fast(self, symbol, dataframe, symbol_idx, from_local_index):
+
         dest = dataframe[self.target_col].to_numpy()
         source = dataframe[self.source_col].to_numpy()
 
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            m=0.0
-            for j_idx in range(max(0,i_idx- self.window+1), i_idx+1 ):
-                m= max(m,source[symbol_idx[j_idx]])
-            dest[symbol_idx[i_idx]] =m
+        w = self.window
+
+        dq = deque()
+
+        start = max(0, from_local_index - w)
+
+        for i in range(start, len(symbol_idx)):
+
+            idx = symbol_idx[i]
+            value = source[idx]
+
+            # rimuove valori minori
+            while dq and dq[-1][1] <= value:
+                dq.pop()
+
+            dq.append((i, value))
+
+            # rimuove elementi fuori finestra
+            while dq and dq[0][0] <= i - w:
+                dq.popleft()
+
+            dest[idx] = dq[0][1]
+
 
 class MIN(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
+
+    def __init__(self, target_col, source_col: str, timeperiod: int):
         super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-    
- 
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-       
+        self.source_col = source_col
+        self.target_col = target_col
+        self.window = timeperiod
+
+    def compute_fast(self, symbol, dataframe, symbol_idx, from_local_index):
+
         dest = dataframe[self.target_col].to_numpy()
         source = dataframe[self.source_col].to_numpy()
 
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            m=9999999
-            for j_idx in range(max(0,i_idx- self.window+1), i_idx+1 ):
-                m= min(m,source[symbol_idx[j_idx]])
-            dest[symbol_idx[i_idx]] =m
+        w = self.window
+
+        dq = deque()
+
+        start = max(0, from_local_index - w)
+
+        for i in range(start, len(symbol_idx)):
+
+            idx = symbol_idx[i]
+            value = source[idx]
+
+            # rimuove valori maggiori
+            while dq and dq[-1][1] >= value:
+                dq.pop()
+
+            dq.append((i, value))
+
+            # fuori finestra
+            while dq and dq[0][0] <= i - w:
+                dq.popleft()
+
+            dest[idx] = dq[0][1]
 
 class SUM(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
+
+    def __init__(self, target_col, source_col: str, timeperiod: int):
         super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-    
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
-       
+        self.source_col = source_col
+        self.target_col = target_col
+        self.window = timeperiod
+
+    def compute_fast(self, symbol, dataframe, symbol_idx, from_local_index):
+
         dest = dataframe[self.target_col].to_numpy()
         source = dataframe[self.source_col].to_numpy()
 
-        for i_idx in range(from_local_index,len(symbol_idx) ):
-            m=0.0
-            for j_idx in range(max(0,i_idx- self.window+1), i_idx+1 ):
-                m= m + source[symbol_idx[j_idx]]
-            dest[symbol_idx[i_idx]] =m
+        w = self.window
+
+        start = max(0, from_local_index - w)
+
+        rolling_sum = 0.0
+
+        for i in range(start, len(symbol_idx)):
+
+            idx = symbol_idx[i]
+
+            rolling_sum += source[idx]
+
+            if i >= w:
+                old_idx = symbol_idx[i - w]
+                rolling_sum -= source[old_idx]
+
+            dest[idx] = rolling_sum
 
 class MAX_ALL(Indicator):
   

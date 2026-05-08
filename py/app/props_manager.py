@@ -67,7 +67,7 @@ class PropertyManager:
                 if k.startswith(path):
                     list.append({k:self.resolve(k,v)})
             if len(list)>0:
-                logger.info(f"POP {path} {list}")
+                #logger.info(f"POP {path} {list}")
                 return list
         if def_value is not None:
            # logger.info(f"POP {path} {def_value}")

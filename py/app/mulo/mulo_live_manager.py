@@ -286,16 +286,18 @@ class LiveManager:
     '''
 
     def remove_ticker(self,symbol):
-        contract = self.ticker_contracts[symbol]# Stock(symbol, exchange, 'USD')
-        logger.info(f">> Close  feeds {contract}")
-        try:
-            self.ib.cancelMktData(contract)
-        except:
-            logger.error("CANCEL ERROR", exc_info=True)
-        self.ib.sleep(1)
+        if not BINANCE_MODE:
+            contract = self.ticker_contracts[symbol]# Stock(symbol, exchange, 'USD')
+            logger.info(f">> Close  feeds {contract}")
+            try:
+                self.ib.cancelMktData(contract)
+            except:
+                logger.error("CANCEL ERROR", exc_info=True)
+            self.ib.sleep(1)
 
         if symbol in self.tickers:
             del  self.tickers[symbol]
+            self.fetcher.del_day_symbol(symbol)
 
     async def discard_last(self)-> bool:
         
@@ -352,6 +354,7 @@ class LiveManager:
 
                         if symbol in self.tickers:
                             del  self.tickers[symbol]
+                            self.fetcher.del_day_symbol(symbol)
                         
                         
                # await self.manage_live([],symbols )
@@ -678,6 +681,7 @@ class LiveManager:
         for s in to_remove:
             logger.warning(f"REMOVE BAD SYMBOL {s}")
             del self.tickers[s]
+            self.fetcher.del_day_symbol(symbol)
 
                                   
         if len(to_add)>0 and self.ws_manager:
@@ -1178,6 +1182,9 @@ class LiveManager:
                 #self.candle_updater.start()
 
                 if BINANCE_MODE:
+
+                    self.fetcher.reset_day_symbols()
+                     
                     async def onReceive(symbol,time, price,volume, volume_acc,day_volume, day_quotevolume,gain_24_perc,inQueue):
                         if inQueue>=10:
                             logger.warning(f"Queue {inQueue}")
@@ -1199,7 +1206,8 @@ class LiveManager:
                         
                     await self.b_streamer.start(onReceive)
 
-                await self.manage_live(None,self.fetcher.get_day_symbols() , [])
+                if not BINANCE_MODE:
+                    await self.manage_live(None,self.fetcher.get_day_symbols() , [])
 
                 sched_data = self.config["live_service"]["scheduler"]
                 '''

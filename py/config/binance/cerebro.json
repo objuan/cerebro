@@ -37,7 +37,19 @@
 			   "module": "trade_strategy_IB",
 				"class" : "TradeStrategyIB",
 				"timeframe" : "1m",
-				"enabled" : false,
+				"enabled" : true,
+				"scope" : "LIVE",
+				"params" :
+				{
+                    "volume_min_filter" :1000000
+
+				}
+			},	
+			{
+			   "module": "trade_strategy_IB_1",
+				"class" : "TradeStrategyIB1",
+				"timeframe" : "1m",
+				"enabled" : true,
 				"scope" : "LIVE",
 				"params" :
 				{

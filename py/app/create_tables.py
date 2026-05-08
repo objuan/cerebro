@@ -155,6 +155,25 @@ cur.execute("""
         ON ib_day_watch(symbol, date);
     """)
 
+
+cur.execute("""
+       CREATE TABLE IF NOT EXISTS ib_scan_watch (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        profile TEXT,
+        symbol TEXT,
+        ts_enter INTEGER DEFAULT (strftime('%s','now')),           
+        ds_enter DATETIME DEFAULT CURRENT_TIMESTAMP,
+        ts_exit INTEGER DEFAULT NULL,
+        ds_exit DATETIME DEFAULT NULL,
+        closed  INTEGER DEFAULT 0
+        )
+    """)
+cur.execute("""
+   CREATE INDEX IF NOT EXISTS idx_ib_scan_watch
+        ON ib_scan_watch(symbol);
+    """)
+
+
 # Crea la tabella ib_orders se non esiste
 cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -325,6 +344,10 @@ CREATE TABLE IF NOT EXISTS  back_session (
   
 );
             """)
+
+cur.execute("""
+CREATE  INDEX IF NOT EXISTS idx_back_session
+ON back_session (strategy,dt_from,dt_to);""")
 
 
 cur.execute("""

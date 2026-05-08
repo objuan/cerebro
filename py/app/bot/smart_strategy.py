@@ -512,7 +512,7 @@ class SmartStrategy(Strategy):
             return 
  
         logger.info(f"BUY {symbol} {timestamp} {quantity} at {price} [{label}]")
-        await self.add_marker(symbol,"BUY","BUY",label,"#3CFF00FF","arrowUp",position="atPriceBottom",ring="chime")
+        await self.add_marker(symbol,"BUY",label,label,"#3CFF00FF","arrowUp",position="atPriceBottom",ring="chime")
 
         #if not self.buyMap[symbol]:
         self._book.long(symbol, timestamp, price, quantity,label)
@@ -543,7 +543,7 @@ class SmartStrategy(Strategy):
 
             trade = self._book.close(symbol,timestamp,price)
 
-            await self.add_marker(symbol, "SELL", "SELL",label, "#FF0404", "arrowDown",position="atPriceBottom")
+            await self.add_marker(symbol, "SELL",label,label, "#FF0404", "arrowDown",position="atPriceBottom")
 
             if not self.bootstrapMode and not self.backtestMode:
                 await self.orderManager.abort_smart(symbol)

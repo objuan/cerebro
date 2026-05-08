@@ -27,7 +27,7 @@ from order_book import *
 class TradeStrategyIB(SmartStrategy):
 
     async def on_start(self):
-        self.volume_min_filter= 500_1000#self.params["volume_min_filter"]
+        self.volume_min_filter= 500_000#self.params["volume_min_filter"]
         self.gain_2_perc= 2#self.params["gain_2_perc"]
         #self.trade_last_hh= self.params["trade_last_hh"]
 
@@ -42,14 +42,14 @@ class TradeStrategyIB(SmartStrategy):
         vol_sma= self.addIndicator("1m",SMA("vol_sma","quote_volume",1440))
 
         #self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
-        max_1h= self.addIndicator(self.timeframe,MAX("MAX_1H","close",6*10))
+        max_1h= self.addIndicator(self.timeframe,MAX("MAX_1H","close",60*2))
 
         max_1d= self.addIndicator(self.timeframe,MAX("MAX_1D","close",60 * 24))
 
         self.add_plot(max_1h, "MAX_1H","#926B00FF", "main",style="Dotted", lineWidth=1)
         self.add_plot(max_1d, "MAX_1D","#009266FF", "main", style="Solid", lineWidth=1)
 
-        self.add_plot(vol_day, "vol_day","#003000FF", "sub",style="Solid", lineWidth=1)
+        #self.add_plot(vol_day, "vol_day","#003000FF", "sub",style="Solid", lineWidth=1)
 
         
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
@@ -97,8 +97,8 @@ class TradeStrategyIB(SmartStrategy):
                    await self.add_marker(symbol,"SPOT",f"MAX 1D",f"MAX 1D","#08BB356D","square",position ="atPriceTop")
             
             elif MAX_1H > prev["MAX_1H"]:
-                   await self.add_marker(symbol,"SPOT",f"MAX 1H",f"MAX 1H","#0861BB6E","square",position ="atPriceTop")
+                   await self.add_marker(symbol,"SPOT",f"MAX 2H",f"MAX 2H","#0861BB6E","square",position ="atPriceTop",ring="")
 
-            vol_perc =  (last["quote_volume"]- vol_sma) /vol_sma * 100
-            if gain>0 and vol_perc>100:
-                   await self.add_marker(symbol,"SPOT",f"VOL>{vol_perc:.1f}%",f"VOL>{vol_perc:.1f}%","#BB089D6C","square",position ="atPriceBottom")
+            #vol_perc =  (last["quote_volume"]- vol_sma) /vol_sma * 100
+            #if gain>0 and vol_perc>100:
+            #       await self.add_marker(symbol,"SPOT",f"VOL>{vol_perc:.1f}%",f"VOL>{vol_perc:.1f}%","#BB089D6C","square",position ="atPriceBottom")

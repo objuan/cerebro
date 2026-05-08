@@ -1046,6 +1046,11 @@ class MuloJob:
 
         return symbols
 
+    def reset_day_symbols(self):
+        self.conn_exe.execute("""
+            UPDATE ib_scan_watch SET closed = 1 where closed = 0
+        """)       
+
     def add_day_symbol(self, profile, symbol):
         today = date() # es. "2026-03-06"
         self.conn_exe.execute("""
@@ -1060,7 +1065,47 @@ class MuloJob:
                         profile,symbol,today,1)
                     )
         
+        df = self.get_df(
+            "SELECT * FROM ib_scan_watch WHERE symbol = ? and closed=0 order by ts_enter desc limit 1",
+            (symbol,)
+        )
+        logger.info(f"ADD SYMBOL {symbol}, {df}")
+        if df.empty:
         
+            self.conn_exe.execute("""
+                            INSERT INTO ib_scan_watch (
+                                profile,  symbol
+                            )
+                            VALUES (?, ?)
+                        """, (
+                            profile,symbol)
+                        )
+    
+    def del_day_symbol(self,symbol):
+        logger.info(f"REMOVE SYMBOL {symbol}")
+        df = self.get_df(
+            "SELECT * FROM ib_scan_watch WHERE symbol = ? and closed=0 order by ts_enter desc limit 1",
+            (symbol,)
+        )
+        if not df.empty: 
+            id = df.loc[0]["id"]
+
+            ts = int(time.time())
+            dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            logger.info(f"FIND SYMBOL {symbol} {id}")
+
+            sql = f"""
+                            UPDATE ib_scan_watch SET ts_exit= {ts}, ds_exit='{dt}', closed=1
+                            WHERE ID = {id}
+                        """
+            
+            logger.info(f"UPDATE WATCH SYMBOL {sql}")
+
+            self.conn_exe.execute(sql)
+
+           
+
     #######################
     
     def get_df(self,query, params=()):

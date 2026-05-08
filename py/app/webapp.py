@@ -421,7 +421,7 @@ def read_props(path: str):
         for k, v in item.items()
     ]
 
-    logger.info(f"data {result}")
+    #logger.info(f"data {result}")
     return JSONResponse(result)
 
 @app.post("/api/props/save")
@@ -1517,6 +1517,7 @@ async def back_currentTime(current):
 
 @app.get("/back/history/get")
 async def back_currentTime(strategy,date):
+        logger.error(f"get {strategy}")
 
         if  not strategy.startswith("strategies."):
             strategy = "strategies."+strategy.strip()
@@ -1534,8 +1535,10 @@ async def back_currentTime(strategy,date):
             date_obj.date(),
             datetime.max.time().replace(microsecond=0)
         )
-            
+        logger.error("1")            
+
         ret = await back_manager.get_history(strategy,start_of_day,end_of_day)
+        logger.error("2")            
         return JSONResponse(ret.to_dict(orient="records"))
 
 @app.get("/back/history/indicators")      
@@ -1545,6 +1548,7 @@ def back_indicators(symbol,history_id):
         df = back_manager.get_history_indicators(symbol,history_id)
         return JSONResponse(df)
     except:
+        logger.error(df)
         logger.error("ERROR", exc_info=True)
         return {"status": "error", "message": "Error retrieving indicators"}
 
