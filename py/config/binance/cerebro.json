@@ -57,6 +57,18 @@
 
 				}
 			},		
+				{
+			   "module": "trade_strategy_IB_15",
+				"class" : "TradeStrategyIB15",
+				"timeframe" : "5m",
+				"enabled" : true,
+				"scope" : "LIVE",
+				"params" :
+				{
+                    "volume_min_filter" :1000000
+
+				}
+			},		
 		{
 			   "module": "back_strategy_BI_1",
 				"class" : "BackStrategyBinance1",
@@ -87,6 +99,7 @@
 			    "module": "alarm_strategy",
 				"class" : "AlarmStrategy",
 				"timeframe" : "10s",
+				"enabled" : false,
 				"params" :
 				{
 				}

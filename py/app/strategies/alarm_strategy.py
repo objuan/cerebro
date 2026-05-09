@@ -170,7 +170,7 @@ class AlarmStrategy(Strategy):
         df = self.client.get_df("""
             SELECT guid, symbol, timeframe, type, data
             FROM chart_lines
-            WHERE symbol = ? AND timeframe = ?
+            WHERE symbol = %s AND timeframe = %s
         """, (symbol, timeframe))
         if len(df)>0:
             #logger.info(f"update_alarms \n{df}")

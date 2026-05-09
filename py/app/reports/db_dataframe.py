@@ -92,9 +92,12 @@ class DBDataframe_TimeFrame:
         self.TIMEFRAME_CHART_CANDLES =main_df.config["live_service"]["TIMEFRAME_CHART_CANDLES"]  
 
         self.client.on_symbols_update += self._on_symbols_update
-        if timeframe in ["1m", "5m", "10s"]:
+        if timeframe in ["1m", "5m", "15m", "10s"]:
             self.client.on_full_candle_receive += self.mulo_on_candle_receive
+        else:
+            self.db_1m = main_df.db_dataframe("1m")
 
+            self.db_1m.on_row_added+= self.on_1m_row_added
         #self.on_symbol_added = MyEvent()
         #self.on_symbol_removed = MyEvent()
 
@@ -102,13 +105,6 @@ class DBDataframe_TimeFrame:
         self.on_df_last_added = MyEvent()
         #self._meta = {}
 
-        #if timeframe =="5m":
-        #    self.db_1m = main_df.db_dataframe("1m")
-        #    self.db_1m.on_row_added+= self.on_1m_row_added
-
-        if timeframe =="15m":
-            self.db_1m = main_df.db_dataframe("5m")
-            self.db_1m.on_row_added+= self.on_1m_row_added
 
        #self.update_symbols()
         #self.update()
@@ -137,6 +133,7 @@ class DBDataframe_TimeFrame:
         df_h = pd.concat(dfs, ignore_index=True)
 
         #df_h = await self.client.history_data( symbols , self.timeframe , limit= 600 )
+        # logger.info(f"\n{df_h}")    
 
         df_h = df_h.drop(columns=["ds_updated_at", "updated_at","source","exchange"], errors="ignore")
         df_h["datetime"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True)
@@ -166,6 +163,7 @@ class DBDataframe_TimeFrame:
                 symbol_rows = self.df.index[self.df["symbol"].eq(symbol)]
                 if len(symbol_rows)>0:
                     self.last_index_by_symbol[symbol] = symbol_rows[-1]
+
 
            # logger.info(f"START INDEX {self.last_index_by_symbol}")
            # logger.info(f"BOOT #{len(self.df)}\n{self.df} ")
@@ -199,6 +197,8 @@ class DBDataframe_TimeFrame:
                 "base_volume":  ticker.get("v", 0) or 0,
                 "quote_volume": (ticker.get("c", 0) or 0) * (ticker.get("v", 0) or 0),
                 "day_volume":  ticker.get("day_v", 0) or 0,
+                "quote_day_volume":  ticker.get("day_qv", 0) or 0,
+                "day_gain":  ticker.get("gain", 0) or 0,
                 "datetime": pd.to_datetime(ts, unit="ms", utc=True)
             }
         await self._on_candle_receive_raw(row_data)
@@ -206,20 +206,10 @@ class DBDataframe_TimeFrame:
     async def _on_candle_receive_raw(self, row_data):
         symbol = row_data["symbol"]
         ts = int(row_data["timestamp"])
-        '''
-        row_data = {
-                "symbol": ticker["s"],
-                "timestamp": ts,
-                "open": ticker["o"],
-                "high": ticker["h"],
-                "low": ticker["l"],
-                "close": ticker["c"],
-                "base_volume":  ticker.get("v", 0) or 0,
-                "quote_volume": (ticker.get("c", 0) or 0) * (ticker.get("v", 0) or 0),
-                "day_volume":  ticker.get("day_v", 0) or 0,
-                "datetime": pd.to_datetime(ts, unit="ms", utc=True)
-            }
-        '''
+
+        if self.timeframe in [ "5m", "15m"]:
+            logger.info(f"DB on_candle_receive {self.timeframe} {row_data}")
+
         if symbol not in self.last_index_by_symbol:
             return
         
@@ -261,7 +251,7 @@ class DBDataframe_TimeFrame:
         # ---- UPDATE CANDELA CORRENTE ----
         if ts == last_ts:
             #logger.info("update")
-            for k in ["open","high", "low", "close", "base_volume", "quote_volume","day_volume","datetime"]:
+            for k in ["open","high", "low", "close", "base_volume", "quote_volume","day_volume","quote_day_volume","day_gain","datetime"]:
                 self.df.at[last_idx, k] = row_data[k]
             return
 
@@ -281,7 +271,7 @@ class DBDataframe_TimeFrame:
 
             # 3) ora fai update/append normalmente
             if self.df.at[new_last_idx, "timestamp"] == ts:
-                for k in ["open","high", "low", "close", "base_volume","quote_volume", "day_volume","datetime"]:
+                for k in ["open","high", "low", "close", "base_volume", "quote_volume","day_volume","quote_day_volume","day_gain","datetime"]:
                     self.df.at[new_last_idx, k] = row_data[k]
             else:
                 new_row = self.df.loc[new_last_idx].copy()
@@ -298,7 +288,9 @@ class DBDataframe_TimeFrame:
 
     async def mulo_on_candle_receive(self, ticker):
         try:
-            #logger.info(f"DB on_candle_receive {ticker} {self.timeframe}")
+            #if ticker["tf"] != "1m" and ticker["tf"] != "10s":
+            #    logger.info(f"DB on_candle_receive {ticker} {self.timeframe}")
+
             if ticker["tf"] == self.timeframe:
                 await self._on_candle_receive(ticker)
                                     
@@ -314,7 +306,7 @@ class DBDataframe_TimeFrame:
         last = df1.iloc[-1]
         datetime  = last["datetime"]
         minute = datetime.minute
-       #logger.info(f"ALIGN {self.timeframe} {row} \n{datetime} minute:{minute}")
+        #logger.info(f"ALIGN {self.timeframe} {row} \n{datetime} minute:{minute}")
 #        if (minute % 5 == 1):
         if True:
             secs = TIMEFRAME_SECONDS[self.timeframe]
@@ -332,13 +324,16 @@ class DBDataframe_TimeFrame:
                         "quote_volume": "sum",
                         "base_volume": "sum",
                         "date": "first",
+                        "day_volume": "last",
+                        "quote_day_volume": "last",
+                        "day_gain": "last",
                     })
                     .dropna()
                     .reset_index()
                 )
             df["timestamp"] = df["datetime"].astype("int64") // 10**6
             d = self.df[self.df['symbol']==symbol]
-           # logger.info(f"ALIGN PRIMA \n{d.tail(5)}")
+            #logger.info(f"ALIGN PRIMA \n{d.tail(5)}")
             #logger.info(f"ALIGN DOPO \n{df.tail(5)}")
 
             if ( len(df["timestamp"])> 2 and df.iloc[-1]["timestamp"]> d.iloc[-1]["timestamp"]) : 
@@ -346,9 +341,26 @@ class DBDataframe_TimeFrame:
 
                 new_row = df.iloc[[-1]].reindex(columns=self.df.columns)
 
-                #logger.info(f" new_row {new_row}")
+                logger.info(f" new_row {new_row}")
 
                 self.df = pd.concat([self.df, new_row], ignore_index=True)
+
+                '''
+                row_data = {
+                    "symbol": ticker["s"],
+                    "timestamp": ts,
+                    "open": ticker["o"],
+                    "high": ticker["h"],
+                    "low": ticker["l"],
+                    "close": ticker["c"],
+                    "base_volume":  ticker.get("v", 0) or 0,
+                    "quote_volume": (ticker.get("c", 0) or 0) * (ticker.get("v", 0) or 0),
+                    "day_volume":  ticker.get("day_v", 0) or 0,
+                    "quote_day_volume":  ticker.get("day_qv", 0) or 0,
+                    "day_gain":  ticker.get("gain", 0) or 0,
+                    "datetime": pd.to_datetime(ts, unit="ms", utc=True)
+                }
+                '''
 
                 #logger.info(f" self.df \n{self.df[self.df['symbol']==symbol]}")
 

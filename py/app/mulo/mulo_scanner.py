@@ -43,6 +43,7 @@ from order import OrderManager
 from balance import Balance
 from order_task import OrderTaskManager
 from mulo.mulo_job import MuloJob
+import pymysql
 
 use_yahoo=False
 
@@ -55,10 +56,12 @@ class ScannerResult:
 
 class Scanner:
         
-    def __init__(self,ib,config,ms:MarketService):
+    def __init__(self,ib,config,fetcher,ms:MarketService):
         self.ib=ib
         self.market = ms.getMarket("AUTO")
         self.config=config
+        self.fetcher=fetcher
+    
 
     def display_with_stock_symbol(self,scanData):
         df = util.df(scanData)
@@ -80,12 +83,12 @@ class Scanner:
                 logger.info("Use OFFLINE")
                 symbols = self.config["live_service"]["debug_symbols"]
                 items=[]
-                conn = sqlite3.connect(DB_FILE)
+                #conn = sqlite3.connect(DB_FILE)
                 for symbol in symbols:
-                    df_stocks = pd.read_sql_query(f"select * from STOCKS where symbol='{symbol}'", conn)
+                    df_stocks = self.fetcher.get_df(f"select * from STOCKS where symbol='{symbol}'")
                     if len(df_stocks)!=0:
                         items.append({"symbol": symbol, "conid":df_stocks.iloc[0]["ib_conid"],"listing_exchange":df_stocks.iloc[0]["exchange"] })
-                conn.close()   
+                #conn.close()   
                 df = pd.DataFrame(
                     [(o["symbol"], o["conid"], o["listing_exchange"]) for o in items],
                     columns=["symbol", "conidex","listing_exchange"]
@@ -157,7 +160,7 @@ class Scanner:
             if len(scanData)==0:
                 return None
             else:
-                conn = sqlite3.connect(DB_FILE)
+                #conn = sqlite3.connect(DB_FILE)
                 #cursor = conn.cursor()
 
                 run_time = int(_time.time() * 1000)
@@ -231,14 +234,14 @@ class Scanner:
                         if len(df_stocks)==0:
                                 
                             logger.info(f"CREATE STOCK ..  {contract}")
-                            conn.execute("""
+                            self.fetcher.execute("""
                                 INSERT  INTO stocks (symbol, exchange,ib_conid) VALUES (?,?,?) """, (contract.symbol,contract.exchange,contract.conId))
                                 
-                            conn.commit()
+                            #conn.commit()
                             
                         sql = f"UPDATE STOCKS SET ib_conid={contract.conId} , currency='{contract.currency}' WHERE symbol ='{contract.symbol}'"
-                        conn.execute(sql)
-                        conn.commit()
+                        self.fetcher.execute(sql)
+                        #conn.commit()
 
                 sql = """
                             INSERT INTO ib_scanner (
@@ -249,10 +252,10 @@ class Scanner:
                         
                             """
                         
-                conn.execute(sql, ( name, selected_profile["type"], json.dumps(data)))
-                conn.commit()
+                self.fetcher.execute(sql, ( name, selected_profile["type"], json.dumps(data)))
+                #conn.commit()
 
-                conn.close()
+                #onn.close()
 
                 #max_symbols=config["database"]["live"]["max_symbols"]
                 #if max_symbols != None:

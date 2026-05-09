@@ -1,4 +1,7 @@
 import asyncio
+import sys
+if __name__ =="__main__":
+    sys.argv.append("BINANCE")
 from contextlib import asynccontextmanager
 import json
 import sqlite3
@@ -314,7 +317,8 @@ async def main():
 
                             logger.info(f"live_mode:{live_mode} Connecting to IB on port {port} with clientId {config['live_service']['ib_client']}") 
 
-                            ib.connect('127.0.0.1', port, clientId=config["live_service"]["ib_client"])
+                            if not BINANCE_MODE:
+                                ib.connect('127.0.0.1', port, clientId=config["live_service"]["ib_client"])
                         except:
                             ib = None
                             if config["live_service"]["mode"] != "offline":
@@ -322,7 +326,7 @@ async def main():
 
                         #OrderManager(config,ib)
                     
-                        scanner = Scanner(ib,config,ms)
+                        scanner = Scanner(ib,config,fetcher,ms)
 
                         def on_display(table):
                             live_display.update(table)

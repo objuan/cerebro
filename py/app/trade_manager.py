@@ -120,14 +120,14 @@ class TradeManager:
     '''
     '''
     async  def update_order(self,symbol, timeframe,data)-> TradeOrder:
-        self.client.execute("DELETE FROM trade_marker WHERE symbol=?",
+        self.client.execute("DELETE FROM trade_marker WHERE symbol=%s",
             (symbol,))
         
         order =TradeOrder(data)
         self.fill_computed(order)
         self.client.execute("""
                 INSERT INTO trade_marker (symbol, timeframe,  data)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
             """, (
                 symbol,
                 timeframe,
@@ -139,7 +139,7 @@ class TradeManager:
         return order
 
     async  def add_order(self,symbol, timeframe,data)-> TradeOrder:
-        self.client.execute("DELETE FROM trade_marker WHERE symbol=? ",
+        self.client.execute("DELETE FROM trade_marker WHERE symbol=%s ",
             (symbol,))
         
         logger.info(f"add_order {symbol} {timeframe} {data}")   
@@ -156,7 +156,7 @@ class TradeManager:
         if order:     
             self.client.execute("""
                 INSERT INTO trade_marker (symbol, timeframe,  data)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
             """, (
                 symbol,
                 timeframe,
@@ -257,7 +257,7 @@ class TradeManager:
          
         await self.on_trade_deleted(symbol,timeframe)
          
-        self.client.execute("DELETE FROM trade_marker WHERE symbol=? AND timeframe=?",
+        self.client.execute("DELETE FROM trade_marker WHERE symbol=%s AND timeframe=%s",
             (symbol, timeframe))
 
 ###############################

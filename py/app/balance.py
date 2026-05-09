@@ -22,10 +22,6 @@ from collections import deque
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-
-#conn = sqlite3.connect(DB_FILE, isolation_level=None)
-#cur = conn.cursor()
-
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
 class TradeOp:

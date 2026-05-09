@@ -236,7 +236,7 @@ class Strategy:
 
                                 for tf, db_df in self.db_df_map.items():
                                     self._fill_indicators(tf,0,symbol)
-                                # ???
+                                # %s%s%s
                                 #db_df.on_df_last_added+= self.on_df_last_added
 
                                 logger.info(f"SMART BOOTSTRAP {symbol}")
@@ -313,7 +313,7 @@ class Strategy:
 
     def _populate_dataframes(self):
         self.db_df_map[self.timeframe] = self.manager.db.db_dataframe(self.timeframe)
-        # logger.info(f"ccccccccc {self.db_df_map[self.timeframe].symbols}")
+        #logger.info(f"ccccccccc {self.db_df_map[self.timeframe].df.columns}")
         for tf in self.extra_dataframes():
             self.db_df_map[tf] = self.manager.db.db_dataframe(tf)
     '''

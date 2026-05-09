@@ -23,11 +23,20 @@ import traceback
 from decimal import Decimal, ROUND_DOWN
 from binance import AsyncClient, BinanceAPIException,BinanceSocketManager
 from mulo_live_client import MuloLiveClient
+import pymysql
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-conn = sqlite3.connect(DB_FILE, isolation_level=None)
+#conn = sqlite3.connect(DB_FILE, isolation_level=None)
+conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
 cur = conn.cursor()
 
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
@@ -67,8 +76,8 @@ class OrderManager:
 
         # 🔍 Controllo duplicato
         cur.execute('''SELECT 1 FROM ib_orders 
-                    WHERE trade_id=? AND symbol=? AND side=? 
-                    AND status=? AND event_type=? AND data=? 
+                    WHERE trade_id=%s AND symbol=%s AND side=%s 
+                    AND status=%s AND event_type=%s AND data=%s 
                     LIMIT 1''',
                     (data["trade_id"],
                     data["symbol"],
@@ -83,7 +92,7 @@ class OrderManager:
             return  # 🚫 STOP: niente insert e niente send
 
         cur.execute('''INSERT INTO ib_orders (trade_id, symbol, side,status, event_type, data)
-                    VALUES (?, ?, ?, ?, ?,?)''',
+                    VALUES (%s, %s, %s, %s, %s,%s)''',
                 (data["trade_id"], data["symbol"],action, data["status"],type,ser))
         
         #if self.ws:
@@ -195,38 +204,60 @@ class OrderManager:
     def getTradeHistory(self,symbol)-> List[PositionTrade]:
         
         if symbol:
-            df = self.client.get_df(f"""
-                   SELECT o.*
-                    FROM ib_orders o
-                    JOIN (
-                        SELECT trade_id, MAX(id) AS max_id
-                        FROM ib_orders
-                        WHERE status = 'Filled'
-                        AND SYMBOL = '{symbol}' 
-                        AND event_type = 'STATUS'
-                        GROUP BY trade_id
-                    ) t
-                    ON o.id = t.max_id
-                    ORDER BY o.symbol ASC, o.id DESC
-                    LIMIT 10;
-                    """)
+
+            df = self.client.get_df("""
+                SELECT o.*
+
+                FROM ib_orders o
+
+                JOIN (
+                    SELECT
+                        trade_id,
+                        MAX(id) AS max_id
+
+                    FROM ib_orders
+
+                    WHERE status = 'Filled'
+                    AND symbol = %s
+                    AND event_type = 'STATUS'
+
+                    GROUP BY trade_id
+                ) t
+
+                ON o.id = t.max_id
+
+                ORDER BY o.symbol ASC, o.id DESC
+
+                LIMIT 10
+            """, (symbol,))
+
         else:
-            #DAY
-            df = self.client.get_df(f"""
-                   SELECT o.*
-                    FROM ib_orders o
-                    JOIN (
-                        SELECT trade_id, MAX(id) AS max_id
-                        FROM ib_orders
-                        WHERE status = 'Filled'
-                        AND event_type = 'STATUS'
-                        AND timestamp >= datetime('now', 'start of day')
-                        GROUP BY trade_id
-                    ) t
-                    ON o.id = t.max_id
-                    ORDER BY o.symbol ASC, o.id DESC;
-                    """)
-        
+
+            # TODAY
+            df = self.client.get_df("""
+                SELECT o.*
+
+                FROM ib_orders o
+
+                JOIN (
+                    SELECT
+                        trade_id,
+                        MAX(id) AS max_id
+
+                    FROM ib_orders
+
+                    WHERE status = 'Filled'
+                    AND event_type = 'STATUS'
+                    AND timestamp >= CURDATE()
+
+                    GROUP BY trade_id
+                ) t
+
+                ON o.id = t.max_id
+
+                ORDER BY o.symbol ASC, o.id DESC
+            """)
+                
         trades = self.rebuild_trades(df)
         
         #PositionTrade
@@ -832,7 +863,7 @@ class Binance_OrderManager(OrderManager):
                             fee_usdt = self.compute_commissions_usdc(symbol,fee_asset,fee,price)
 
                             cur.execute('''SELECT data FROM ib_orders 
-                                    WHERE trade_id=? AND symbol=? AND side=? 
+                                    WHERE trade_id=%s AND symbol=%s AND side=%s
                                     LIMIT 1''',
                                     (trade_id,
                                     symbol,

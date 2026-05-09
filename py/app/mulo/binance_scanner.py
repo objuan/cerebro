@@ -35,7 +35,7 @@ from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts
 
 from binance.client import Client
-
+import pymysql
 use_yahoo=False
 
 logger = logging.getLogger()
@@ -45,6 +45,14 @@ INTERVAL_SECONDS = 60
 WINDOW_MINUTES = 5
 TOP_N = 10
 
+conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
 
 # storico prezzi: {symbol: deque([(timestamp, price), ...])}
 price_history = {}
@@ -146,12 +154,12 @@ class BinanceScanner:
                 logger.info("Use OFFLINE")
                 symbols = self.config["live_service"]["debug_symbols"]
                 items=[]
-                conn = sqlite3.connect(DB_FILE)
+                #conn = sqlite3.connect(DB_FILE)
                 for symbol in symbols:
                     df_stocks = pd.read_sql_query(f"select * from STOCKS where symbol='{symbol}'", conn)
                     if len(df_stocks)!=0:
                         items.append({"symbol": symbol, "conid":df_stocks.iloc[0]["ib_conid"],"listing_exchange":df_stocks.iloc[0]["exchange"] })
-                conn.close()   
+               # conn.close()   
                 df = pd.DataFrame(
                     [(o["symbol"], o["conid"], o["listing_exchange"]) for o in items],
                     columns=["symbol", "conidex","listing_exchange"]
@@ -208,7 +216,7 @@ async def main():
     #port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]   
    
     ms = MarketService(config)    
-    scanner = Scanner(client,config,ms)
+    scanner = Scanner(client,client,config,ms)
    
     df_symbols = await scanner.do_scanner( "GAIN")
     

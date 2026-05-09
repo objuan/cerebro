@@ -7,6 +7,7 @@ import logging
 import json
 from typing import Optional, List, Dict
 from uuid import uuid4
+import pymysql
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -16,9 +17,17 @@ CONFIG_FILE = "config/cerebro.json"
 
 class MessageDatabase:
     def __init__(self, db_path: str):
-        self.conn = sqlite3.connect(db_path, timeout=30)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA journal_mode=WAL;")
+        #self.conn = sqlite3.connect(db_path, timeout=30)
+        self.conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+        )
+        #self.conn.row_factory = sqlite3.Row
+        #self.conn.execute("PRAGMA journal_mode=WAL;")
 
     def init(self):
         self.conn.execute("""

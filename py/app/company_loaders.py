@@ -11,6 +11,7 @@ from utils import convert_json
 from config import DB_FILE,CONFIG_FILE,BINANCE_MODE
 import yfinance as yf
 from tqdm import tqdm
+import pymysql
 
 logger = logging.getLogger(__name__)
 logging.getLogger("httpcore").setLevel(logging.INFO)
@@ -18,47 +19,86 @@ logging.getLogger("asyncio").setLevel(logging.INFO)
 logging.getLogger("yfinance").setLevel(logging.INFO)
 logging.getLogger("peewee").setLevel(logging.INFO)
 
+conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
 
 def init_company_db(db_path):
-    conn = sqlite3.connect(db_path, isolation_level=None)
+    #conn = sqlite3.connect(db_path, isolation_level=None)
     cur = conn.cursor()
+
+    # =========================================================
+# company
+# =========================================================
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS company (
-        symbol TEXT NOT NULL,
-        free_float REAL,
-        float_shares INTEGER,
-        outstanding_shares INTEGER,
-        shares_source TEXT,
-        shares_update_dt TEXT,
+        symbol VARCHAR(64) NOT NULL,
+
+        free_float DOUBLE,
+
+        float_shares BIGINT,
+        outstanding_shares BIGINT,
+
+        shares_source VARCHAR(64),
+
+        shares_update_dt DATETIME,
+
         PRIMARY KEY (symbol)
-    );""")
+
+    )
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_general_ci
+    """)
+
+
+    # =========================================================
+    # stocks
+    # =========================================================
 
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS stocks (
-            symbol TEXT PRIMARY KEY,
-            name TEXT,
-            exchange TEXT,
-            currency TEXT,
-            sector TEXT,
-            price REAL,
-            volume INTEGER,
-            avg_volume INTEGER,
-            market_cap INTEGER,
-            float INTEGER,
-            shares_outstanding INTEGER,
-            updated_at TEXT,
-            ib_conid INTEGER
-        )
+    CREATE TABLE IF NOT EXISTS stocks (
+        symbol VARCHAR(64) PRIMARY KEY,
+
+        name VARCHAR(255),
+
+        exchange VARCHAR(64),
+        currency VARCHAR(32),
+
+        sector VARCHAR(255),
+
+        price DOUBLE,
+
+        volume BIGINT,
+        avg_volume BIGINT,
+
+        market_cap BIGINT,
+
+        float_shares BIGINT,
+
+        shares_outstanding BIGINT,
+
+        updated_at DATETIME,
+
+        ib_conid BIGINT
+
+    )
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_general_ci
     """)
-    conn.commit()
-    conn.close()
+    #conn.commit()
+    #conn.close()
 
 
 def c_get_df(db_path,query, params=()):
-    conn = sqlite3.connect(db_path)
+    #conn = sqlite3.connect(db_path)
     df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
+    #conn.close()
     return df
 
 ####################
@@ -117,12 +157,13 @@ class Yahoo:
     
     def fetch_fundamentals(self,symbol):
         toupdate=True
-        df = c_get_df(self.db_path,"SELECT * FROM STOCKS WHERE SYMBOL = ?",(symbol,))
+        df = c_get_df(self.db_path,"SELECT * FROM STOCKS WHERE SYMBOL = %s",(symbol,))
         if not df.empty:
             if df.iloc[0]["updated_at"]:
                 #logger.debug(f"time to update {symbol}")
                                                 
-                last_date = datetime.fromisoformat( df.iloc[0]["updated_at"])
+                #last_date = datetime.fromisoformat( df.iloc[0]["updated_at"])
+                last_date =  df.iloc[0]["updated_at"]
                 time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
          
                 c_time = self.config["instruments"]["stock_update_days"]
@@ -174,24 +215,69 @@ class Yahoo:
 
             except Exception:
                 logger.error("Errro", exc_info=True)
-            df = c_get_df(self.db_path,"SELECT * FROM stocks WHERE SYMBOL = ?",(symbol,))
+            df = c_get_df(self.db_path,"SELECT * FROM stocks WHERE SYMBOL = %s",(symbol,))
             return df
         else:
             return df
         
     def save_row(self,row):
             logger.debug(f"save {row}")
-            conn = sqlite3.connect(self.db_path)
+            #conn = sqlite3.connect(self.db_path)
             c = conn.cursor()
             c.execute("""
-                INSERT OR REPLACE INTO stocks VALUES (
-                    :symbol, :name, :exchange, :currency, :sector, :price,
-                    :volume, :avg_volume, :market_cap,
-                    :float, :shares_outstanding, :updated_at ,:ib_conid
-                )
-            """, {**row, "updated_at": datetime.utcnow().isoformat(),"ib_conid":0}, )
-            conn.commit()
-            conn.close()
+        INSERT INTO stocks (
+            symbol,
+            name,
+            exchange,
+            currency,
+            sector,
+            price,
+            volume,
+            avg_volume,
+            market_cap,
+            float_shares,
+            shares_outstanding,
+            updated_at,
+            ib_conid
+        )
+        VALUES (
+            %(symbol)s,
+            %(name)s,
+            %(exchange)s,
+            %(currency)s,
+            %(sector)s,
+            %(price)s,
+            %(volume)s,
+            %(avg_volume)s,
+            %(market_cap)s,
+            %(float)s,
+            %(shares_outstanding)s,
+            %(updated_at)s,
+            %(ib_conid)s
+        )
+
+        ON DUPLICATE KEY UPDATE
+
+            name = VALUES(name),
+            exchange = VALUES(exchange),
+            currency = VALUES(currency),
+            sector = VALUES(sector),
+            price = VALUES(price),
+            volume = VALUES(volume),
+            avg_volume = VALUES(avg_volume),
+            market_cap = VALUES(market_cap),
+            float_shares = VALUES(float_shares),
+            shares_outstanding = VALUES(shares_outstanding),
+            updated_at = VALUES(updated_at),
+            ib_conid = VALUES(ib_conid)
+
+    """, {
+        **row,
+        "updated_at": datetime.utcnow(),
+        "ib_conid": 0
+    })
+            #conn.commit()
+            #conn.close()
 
     async def get_float_list(self,symbols):
         #logger.debug(f"get_float_list {symbols}")
@@ -205,7 +291,7 @@ class Yahoo:
             
         # 3. Unisci tutti i risultati in un unico DataFrame
         float_df = pd.concat(float_dfs, ignore_index=True)
-        return float_df[["symbol","exchange","currency","name","sector","market_cap","float",  "shares_outstanding","ib_conid"]]
+        return float_df[["symbol","exchange","currency","name","sector","market_cap","float_shares",  "shares_outstanding","ib_conid"]]
 
 
 ###################################################
@@ -222,7 +308,7 @@ class Financialmodelingprep:
         self.config = convert_json(self.config)
 
     def upsert_company_data(self,db_path,  rows):
-            conn = sqlite3.connect(db_path)
+           # conn = sqlite3.connect(db_path)
             cur = conn.cursor()
             shares_source="financialmodelingprep"
             sql = """
@@ -260,15 +346,15 @@ class Financialmodelingprep:
                     "shares_update_dt": r.get("date")
                 })
 
-            conn.commit()
-            conn.close()
+            #conn.commit()
+            #conn.close()
 
     ############
 
     async def get_float(self,symbol):
     
         toupdate=True
-        df = c_get_df("SELECT * FROM COMPANY WHERE SYMBOL = ?",(symbol,))
+        df = c_get_df("SELECT * FROM COMPANY WHERE SYMBOL = %s",(symbol,))
         if not df.empty:
             last_date = datetime.fromisoformat( df.iloc[0]["shares_update_dt"])
             time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
@@ -293,14 +379,14 @@ class Financialmodelingprep:
                 db_path=DB_FILE,
                 rows=data)
             
-            df = c_get_df("SELECT * FROM COMPANY WHERE SYMBOL = ?",(symbol,))
+            df = c_get_df("SELECT * FROM COMPANY WHERE SYMBOL = %s",(symbol,))
         else:
             return df
     
     async def get_float_all(self):
         
         
-        url = "https://financialmodelingprep.com/stable/shares-float-all?page=0&limit=1000&apikey=AUnTlLot9c6e2SFJHoWR2ZFJJq4IzoTz"
+        url = "https://financialmodelingprep.com/stable/shares-float-all%spage=0&limit=1000&apikey=AUnTlLot9c6e2SFJHoWR2ZFJJq4IzoTz"
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(url,  params={ "apikey": self.API_KEY,"limit": 1000})
             r.raise_for_status()

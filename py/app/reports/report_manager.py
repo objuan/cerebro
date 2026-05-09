@@ -315,8 +315,11 @@ class ReportManager:
             #logger.info(f" df['rel_vol_5m'] \n{ df['rel_vol_5m'] }")
 
             #float
-
-            df = df.merge(  self.job.df_fundamentals[["symbol","float"]], on="symbol",    how="left")
+            if not BINANCE_MODE:
+                df = df.merge(  self.job.df_fundamentals[["symbol","float_shares"]], on="symbol",    how="left")
+                df.rename(columns={"float_shares": "float"}, inplace=True)
+            else:
+                df["float"] = 0 
             
             #logger.info(f"df \n{df.to_string(index=False)}")
             #logger.info(f"df_1m \n{df_1m.to_string(index=False)}")

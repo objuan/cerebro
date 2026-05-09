@@ -58,6 +58,15 @@ from utils import *
 from reports.report_manager import ReportManager
 from bot.backtest_db import *
 
+conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
+
 class BacktestManager:
     params : Dict
     
@@ -232,7 +241,7 @@ class BacktestManager:
 
         self.client.execute("""
             INSERT INTO back_session (strategy,dt_from,dt_to, in_data, trades,markers,indicators,script,ds_timestamp)
-        VALUES (?, ?, ?, ?,?, ?, ?,?,?)
+        VALUES (%s, %s, %s, %s,%s, %s, %s,%s,%s)
         """, (self.active_strategy.name, self.inData.dt_from, self.inData.dt_to,
                json.dumps(self.inData.to_dict()), 
                json.dumps(trades),
@@ -260,11 +269,11 @@ class BacktestManager:
 
     def back_profiles(self):
         
-        conn = sqlite3.connect(DB_FILE)
+        #conn = sqlite3.connect(DB_FILE)
         query = f""" SELECT * from back_profile"""
         df = pd.read_sql_query(query, conn)
         df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()    
+        #conn.close()    
         return df 
     
     def back_data(self,symbols: List[str], timeframe: str, since : int, to: int ):
@@ -275,7 +284,7 @@ class BacktestManager:
 
         
         sql_symbols = str(symbols)[1:-1]
-        conn = sqlite3.connect(DB_FILE)
+        #conn = sqlite3.connect(DB_FILE)
 
         #logger.info(f"SYM BOOT TIME {self.sym_start_time}")
 
@@ -293,33 +302,33 @@ class BacktestManager:
         df = pd.read_sql_query(query, conn)
          
         df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()    
+       # conn.close()    
         return df 
 
     
     def back_ai_symbols(self, date):
         
-        conn = sqlite3.connect(DB_FILE)
+        #conn = sqlite3.connect(DB_FILE)
 
         query = f"""SELECT DISTINCT SYMBOL 
-FROM ai_trainingset 
-WHERE 
-DATE = '{date}'
-AND live = '1' 
-AND volume >= 1000000 
-AND gain > 20"""
+                FROM ai_trainingset 
+                WHERE 
+                DATE = '{date}'
+                AND live = '1' 
+                AND volume >= 1000000 
+                AND gain > 20"""
       
                     
         #print("query",query)
 
         df = pd.read_sql_query(query, conn)
         df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()    
+        #conn.close()    
         return df 
     
     def back_symbols(self, date):
         
-        conn = sqlite3.connect(DB_FILE)
+        #conn = sqlite3.connect(DB_FILE)
 
         if BINANCE_MODE:
                 
@@ -371,25 +380,33 @@ AND gain > 20"""
 
         df = pd.read_sql_query(query, conn)
         df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()    
+        #conn.close()    
         return df 
     
 
     
     def save_profile(self,name,data):
-        conn = sqlite3.connect(DB_FILE)
+        #conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
 
         query = """
-            INSERT INTO back_profile (name, data)
-            VALUES (?, ?)
-            ON CONFLICT(name)
-            DO UPDATE SET data = excluded.data
+        INSERT INTO back_profile (
+            name,
+            data
+        )
+        VALUES (
+            %s,
+            %s
+        )
+
+        ON DUPLICATE KEY UPDATE
+
+            data = VALUES(data)
         """
 
         cursor.execute(query, (name, json.dumps(data)))
-        conn.commit()
-        conn.close()
+       #conn.commit()
+        #conn.close()
 
     async def download_data(self, data:BacktestIn):
         for timeframe in ["1m","5m","1d"]:
@@ -398,34 +415,34 @@ AND gain > 20"""
                 await self.client.send_cmd("/chart/align_data", {"mode":"","symbol" : symbol,"timeframe": timeframe  })
 
     async def get_history(self,strategy,dt_from,dt_to):
-        conn = sqlite3.connect(DB_FILE)
+       # conn = sqlite3.connect(DB_FILE)
         query = f""" SELECT * from back_session where strategy='{strategy}' and dt_from >= '{dt_from}' and dt_to <= '{dt_to}' order by ds_timestamp desc limit 5"""
         df = pd.read_sql_query(query, conn)
         #logger.info(f"get_history {query} {df}")
 
         df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()    
+        #conn.close()    
         return df
 
     def get_history_strategy(self,history_id):
         arr={}
        
-        conn = sqlite3.connect(DB_FILE)
+        #conn = sqlite3.connect(DB_FILE)
         query = f""" SELECT * from back_session where id={history_id} """
         df = pd.read_sql_query(query, conn)
         df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()  
+       # conn.close()  
 
         return df["script"].iloc[0]
 
     def get_symbol_history(self,history_id,symbol):
         arr={}
        
-        conn = sqlite3.connect(DB_FILE)
+       # conn = sqlite3.connect(DB_FILE)
         query = f""" SELECT * from back_session where id={history_id} """
         df = pd.read_sql_query(query, conn)
         df = df.iloc[::-1].reset_index(drop=True)
-        conn.close()   
+        #conn.close()   
 
         trades = json.loads(df["trades"].iloc[0])
 

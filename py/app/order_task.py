@@ -15,11 +15,20 @@ import traceback
 from order import OrderManager
 from trade_manager import TradeOrder
 from balance import Balance
+import pymysql
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-conn = sqlite3.connect(DB_FILE, isolation_level=None)
+#conn = sqlite3.connect(DB_FILE, isolation_level=None)
+conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
 cur = conn.cursor()
 
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
@@ -55,7 +64,7 @@ class OrderTaskManager:
                 FROM task_orders
                 GROUP BY task_id
             )
-            AND status =='READY' 
+            AND status ='READY' 
             """, conn)
         OrderTaskManager.task_orders=[]
         for row in df.to_dict("records"):
@@ -190,7 +199,7 @@ class OrderTaskManager:
                 order_step["error"] = err
                 order["error"] = err
                 #cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                #                VALUES (?,?, ?, ?, ?, ?)''',
+                #                VALUES (%s,%s, %s, %s, %s, %s)''',
                 #            ( order["task_id"],order["symbol"],"ERROR", json.dumps(order["data"]),time.time(),-1))
                 #conn.commit()
                 await OrderTaskManager.push_state(order,"ERROR")
@@ -199,7 +208,7 @@ class OrderTaskManager:
                 order["error"] = "generic error"
                 logger.fatal("ERROR",exc_info=True)
                 #cur.execute('''INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                #                VALUES (?,?, ?, ?, ?, ?)''',
+                #                VALUES (%s,%s, %s, %s, %s, %s)''',
                 #            ( order["task_id"],order["symbol"],"FATAL ERROR", json.dumps(order["data"]),time.time(),-1))
                 #conn.commit()
                 await OrderTaskManager.push_state(order,"FATAL ERROR")
@@ -212,7 +221,7 @@ class OrderTaskManager:
         
     async def push_state(order,status):
         cur.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
-                                        VALUES (?,?, ?, ?, ?, ?,?)''',
+                                        VALUES (%s,%s, %s, %s, %s, %s,%s)''',
                                     ( order["task_id"],order["symbol"],status,order["step"], json.dumps(order["data"]),time.time(),-1))
         conn.commit()
 
@@ -394,10 +403,10 @@ class OrderTaskManager:
             task_id = int(df.iloc[0][0])+1
 
         cur.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
-                    VALUES (?,?, ?, ?, ?, ?,?)''',
+                    VALUES (%s,%s, %s, %s, %s, %s,%s)''',
                 (task_id,symbol,"READY", 1, json.dumps(actions),unix_time,-1))
         
-        conn.commit()
+        #conn.commit()
 
         df = pd.read_sql_query("SELECT * FROM task_orders WHERE id = "+str(cur.lastrowid), conn)
         order=None
@@ -501,7 +510,7 @@ class OrderTaskManager:
 
                                             # check end
                                             #cur.execute("""INSERT INTO task_orders (task_id, symbol, status,  data, timestamp,trade_id)
-                                            #VALUES (?,?, ?, ?, ?, ?)""",
+                                            #VALUES (%s,%s, %s, %s, %s, %s)""",
                                             #    (order["task_id"],order["symbol"],"DONE", json.dumps(order["data"]),time.time(),-1))
                                 
                                             #conn.commit()

@@ -418,7 +418,7 @@ const initWebSocket = () => {
 
         case "candle":
           {
-             //console.log("WS CANDLE",msg) 
+            // console.log("WS CANDLE",msg) 
 
               for (const id in widgetRefs.value) {
                 const comp = widgetRefs.value[id]
@@ -435,7 +435,7 @@ const initWebSocket = () => {
           break;
         case "ticker":
           {
-           // console.log("WS TICKER",msg.data);
+            //console.log("WS TICKER",msg.data);
             tickerStore.push(msg.data)
             eventBus.emit("ticker-received", msg.data);
           } 

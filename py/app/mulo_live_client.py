@@ -21,6 +21,7 @@ from dataclasses import dataclass
 warnings.filterwarnings("ignore")
 #from scanner.crypto import ohlc_history_manager
 from config import TF_SEC_TO_DESC,BINANCE_MODE
+from sqlalchemy import create_engine
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,29 @@ class MuloLiveClient:
         self.ib_loop=None
         self.symbol_to_exchange_map={}
         self.df_fundamentals = None
+        '''
+        self.conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+        )
+        '''
+        self.engine = create_engine(
+
+            "mysql+pymysql://root:alice@192.168.1.100/binance",
+
+            pool_size=10,
+            max_overflow=20,
+
+            pool_recycle=3600,
+            pool_pre_ping=True,
+
+            future=True
+        )
+
 
         if BINANCE_MODE:
             self.market = None
@@ -107,6 +131,7 @@ class MuloLiveClient:
                     async def updateTickers(new_ticker):
 
                         #logger.info(f"{new_ticker}")
+                     
                         # --- il tuo codice invariato ---
                         if self.sym_mode and "sym" in new_ticker:
                             self.sym_time =  datetime.fromtimestamp(new_ticker["sym"])# new_ticker["sym"]
@@ -119,7 +144,15 @@ class MuloLiveClient:
 
                         else:
                             mode = new_ticker["m"]
+
+                         
+
                             new_ticker["tf"] = TF_SEC_TO_DESC[new_ticker["tf"]]
+
+                            #if new_ticker["tf"] in ["5m","15m"]:
+                            #    logger.info(f"{new_ticker}")
+
+
                             new_ticker["ask"] = new_ticker["ask"] if not pd.isna(new_ticker["ask"]) else 0
                             new_ticker["bid"] = new_ticker["bid"] if not pd.isna(new_ticker["bid"]) else 0
 
@@ -266,37 +299,38 @@ class MuloLiveClient:
             logger.info(f"<< ADD {to_add} DEL {to_remove}")
             
             # 1. Rimuovi eventuali simboli da eliminare
-            if self.df_fundamentals is not None and len(to_remove) > 0:
-                self.df_fundamentals = self.df_fundamentals[
-                    ~self.df_fundamentals["symbol"].isin(to_remove)
-                ]
+            if not BINANCE_MODE:
+                if self.df_fundamentals is not None and len(to_remove) > 0:
+                    self.df_fundamentals = self.df_fundamentals[
+                        ~self.df_fundamentals["symbol"].isin(to_remove)
+                    ]
 
-            # 2. Aggiungi solo i nuovi
-            if len(to_add) > 0:
-                logger.info(f"GET  fundamentals {to_add}")
+                # 2. Aggiungi solo i nuovi
+                if len(to_add) > 0:
+                    logger.info(f"GET  fundamentals {to_add}")
 
-                df_new = await Yahoo(self.db_file, self.config).get_float_list(to_add)
+                    df_new = await Yahoo(self.db_file, self.config).get_float_list(to_add)
 
-                if self.df_fundamentals is None or self.df_fundamentals.empty:
-                    self.df_fundamentals = df_new
-                else:
-                    self.df_fundamentals = pd.concat(
-                        [self.df_fundamentals, df_new],
-                        ignore_index=True
+                    if self.df_fundamentals is None or self.df_fundamentals.empty:
+                        self.df_fundamentals = df_new
+                    else:
+                        self.df_fundamentals = pd.concat(
+                            [self.df_fundamentals, df_new],
+                            ignore_index=True
+                        )
+
+                        # 3. Evita duplicati (mantieni l'ultimo aggiornamento)
+                        self.df_fundamentals = self.df_fundamentals.drop_duplicates(
+                            subset="symbol", keep="last"
+                        )
+
+                # 4. Ricrea la mappa aggiornata
+                if self.df_fundamentals is not None and not self.df_fundamentals.empty:
+                    self.fundamentals_map = (
+                        self.df_fundamentals
+                            .set_index("symbol")
+                            .to_dict(orient="index")
                     )
-
-                    # 3. Evita duplicati (mantieni l'ultimo aggiornamento)
-                    self.df_fundamentals = self.df_fundamentals.drop_duplicates(
-                        subset="symbol", keep="last"
-                    )
-
-            # 4. Ricrea la mappa aggiornata
-            if self.df_fundamentals is not None and not self.df_fundamentals.empty:
-                self.fundamentals_map = (
-                    self.df_fundamentals
-                        .set_index("symbol")
-                        .to_dict(orient="index")
-                )
 
         
             '''
@@ -328,7 +362,7 @@ class MuloLiveClient:
                 '''
                 symbol = ticker["symbol"]
                 if symbol in to_add:
-                    logger.info(f"GET  close {ticker['symbol']}")
+                    #logger.info(f"GET  close {ticker['symbol']}")
 
                     last_close, ts_last_close=  await self.last_close(ticker["symbol"])
                     if (last_close == 0): last_close = 0.000001
@@ -386,7 +420,7 @@ class MuloLiveClient:
 
     def get_exchange(self,symbol):
         if not symbol in self.symbol_to_exchange_map:
-                df = self.get_df(self.db_file,"SELECT exchange FROM STOCKS WHERE SYMBOL = ?",(symbol,))
+                df = self.get_df(self.db_file,"SELECT exchange FROM STOCKS WHERE SYMBOL = %s",(symbol,))
                 if not df.empty:
                     self.symbol_to_exchange_map[symbol] = df.iloc[0]["exchange"]
         return self.symbol_to_exchange_map[symbol]
@@ -449,27 +483,27 @@ class MuloLiveClient:
             query = f"""
                 SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
                 FROM ib_ohlc_history
-                WHERE symbol=? AND timeframe=? and timestamp<= {last_time}
+                WHERE symbol=%s AND timeframe=%s and timestamp<= {last_time}
                 ORDER BY timestamp DESC
-                LIMIT ?"""
+                LIMIT %s"""
 
         else:
             query = f"""
                     SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
                     FROM ib_ohlc_history
-                    WHERE symbol=? AND timeframe=?
+                    WHERE symbol=%s AND timeframe=%s
                     ORDER BY timestamp DESC
-                LIMIT ?"""
+                LIMIT %s"""
              
-        conn = sqlite3.connect(self.db_file)
+        #conn = self.conn#sqlite3.connect(self.db_file)
         
         if timeframe in ['10s','1m','1d']:
             # sono nel DB
-            df = pd.read_sql_query(query, conn, params= (symbol, timeframe, limit))
+            df = self.get_df(query,  params= (symbol, timeframe, limit))
             df = df.iloc[::-1].reset_index(drop=True)
         else:
             # li prendo dalle candele di 1m
-            df = pd.read_sql_query(query, conn, params= (symbol, "1m", limit))
+            df = self.get_df(query,  params= (symbol, "1m", limit))
 
             df["dt"] = pd.to_datetime(df["t"], unit="ms")
             df = df.set_index("dt")
@@ -495,7 +529,7 @@ class MuloLiveClient:
 
      
       
-        conn.close()     
+        #conn.close()     
         return df
 
     async def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
@@ -506,7 +540,7 @@ class MuloLiveClient:
 
         if self.sym_mode:
             sql_symbols = str(symbols)[1:-1]
-            conn = sqlite3.connect(self.db_file)
+            #conn = self.conn#sqlite3.connect(self.db_file)
 
             #logger.info(f"SYM BOOT TIME {self.sym_start_time}")
 
@@ -519,20 +553,20 @@ class MuloLiveClient:
                     LIMIT {limit}"""
                     
             #print("since",query)
-            df = pd.read_sql_query(query, conn)
+            df = self.get_df(query)
             df = df.iloc[::-1].reset_index(drop=True)
-            conn.close()    
+            #conn.close()    
             return df 
 
         else:
             sql_symbols = str(symbols)[1:-1]
         
-            conn = sqlite3.connect(self.db_file)
+            #conn = self.conn#sqlite3.connect(self.db_file)
 
             query = f"""
                     SELECT *
                     FROM ib_ohlc_history
-                    WHERE symbol in ({sql_symbols}) AND timeframe=?
+                    WHERE symbol in ({sql_symbols}) AND timeframe=%s
                     [SINCE]
                     ORDER BY timestamp DESC
                     LIMIT {limit}"""
@@ -546,14 +580,14 @@ class MuloLiveClient:
                       
             if timeframe in ['10s','1m','1d']:
                 # sono nel DB
-                df = pd.read_sql_query(query, conn, params= (timeframe,))
+                df = self.get_df(query, params= (timeframe,))
                 df = df.iloc[::-1].reset_index(drop=True)
                 #logger.info(f"..1 \n{df}")
             else:
 
                 #logger.info(f"==========={sql_symbols} {timeframe}===============")
                 # li prendo dalle candele di 1m
-                df = pd.read_sql_query(query, conn, params= ("1m",))
+                df = self.get_df(query, params= ("1m",))
 
                 df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
 
@@ -570,7 +604,10 @@ class MuloLiveClient:
                         "low": "min",
                         "close": "last",
                         "quote_volume": "sum",
-                        "base_volume": "sum"
+                        "base_volume": "sum",
+                        "day_volume": "last",
+                        "quote_day_volume": "last",
+                        "day_gain": "last",
                     })
                     .dropna()
                     .reset_index()
@@ -581,7 +618,7 @@ class MuloLiveClient:
 
                 #logger.info(f".. \n{df}")
 
-            conn.close()     
+            #conn.close()     
             return df
 
 
@@ -816,7 +853,7 @@ class MuloLiveClient:
         data["ts"] =int(time.time() * 1000)
 
         if not self.sym_mode: 
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
             self.execute(query, ("error","", "ERROR",  int(time.time() * 1000), json.dumps(data) ))
 
         await self.render_page.sendOrder(data)
@@ -829,7 +866,7 @@ class MuloLiveClient:
         data["type"] = "MESSAGE"
         data["ts"] =int(time.time() * 1000)
         if not self.sym_mode: 
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
             self.execute(query, ("message","", "MESSAGE",  int(time.time() * 1000), json.dumps(data) ))
 
         await self.render_page.sendOrder(data)
@@ -846,7 +883,7 @@ class MuloLiveClient:
             data["ts"] =int(time.time() * 1000)
 
             if not self.sym_mode: 
-                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
                 self.execute(query, ("order",data['data']['symbol'], type,  int(time.time() * 1000), json.dumps(data) ))
 
             if self.render_page:
@@ -872,7 +909,7 @@ class MuloLiveClient:
             data["ts"] =int(time.time() * 1000)
 
             if not self.sym_mode: 
-                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
                 self.execute(query, ("order",data["symbol"], type,  int(time.time() * 1000), json.dumps(data) ))
 
             if self.render_page:
@@ -894,7 +931,7 @@ class MuloLiveClient:
         order["ts"] =int(time.time() * 1000)
 
         if not self.sym_mode: 
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
             self.execute(query, ("task-order",order["symbol"], "TASK_ORDER",  int(time.time() * 1000), json.dumps(order) ))
 
         await self.render_page.sendOrder(
@@ -903,7 +940,7 @@ class MuloLiveClient:
 
     async def send_taskinfo(self,order,message):
          if self.sym_mode: return
-         #query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+         #query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
          #order["message"]=message   
          #self.execute(query, ("task-order",order["symbol"], "TASK_ORDER_MSG",  int(time.time() * 1000), json.dumps(order) ))
          order["ts"] =int(time.time() * 1000)
@@ -920,7 +957,7 @@ class MuloLiveClient:
             data["full_desc"]= full_desc
 
             if not self.sym_mode: 
-                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (?,?, ?,?,?)"
+                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
                 self.execute(query, (source,symbol, name,  int(time.time() * 1000), json.dumps(data) ))
 
             #logger.info(f"SEND {data}")
@@ -1011,21 +1048,100 @@ class MuloLiveClient:
 
 
     def get_df(self,query, params=()):
-        conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(query, conn, params=params)
-        conn.close()
-        return df
+        #conn = self.conn#sqlite3.connect(self.db_file)
+        with self.engine.connect() as conn:
+            df = pd.read_sql_query(query, conn, params=params)
+        #conn.close()
+            return df
     
     def execute(self,sql, params=()):
-        conn = sqlite3.connect(self.db_file)
-        cur = conn.cursor()
-        cur.execute(sql, params)
-        line_id = cur.lastrowid
-        conn.commit()
-        conn.close()
+        #conn = self.conn#sqlite3.connect(self.db_file)
+        with self.engine.raw_connection() as conn:
+            #self.conn.ping(reconnect=True)
+            #cur = conn.cursor()
+            cur = conn.cursor()
+
+            cur.execute(sql, params)
+
+            line_id = cur.lastrowid
+
+            conn.commit()
+            
+            #self.conn.commit()
+        # conn.commit()
+        #conn.close()
         return line_id
     
-    async def send_cmd(self,rest_point, msg=None):
+    async def send_cmd(self, rest_point, msg=None):
+
+        if BINANCE_MODE:
+            url = f"http://127.0.0.1:4000/{rest_point}"
+        else:
+            url = f"http://127.0.0.1:3000/{rest_point}"
+
+        max_retry = 3
+
+        for attempt in range(1, max_retry + 1):
+
+            try:
+
+                logger.info(f">> [{attempt}/{max_retry}] {url} {msg}")
+
+                if msg:
+                    response = requests.get(
+                        url,
+                        params=msg,
+                        timeout=5
+                    )
+                else:
+                    response = requests.get(
+                        url,
+                        timeout=5
+                    )
+
+                response.raise_for_status()
+
+                data = response.json()
+
+                if data.get("status") == "ok":
+
+                    return data.get("data", "{}")
+
+                logger.error(f"API ERROR: {data}")
+
+            except requests.exceptions.Timeout:
+
+                logger.error(
+                    f"TIMEOUT [{attempt}/{max_retry}] {url}"
+                )
+
+            except requests.exceptions.ConnectionError as e:
+
+                logger.error(
+                    f"CONNECTION ERROR [{attempt}/{max_retry}] {e}"
+                )
+
+            except requests.exceptions.RequestException as e:
+
+                logger.error(
+                    f"REQUEST ERROR [{attempt}/{max_retry}] {e}"
+                )
+
+            except Exception as e:
+
+                logger.exception(
+                    f"UNKNOWN ERROR [{attempt}/{max_retry}] {e}"
+                )
+
+            # attesa prima retry
+            if attempt < max_retry:
+                await asyncio.sleep(1)
+
+        logger.error(f"FAILED AFTER {max_retry} RETRIES")
+
+        return None
+
+    async def send_cmd_old(self,rest_point, msg=None):
         
         if BINANCE_MODE:
             url = "http://127.0.0.1:4000/"+rest_point

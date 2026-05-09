@@ -375,7 +375,7 @@ function on_candle(msg)
 {
   if (msg.s == currentSymbol.value)
   {
-      //console.log("FIND ", currentSymbol.value,widgetRefs)
+     // console.log("FIND ", msg)
       for (const id in widgetRefs.value) {
         const comp = widgetRefs.value[id]
         if (comp)

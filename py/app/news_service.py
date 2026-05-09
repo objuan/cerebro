@@ -14,6 +14,7 @@ from datetime import datetime, timedelta,timezone
 from dateutil import parser
 from zoneinfo import ZoneInfo
 import uuid
+import pymysql
 
 LOG_FILE = os.path.join("logs", "news.log")
 
@@ -41,12 +42,21 @@ exclude_titles = ["""What's going on in today's pre-market session""",
                   """Discover the top movers""",
                   """Why These 5 Stocks Are On Investors' Radars Today"""]
 
+conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
+
 #############
 
 def get_df(query, params=()):
-        conn = sqlite3.connect(DB_FILE)
+        #conn = sqlite3.connect(DB_FILE)
         df = pd.read_sql_query(query, conn, params=params)
-        conn.close()
+        #conn.close()
         return df
 
 def normalize_news(provider, guid, source, symbol, title, image, url, published_at:int, summary):
@@ -82,7 +92,7 @@ def insert_news(conn, news):
     # Convertiamo il dict in JSON per il campo "data"
     data_json = json.dumps(news, ensure_ascii=False)
 
-    df = get_df("SELECT * FROM news WHERE provider = ? AND guid = ? AND symbol = ?", (   
+    df = get_df("SELECT * FROM news WHERE provider = %s AND guid = %s AND symbol = %s", (   
         news["provider"],
         news["guid"],
         news["symbol"],
@@ -90,7 +100,7 @@ def insert_news(conn, news):
 
     if len(df) == 0: 
         # cross provider check: se non esiste già una news con lo stesso URL per lo stesso simbolo, allora la inserisco 
-        df = get_df("SELECT * FROM news WHERE  symbol = ? and url == ?", (   
+        df = get_df("SELECT * FROM news WHERE  symbol = %s and url == %s", (   
                 news["symbol"],
                 news["url"],
             ))
@@ -139,7 +149,7 @@ def insert_news(conn, news):
                 provider_last_dt,
                 dt_day,
                 dt_hh
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 
             """, (
                 news["provider"],
@@ -155,7 +165,7 @@ def insert_news(conn, news):
                 dt_hh
             ))
 
-            conn.commit()
+            #conn.commit()
 
             return True
         else:
@@ -177,7 +187,7 @@ class NewsProvider:
         df = get_df("""
             SELECT *
             FROM news
-            WHERE provider = ? and  symbol = ?  
+            WHERE provider = %s and  symbol = %s  
             ORDER BY published_at DESC
             LIMIT 1
         """, ( self.provider, symbol,))
@@ -525,7 +535,7 @@ class IB_NewService(NewService):
         df = get_df("""
             SELECT symbol, published_at, data
             FROM news
-            WHERE symbol = ?
+            WHERE symbol = %s
             ORDER BY published_at DESC
             LIMIT 5
         """, (symbol,))
@@ -579,7 +589,7 @@ class IB_NewService(NewService):
                 if len(symbols)>0:
                     logger.info(f"SCAN FOR NEWS: {symbols}")
 
-                    conn = sqlite3.connect(DB_FILE, isolation_level=None)
+                  #  conn = sqlite3.connect(DB_FILE, isolation_level=None)
                     #seen_urls = set()
 
                     for provider in self.providers:
@@ -590,7 +600,7 @@ class IB_NewService(NewService):
                         except Exception as e:
                             logger.error(f"{provider.provider} error ",exc_info=True)
 
-                    conn.close()
+                    #conn.close()
     
 
             if onEndHandler:
@@ -640,7 +650,7 @@ if __name__ == "__main__":
 
         #await service.testScan(symbols)
 
-        conn = sqlite3.connect(DB_FILE, isolation_level=None)
+       # conn = sqlite3.connect(DB_FILE, isolation_level=None)
         
         #for n in  await Finnhub_Provider().get_stock_news(symbols):
         #    insert_news(conn,n)#

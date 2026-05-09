@@ -24,11 +24,21 @@ from decimal import Decimal, ROUND_DOWN
 from binance import AsyncClient, BinanceAPIException,BinanceSocketManager
 from mulo_live_client import MuloLiveClient
 from order import OrderManager
+import pymysql
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-conn = sqlite3.connect(DB_FILE, isolation_level=None)
+#conn = sqlite3.connect(DB_FILE, isolation_level=None)
+conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
+
 cur = conn.cursor()
 
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
@@ -252,12 +262,12 @@ class IB_OrderManager(OrderManager):
             logger.info(f"UPDATE \n{df}")
             pnl = pnl + df.iloc[0]["pnl"]
             comm = comm + df.iloc[0]["commission"]
-            cur.execute('''UPDATE ib_order_commissions set pnl= ? ,  commission = ?
-                    WHERE trade_id = ? ''',
+            cur.execute('''UPDATE ib_order_commissions set pnl= %s ,  commission = %s
+                    WHERE trade_id = %s ''',
                 (pnl,comm ,permId))
         else:
             cur.execute('''INSERT INTO ib_order_commissions (trade_id, symbol, pnl, commission)
-                    VALUES (?, ?, ?, ?)''',
+                    VALUES (%s, %s, %s, %s)''',
                 (permId, trade.contract.symbol,pnl,comm ))
             
         if self.getLastTrade(trade.contract.symbol):
@@ -1067,7 +1077,7 @@ class Binance_OrderManager(OrderManager):
                             fee_usdt = self.compute_commissions_usdc(symbol,fee_asset,fee,price)
 
                             cur.execute('''SELECT data FROM ib_orders 
-                                    WHERE trade_id=? AND symbol=? AND side=? 
+                                    WHERE trade_id=%s AND symbol=%s AND side=%s 
                                     LIMIT 1''',
                                     (trade_id,
                                     symbol,

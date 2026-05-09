@@ -318,11 +318,20 @@ async def add_referrer_policy(request, call_next):
 
 ################################
 
-conn = sqlite3.connect(DB_FILE, isolation_level=None)
+#conn = sqlite3.connect(DB_FILE, isolation_level=None)
+conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
+
 cur = conn.cursor()
 
-cur.execute("PRAGMA journal_mode=WAL;")
-cur.execute("PRAGMA synchronous=NORMAL;")
+#cur.execute("PRAGMA journal_mode=WAL;")
+#cur.execute("PRAGMA synchronous=NORMAL;")
 
 
 
@@ -453,13 +462,22 @@ def save_chart_indicator(payload: dict):
     logger.info(f"name {name} data {data}")   
    
     client.execute("""
-        INSERT INTO chart_indicator (name, data)
-            VALUES (?, ?)
-            ON CONFLICT(name) DO UPDATE SET
-                data = excluded.data
+        INSERT INTO chart_indicator (
+            name,
+            data
+        )
+        VALUES (
+            %s,
+            %s
+        )
+
+        ON DUPLICATE KEY UPDATE
+
+            data = VALUES(data)
+
     """, (
         name,
-        json.dumps(data)
+        json.dumps(data, default=str)
     ))
 
 @app.get("/api/chart/indicator/list")
@@ -483,12 +501,12 @@ def save_chart_line(payload: dict):
    
         df = client.get_df("""
             SELECT guid
-            FROM chart_lines WHERE guid =  ?
+            FROM chart_lines WHERE guid =  %s
         """, (guid,))
         if len(df)>0:
             client.execute("""
-                UPDATE chart_lines set data = ?
-                WHERE guid =  ?         
+                UPDATE chart_lines set data = %s
+                WHERE guid =  %s         
             """, (
                 json.dumps(data),
                 guid,
@@ -496,7 +514,7 @@ def save_chart_line(payload: dict):
         else:
             client.execute("""
                 INSERT INTO chart_lines (guid,symbol, timeframe, type, data)
-                VALUES (?, ?, ?, ?,?)
+                VALUES (%s, %s, %s, %s,%s)
             """, (
                 guid,
                 symbol,
@@ -527,13 +545,13 @@ def delete_chart_line(payload: dict  ):
 
     df = client.get_df("""
             SELECT *
-            FROM chart_lines WHERE guid =  ?
+            FROM chart_lines WHERE guid =  %s
         """, (guid,))
 
     if len(df)>0:
         logger.info(f"DELETE CHART LINE {guid}")
         client.execute("""
-            DELETE FROM chart_lines WHERE guid = ?
+            DELETE FROM chart_lines WHERE guid = %s
         """, (guid,))
 
 
@@ -554,7 +572,7 @@ def delete_chart_all(payload: dict  ):
 
     #logger.info(f"DELETE ALL CHART LINES {symbol} {timeframe}")
     client.execute("""
-        DELETE FROM chart_lines WHERE symbol = ? and timeframe= ?   
+        DELETE FROM chart_lines WHERE symbol = %s and timeframe= %s   
     """, (symbol,timeframe))
 
     strategy.on_plot_lines_changed(symbol,timeframe)
@@ -565,7 +583,7 @@ def read_chart_lines(symbol: str, timeframe: str):
     df = client.get_df("""
         SELECT guid, symbol, timeframe, type, data
         FROM chart_lines
-        WHERE symbol = ? AND timeframe = ?
+        WHERE symbol = %s AND timeframe = %s
     """, (symbol, timeframe))
 
    # logger.info(f"READ CHART LINES {symbol} {timeframe} -> {df} ")    
@@ -616,7 +634,7 @@ def read_chart_lines(symbol: str, timeframe: str):
     df = client.get_df("""
         SELECT  symbol, timeframe,  data
         FROM trade_marker
-        WHERE symbol = ? AND timeframe = ?
+        WHERE symbol = %s AND timeframe = %s
     """, (symbol, timeframe))
 
     #logger.info(f"READ TRADE MARKER {symbol} {timeframe} -> {df} ")    
@@ -744,7 +762,7 @@ async def do_limit_order_buy(symbol, qty):
         return {"status": "error" }
 
     
-# no nsi ferma ?????
+# no nsi ferma %s%s%s%s%s
 @app.get("/order/smart/limit")
 async def do_limit_order(symbol, qty):
     try:
@@ -868,14 +886,23 @@ async def get_orders(start: Optional[str] = None):
     try:
         # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
         query = """
-        SELECT *, strftime('%s', timestamp) AS unix_time FROM ib_orders 
-        WHERE id IN (
-            SELECT MAX(id) FROM ib_orders 
-            WHERE timestamp >= ? 
-            and event_type='STATUS'
-            GROUP BY trade_id
-        )
-        ORDER BY timestamp DESC
+            SELECT
+                *,
+                UNIX_TIMESTAMP(timestamp) AS unix_time
+            FROM ib_orders
+
+            WHERE id IN (
+
+                SELECT MAX(id)
+                FROM ib_orders
+
+                WHERE timestamp >= %s
+                AND event_type = 'STATUS'
+
+                GROUP BY trade_id
+            )
+
+            ORDER BY timestamp DESC
         """
         cur.execute(query, (start,))
         rows = cur.fetchall()
@@ -958,12 +985,12 @@ async def get_task_orders(start: Optional[str] = None,
                 GROUP BY task_id
             )
             AND status in ('READY', 'STEP')
-            AND ds_timestamp >= ? 
+            AND ds_timestamp >= %s 
             """
         else:
             query =f"""
             SELECT * FROM task_orders 
-            WHERE ds_timestamp >= ? 
+            WHERE ds_timestamp >= %s 
             ORDER BY timestamp DESC
             """
 
@@ -1006,14 +1033,14 @@ async def get_task_symbol_orders(symbol:str,
                 GROUP BY task_id
             )
             AND status =='READY'
-            AND ds_timestamp >= ? 
-            AND SYMBOL = ?
+            AND ds_timestamp >= %s 
+            AND SYMBOL = %s
             """
         else:
             query =f"""
             SELECT * FROM task_orders 
-            WHERE ds_timestamp >= ? 
-            AND SYMBOL = ?
+            WHERE ds_timestamp >= %s 
+            AND SYMBOL = %s
             ORDER BY timestamp DESC
             """
 
@@ -1049,16 +1076,22 @@ async def get_events(limit, types:str    ):
         # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
         types_list = types.split(',')
 
+        placeholders = ",".join(["%s"] * len(types_list))
+
         query = f"""
-            SELECT source,name as  type,data, timestamp FROM events 
-            WHERE source IN ({','.join('?' for _ in types_list)})
-            AND ds_timestamp >= datetime('now', 'start of day')
-         
-            ORDER BY id --DESC
-            LIMIT ?
+            SELECT *
+            FROM events
+
+            WHERE source IN ({placeholders})
+            -- AND ds_timestamp >= datetime('now', 'start of day')
+            AND ds_timestamp >= CURDATE()
+
+            ORDER BY id 
+
+            LIMIT %s
         """
 
-        params = types_list + [limit]
+        params = tuple(types_list) + (int(limit),)
 
         df = client.get_df(query, params)
         for _, row in df.iterrows():
@@ -1084,22 +1117,33 @@ async def get_strategy(limit, types:str    ):
         # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
         types_list = types.split(',')
 
+        placeholders = ",".join(["%s"] * len(types_list))
+
         query = f"""
-            SELECT * FROM events 
-            WHERE source IN ({','.join('?' for _ in types_list)})
-            AND ds_timestamp >= datetime('now', 'start of day')
+            SELECT *
+            FROM events
+
+            WHERE source IN ({placeholders})
+            AND ds_timestamp >= CURDATE()
+
             ORDER BY id DESC
-            LIMIT ?
+
+            LIMIT %s
         """
 
-        params = types_list + [limit]
+        params = tuple(types_list) + (int(limit),)
 
         df = client.get_df(query, params)
+
+        for col in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].astype(str)
 
         return JSONResponse(df.to_dict(orient="records"))
     
     
     except:
+        logger.error(df)
         logger.error("ERROR", exc_info=True)
         return {"status": "error"}
     
@@ -1719,7 +1763,7 @@ if __name__ =="__main__":
 
             #_tick_tickers = await live.start_batch()
             async def bootstrap():
-                # start live ?? 
+                # start live %s%s 
                 
                 await client.bootstrap()
                 

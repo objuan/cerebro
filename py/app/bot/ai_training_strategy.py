@@ -55,7 +55,7 @@ class AiTrainingStrategy(SmartStrategy):
 
                 self.client.execute("""
                     INSERT INTO ai_trainingset (symbol,live, gain,volume, date,start,end, in_data)
-                    VALUES (?,?, ?, ?, ?,?,?,?)
+                    VALUES (%s,%s, %s, %s, %s,%s,%s,%s)
                     """, (symbol,live, chain_gain, volume,date, start,end,json.dumps(entry)))
 
    

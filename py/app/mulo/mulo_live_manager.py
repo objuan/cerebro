@@ -26,9 +26,10 @@ from rich.live import Live
 import uvicorn
 from datetime import datetime
 from typing import ClassVar, List, Optional, Union
+import pymysql
 
 from mulo.binance_streamer import BinanceStreamer
-from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC,BINANCE_MODE
+from config import CONFIG_FILE,TF_SEC_TO_DESC,BINANCE_MODE
 from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts, convert_json,AsyncScheduler,candles_from_seconds
 from company_loaders import *
@@ -40,7 +41,7 @@ from mulo.mulo_job import MuloJob,since_to_durationStr
 from mulo.mulo_scanner import Scanner
 from mulo.mulo_candle_updater import MuloCandleUpdater
 
-intervals = [10,  60, 300]  # seconds for 10s, 30s, 1m, 5m
+intervals = [10,  60, 300,900]  # seconds for 10s, 30s, 1m, 5m
 #intervals = [10]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 
@@ -186,9 +187,18 @@ class LiveManager:
         self.ms=ms
         self.on_display=on_display
         self.config=config
+        scanner.fetcher=fetcher
         self.scanner = scanner
         self.fetcher=fetcher
-        self.conn = sqlite3.connect(fetcher.db_file)
+        #self.conn = sqlite3.connect(fetcher.db_file)
+        self.conn = pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True
+            )
+        
         self.ws_manager=ws_manager
         #print(self.config)
         self.live_max_symbols =   config["live_service"]["live_max_symbols"]
@@ -390,11 +400,15 @@ class LiveManager:
        
     def need_update(self,symbol):
         toupdate=True
-        df = self.fetcher.get_df("SELECT * FROM ib_ohlc_history WHERE exchange='exchange' and SYMBOL = ? and timeframe ='1d' order by timestamp desc limit 1",(symbol,))
+        df = self.fetcher.get_df("SELECT * FROM ib_ohlc_history WHERE  SYMBOL = %s and timeframe ='1d' order by timestamp desc limit 1",(symbol,))
         if not df.empty:
             if df.iloc[0]["ds_updated_at"]:
-                                           
-                last_date = datetime.fromisoformat( df.iloc[0]["ds_updated_at"])
+                
+                if isinstance(df.iloc[0]["ds_updated_at"], str):
+                    last_date = datetime.fromisoformat( df.iloc[0]["ds_updated_at"])
+                else:
+                    last_date = df.iloc[0]["ds_updated_at"]
+
                 time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
 
                 logger.info(f"time to update {symbol} {time_to_update_days}")
@@ -453,7 +467,7 @@ class LiveManager:
                     
                     #exit(0)
                     if not df.empty:
-                        await self.fetcher.process_data("exchange",symbol, "1d", self.fetcher.conn, df,True)
+                        await self.fetcher.process_data("exchange",symbol, "1d", df,True)
 
                 else:
                     df = yf.download(
@@ -467,7 +481,7 @@ class LiveManager:
 
                 #logger.info(f"df \n{df}")
                 if not df.empty:
-                    await self.fetcher.process_data("exchange",symbol, "1d", self.fetcher.conn, df,True)
+                    await self.fetcher.process_data("exchange",symbol, "1d",df,True)
                 
         ###########
 
@@ -485,7 +499,7 @@ class LiveManager:
         async def task(symbol):
 
             async with sem:
-                return await self.fetcher.align_data(symbol)
+                return await self.fetcher.align_data_1m(symbol)
             
         tasks = [task(s) for s in symbols]
 
@@ -498,7 +512,7 @@ class LiveManager:
             logger.info(f"{symbol} #{len(data) if data is not None else 0}  ")
 
             #exchange = self.fetcher.get_exchange(symbol)
-            await self.fetcher.process_data_batch("",symbol, "1m",self.fetcher.conn_exe, data,False)
+            await self.fetcher.process_data_batch("",symbol, "1m", data,False)
 
         #logger.info(dict(results))
 
@@ -670,13 +684,14 @@ class LiveManager:
         #check
         to_remove = []
 
-        for symbol in self.tickers.keys():
-            f = self.fetcher.df_fundamentals[
-                self.fetcher.df_fundamentals["symbol"] == symbol
-            ]
+        if not BINANCE_MODE:
+            for symbol in self.tickers.keys():
+                f = self.fetcher.df_fundamentals[
+                    self.fetcher.df_fundamentals["symbol"] == symbol
+                ]
 
-            if f.empty:
-                to_remove.append(symbol)
+                if f.empty:
+                    to_remove.append(symbol)
 
         for s in to_remove:
             logger.warning(f"REMOVE BAD SYMBOL {s}")
@@ -802,11 +817,12 @@ class LiveManager:
                                     "bid": ticker.bid if ticker.bid  else 0,
                                     "ask": ticker.ask if ticker.ask  else 0, #bidSize,askSize,minTick
                                     "day_v": day_volume if not must_vol_mult else day_volume * 100,
-                                    "gain" : ticker.gain
+                                    "gain" : ticker.gain,
+                                    "day_qv" : ticker.day_quotevolume,
                                 }
 
                                 #logger.info(f"add {data} \n{ticker}")
-                                if (intervals != 300):
+                                if (interval == 60 or interval==10):
                                     await self.fetcher.db_updateTicker(data)
 
                                 if self.ws_manager  :
@@ -856,7 +872,8 @@ class LiveManager:
                                         "bid": ticker.bid,
                                         "ask": ticker.ask,
                                         "day_v": day_volume if not must_vol_mult else day_volume * 100,
-                                        "gain" : ticker.gain
+                                        "gain" : ticker.gain,
+                                        "day_qv" : ticker.day_quotevolume,
                                     }
 
                             

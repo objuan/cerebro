@@ -21,6 +21,9 @@ from company_loaders import *
 from market import *
 from dataclasses import dataclass
 from config import TF_SEC_TO_DESC,BINANCE_MODE
+import pymysql
+import numpy as np
+
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
@@ -112,6 +115,16 @@ def week_ago_ms():
 
 #########################
 
+def open_conn():
+   return pymysql.connect(
+                host="192.168.1.100",
+                user="root",
+                password="alice",
+                database="binance",
+                autocommit=True,
+                charset="utf8mb4",
+            )
+     
 class MuloJob:
 
     def __init__(self,db_file, config):
@@ -133,14 +146,23 @@ class MuloJob:
             self.market = MarketService(config).getMarket("AUTO")
         self.marketZone = None
 
-        self.conn_exe=sqlite3.connect(db_file, isolation_level=None)
-        self.conn = sqlite3.connect(db_file, isolation_level=None, check_same_thread=False)
+        self.conn = open_conn()
+        #self.conn_exe =  self.conn.cursor()
 
-        self.cur_exe = self.conn_exe.cursor()
-        self.cur_exe.execute("PRAGMA journal_mode=WAL;")
-        self.cur_exe.execute("PRAGMA synchronous=NORMAL;")
+        #self.conn_exe=sqlite3.connect(db_file, isolation_level=None)
+        #self.conn = sqlite3.connect(db_file, isolation_level=None, check_same_thread=False)
+
+        #self.cur_exe = self.conn_exe.cursor()
+
+        self.cur = self.conn.cursor()  
+        self.cur_exe = self.cur
+
+        #self.cur_exe.execute("PRAGMA journal_mode=WAL;")
+        #self.cur_exe.execute("PRAGMA synchronous=NORMAL;")
+
         self.update_ts={}
         self.symbol_to_exchange_map={}
+        self.metric_semaphore = asyncio.Semaphore(2)
 
     def getCurrentZone(self):
         return self.market.getCurrentZone()
@@ -151,7 +173,7 @@ class MuloJob:
         m = self.get_df(f"""
                     SELECT min(timestamp) as min
                     FROM ib_ohlc_history
-                    WHERE symbol = ? and timeframe=? and source = 'live'
+                    WHERE symbol = %s and timeframe= %s and source = 'live'
                     """, (symbol,timeframe))
 
         min_ts = m.iloc[0][0]
@@ -162,8 +184,8 @@ class MuloJob:
                                  WHERE symbol = '{symbol}' and timeframe='{timeframe}' and timestamp>={min_ts}
                                   """
             logger.info(q)
-            self.conn.execute(q)
-            self.conn.commit()
+            self.cur.execute(q)
+            #self.conn.commit()
 
     async def db_updateTicker(self,new_ticker):
         #print(new_ticker)
@@ -182,9 +204,10 @@ class MuloJob:
             ex = self.get_exchange(symbol)
         tf = TF_SEC_TO_DESC[new_ticker["tf"]]
 
+        dt = pd.to_datetime(dt).tz_localize(None)
         sql=f"""
-                          INSERT INTO ib_ohlc_history (
-                        exchange,
+                         INSERT INTO ib_ohlc_history (
+                            exchange,
                             symbol,
                             timeframe,
                             timestamp,
@@ -195,30 +218,39 @@ class MuloJob:
                             base_volume,
                             quote_volume,
                             day_volume,
+                            quote_day_volume,
+                            day_gain,
                             source,
                             datetime,
-                            --updated_at,
                             ds_updated_at
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
-                        ON CONFLICT( symbol, timeframe, timestamp)
-                        DO UPDATE SET
-                            open = excluded.open,
-                            high = excluded.high,
-                            low = excluded.low,
-                            close = excluded.close,
-                            base_volume = excluded.base_volume,
-                            quote_volume = excluded.quote_volume,
-                            source = excluded.source,
-                            datetime = excluded.datetime,
-                            ds_updated_at = excluded.ds_updated_at
- 
+                        VALUES (
+                            %s, %s, %s, %s,
+                            %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s,
+                            %s, %s
+                        )
+
+                        ON DUPLICATE KEY UPDATE
+
+                            open = VALUES(open),
+                            high = VALUES(high),
+                            low = VALUES(low),
+                            close = VALUES(close),
+
+                            base_volume = VALUES(base_volume),
+                            quote_volume = VALUES(quote_volume),
+
+                            source = VALUES(source),
+                            datetime = VALUES(datetime),
+                            ds_updated_at = VALUES(ds_updated_at)
+                    
                     """
 
         self.cur_exe.execute(sql,(ex,symbol,tf,new_ticker["ts"],new_ticker["o"],
                                               new_ticker["h"],new_ticker["l"],new_ticker["c"],
                                                new_ticker["v"],new_ticker["v"]* new_ticker["c"],
-                                               new_ticker["day_v"]
+                                               new_ticker["day_v"], new_ticker["day_qv"], new_ticker["gain"]
                                                  , "live",  dt, ds_run_time))
         '''
         if int(new_ticker["tf"])>30:
@@ -259,11 +291,12 @@ class MuloJob:
           
         self.sql_symbols = str(self.symbols)[1:-1]
 
-        if len(self.symbols) > 0:
-                self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
-        else:
-            logger.error(f"Empty symbol list !!! {new_symbols}")
-            return
+        if not BINANCE_MODE:
+            if len(self.symbols) > 0:
+                    self.df_fundamentals = await Yahoo(self.db_file, self.config).get_float_list( self.symbols)
+            else:
+                logger.error(f"Empty symbol list !!! {new_symbols}")
+                return
           
         #for s in self.symbols:
         #    self.tickers[s] = Ticker(symbol=s)
@@ -275,12 +308,12 @@ class MuloJob:
 
     def get_exchange(self,symbol):
         if not symbol in self.symbol_to_exchange_map:
-                df = c_get_df(self.db_file,"SELECT exchange FROM STOCKS WHERE SYMBOL = ?",(symbol,))
+                df = c_get_df(self.db_file,"SELECT exchange FROM STOCKS WHERE symbol = %s",(symbol,))
                 if not df.empty:
                     self.symbol_to_exchange_map[symbol] = df.iloc[0]["exchange"]
         return self.symbol_to_exchange_map[symbol]
     
-    async def _fetch_missing_history(self,cursor, symbol, timeframe, since, useYahoo):
+    async def _fetch_missing_history(self, symbol, timeframe, since, useYahoo):
         #since = week_ago_ms()
 
         try:
@@ -353,7 +386,7 @@ class MuloJob:
                             #df.drop(columns=["index"], inplace=True)
                             #logger.info(f"\n{df.tail(5)}")
 
-                            await self.process_data_batch(exchange,symbol, timeframe, cursor, df,useYahoo)
+                            await self.process_data_batch(exchange,symbol, timeframe,  df,useYahoo)
                             
                         except:
                             logger.error("ERROR", exc_info=True)
@@ -401,10 +434,12 @@ class MuloJob:
 
     ########
 
-    async def process_data_batch(self, exchange, symbol, timeframe, cursor, df, useYahoo):
+    async def process_data_batch(self, exchange, symbol, timeframe,  df, useYahoo):
 
         if df is None or df.empty:
             return False
+
+       # logger.info(f"process_data_batch \n{df}") 
 
         if useYahoo:
             df = df.reset_index()
@@ -437,7 +472,7 @@ class MuloJob:
         # rimuove ultima candela parziale
         ohlcv = ohlcv[:-1]
 
-        logger.info(f"ohlcv \n{ohlcv}")
+        #logger.info(f"ohlcv \n{ohlcv}")
 
         if not ohlcv:
             return False
@@ -462,32 +497,59 @@ class MuloJob:
         ]
 
         sql = """
-            INSERT INTO ib_ohlc_history (
-                exchange, symbol, timeframe, timestamp,
-                open, high, low, close,
-                base_volume, quote_volume,
-                source, datetime, ds_updated_at
+                INSERT INTO ib_ohlc_history (
+                    exchange,
+                    symbol,
+                    timeframe,
+                    timestamp,
+
+                    open,
+                    high,
+                    low,
+                    close,
+
+                    base_volume,
+                    quote_volume,
+
+                    source,
+                    datetime,
+                    ds_updated_at
+                )
+                VALUES (
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s,
+                    %s, %s, %s
+                )
+
+                ON DUPLICATE KEY UPDATE
+
+                    open = VALUES(open),
+                    high = VALUES(high),
+                    low = VALUES(low),
+                    close = VALUES(close),
+
+                    base_volume = VALUES(base_volume),
+                    quote_volume = VALUES(quote_volume),
+
+                    source = VALUES(source),
+                    datetime = VALUES(datetime),
+                    ds_updated_at = VALUES(ds_updated_at)
+            """
+
+        self.cur_exe.executemany(sql, rows)
+        #cursor.commit()
+
+        if timeframe == "1m":   
+            start_ts = ohlcv[0][0]  
+            
+            asyncio.create_task(
+                self.rebuild_metrics_bg(symbol, start_ts)
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT( symbol, timeframe, timestamp)
-            DO UPDATE SET
-                open = excluded.open,
-                high = excluded.high,
-                low = excluded.low,
-                close = excluded.close,
-                base_volume = excluded.base_volume,
-                quote_volume = excluded.quote_volume,
-                source = excluded.source,
-                datetime = excluded.datetime,
-                ds_updated_at = excluded.ds_updated_at
-        """
-
-        cursor.executemany(sql, rows)
-        cursor.commit()
-
+            
         return True
 
-    async def process_data(self,exchange,symbol,timeframe,cursor,df, useYahoo):
+    async def process_data(self,exchange,symbol,timeframe,df, useYahoo):
                 
                 if df.empty:
                     #logger.info("No data returned, stopping.")
@@ -518,7 +580,7 @@ class MuloJob:
                             df["timestamp"] = df["Datetime"].astype("int64") // 10**9
 
 
-                logger.info(f"..\n{df.tail(1)}")
+                logger.info(f"..{symbol} \n{df.tail(1)}")
           
                 ohlcv = [
                     (b.timestamp * 1000, b.Open, b.High, b.Low, b.Close, b.Volume,str(b.Datetime))
@@ -537,25 +599,45 @@ class MuloJob:
                     return False
 
                 for ts, open_, high, low, close, vol,dt ,in ohlcv:
-                    cursor.execute("""
-                        INSERT INTO ib_ohlc_history (
-                            exchange, symbol, timeframe, timestamp,
-                            open, high, low, close,
-                            base_volume, quote_volume,
-                            source, datetime, ds_updated_at
+                    self.cur_exe.execute("""
+                      INSERT INTO ib_ohlc_history (
+                            exchange,
+                            symbol,
+                            timeframe,
+                            timestamp,
+
+                            open,
+                            high,
+                            low,
+                            close,
+
+                            base_volume,
+                            quote_volume,
+
+                            source,
+                            datetime,
+                            ds_updated_at
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT( symbol, timeframe, timestamp)
-                        DO UPDATE SET
-                            open = excluded.open,
-                            high = excluded.high,
-                            low = excluded.low,
-                            close = excluded.close,
-                            base_volume = excluded.base_volume,
-                            quote_volume = excluded.quote_volume,
-                            source = excluded.source,
-                            datetime = excluded.datetime,
-                            ds_updated_at = excluded.ds_updated_at
+                        VALUES (
+                            %s, %s, %s, %s,
+                            %s, %s, %s, %s,
+                            %s, %s,
+                            %s, %s, %s
+                        )
+
+                        ON DUPLICATE KEY UPDATE
+
+                            open = VALUES(open),
+                            high = VALUES(high),
+                            low = VALUES(low),
+                            close = VALUES(close),
+
+                            base_volume = VALUES(base_volume),
+                            quote_volume = VALUES(quote_volume),
+
+                            source = VALUES(source),
+                            datetime = VALUES(datetime),
+                            ds_updated_at = VALUES(ds_updated_at)
                      
                     """, (
                         exchange,
@@ -575,14 +657,14 @@ class MuloJob:
                       
                     ))
 
-                cursor.commit()
+                #cursor.commit()
                 return True
     
     def get_max_time(self,symbol, timeframe):
         m = self.get_df(f"""
                     SELECT max(timestamp) as max
                     FROM ib_ohlc_history
-                    WHERE symbol = ? and timeframe=? and source != 'live'
+                    WHERE symbol = %s and timeframe=%s and source != 'live'
                     """, (symbol,timeframe,))
 
         return m.iloc[0][0]
@@ -618,8 +700,9 @@ class MuloJob:
             start_ts = last_open_time + 1
 
         return all_klines
-            
-    async def align_data(self,symbol):
+
+    ''' solo 1m '''  
+    async def align_data_1m(self,symbol):
            
     
                 self.db_clear_live(symbol,"1m")
@@ -665,17 +748,7 @@ class MuloJob:
 
                     if df is None or df.empty:
                         return symbol, None
-                    '''
-                    df = df.rename(columns={
-                                    "open": "Open",
-                                    "high": "High",
-                                    "low": "Low",
-                                    "close": "Close",
-                                    "volume": "Volume",
-                                    "date" :"Datetime",
-                                    "average" : "VWAP"
-                                })
-                    '''
+
                     return symbol, df
                 
                 else:
@@ -732,10 +805,10 @@ class MuloJob:
             query_max = f"""
                 SELECT max(timestamp) as max
                 FROM {self.table_name}
-                WHERE symbol = ? and timeframe=? and source != 'live'
+                WHERE symbol = %s and timeframe= %s and source != 'live'
                 """
 
-            conn = self.conn#sqlite3.connect(self.db_file)
+            #conn = self.conn#sqlite3.connect(self.db_file)
             
             #for symbol in self.live_symbols():
             if True:
@@ -743,7 +816,7 @@ class MuloJob:
                     update = False
                     #logger.info(f"query_max {query_max}")
                     #df_min = pd.read_sql_query(query_min, conn, params= (symbol, timeframe))
-                    df_max = pd.read_sql_query(query_max, conn, params= (symbol, timeframe))
+                    df_max = self.get_df(query_max,  params= (symbol, timeframe))
                     #logger.info(f"{df_max}")
                     #print(df)
                     if df_max.iloc[0]["max"]:
@@ -793,7 +866,7 @@ class MuloJob:
                             logger.info(f"UPDATE HISTORY symbol:{symbol} tf:{timeframe} ->  since:{max_dt} {datetime.fromtimestamp(float(max_dt))}")
 
                             useYahoo = timeframe =="1d"
-                            await self._fetch_missing_history(conn,symbol,timeframe,max_dt*1000,useYahoo)
+                            await self._fetch_missing_history(self.cur_exe,symbol,timeframe,max_dt*1000,useYahoo)
                             #self.cache.addCache_str(cache_key,cache_key)
                         else:
                             pass
@@ -808,12 +881,12 @@ class MuloJob:
         query = f"""
             SELECT timestamp as t, open as o, high as h , low as l, close as c, quote_volume as qv, base_volume as bv
             FROM {self.table_name}
-            WHERE symbol=? AND timeframe=?
+            WHERE symbol= %s AND timeframe= %s
             ORDER BY timestamp DESC
-            LIMIT ?"""
+            LIMIT %s"""
              
         #conn = sqlite3.connect(self.db_file)
-        df = pd.read_sql_query(query, self.conn, params= (symbol, timeframe, limit))
+        df = self.get_df(query,  params= (symbol, timeframe, limit))
         df = df.iloc[::-1].reset_index(drop=True)
       
         #conn.close()     
@@ -842,7 +915,7 @@ class MuloJob:
                 LIMIT {limit}"""
                 
             #print("since",since)
-            df = pd.read_sql_query(query, self.conn)
+            df = self.get_df(query)
         else:
             query = f"""
                 SELECT *
@@ -851,7 +924,7 @@ class MuloJob:
                 ORDER BY timestamp DESC
                 LIMIT {limit}"""
           
-            df = pd.read_sql_query(query, self.conn)
+            df = self.get_df(query)
             #print(query)
 
         df = df.iloc[::-1].reset_index(drop=True)
@@ -970,27 +1043,30 @@ class MuloJob:
                 WHERE symbol='{symbol}' and name='{name}' 
             """)
         if len(df) == 0:
-            self.cur_exe.execute("""
-                        INSERT INTO watch_list (
-                            name,type,symbol,dt_day
-                        )
-                        VALUES (?, ?, ? ,?)
-                    """, (
+           self.cur_exe.execute("""
+                    INSERT INTO watch_list (
                         name,
                         type,
                         symbol,
                         dt_day
-                    ))
+                    )
+                    VALUES (%s, %s, %s, %s)
+                """, (
+                    name,
+                    type,
+                    symbol,
+                    dt_day
+                ))
         else:
             self.cur_exe.execute("""
-                UPDATE watch_list set type=? dt_day = ? where symbol = ? and name= ? """, (type,dt_day,symbol,name    ))
+                UPDATE watch_list set type=%s dt_day =%s where symbol = %s and name= %s """, (type,dt_day,symbol,name    ))
         
-        self.conn_exe.commit()
+        #self.conn_exe.commit()
 
     def clear_day_watch(self,name,type,symbol):
         self.cur_exe.execute("""
-                DELETE FROM  watch_list where  type=?  where symbol = ? and name= ? """, (type,symbol,name    ))
-        self.conn_exe.commit()
+                DELETE FROM  watch_list where  type=%s  where symbol = %s and name= %s """, (type,symbol,name    ))
+        #self.conn_exe.commit()
         
 
     def add_blacklist(self,symbol, errorDesc, user_mode=None ):
@@ -1008,10 +1084,17 @@ class MuloJob:
         if len(df) == 0:
           
             self.cur_exe.execute("""
-                        INSERT INTO black_list (
-                            symbol,error,provider_disable,user_day_disable,user_all_disable,last_day
+                      INSERT INTO black_list (
+                            symbol,
+                            error,
+                            provider_disable,
+                            user_day_disable,
+                            user_all_disable,
+                            last_day
                         )
-                        VALUES (?, ?, ?, ?, ?, ? )
+                        VALUES (
+                            %s, %s, %s, %s, %s, %s
+                        )
                     """, (
                         symbol,
                         errorDesc,
@@ -1021,22 +1104,22 @@ class MuloJob:
                         date_str
                     ))
 
-            self.conn_exe.commit()
+            #self.conn_exe.commit()
         else:
            
             self.cur_exe.execute("""
-                        UPDATE black_list set provider_disable=?,user_day_disable=?, user_all_disable=?,last_day=? where symbol = ? """, (
+                        UPDATE black_list set provider_disable=%s,user_day_disable=%s, user_all_disable=%s,last_day=%s where symbol = %s """, (
                         provider_disable,user_day_disable, user_all_disable,date_str,
                         symbol)
                     )
 
-            self.conn_exe.commit()
+            #self.conn_exe.commit()
     
     #########
 
     def get_day_symbols(self):
         df = self.get_df(
-            "SELECT symbol FROM ib_day_watch WHERE date = ? AND enabled = 1",
+            "SELECT symbol FROM ib_day_watch WHERE date = %s AND enabled = 1",
             (date(),)
         )
 
@@ -1047,36 +1130,43 @@ class MuloJob:
         return symbols
 
     def reset_day_symbols(self):
-        self.conn_exe.execute("""
+        self.cur_exe.execute("""
             UPDATE ib_scan_watch SET closed = 1 where closed = 0
         """)       
 
     def add_day_symbol(self, profile, symbol):
         today = date() # es. "2026-03-06"
-        self.conn_exe.execute("""
+        self.cur_exe.execute("""
                         INSERT INTO ib_day_watch (
-                            profile,  symbol, date,count, enabled
-                        )
-                        VALUES (?, ?, ?, ?,1)
-                        ON CONFLICT(date,symbol)
-                        DO UPDATE SET
-                            count = excluded.count+1
+                                profile,
+                                symbol,
+                                date,
+                                count,
+                                enabled
+                            )
+                            VALUES (
+                                %s, %s, %s, %s, 1
+                            )
+
+                            ON DUPLICATE KEY UPDATE
+
+                                count = count + 1
                     """, (
                         profile,symbol,today,1)
                     )
         
         df = self.get_df(
-            "SELECT * FROM ib_scan_watch WHERE symbol = ? and closed=0 order by ts_enter desc limit 1",
+            "SELECT * FROM ib_scan_watch WHERE symbol = %s and closed=0 order by ts_enter desc limit 1",
             (symbol,)
         )
         logger.info(f"ADD SYMBOL {symbol}, {df}")
         if df.empty:
         
-            self.conn_exe.execute("""
+            self.cur_exe.execute("""
                             INSERT INTO ib_scan_watch (
                                 profile,  symbol
                             )
-                            VALUES (?, ?)
+                            VALUES (%s, %s)
                         """, (
                             profile,symbol)
                         )
@@ -1084,7 +1174,7 @@ class MuloJob:
     def del_day_symbol(self,symbol):
         logger.info(f"REMOVE SYMBOL {symbol}")
         df = self.get_df(
-            "SELECT * FROM ib_scan_watch WHERE symbol = ? and closed=0 order by ts_enter desc limit 1",
+            "SELECT * FROM ib_scan_watch WHERE symbol = %s and closed=0 order by ts_enter desc limit 1",
             (symbol,)
         )
         if not df.empty: 
@@ -1102,13 +1192,14 @@ class MuloJob:
             
             logger.info(f"UPDATE WATCH SYMBOL {sql}")
 
-            self.conn_exe.execute(sql)
+            self.cur_exe.execute(sql)
 
            
 
     #######################
     
     def get_df(self,query, params=()):
+        logger.debug(f"SQL QUERY: {query} PARAMS: {params}")
         #conn = sqlite3.connect(self.db_file)
         df = pd.read_sql_query(query, self.conn, params=params)
         #conn.close()
@@ -1120,3 +1211,170 @@ class MuloJob:
         #conn.close()
         return df
     
+    ###################
+
+    async def rebuild_metrics_bg(self, symbol, start_ts):
+
+        async with self.metric_semaphore:
+
+            await asyncio.to_thread(
+                self.rebuild_day_metrics,
+                symbol,
+                "1m",
+                start_ts
+            )
+    
+    def rebuild_day_metrics(self,
+        symbol,
+        timeframe,
+        from_timestamp
+    ):
+
+          # =====================================================
+        # PRENDE ANCHE 24H PRECEDENTI
+        # =====================================================
+        logger.info(f"UPDATE META FROM {symbol} {from_timestamp}")
+
+        lookback_ts = from_timestamp - (24 * 60 * 60 * 1000)
+
+        conn = open_conn()
+
+        query = """
+            SELECT
+                symbol,
+                timeframe,
+                timestamp,
+                datetime,
+                close,
+                base_volume,
+                quote_volume
+            FROM ib_ohlc_history
+            WHERE symbol = %s
+            AND timeframe = %s
+            AND timestamp >= %s
+            ORDER BY timestamp
+        """
+
+        df = pd.read_sql_query(
+            query,
+            conn,
+            params=(
+                symbol,
+                timeframe,
+                lookback_ts
+            )
+        )
+
+        if len(df) == 0:
+            return
+
+        logger.info(f"candles to update: {len(df)}")    
+        
+        # =====================================================
+        # NORMALIZE
+        # =====================================================
+
+        df["datetime"] = pd.to_datetime(
+            df["timestamp"],
+            unit="ms",
+            utc=True
+        )
+
+        df["base_volume"] = pd.to_numeric(
+            df["base_volume"],
+            errors="coerce"
+        ).fillna(0)
+
+        df["quote_volume"] = pd.to_numeric(
+            df["quote_volume"],
+            errors="coerce"
+        ).fillna(0)
+
+        df["close"] = pd.to_numeric(
+            df["close"],
+            errors="coerce"
+        ).fillna(0)
+
+        # =====================================================
+        # INDEX TEMPORALE
+        # =====================================================
+
+        df = df.sort_values("datetime")
+
+        df = df.set_index("datetime")
+
+     
+        # rolling 24h volume
+        df["day_volume"] = (
+            df["base_volume"]
+            .rolling("24h")
+            .sum()
+        )
+
+        df["quote_day_volume"] = (
+            df["quote_volume"]
+            .rolling("24h")
+            .sum()
+        )
+
+        # close 24h fa
+        prev_24h_close = (
+            df["close"]
+            .rolling("24h")
+            .apply(lambda x: x.iloc[0], raw=False)
+        )
+
+        # gain %
+        df["day_gain"] = (
+            (df["close"] - prev_24h_close)
+            / prev_24h_close
+        ) * 100.0
+
+        df["day_gain"] = df["day_gain"].fillna(0)
+
+        # =====================================================
+        # TORNA A COLONNE NORMALI
+        # =====================================================
+
+        df = df.reset_index()
+
+        # =====================================================
+        # SOLO DATI TARGET
+        # =====================================================
+
+        df = df[
+            df["timestamp"] >= from_timestamp
+        ].copy()
+
+        # =====================================================
+        # BULK UPDATE
+        # =====================================================
+
+        rows = list(zip(
+            df["day_volume"],
+            df["quote_day_volume"],
+            df["day_gain"],
+            df["symbol"],
+            df["timeframe"],
+            df["timestamp"]
+        ))
+
+        sql = """
+            UPDATE ib_ohlc_history
+            SET
+                day_volume = %s,
+                quote_day_volume = %s,
+                day_gain = %s
+            WHERE
+                symbol = %s
+                AND timeframe = %s
+                AND timestamp = %s
+        """
+
+        cur = conn.cursor()      
+        cur.executemany(sql, rows)
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"updated rows: {len(rows)}")
