@@ -24,7 +24,7 @@ from order_book import *
  
 
 
-class TradeStrategyIB15(SmartStrategy):
+class BackStrategyIB15(SmartStrategy):
 
     async def on_start(self):
         self.min_day_volume= self.params["min_day_volume"]
@@ -65,7 +65,6 @@ class TradeStrategyIB15(SmartStrategy):
 
         #self.add_plot(vol_day, "vol_day","#d30337","sub1","vol_day", style="Solid", lineWidth=1)
         self.add_plot(gain_day, "gain_day","#0311d3","sub1","gain_day", style="Solid", lineWidth=1)
-        self.add_plot(vol_day, "vol_day","#0311d3","sub1","vol_day", style="Solid", lineWidth=1)
         
       
      
@@ -110,12 +109,12 @@ class TradeStrategyIB15(SmartStrategy):
             time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000   
             
             if gain < 1 and time_elapsed_secs > self.drop_time_secs:
-                   await  self.sell(symbol, dt, last["close"], f"TM {gain:.1f}%"  )
+                   await  self.sell(symbol, dt, last["close"], f"TIME"  )
             elif  gain >self.gain_perc:
-                   await  self.sell(symbol, dt, last["close"], f"TP{gain:.1f}%"  )
+                   await  self.sell(symbol, dt, last["close"], f"TP"  )
          
             elif  gain < -self.gain_perc/2:
-                   await  self.sell(symbol, dt, last["close"], f"SL {gain:.1f}%"  )
+                   await  self.sell(symbol, dt, last["close"], f"SL"  )
                  
             #if trend_pos < 50 :
             #    await self.sell( symbol, int(last["timestamp"]), price,  "SL" ) 

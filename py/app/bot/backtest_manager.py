@@ -33,7 +33,7 @@ if __name__ =="__main__":
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
-
+from collections import defaultdict
 from typing import Dict
 import pandas as pd
 
@@ -204,7 +204,7 @@ class BacktestManager:
         self.db.begin()
 
 
-    async def start(self) -> List[Trade]:
+    async def start(self, saveResults) -> List[Trade]:
 
         logger.info(f"START ")
         #self.db = Back_DatabaseManager(self,inData)
@@ -238,17 +238,18 @@ class BacktestManager:
         #logger.info(f"trades {trades}")   
         #logger.info(f"markers {markers}")   
         #logger.info(f"inds {len(inds)}")   
-
-        self.client.execute("""
-            INSERT INTO back_session (strategy,dt_from,dt_to, in_data, trades,markers,indicators,script,ds_timestamp)
-        VALUES (%s, %s, %s, %s,%s, %s, %s,%s,%s)
-        """, (self.active_strategy.name, self.inData.dt_from, self.inData.dt_to,
-               json.dumps(self.inData.to_dict()), 
-               json.dumps(trades),
-               json.dumps(markers.to_dict(orient="records")) if markers is not None else None   , 
-               json.dumps(inds)  , 
-               script, datetime.now(tz=ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d %H:%M:%S"))
-        )
+        
+        if saveResults:
+            self.client.execute("""
+                INSERT INTO back_session (strategy,dt_from,dt_to, in_data, trades,markers,indicators,script,ds_timestamp)
+            VALUES (%s, %s, %s, %s,%s, %s, %s,%s,%s)
+            """, (self.active_strategy.name, self.inData.dt_from, self.inData.dt_to,
+                json.dumps(self.inData.to_dict()), 
+                json.dumps(trades),
+                json.dumps(markers.to_dict(orient="records")) if markers is not None else None   , 
+                json.dumps(inds)  , 
+                script, datetime.now(tz=ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d %H:%M:%S"))
+            )
 
         # save back 
 
@@ -287,29 +288,29 @@ class BacktestManager:
         #conn = sqlite3.connect(DB_FILE)
 
         #logger.info(f"SYM BOOT TIME {self.sym_start_time}")
+        if timeframe not in "1m":
+            df = self.client.history_data(symbols,timeframe,since=since,limit=999999)
+        else:
+            query = f"""
+                        SELECT *
+                        FROM ib_ohlc_history
+                        WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
+                        and timestamp>= {since}
+                        and timestamp<= {to}
+                        ORDER BY timestamp DESC"""
 
-        query = f"""
-                    SELECT *
-                    FROM ib_ohlc_history
-                    WHERE symbol in ({sql_symbols}) AND timeframe='{timeframe}'
-                    and timestamp>= {since}
-                    and timestamp<= {to}
-                    ORDER BY timestamp DESC"""
+            #logger.info(f"query {query}")        
+            #print("query",query)
 
-        #logger.info(f"query {query}")        
-        #print("query",query)
-
-        df = pd.read_sql_query(query, conn)
-         
-        df = df.iloc[::-1].reset_index(drop=True)
+            df = pd.read_sql_query(query, conn)
+            
+            df = df.iloc[::-1].reset_index(drop=True)
        # conn.close()    
         return df 
 
     
     def back_ai_symbols(self, date):
         
-        #conn = sqlite3.connect(DB_FILE)
-
         query = f"""SELECT DISTINCT SYMBOL 
                 FROM ai_trainingset 
                 WHERE 
@@ -322,15 +323,31 @@ class BacktestManager:
         #print("query",query)
 
         df = pd.read_sql_query(query, conn)
-        df = df.iloc[::-1].reset_index(drop=True)
-        #conn.close()    
+        df = df.iloc[::-1].reset_index(drop=True) 
         return df 
     
+    def last_symbols(self,from_date):
+        unix_min = int(from_date.timestamp())*1000
+        unix_max = int(datetime.now().timestamp())*1000
+
+        query = f"""
+                    SELECT distinct symbol
+                    FROM ib_ohlc_history
+                    WHERE timeframe = '1m'
+                    AND timestamp >= {unix_min}
+                    AND timestamp <= {unix_max}
+                    """
+        df = pd.read_sql_query(query, conn)
+        df = df.iloc[::-1].reset_index(drop=True)
+          
+        return df 
+
     def back_symbols(self, date):
         
         #conn = sqlite3.connect(DB_FILE)
 
         if BINANCE_MODE:
+                
                 
                 date_obj = datetime.strptime(date, "%Y-%m-%d")
                 # inizio giorno
@@ -496,9 +513,7 @@ if __name__ =="__main__":
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
     
         all_results= []
-        tot_gain=0.0
-        all_w=0
-        all_l=0
+       
 
         #dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
         #                     ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24"]
@@ -507,28 +522,31 @@ if __name__ =="__main__":
 
         dates = ["2026-05-04","2026-05-05","2026-05-03"]
         #dates = ["2026-05-04","2026-05-05","2026-05-03","2026-05-02","2026-05-01"]
-        dates = ["2026-05-04","2026-05-05","2026-05-03","2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
+        dates = ["2026-05-01"]#,"2026-05-05","2026-05-03","2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
 
-        for chain_up_max in [4]: #11
-            for min_day_volume in [500_000]:
+        for max_back_steps in [4*24*7]:# 4*24*7,4*24*3,4*24*1]: #11
+            for min_day_volume in [1_000_000]:
 
-                for gain_perc in [20]:
-                    for min_open_gain in [20]:
+                for gain_perc in [10]:
+                    for drop_time_secs in [60*60*4]:#0*60*2,60*60*4,999999999]:
                             
                         results= []
+                        summary={}
                         tot_gain=0.0
 
                         #logger.info(f"==============  START  ====================")    
                         params = {
                                 
                                     "gain_perc" : gain_perc,
-                                    "volume_min_filter" :min_day_volume,
-                                    "trade_last_hh" : 13,
-                                    "min_open_gain": min_open_gain,
-                                    "chain_up_max": chain_up_max
+                                    "min_day_volume" :min_day_volume,
+                                    "drop_time_secs" :drop_time_secs,
+                                    "max_back_steps" : max_back_steps
+                                   # "trade_last_hh" : 13,
+                                   # "min_open_gain": min_open_gain,
+                                   # "chain_up_max": chain_up_max
                                     }
 
-                        ret = {"params" : params, "results": results}
+                        ret = {"params" : params, "results": results,"summary": summary}
                         all_results.append(ret)
 
                         for date in dates:
@@ -538,15 +556,16 @@ if __name__ =="__main__":
                             #df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
                             #            WHERE date = '{date}' order by symbol""")
                             #df = manager.back_symbols(date)
-                            df = manager.back_ai_symbols(date)
+                            #df = manager.back_ai_symbols(date)
+                            df = manager.last_symbols(datetime.strptime(date, "%Y-%m-%d"))  
                            
-                            list = df["symbol"].tolist()
+                            s_list = df["symbol"].tolist()
                             #list = list[:80]
 
                             ##list = ["IMNN"]
-                            if len(list)>0:
+                            if len(s_list)>0:
                             
-                                logger.info(f"STAT PROCESS {list}")
+                                logger.info(f"STAT PROCESS {s_list}")
 
                                 date_1 = datetime.strptime(date, "%Y-%m-%d")
                                 giorno_precedente = date_1 - timedelta(days=1)
@@ -554,11 +573,13 @@ if __name__ =="__main__":
 
                                 data = {
                                     "badgetUSD": 1000,
-                                    "symbols": list,
-                                    "dt_from": f"{date_1} 2:00:00", # UTC format
-                                    "dt_to": f"{date} 23:59:00",
-                                     "module" : "strategies.back_strategy_BI_1",
-                                     "class" : "BackStrategyBinance1",
+                                    "symbols": s_list,
+                                    "dt_from" :f"{date} 00:00:00", #f"{date_1} 2:00:00", # UTC format
+                                    "dt_to": "2026-05-09 23:59:00",
+                                    #"dt_from": f"{date_1} 2:00:00", # UTC format
+                                    #"dt_to": f"{date} 23:59:00",
+                                     "module" : "strategies.back_strategy_BI_15",
+                                     "class" : "BackStrategyIB15",
                                   #  "module" : "strategies.back_strategy_10s_orig",
                                   #  "class": "BackStrategy10s_Orig",
                                     "pre_scan": {
@@ -566,7 +587,7 @@ if __name__ =="__main__":
                                         "min_day_volume": 0
                                     },
                                     "params" :params,
-                                    "timeframe" : "1m"
+                                    "timeframe" : "15m"
 
                                 # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
                                 }
@@ -579,47 +600,83 @@ if __name__ =="__main__":
 
                                 await manager.load(backtest)
 
-                                trades = await manager.start()
+                                daily_trades = defaultdict(list)
 
-                                gain=0
-                                w=0
-                                l=0
+                                trades = await manager.start( saveResults=False)
+                               # Raggruppa trades per giorno
                                 for t in trades:
-                                    gain += t.gain()
-                                    if t.gain()>0:
-                                        w+=1
-                                        all_w+=1
-                                    else:
-                                        l+=1    
-                                        all_l+=1
 
-                                tot_gain+=gain
-                                results.append(
-                                    {
-                                        "data": data,
-                                        "date": date, 
-                                    "gain": gain, 
-                                    "trades": trades,
-                                    "win": w, 
-                                    "loss": l})    
+                                    day = datetime.fromtimestamp(
+                                        t.exit_datetime/1000
+                                    ).date()
 
-                    
-           
-                        
+                                    daily_trades[day].append(t)
+
+
+                                tot_gain=0.0
+                                all_w=0
+                                all_l=0
+                                tot_pnl=0.0 
+
+                                for day, day_trades in daily_trades.items():
+
+                                    gain = 0
+                                    pnl = 0
+                                    w = 0
+                                    l = 0
+
+                                    for t in day_trades:
+
+                                        g = t.gain()
+
+                                        gain += g
+                                        pnl += t.pnl()
+
+                                        if g > 0:
+                                            w += 1
+                                        else:
+                                            l += 1
+
+                                    results.append({
+                                        "date": str(day),
+                                        "gain": gain,
+                                        "pnl": pnl,
+                                        "win": w,
+                                        "loss": l,
+                                        "trades": day_trades,
+                                        "num_trades": len(day_trades),
+                                        "winrate": (
+                                            w / len(day_trades) * 100
+                                            if len(day_trades) > 0 else 0
+                                        )
+                                    })
+                                    tot_gain+= gain
+                                    tot_pnl+= pnl
+                                    all_w += w
+                                    all_l += l
+
+                            summary["gain"] = tot_gain
+                            summary["pnl"] = tot_pnl
+                            summary["win"] = all_w
+                            summary["loss"] = all_l
+                            summary["num_trades"] = len(results)
+
 
         ##############
-
+        logger.info(f"==================================")    
         for ret in all_results:
-                        result = ret["results"]
+                        results = ret["results"]
+                        summary = ret["summary"]
                         params = ret["params"]
 
-                        logger.info(f"==================================")    
+                        logger.info(f"=================")    
                         logger.info(f"{params}")  
                         for r in results:   
-                            logger.info(f"{r['date']} TRADES {len(r['trades'])}  win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']}")   
+                            #logger.info(f"{r}")  
+                            logger.info(f"{r['date']} TRADES {len(r['trades'])} pnl:{r['pnl']} win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']}")   
 
                         logger.info(f"=====")    
-                        logger.info(f"TOT GAIN {tot_gain} win {all_w} / {all_l}")      
+                        logger.info(f"TOT GAIN {summary['gain']}  pnl:{summary['pnl']} win {summary['win']} / {summary['loss']} #{summary['num_trades']}")      
 
 
     asyncio.run(main())

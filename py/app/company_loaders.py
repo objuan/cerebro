@@ -1,4 +1,8 @@
+import sys
 
+
+if __name__ =="__main__":
+    sys.argv.append("BINANCE")
 import requests
 import httpx
 import asyncio
@@ -12,6 +16,8 @@ from config import DB_FILE,CONFIG_FILE,BINANCE_MODE
 import yfinance as yf
 from tqdm import tqdm
 import pymysql
+from coin_geko import get_market_data# get_binance_base_data
+
 
 logger = logging.getLogger(__name__)
 logging.getLogger("httpcore").setLevel(logging.INFO)
@@ -95,11 +101,6 @@ def init_company_db(db_path):
     #conn.close()
 
 
-def c_get_df(db_path,query, params=()):
-    #conn = sqlite3.connect(db_path)
-    df = pd.read_sql_query(query, conn, params=params)
-    #conn.close()
-    return df
 
 ####################
 
@@ -136,28 +137,26 @@ class StockUtils:
 
 ###############################################
 
-class Yahoo:
-    
-    def __init__(self,db_path=None, config = None):
-        if not config:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                self.config = json.load(f)
-            self.config = convert_json(self.config)
-        else:
-            self.config=config
-        if not db_path:
-            self.db_path = DB_FILE
-        else:
-            self.db_path=db_path
+####################
 
-        init_company_db(self.db_path)
+class CompanyUtils:
+    
+    def __init__(self,client, config ):
+       self.client=client
+       self.config=config
+       # if not db_path:
+       #     self.db_path = DB_FILE
+       # else:
+       #     self.db_path=db_path
+
+        #init_company_db(self.db_path)
     # -------------------------------------------------
     # FETCH FUNDAMENTALS (Yahoo)
     # -
     
     def fetch_fundamentals(self,symbol):
         toupdate=True
-        df = c_get_df(self.db_path,"SELECT * FROM STOCKS WHERE SYMBOL = %s",(symbol,))
+        df = self.client.get_df("SELECT * FROM STOCKS WHERE SYMBOL = %s",(symbol,))
         if not df.empty:
             if df.iloc[0]["updated_at"]:
                 #logger.debug(f"time to update {symbol}")
@@ -167,29 +166,46 @@ class Yahoo:
                 time_to_update_days = (datetime.now() - last_date).total_seconds()/(60*60*24)
          
                 c_time = self.config["instruments"]["stock_update_days"]
-                logger.debug(f"time to update {symbol} {time_to_update_days}/{c_time}")
+                #logger.info(f"time to update {symbol} {time_to_update_days}/{c_time}")
                 toupdate=time_to_update_days > c_time 
             else:
                 toupdate=True
         
         #toupdate=False
         if toupdate:
-            logger.debug(f"GETTING {symbol}")
+            logger.info(f"GETTING {symbol}")
             try:
                 if BINANCE_MODE:
-                    data =  {
+
+                    coin_data = get_market_data(symbol)
+                    if coin_data :
+                           data =  {
                             "symbol": symbol,
-                            "name": symbol,
+                            "name": coin_data["name"],
                             "exchange": "BINANCE",
                             "sector": 0,
                             "price": 0,
                             "currency": "",   
                             "volume": 0,
                             "avg_volume": 0,
-                            "market_cap": 0,
-                            "float": 0,
+                            "market_cap": coin_data["market_cap"],
+                            "float":  coin_data["total_supply"],
                             "shares_outstanding": 0,
                         }
+                    else:
+                        data =  {
+                                "symbol": symbol,
+                                "name": symbol,
+                                "exchange": "BINANCE",
+                                "sector": 0,
+                                "price": 0,
+                                "currency": "",   
+                                "volume": 0,
+                                "avg_volume": 0,
+                                "market_cap": 0,
+                                "float": 0,
+                                "shares_outstanding": 0,
+                            }
 
                     self.save_row(data)
                     pass
@@ -215,16 +231,15 @@ class Yahoo:
 
             except Exception:
                 logger.error("Errro", exc_info=True)
-            df = c_get_df(self.db_path,"SELECT * FROM stocks WHERE SYMBOL = %s",(symbol,))
+            df =  self.client.get_df("SELECT * FROM stocks WHERE SYMBOL = %s",(symbol,))
             return df
         else:
             return df
         
     def save_row(self,row):
             logger.debug(f"save {row}")
-            #conn = sqlite3.connect(self.db_path)
-            c = conn.cursor()
-            c.execute("""
+          
+            self.client.execute("""
         INSERT INTO stocks (
             symbol,
             name,
@@ -431,26 +446,23 @@ class Financialmodelingprep:
     
 if __name__ =="__main__":
 
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(__name__)
-    '''
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    config = convert_json(config)
+
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
-
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s")
     console_handler.setFormatter(formatter)
-
     logger.addHandler(console_handler)
-    '''
-    
-    logger.info("init")
-    #init_company_db()
 
     async def main():
-        f = Yahoo() # Financialmodelingprep()
+
+        client = MuloLiveClient("",config,None)
+        f = CompanyUtils(client,config) # Financialmodelingprep()
         #data = await f.get_float("NVDA")
         #data = await f.get_float_all()
-        data = await f.get_float_list(["NVDA","AAPL"])
+        data = await f.get_float_list(["BTCUSDT"])
 
         print(data)
 

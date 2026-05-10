@@ -124,7 +124,7 @@ class DBDataframe_TimeFrame:
     async def load_symbols(self, symbols): 
         logger.info(f"load_symbols {symbols}")
         async def fetch(symbol):
-            df = await self.client.history_data([symbol],  self.timeframe, limit=self.TIMEFRAME_CHART_CANDLES[self.timeframe])
+            df = self.client.history_data([symbol],  self.timeframe, limit=self.TIMEFRAME_CHART_CANDLES[self.timeframe])
             df["symbol"] = symbol  # utile dopo per filtri
             return df
                     
@@ -151,7 +151,7 @@ class DBDataframe_TimeFrame:
         if True:#not self.timeframe in ["1m","5m"]:
             # non LIVE
             '''
-            df_h = await self.client.history_data( self.symbols , self.timeframe , limit= 600 )
+            df_h = self.client.history_data( self.symbols , self.timeframe , limit= 600 )
             df_h = df_h.drop(columns=["ds_updated_at", "updated_at","source","exchange"], errors="ignore")
             df_h["datetime"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True)
             df_h["date"] = pd.to_datetime(df_h["timestamp"], unit="ms", utc=True).dt.date
@@ -207,8 +207,8 @@ class DBDataframe_TimeFrame:
         symbol = row_data["symbol"]
         ts = int(row_data["timestamp"])
 
-        if self.timeframe in [ "5m", "15m"]:
-            logger.info(f"DB on_candle_receive {self.timeframe} {row_data}")
+        #if self.timeframe in [ "5m", "15m"]:
+        #    logger.info(f"DB on_candle_receive {self.timeframe} {row_data}")
 
         if symbol not in self.last_index_by_symbol:
             return

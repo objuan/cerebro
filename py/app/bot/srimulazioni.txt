@@ -1,0 +1,13 @@
+2026-05-09 14:13:09,852 - INFO - [backtest_manager.py:672]      =================
+2026-05-09 14:13:09,852 - INFO - [backtest_manager.py:673]      {'gain_perc': 10, 'min_day_volume': 1000000, 'drop_time_secs': 14400, 'max_back_steps': 672}
+2026-05-09 14:13:09,852 - INFO - [backtest_manager.py:676]      2026-05-07 TRADES 32 pnl:4.174785999999995 win/loss 14/18                       gain:43.191932893994306
+2026-05-09 14:13:09,852 - INFO - [backtest_manager.py:676]      2026-05-08 TRADES 25 pnl:3.8082100000000016 win/loss 13/12                      gain:38.59221868351269
+2026-05-09 14:13:09,853 - INFO - [backtest_manager.py:676]      2026-05-09 TRADES 20 pnl:1.2174200000000033 win/loss 10/10                      gain:15.948532073317073
+2026-05-09 14:13:09,853 - INFO - [backtest_manager.py:676]      2026-05-06 TRADES 36 pnl:6.334012000000006 win/loss 19/17                       gain:73.02427310785838
+2026-05-09 14:13:09,853 - INFO - [backtest_manager.py:676]      2026-05-04 TRADES 16 pnl:3.2214540000000027 win/loss 9/7                        gain:32.69912036399197
+2026-05-09 14:13:09,853 - INFO - [backtest_manager.py:676]      2026-05-02 TRADES 5 pnl:0.8958399999999997 win/loss 2/3                         gain:6.7676234057418725
+2026-05-09 14:13:09,853 - INFO - [backtest_manager.py:676]      2026-05-03 TRADES 7 pnl:-0.8851999999999987 win/loss 4/3                        gain:-7.365991321814959
+2026-05-09 14:13:09,854 - INFO - [backtest_manager.py:676]      2026-05-05 TRADES 20 pnl:0.01275899999999719 win/loss 10/10                     gain:12.071347750784719
+2026-05-09 14:13:09,854 - INFO - [backtest_manager.py:676]      1970-01-01 TRADES 6 pnl:2.0416600000000016 win/loss 4/2                         gain:22.056276441202364
+2026-05-09 14:13:09,854 - INFO - [backtest_manager.py:678]      =====
+2026-05-09 14:13:09,854 - INFO - [backtest_manager.py:679]      TOT GAIN 236.98533339858844  pnl:20.820941000000005 win 85 / 82 #9

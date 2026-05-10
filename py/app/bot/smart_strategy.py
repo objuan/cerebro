@@ -19,6 +19,7 @@ from utils import *
 from reports.report_manager import ReportManager
 from order_book import *
 from bot.strategy import *
+from telegram import send_telegram_message
 
 #from strategy.order_strategy import *
 class SmartStrategy(Strategy):
@@ -39,6 +40,8 @@ class SmartStrategy(Strategy):
 
         self.sub_timeframe=None
 
+        self.slot_buffer = {}
+        self.telegram_order_messages = self.client.config["general"]["telegram_order_messages"]
         #self.slot_count=2
 
     '''
@@ -511,11 +514,16 @@ class SmartStrategy(Strategy):
                  await self.send_event(symbol, "BUY OFF", f"BUY DISABLED",f"BUY DISABLED" ,color="#FF2A04", ring="news")
             return 
  
-        logger.info(f"BUY {symbol} {timestamp} {quantity} at {price} [{label}]")
+        logger.info(f"BUY {symbol} {datetime.fromtimestamp(timestamp/1000)}  {quantity} at {price} [{label}] SLOTS:{ len(self.slot_buffer)}")
         await self.add_marker(symbol,"BUY",label,label,"#3CFF00FF","arrowUp",position="atPriceBottom",ring="chime")
 
         #if not self.buyMap[symbol]:
         self._book.long(symbol, timestamp, price, quantity,label)
+        
+        if symbol not in self.slot_buffer:
+            self.slot_buffer[symbol] = timestamp
+        else:
+            logger.warning(f"BUY {symbol} already in slot_buffer {self.slot_buffer}")
 
         #super().buy(symbol,label)
         if not self.bootstrapMode and not self.backtestMode:
@@ -528,7 +536,12 @@ class SmartStrategy(Strategy):
                 return    
 
 
-            await self.orderManager.smart_buy_limit(symbol, quantity,self.client.getTicker(symbol))
+            #await self.orderManager.smart_buy_limit(symbol, quantity,self.client.getTicker(symbol))
+            await self.orderManager.smart_buy_market(symbol, quantity,None)
+
+            if self.telegram_order_messages:
+                send_telegram_message(f"BUY {symbol} {datetime.fromtimestamp(timestamp/1000)}  {quantity} at: {price} {label}")
+
             pass
         #    await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
 
@@ -536,7 +549,7 @@ class SmartStrategy(Strategy):
     async def sell(self,symbol,timestamp, price, label=""):
 
         if self.hasCurrentTrade(symbol):
-            logger.info(f"SELL  {symbol} {timestamp}")
+            logger.info(f"SELL  {symbol} {datetime.fromtimestamp(timestamp/1000)}  SLOTS:{self.slot_buffer}")
             
             #self.freeSlot(symbol)   
             #a#wait self.send_property("","",{"slot_count":self.slot_count })
@@ -544,6 +557,12 @@ class SmartStrategy(Strategy):
             trade = self._book.close(symbol,timestamp,price)
 
             await self.add_marker(symbol, "SELL",label,label, "#FF0404", "arrowDown",position="atPriceBottom")
+
+            if symbol in self.slot_buffer:
+                del self.slot_buffer[symbol];
+            else:
+                logger.warning(f"SELL {symbol} not in slot_buffer {self.slot_buffer}")
+            
 
             if not self.bootstrapMode and not self.backtestMode:
                 await self.orderManager.abort_smart(symbol)
@@ -553,7 +572,12 @@ class SmartStrategy(Strategy):
                 pos = Balance.get_position(symbol)
                 if (pos and pos.position>0):
                     logger.info(f"SELL ALL {symbol} {pos.position} ")
-                    ret = await self.orderManager.smart_sell_limit(symbol,pos.position, self.client.getTicker(symbol))
+                    #ret = await self.orderManager.smart_sell_limit(symbol,pos.position, self.client.getTicker(symbol))
+                    await self.orderManager.smart_sell_market(symbol,pos.position, None)
+                    if self.telegram_order_messages:
+                        send_telegram_message(f"SELL {symbol} {datetime.fromtimestamp(timestamp/1000)} at: {price} {label}")
+            
+
 
 
             #    await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
@@ -616,6 +640,13 @@ class SmartStrategy(Strategy):
 
     def set_current_price(self, symbol, price) :
         self._book.set_current_price(symbol,price)
+
+    async def onBackEnd(self):
+        def onClose(trade):
+            logger.info(f"CLOSE {trade.symbol}  gain {trade.gain()} pnl : {trade.pnl()}")
+            self.add_marker(trade.symbol,"BUY","CLOSE","#000000","arrowDown")
+        self._book.end(0,onClose)
+
 
     '''
     async def buy(self,symbol,datetime,price, quantity,label=""):

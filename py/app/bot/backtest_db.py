@@ -75,7 +75,7 @@ class Back_DBDataframe_TimeFrame:
         self.time_tick = TIMEFRAME_SECONDS[timeframe] * 1000
         self.symbols = inData.symbols
 
-        logger.info(f"INIT SYMBOLS {self.symbols}")
+        logger.info(f"INIT SYMBOLS {self.symbols}\n{inData}")
         #for symbol in inData.symbols:
         #    self.main_df.back_manager.client.history_data()
        
@@ -85,7 +85,7 @@ class Back_DBDataframe_TimeFrame:
 
         self.all_df = self.main_df.back_manager.back_data(inData.symbols,self.timeframe,since, to)
 
-        #logger.info(f"<< {self.all_df}")
+        logger.info(f"<< {since} {to} {self.all_df}")
     
 
         self.all_df["local_time"] = pd.to_datetime(self.all_df["timestamp"], unit="ms") \
@@ -223,7 +223,7 @@ class Back_DatabaseManager:
             _max= max(_max,db.max_time)
             tf = min(tf , TIMEFRAME_SECONDS[timeframe]*1000 )
 
-        #logger.info(f"TEST PERIOD : {_min} {_max}")
+        logger.info(f"TEST PERIOD : {_min} {_max}")
 
         logger.info(f"TEST PERIOD : {ts_to_local_str(_min)} {ts_to_local_str(_max)} tf: {tf}")
 

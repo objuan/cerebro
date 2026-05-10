@@ -303,7 +303,9 @@ app.add_middleware(
         "http://127.0.0.1:8080",
         "http://localhost:8080",
         "http://127.0.0.1:9080",
-        "http://localhost:9080"
+        "http://localhost:9080",
+        "http://192.168.1.100:4000",
+        "http://192.168.1.100:9080",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -1699,6 +1701,7 @@ if __name__ =="__main__":
 
             if BINANCE_MODE:
                 ib=None
+                
                 Balance(config,ib,props=propManager )
             else:
                 ib = IB()
@@ -1766,21 +1769,23 @@ if __name__ =="__main__":
                 # start live %s%s 
                 
                 await client.bootstrap()
+
+                await OrderTaskManager.bootstrap()
                 
+                await Balance.bootstrap()
+                  
                 await db.bootstrap()
           
+                if BINANCE_MODE:
+                    await orderManager.bootstrap(None)
+
                 await report.bootstrap()
                 
                # await event_manager.bootstrap()
 
                 await strategy.bootstrap()
                 
-                if BINANCE_MODE:
-                    await orderManager.bootstrap(None)
-                
-                await OrderTaskManager.bootstrap()
-                
-                await Balance.bootstrap()
+              
 
                 await newService.bootstrap()
 

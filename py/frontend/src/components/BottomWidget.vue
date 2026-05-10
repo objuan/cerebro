@@ -36,20 +36,20 @@ import { eventBus } from "@/components/js/eventBus";
 //import { tickerStore  } from "@/components/js/tickerStore";
 let tickerMap = {}
 const MAX = 10
-const cols = ['pct_1m','pct_5m','pct_10m']
+const cols = ['pct_1m','pct_5m','pct_15m']
 
 
 const col_map = 
 {
   'pct_1m': 'vol_1m',
   'pct_5m': 'vol_5m',
-  'pct_10m': 'vol_10m',
+  'pct_15m': 'vol_15m',
 }
 const col_name = 
 {
   'pct_1m': '1 M',
   'pct_5m': '5 M',
-  'pct_10m': '10 M',
+  'pct_15m': '15 M',
 }
   
 //const cols_value = ['vol_1m','vol_5m','vol_10m']
@@ -107,7 +107,7 @@ function buildIndexes(matrix) {
   return {
     pct_1m: makeIndex('pct_1m'),
     pct_5m: makeIndex('pct_5m'),
-    pct_10m: makeIndex('pct_10m')
+    pct_15m: makeIndex('pct_15m')
   }
 }
 
@@ -122,7 +122,7 @@ function rebuild() {
     // ultimi N elementi
     const last1 = arr.slice(-1)
     const last5 = arr.slice(-5)
-    const last10 = arr.slice(-10)
+    const last15 = arr.slice(-15)
 
     // funzione somma
     const sum = (list) =>
@@ -132,22 +132,22 @@ function rebuild() {
       symbol: symbol,
       vol_1m: sum(last1),
       vol_5m: sum(last5),
-      vol_10m: sum(last10),
+      vol_15m: sum(last15),
       pct_1m: 0,
       pct_5m: 0,
-      pct_10m: 0
+      pct_15m: 0
     }
 
     // 2. Totali globali
     const total_1m = data.reduce((a, r) => a + r.vol_1m, 0)
     const total_5m = data.reduce((a, r) => a + r.vol_5m, 0)
-    const total_10m = data.reduce((a, r) => a + r.vol_10m, 0)
+    const total_15m = data.reduce((a, r) => a + r.vol_15m, 0)
 
     // 3. Percentuali
     data.forEach(r => {
       r.pct_1m = total_1m ? (r.vol_1m / total_1m) * 100 : 0
       r.pct_5m = total_5m ? (r.vol_5m / total_5m) * 100 : 0
-      r.pct_10m = total_10m ? (r.vol_10m / total_10m) * 100 : 0
+      r.pct_15m = total_15m ? (r.vol_15m / total_15m) * 100 : 0
     })
 
     data.push(row)

@@ -54,6 +54,12 @@ class MuloLiveClient:
 
             "mysql+pymysql://root:alice@192.168.1.100/binance",
 
+            connect_args={
+                "connect_timeout": 60,   # timeout connessione
+                "read_timeout": 60,      # timeout lettura
+                "write_timeout": 60      # timeout scrittura
+            },
+            
             pool_size=10,
             max_overflow=20,
 
@@ -80,6 +86,10 @@ class MuloLiveClient:
         self.on_full_candle_receive = MyEvent()
         self.on_ticker_receive = MyEvent()
 
+        self.mulo_rest_url =  self.config["general"]["mulo_REST"]
+        self.mulo_ws_url =  self.config["general"]["mulo_WS"]
+
+
         if propManager:
             propManager.add_computed("root.sym_mode", lambda: self.sym_mode )
             if not BINANCE_MODE:
@@ -103,10 +113,11 @@ class MuloLiveClient:
     import websockets
 
     async def batch(self):
-        if BINANCE_MODE:
-            uri = "ws://localhost:4000/ws/tickers"
-        else:
-            uri = "ws://localhost:3000/ws/tickers"
+        #if BINANCE_MODE:
+        #    uri = "ws://localhost:4000/ws/tickers"
+        #else:
+        #    uri = "ws://localhost:3000/ws/tickers"
+        uri = self.config["general"]["mulo_WS"]    
 
         while True:  # 🔁 loop di riconnessione
             try:
@@ -299,17 +310,17 @@ class MuloLiveClient:
             logger.info(f"<< ADD {to_add} DEL {to_remove}")
             
             # 1. Rimuovi eventuali simboli da eliminare
-            if not BINANCE_MODE:
-                if self.df_fundamentals is not None and len(to_remove) > 0:
+            if self.df_fundamentals is not None and len(to_remove) > 0:
                     self.df_fundamentals = self.df_fundamentals[
                         ~self.df_fundamentals["symbol"].isin(to_remove)
                     ]
 
-                # 2. Aggiungi solo i nuovi
-                if len(to_add) > 0:
+
+            # 2. Aggiungi solo i nuovi
+            if len(to_add) > 0:
                     logger.info(f"GET  fundamentals {to_add}")
 
-                    df_new = await Yahoo(self.db_file, self.config).get_float_list(to_add)
+                    df_new = await CompanyUtils(self, self.config).get_float_list(to_add)
 
                     if self.df_fundamentals is None or self.df_fundamentals.empty:
                         self.df_fundamentals = df_new
@@ -324,8 +335,8 @@ class MuloLiveClient:
                             subset="symbol", keep="last"
                         )
 
-                # 4. Ricrea la mappa aggiornata
-                if self.df_fundamentals is not None and not self.df_fundamentals.empty:
+             # 4. Ricrea la mappa aggiornata
+            if self.df_fundamentals is not None and not self.df_fundamentals.empty:
                     self.fundamentals_map = (
                         self.df_fundamentals
                             .set_index("symbol")
@@ -410,7 +421,7 @@ class MuloLiveClient:
             for symbol in to_remove:
                 await self.send_event("mule",symbol,"DEL", "","", {"color": "#ff5084"})
 
-            logger.info(f"UPDATE SYMBOLS DONE {self.tickers}")  
+            logger.info(f"UPDATE SYMBOLS DONE {len(self.tickers)}")  
             
         except Exception as e:
             logger.error(f"Errore in _on_update_symbols", exc_info=True)    
@@ -532,7 +543,7 @@ class MuloLiveClient:
         #conn.close()     
         return df
 
-    async def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
+    def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
 
         if len(symbols) == 0:
             logger.error("symbol empty !!!")
@@ -1073,14 +1084,15 @@ class MuloLiveClient:
         return line_id
     
     async def send_cmd(self, rest_point, msg=None):
-
+        '''
         if BINANCE_MODE:
             url = f"http://127.0.0.1:4000/{rest_point}"
         else:
             url = f"http://127.0.0.1:3000/{rest_point}"
-
-        max_retry = 3
-
+        '''
+      
+        url = f"{self.mulo_rest_url}/{rest_point}"
+        max_retry=3
         for attempt in range(1, max_retry + 1):
 
             try:
@@ -1142,11 +1154,13 @@ class MuloLiveClient:
         return None
 
     async def send_cmd_old(self,rest_point, msg=None):
-        
+        '''
         if BINANCE_MODE:
             url = "http://127.0.0.1:4000/"+rest_point
         else:
             url = "http://127.0.0.1:3000/"+rest_point
+        '''
+        url = f"{self.mulo_rest_url}/{rest_point}"
 
         logger.info(f">> {url} {msg}")
         if msg:

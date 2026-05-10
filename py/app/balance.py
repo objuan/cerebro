@@ -205,7 +205,7 @@ class Balance:
         if BINANCE_MODE:
             if  Balance.run_mode  != "sym":
                 mode = Balance.config["markets"]["BINANCE"]["MODE"]
-                logger.info(f"BINANCE MODE: {mode}")
+                logger.info(f"BALANCE BOOT: {mode}")
                 API_KEY = Balance.config["markets"]["BINANCE"][mode]["API_KEY"]
                 API_SECRET = Balance.config["markets"]["BINANCE"][mode]["API_SECRET"]
 

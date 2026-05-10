@@ -4,7 +4,11 @@
 		"ib_port_paper" : 7497,
 		"ib_port_live" : 7496,
 		"ib_client" : 1,
-		"live_mode" : true
+		"live_mode" : true,
+		"mulo_REST": "http://192.168.1.100:4000",
+		"mulo_WS": "ws://192.168.1.100:4000/ws/tickers",
+		"telegram_order_messages" : true
+		
 	},
 	"instruments":{
 		"stock_update_days" : 7
@@ -60,29 +64,30 @@
 				{
 			   "module": "trade_strategy_IB_15",
 				"class" : "TradeStrategyIB15",
-				"timeframe" : "5m",
+				"timeframe" : "15m",
 				"enabled" : true,
 				"scope" : "LIVE",
 				"params" :
 				{
-                    "volume_min_filter" :1000000
+                   "gain_perc" : 10,
+                    "min_day_volume" :1000000,
+                    "drop_time_secs" :14400,
+                     "max_back_steps" : 672
 
 				}
 			},		
 		{
-			   "module": "back_strategy_BI_1",
+			   "module": "back_strategy_BI_15",
 				"class" : "BackStrategyBinance1",
-				"timeframe" : "1m",
+				"timeframe" : "15m",
 				"enabled" : true,
 				"scope" : "BACK",
 				"params" :
 				{
-				 	"gain_perc" : 10,
-                    "volume_min_filter" :1000000,
-                    "trade_last_hh" : 11,
-					"trade_last_mm" : 0,
-					"trade_first_hh" : 5,
-					"min_open_gain": 10
+				 "gain_perc" : 10,
+                    "min_day_volume" :1000000,
+                    "drop_time_secs" :14400,
+                     "max_back_steps" : 672
 
 				}
 			},			
@@ -90,7 +95,7 @@
 			   "module": "meta_strategy",
 				"class" : "MetaStrategy",
 				"timeframe" : "1m",
-				"enabled" : false,
+				"enabled" : true,
 				"params" :
 				{
 				}

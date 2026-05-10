@@ -39,7 +39,7 @@ class MetaStrategy(SmartStrategy):
 
     def populate_indicators(self) :
         
-        day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
+        #day_volume_history = self.addIndicator(self.timeframe,DAY_VOLUME("day_volume_history"))
 
         '''
         last_close = self.addIndicator(self.timeframe,META("last_close","last_close"))
@@ -54,6 +54,7 @@ class MetaStrategy(SmartStrategy):
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
 
+        """
         if self.client.market:
             zone =  self.client.market.getCurrentZone() 
             #if self.bootstrapMode:
@@ -124,14 +125,18 @@ class MetaStrategy(SmartStrategy):
                 gap = 100 * (close - MetaInfo.get(symbol,"last_open")) /  MetaInfo.get(symbol,"last_open")
                 MetaInfo.set(symbol,{"gap" : gap})
 
+        """
         last = dataframe.iloc[local_index]
         prev = dataframe.iloc[local_index-1]
-        volume = last["day_volume_history"]    
-
+        #volume = last["quote_volume"]    
+        
         # VOLUME DIFF
         #if volume > self.volume_min_filter:
-        vol_diff = volume - prev["day_volume_history"]
-        await self.set_property(symbol,{"volume_diff":vol_diff, "volume_diff_quote" : vol_diff* last['close']})
+        
+        vol_diff = last["base_volume"]     
+        vol_quote_diff = last["quote_volume"]     
+
+        await self.set_property(symbol,{"volume_diff":vol_diff, "volume_diff_quote" : vol_quote_diff})
     ###########
 
 

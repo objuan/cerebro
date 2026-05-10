@@ -45,12 +45,7 @@ class BackStrategyBinance1(SmartStrategy):
         pass
 
 
-    async def onBackEnd(self):
-        def onClose(trade):
-            logger.info(f"CLOSE {trade.symbol}  gain {trade.gain()} pnl : {trade.pnl()}")
-            self.add_marker(trade.symbol,"BUY","CLOSE","#000000","arrowDown")
-        self._book.end(0,onClose)
-
+   
 
     def populate_indicators(self) :
         #self.addIndicator(self.timeframe,GAIN("GAIN","close",timeperiod=1))

@@ -38,8 +38,9 @@ class TradeStrategyIB(SmartStrategy):
       
         max_1w= self.addIndicator("15m",MAX("MAX_1W","close",4*24*7))
 
-        vol_day= self.addIndicator("1m",SUM("vol_day","quote_volume",1440))
-        vol_sma= self.addIndicator("1m",SMA("vol_sma","quote_volume",1440))
+        #vol_day= self.addIndicator("1m",SUM("vol_day","quote_volume",1440))
+        vol_day= self.addIndicator(self.timeframe,COPY("vol_day","quote_day_volume"))
+        vol_sma= self.addIndicator(self.timeframe,SMA("vol_sma","quote_volume",1440))
 
         #self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         max_1h= self.addIndicator(self.timeframe,MAX("MAX_1H","close",60*2))
@@ -62,7 +63,11 @@ class TradeStrategyIB(SmartStrategy):
    
         
         last = dataframe.iloc[local_index]
-        vol_day = last["vol_day"]           
+        try:
+            vol_day = last["vol_day"]           
+        except Exception as e:  
+             logger.error(f"Error calculating vol_day for {symbol} at index {local_index}: \n{dataframe.tail(10)}")    
+
 
         if vol_day > self.volume_min_filter:
             

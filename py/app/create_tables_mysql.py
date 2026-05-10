@@ -65,6 +65,26 @@ COLLATE utf8mb4_unicode_ci
 """)
 
 
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS company (
+        symbol VARCHAR(64) NOT NULL,
+
+        free_float DOUBLE,
+
+        float_shares BIGINT,
+        outstanding_shares BIGINT,
+
+        shares_source VARCHAR(64),
+
+        shares_update_dt DATETIME,
+
+        PRIMARY KEY (symbol)
+
+    )
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_general_ci
+    """)
+
 # =========================================================
 # ib_ohlc_history
 # =========================================================

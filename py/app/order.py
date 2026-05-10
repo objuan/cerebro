@@ -477,7 +477,7 @@ class Binance_OrderManager(OrderManager):
     async def bootstrap(self,ib):
         OrderManager.ib = ib     
         mode = self.config["markets"]["BINANCE"]["MODE"]
-        logger.info(f"BINANCE MODE: {mode}")
+        logger.info(f"ORDER BOOT")
         API_KEY = self.config["markets"]["BINANCE"][mode]["API_KEY"]
         API_SECRET = self.config["markets"]["BINANCE"][mode]["API_SECRET"]
 
