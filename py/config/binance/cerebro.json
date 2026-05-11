@@ -16,14 +16,18 @@
 	"markets":
 	{
 		"BINANCE":{
-			"MODE" : "PAPER",
+			"MODE" : "PROD",
 			"PROD":{
-				"API_KEY" : "o5JfUfoq1AXoxQBmPekLYLTfqoSgDmcacikFx7uHgDScTKfb3AYlfpKmB5bL4Jvo",
-				"API_SECRET": "AqArz5WJOIOluzs9jvtAr8oaDIlEGQXtdPPI8M1Six2TPi4fdA6Byi2wdJqWNiil"
+				"API_KEY" : "2GIIXuCtOEFqA9lihM7I0NWEcqvS3N1YPRLRYTOTEzK5wf7EJMoYtsLZaXZBi75q",
+				"API_SECRET": "vzOYsooxAoC3df8sJNcBKHlfsb1MC6mKIJlne1c7ZMFYEm3j6fbzBn5mgCqAd90w",
+				"order_table" : "live_order",
+				"event_table" : "live_event"
 			},
 			"PAPER":{
 				"API_KEY" : "PaslcrGoFRT7vfV6OAbO0djOj49xxOLKNU6IoOw23quQTRz1u4xSCpIi9xXHcumY",
-				"API_SECRET": "GehQSX3UmcKLSpC79QJHmFGkYoj2sQIUiO8D2lXZ2r17wXcc3qKFCInoUYGvWYqu"
+				"API_SECRET": "GehQSX3UmcKLSpC79QJHmFGkYoj2sQIUiO8D2lXZ2r17wXcc3qKFCInoUYGvWYqu",
+				"order_table" : "paper_order",
+				"event_table" : "paper_event"
 			}
 		}
 	}
@@ -42,7 +46,7 @@
 				"class" : "TradeStrategyIB",
 				"timeframe" : "1m",
 				"enabled" : true,
-				"scope" : "LIVE",
+				"scope" : "PAPER",
 				"params" :
 				{
                     "volume_min_filter" :1000000
@@ -53,8 +57,8 @@
 			   "module": "trade_strategy_IB_1",
 				"class" : "TradeStrategyIB1",
 				"timeframe" : "1m",
-				"enabled" : true,
-				"scope" : "LIVE",
+				"enabled" : false,
+				"scope" : "PAPER",
 				"params" :
 				{
                     "volume_min_filter" :1000000
@@ -65,12 +69,12 @@
 			   "module": "trade_strategy_IB_15",
 				"class" : "TradeStrategyIB15",
 				"timeframe" : "15m",
-				"enabled" : true,
+				"enabled" : false,
 				"scope" : "LIVE",
 				"params" :
 				{
                    "gain_perc" : 10,
-                    "min_day_volume" :1000000,
+                    "min_day_volume" :500000,
                     "drop_time_secs" :14400,
                      "max_back_steps" : 672
 
@@ -80,7 +84,7 @@
 			   "module": "back_strategy_BI_15",
 				"class" : "BackStrategyBinance1",
 				"timeframe" : "15m",
-				"enabled" : true,
+				"enabled" : false,
 				"scope" : "BACK",
 				"params" :
 				{
@@ -95,7 +99,7 @@
 			   "module": "meta_strategy",
 				"class" : "MetaStrategy",
 				"timeframe" : "1m",
-				"enabled" : true,
+				"enabled" : false,
 				"params" :
 				{
 				}

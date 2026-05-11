@@ -193,6 +193,7 @@ import { newsStore } from "@/components/js/newsStore";
 import { initProps } from "@/components/js/common";
 import PainterEditor from '@/components/PainterEditor.vue';
 import BottomWidget from '@/components/BottomWidget.vue';
+import { v4 as uuidv4 } from "uuid";
 
 // --- STATO REATTIVO ---
 
@@ -238,7 +239,7 @@ function setGrid(r, c) {
     //console.log("<< ",i+1, symbol)
 
     newCells.push({
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       number: i+1,          // posizione nella griglia (0 → n-1)
       symbol: symbol,
       plot_config: {}

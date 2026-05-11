@@ -159,7 +159,7 @@
                   
               </td>
               <td class="volume" :style="{ color: item.report?.rel_vol_5m>0 ? 'green' : 'red' }">
-                  {{item.report?.rel_vol_5m.toFixed(1)}}%
+                  {{item.report?.rel_vol_5m?.toFixed(1)}}%
               </td>
             </tr>
             
@@ -273,7 +273,7 @@
                   class="value"
                   :style="{ color: rankColor(item.summary.gain) }"
                 >
-                  {{ item.report.gain.toFixed(1) }}% ({{ item.summary.gain.rank }})
+                  {{ item.report.gain?.toFixed(1) }}% ({{ item.summary.gain.rank }})
                 </div>
               </div>
 
@@ -283,7 +283,7 @@
                   class="value"
                   :style="{ color: rankColor(item.summary.gap) }"
                 >
-                  {{ item.report.gap.toFixed(1) }}% ({{ item.summary.gap.rank }})
+                  {{ item.report.gap?.toFixed(1) }}% ({{ item.summary.gap.rank }})
                 </div>
               </div>
 
@@ -311,7 +311,7 @@
               <div class="row">
                 <div class="label">Rel 5</div>
                 <div class="value">
-                  {{ item.report.rel_vol_5m.toFixed(1) }}%
+                  {{ item.report.rel_vol_5m?.toFixed(1) }}%
                 </div>
               </div>
 

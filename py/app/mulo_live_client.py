@@ -75,6 +75,22 @@ class MuloLiveClient:
         else:
             self.market = MarketService(config).getMarket("AUTO")
 
+        mode = self.config["markets"]["BINANCE"]["MODE"]
+        self.event_table = self.config["markets"]["BINANCE"][mode]["event_table"]
+        logger.info(f"EVENTs TABLE {self.event_table}")  
+
+        self.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.event_table} (
+            id INTEGER PRIMARY KEY AUTO_INCREMENT,
+            source VARCHAR(255),
+            type VARCHAR(255),
+            name VARCHAR(255),
+            symbol VARCHAR(20),
+            data TEXT,
+            `timestamp` BIGINT,
+            ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        ); """)
+
         self.sym_mode = config["live_service"]["mode"] =="sym"
         self.sym_time = None
         self.sym_start_time = None
@@ -353,7 +369,7 @@ class MuloLiveClient:
                     .to_dict(orient="index")
             )
             '''
-            logger.info(f"Fundamentals \n{self.df_fundamentals}")
+            logger.info(f"Fundamentals \n{len(self.df_fundamentals)}")
                                                 
             self.sql_symbols = str(self.symbols)[1:-1]
     
@@ -391,7 +407,7 @@ class MuloLiveClient:
                                         "last_close": last_close,
                                         "ts_last_close": ts_last_close}
 
-            logger.info(f">> tickers {self.tickers}")  
+            logger.info(f">> tickers {len(self.tickers)}")  
 
             await self.on_symbols_update(self.symbols,to_add,to_remove)
 
@@ -864,7 +880,7 @@ class MuloLiveClient:
         data["ts"] =int(time.time() * 1000)
 
         if not self.sym_mode: 
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
+            query = f"INSERT INTO {self.event_table} ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
             self.execute(query, ("error","", "ERROR",  int(time.time() * 1000), json.dumps(data) ))
 
         await self.render_page.sendOrder(data)
@@ -877,7 +893,7 @@ class MuloLiveClient:
         data["type"] = "MESSAGE"
         data["ts"] =int(time.time() * 1000)
         if not self.sym_mode: 
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
+            query = f"INSERT INTO  {self.event_table} ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
             self.execute(query, ("message","", "MESSAGE",  int(time.time() * 1000), json.dumps(data) ))
 
         await self.render_page.sendOrder(data)
@@ -894,7 +910,7 @@ class MuloLiveClient:
             data["ts"] =int(time.time() * 1000)
 
             if not self.sym_mode: 
-                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
+                query = f"INSERT INTO  {self.event_table} ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
                 self.execute(query, ("order",data['data']['symbol'], type,  int(time.time() * 1000), json.dumps(data) ))
 
             if self.render_page:
@@ -920,7 +936,7 @@ class MuloLiveClient:
             data["ts"] =int(time.time() * 1000)
 
             if not self.sym_mode: 
-                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
+                query = f"INSERT INTO  {self.event_table} ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
                 self.execute(query, ("order",data["symbol"], type,  int(time.time() * 1000), json.dumps(data) ))
 
             if self.render_page:
@@ -942,7 +958,7 @@ class MuloLiveClient:
         order["ts"] =int(time.time() * 1000)
 
         if not self.sym_mode: 
-            query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
+            query = f"INSERT INTO  {self.event_table} ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
             self.execute(query, ("task-order",order["symbol"], "TASK_ORDER",  int(time.time() * 1000), json.dumps(order) ))
 
         await self.render_page.sendOrder(
@@ -951,7 +967,7 @@ class MuloLiveClient:
 
     async def send_taskinfo(self,order,message):
          if self.sym_mode: return
-         #query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
+         #query = "INSERT INTO  {self.event_table} ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
          #order["message"]=message   
          #self.execute(query, ("task-order",order["symbol"], "TASK_ORDER_MSG",  int(time.time() * 1000), json.dumps(order) ))
          order["ts"] =int(time.time() * 1000)
@@ -968,7 +984,7 @@ class MuloLiveClient:
             data["full_desc"]= full_desc
 
             if not self.sym_mode: 
-                query = "INSERT INTO events ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
+                query = f"INSERT INTO  {self.event_table} ( source,symbol, name,timestamp,data) values (%s,%s,%s,%s,%s)"
                 self.execute(query, (source,symbol, name,  int(time.time() * 1000), json.dumps(data) ))
 
             #logger.info(f"SEND {data}")
@@ -1067,21 +1083,30 @@ class MuloLiveClient:
     
     def execute(self,sql, params=()):
         #conn = self.conn#sqlite3.connect(self.db_file)
-        with self.engine.raw_connection() as conn:
-            #self.conn.ping(reconnect=True)
-            #cur = conn.cursor()
-            cur = conn.cursor()
+        conn = self.engine.raw_connection()
 
-            cur.execute(sql, params)
+        try:
+                #with self.engine.raw_connection() as conn:
+                
+                #self.conn.ping(reconnect=True)
+                #cur = conn.cursor()
+                cur = conn.cursor()
 
-            line_id = cur.lastrowid
+                cur.execute(sql, params)
 
-            conn.commit()
-            
-            #self.conn.commit()
-        # conn.commit()
-        #conn.close()
-        return line_id
+                line_id = cur.lastrowid
+
+                conn.commit()
+                
+                #self.conn.commit()
+                # conn.commit()
+                #conn.close()
+                return line_id
+        except Exception as e:  
+            logger.error(f"DB ERROR: {sql}\n{e}")
+            return None 
+        finally:
+            conn.close()
     
     async def send_cmd(self, rest_point, msg=None):
         '''

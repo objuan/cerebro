@@ -40,9 +40,10 @@ def path_dict_to_json(path_dict):
     return result
 
 class PropertyManager:
-    def __init__(self, filename=PROPS_FILE):
+    def __init__(self,renderPage, filename=PROPS_FILE):
        # logger.info(f"PropertyManager {filename}")
         self.props = {}
+        self.renderPage=renderPage
         self.filename = filename
         self.load()
         #logger.info(f"PROPS { self.props}")

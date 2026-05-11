@@ -156,8 +156,9 @@ class StrategyManager:
                 strat = cls(self)
                 strat.props = self.client.propManager
                 strat.orderManager= self.orderManager
+                strat.scope = scope 
                 strat.load(strat_def)
-
+                
                 if strat.scope != "BACK":
 
                     self.logger.info(f"ADD STRAT {strat_def} {strat}")

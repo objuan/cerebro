@@ -503,11 +503,16 @@ class SmartStrategy(Strategy):
         return self.props.get(f"strategy.{symbol}.buy",True)
     
     async def buy(self,symbol,timestamp,price, quantity,label=""):
+
+        if self.scope == "LIVE" and self.bootstrapMode:  
+            logger.info(f"BUY (FAKE) {symbol} {datetime.fromtimestamp(timestamp/1000)}  {quantity} at {price} [{label}] ")
+            return
+        
         if self.hasCurrentTrade(symbol):
             return
         
         #check budget
-     
+
         if not self.buy_enabled(symbol):
             logger.info(f"BUY DISABLED {symbol} ")
             if not self.bootstrapMode:
@@ -517,71 +522,80 @@ class SmartStrategy(Strategy):
         logger.info(f"BUY {symbol} {datetime.fromtimestamp(timestamp/1000)}  {quantity} at {price} [{label}] SLOTS:{ len(self.slot_buffer)}")
         await self.add_marker(symbol,"BUY",label,label,"#3CFF00FF","arrowUp",position="atPriceBottom",ring="chime")
 
-        #if not self.buyMap[symbol]:
-        self._book.long(symbol, timestamp, price, quantity,label)
-        
-        if symbol not in self.slot_buffer:
-            self.slot_buffer[symbol] = timestamp
-        else:
-            logger.warning(f"BUY {symbol} already in slot_buffer {self.slot_buffer}")
+        if True:   
+            #if not self.buyMap[symbol]:
+            self._book.long(symbol, timestamp, price, quantity,label)
+             
+            if symbol not in self.slot_buffer:
+                self.slot_buffer[symbol] = timestamp
+            else:
+                logger.warning(f"BUY {symbol} already in slot_buffer {self.slot_buffer}")
 
-        #super().buy(symbol,label)
-        if not self.bootstrapMode and not self.backtestMode:
-            usd = Balance.cash_usd
+            #super().buy(symbol,label)
+            if not self.bootstrapMode and not self.backtestMode:
+                usd = Balance.cash_usd
 
-            logger.info(f"BUY {symbol} total_price {price * quantity} cash_usd {usd}")
+                logger.info(f"BUY {symbol} total_price {price * quantity} cash_usd {usd}")
 
-            if price * quantity > usd:
-                logger.info(f"NOT ENOUGH CASH TO BUY {symbol} price {price} quantity {quantity} cash_usd {usd}")
-                return    
+                if price * quantity > usd:
+                    logger.info(f"NOT ENOUGH CASH TO BUY {symbol} price {price} quantity {quantity} cash_usd {usd}")
+                    return    
 
 
-            #await self.orderManager.smart_buy_limit(symbol, quantity,self.client.getTicker(symbol))
-            await self.orderManager.smart_buy_market(symbol, quantity,None)
+                #await self.orderManager.smart_buy_limit(symbol, quantity,self.client.getTicker(symbol))
+                await self.orderManager.smart_buy_market(symbol, quantity,None)
 
-            if self.telegram_order_messages:
-                send_telegram_message(f"BUY {symbol} {datetime.fromtimestamp(timestamp/1000)}  {quantity} at: {price} {label}")
+                if self.telegram_order_messages:
+                    send_telegram_message(f"BUY {symbol} {datetime.fromtimestamp(timestamp/1000)}  {quantity} at: {price} {label}")
 
-            pass
-        #    await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
+                pass
+            #    await self.send_event(symbol, "BUY", f"BUY",f"BUY",color="#21FF04", ring="news")
 
 
     async def sell(self,symbol,timestamp, price, label=""):
 
+         
+        if self.scope == "LIVE" and self.bootstrapMode:  
+            logger.info(f"SELL FAKE  {symbol} {datetime.fromtimestamp(timestamp/1000)} ")
+       
+            return
+        
         if self.hasCurrentTrade(symbol):
-            logger.info(f"SELL  {symbol} {datetime.fromtimestamp(timestamp/1000)}  SLOTS:{self.slot_buffer}")
+                
+                logger.info(f"SELL  {symbol} {datetime.fromtimestamp(timestamp/1000)}  SLOTS:{self.slot_buffer}")
+             
+                #self.freeSlot(symbol)   
+                #a#wait self.send_property("","",{"slot_count":self.slot_count })
+
+                trade = self._book.close(symbol,timestamp,price)
+
+                await self.add_marker(symbol, "SELL",label,label, "#FF0404", "arrowDown",position="atPriceBottom")
+
             
-            #self.freeSlot(symbol)   
-            #a#wait self.send_property("","",{"slot_count":self.slot_count })
+                if symbol in self.slot_buffer:
+                    del self.slot_buffer[symbol];
+                else:
+                    logger.warning(f"SELL {symbol} not in slot_buffer {self.slot_buffer}")
+                
 
-            trade = self._book.close(symbol,timestamp,price)
+                if not self.bootstrapMode and not self.backtestMode:
+                    await self.orderManager.abort_smart(symbol)
 
-            await self.add_marker(symbol, "SELL",label,label, "#FF0404", "arrowDown",position="atPriceBottom")
+                    await OrderTaskManager.cancel_orderBySymbol(symbol)
 
-            if symbol in self.slot_buffer:
-                del self.slot_buffer[symbol];
-            else:
-                logger.warning(f"SELL {symbol} not in slot_buffer {self.slot_buffer}")
-            
+                    coin = symbol.replace("USDT","")
+                    pos = Balance.get_position(coin)
+                    if (pos and pos.position>0):
+                        logger.info(f"SELL ALL {symbol} {pos.position} ")
+                        #ret = await self.orderManager.smart_sell_limit(symbol,pos.position, self.client.getTicker(symbol))
+                        await self.orderManager.smart_sell_market(symbol,pos.position, None)
+                        if self.telegram_order_messages:
+                            send_telegram_message(f"SELL {symbol} {datetime.fromtimestamp(timestamp/1000)} at: {price} {label}")
+                    else:
+                        Warning(f"SELL {symbol} no position to sell {coin} {pos}")             
 
-            if not self.bootstrapMode and not self.backtestMode:
-                await self.orderManager.abort_smart(symbol)
-
-                await OrderTaskManager.cancel_orderBySymbol(symbol)
-
-                pos = Balance.get_position(symbol)
-                if (pos and pos.position>0):
-                    logger.info(f"SELL ALL {symbol} {pos.position} ")
-                    #ret = await self.orderManager.smart_sell_limit(symbol,pos.position, self.client.getTicker(symbol))
-                    await self.orderManager.smart_sell_market(symbol,pos.position, None)
-                    if self.telegram_order_messages:
-                        send_telegram_message(f"SELL {symbol} {datetime.fromtimestamp(timestamp/1000)} at: {price} {label}")
-            
-
-
-
-            #    await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
-            return trade
+                #    await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
+                return trade
         else:   
             return None
     

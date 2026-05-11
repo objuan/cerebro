@@ -879,9 +879,14 @@ class Binance_OrderManager(OrderManager):
         API_KEY = self.config["markets"]["BINANCE"][mode]["API_KEY"]
         API_SECRET = self.config["markets"]["BINANCE"][mode]["API_SECRET"]
 
-        self.binance_client = await AsyncClient.create(API_KEY, API_SECRET,  testnet=mode=="PAPER")
+        try:
+            self.binance_client = await AsyncClient.create(API_KEY, API_SECRET,  testnet=mode=="PAPER")
 
-        asyncio.create_task(self.user_stream_loop())
+            asyncio.create_task(self.user_stream_loop())
+        except BinanceAPIException as e:
+            logger.error(e)
+            exit(-1)
+           
         
 
     status_map = {
@@ -1076,7 +1081,7 @@ class Binance_OrderManager(OrderManager):
 
                             fee_usdt = self.compute_commissions_usdc(symbol,fee_asset,fee,price)
 
-                            cur.execute('''SELECT data FROM ib_orders 
+                            cur.execute(f'''SELECT data FROM  {self.order_table} 
                                     WHERE trade_id=%s AND symbol=%s AND side=%s 
                                     LIMIT 1''',
                                     (trade_id,

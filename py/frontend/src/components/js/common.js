@@ -12,7 +12,7 @@ export async function initProps() {
     propInitialized=true;
 
   let pdata = await send_get("/api/props/find", {path : ""})
-        //console.log(pdata)
+        console.log(pdata)
         pdata.forEach(  (val) =>{
           //  console.log("prop",val.path, val.value)
             if (val.path.startsWith("chart")  
@@ -21,7 +21,8 @@ export async function initProps() {
             || val.path.startsWith("event") 
               || val.path.startsWith("summary") 
               || val.path.startsWith("strategy") 
-         || val.path.startsWith("back") )
+         || val.path.startsWith("back") 
+         || val.path.startsWith("current_ip") )
             {
               staticStore.load(val.path, val.value);
             }

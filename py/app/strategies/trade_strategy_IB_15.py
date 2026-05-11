@@ -21,8 +21,6 @@ from reports.report_manager import ReportManager
 from order_book import *
 
 
- 
-
 
 class TradeStrategyIB15(SmartStrategy):
 
@@ -33,7 +31,7 @@ class TradeStrategyIB15(SmartStrategy):
         #self.trade_last_hh= self.params["trade_last_hh"]
         self.gain_perc = self.params["gain_perc"]
         self.drop_time_secs= self.params["drop_time_secs"]
-        self.loss_by_trade=10
+        self.loss_by_trade=30
 
     def populate_indicators(self) :
       
@@ -73,6 +71,20 @@ class TradeStrategyIB15(SmartStrategy):
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
 
+        #########################
+        if self.bootstrapMode and self.orderManager:
+            if not self.has_meta("__trade","init"):
+                self.set_meta("__trade", {"init": True})   
+                history =  self.orderManager.getTradeHistory(None)
+                for trade in history:
+                    if not trade.isClosed():
+                        self.set_meta( trade.symbol, {"last_trade":trade})   
+                        logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
+            return
+        
+        
+        ####################################
+        
         if not self.bootstrapMode:
             logger.info(f"\n{dataframe.tail(1)}") 
 

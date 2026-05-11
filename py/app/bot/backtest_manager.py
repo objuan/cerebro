@@ -505,7 +505,7 @@ if __name__ =="__main__":
 
     async def main():
         render_page = RenderPage(None,None)
-        propManager = PropertyManager()
+        propManager = PropertyManager(None)
         client = MuloLiveClient(DB_FILE,config,propManager)
 
         manager = BacktestManager(config,client,render_page)
@@ -522,10 +522,11 @@ if __name__ =="__main__":
 
         dates = ["2026-05-04","2026-05-05","2026-05-03"]
         #dates = ["2026-05-04","2026-05-05","2026-05-03","2026-05-02","2026-05-01"]
-        dates = ["2026-05-01"]#,"2026-05-05","2026-05-03","2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
+        dates = ["2026-05-05"]#,"2026-05-05","2026-05-03","2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
 
-        for max_back_steps in [4*24*7]:# 4*24*7,4*24*3,4*24*1]: #11
-            for min_day_volume in [1_000_000]:
+        for max_back_steps in [4*24*7]:# 4*24*7,4*24*3,4*24*1]: #15
+        #for max_back_steps in [12*24*7,12*24*7,12*24*3,12*24*1]: #5
+            for min_day_volume in [500_000]:
 
                 for gain_perc in [10]:
                     for drop_time_secs in [60*60*4]:#0*60*2,60*60*4,999999999]:

@@ -142,7 +142,7 @@ import {send_get,formatSymbol} from '@/components/js/utils.js' // saveProp
 import { staticStore } from '@/components/js/staticStore.js';
 import { tickerStore as tickerList } from "@/components/js/tickerStore";
 import { tradeStore } from "@/components/js/tradeStore";
-
+import { v4 as uuidv4 } from "uuid";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -234,7 +234,7 @@ const onChangeLayouts = async () => {
        let tf =  staticStore.get( get_layout_key(`${grid.value}.${(i+1)}.timeframe`),"1m")
         
        newCells.push({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         number: i+1,          // posizione nella griglia (0 → n-1)
         plot_config: {},
         timeframe:tf

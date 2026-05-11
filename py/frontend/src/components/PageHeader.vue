@@ -5,7 +5,7 @@
 
       <h1 class="h3 mb-0 text-primary">
         <router-link to="/">
-    {{ title }} {{ sub_title }}
+     Cerebro USDC {{ format(cash_usd) }} 
     </router-link>
 
     
@@ -77,7 +77,8 @@ import { computed,ref,onMounted,watch } from 'vue';
 import { liveStore } from '@/components/js/liveStore.js'; // Assicurati che il percorso sia corretto
 import { formatUnixDate ,formatForTimeInput,mergeDateWithTime, send_get } from '@/components/js/utils.js'; // Usa il percorso corretto
 import { tradeStore } from "@/components/js/tradeStore";
-
+//import { initProps } from "@/components/js/common";
+//import { staticStore } from '@/components/js/staticStore.js';
 
 const selectedSymTime = ref(null);
 const symSpeed = ref(null)
@@ -85,6 +86,17 @@ const sub_title=  ref("");
 
 // Esponiamo i dati dello store al template
 const liveData = computed(() => liveStore.state.dataByPath);
+
+const cash_usd = computed(() => liveStore.get("account.cash_usd") || 0);  
+
+function format(value) {
+  if (value == null) return "-";
+  return Number(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 
 const marketStatus = computed(() => {
   const tz = liveStore.state.dataByPath['root.tz'];
@@ -150,8 +162,12 @@ defineProps({
   }
 })
 
-onMounted(() => {
+onMounted( () => {
   sub_title.value =process.env.VUE_APP_MODE
+
+   //await initProps();
+   //#let public_ip = staticStore.get("public_ip","")
+  //console.log("Public IP:", public_ip); 
 });
 
 watch(

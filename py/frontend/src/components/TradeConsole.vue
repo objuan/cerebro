@@ -291,6 +291,7 @@ function send_order(mode){
     }
     if (mode =="LIMIT")
       order_limit(props.symbol,tradeQuantity.value)
+     //order_limit(props.symbol,9999999)
     else  if (mode =="MARKET")
       order_market_buy(props.symbol,tradeQuantity.value)
   }

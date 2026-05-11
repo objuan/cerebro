@@ -58,6 +58,7 @@ class Strategy:
         self.legend = []
         self.marker_map= {}
         self.props=None
+        self.scope=None
     
     def load(self,strat_def):
     
@@ -98,8 +99,9 @@ class Strategy:
             if tf == timeframe:
                 for ind in inds:
                     try:
-                        #logger.info(f"_fill_indicators {from_global_index}")
-                        ind.applyAll(self.df(tf),from_global_index,filter_symbol)
+                        d = self.df(tf)
+                        logger.info(f"_fill_indicators {ind.__class__} {timeframe} {from_global_index} {filter_symbol} {d.tail(1)}")
+                        ind.applyAll(d,from_global_index,filter_symbol)
                         '''
                         if allMode:
                             ind.apply(self.df(tf))    

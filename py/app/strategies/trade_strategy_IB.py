@@ -31,22 +31,28 @@ class TradeStrategyIB(SmartStrategy):
         self.gain_2_perc= 2#self.params["gain_2_perc"]
         #self.trade_last_hh= self.params["trade_last_hh"]
 
-    def extra_dataframes(self)->List[str]:
-        return ['15m']
+   # def extra_dataframes(self)->List[str]:
+   #     return ['15m']
 
     def populate_indicators(self) :
       
-        max_1w= self.addIndicator("15m",MAX("MAX_1W","close",4*24*7))
+       # max_1w= self.addIndicator("15m",MAX("MAX_1W","close",4*24*7))
 
         #vol_day= self.addIndicator("1m",SUM("vol_day","quote_volume",1440))
-        vol_day= self.addIndicator(self.timeframe,COPY("vol_day","quote_day_volume"))
-        vol_sma= self.addIndicator(self.timeframe,SMA("vol_sma","quote_volume",1440))
+        #vol_day= self.addIndicator(self.timeframe,COPY("vol_day","quote_day_volume"))
+        #vol_sma= self.addIndicator(self.timeframe,SMA("vol_sma","quote_volume",1440))
 
         #self.addIndicator(self.timeframe,GAIN("gain","close",timeperiod=2))
         max_1h= self.addIndicator(self.timeframe,MAX("MAX_1H","close",60*2))
-
         max_1d= self.addIndicator(self.timeframe,MAX("MAX_1D","close",60 * 24))
 
+        self.addIndicator(self.timeframe,TRADE_DATE("date"))
+        vwap = self.addIndicator(self.timeframe, VWAPBands("vwap","vwap_up","vwap_down","vwap_perc","vwap_pos","close","quote_volume"))
+
+        self.add_plot(vwap, "vwap","#a800a0", "main","vwap", style="Solid", lineWidth=1)
+        self.add_plot(vwap, "vwap_up","#a800a0", "main","vwap_up", style="Dotted", lineWidth=1)
+        self.add_plot(vwap, "vwap_down","#a800a0", "main","vwap_down", style="Dotted", lineWidth=1)
+        
         self.add_plot(max_1h, "MAX_1H","#926B00FF", "main",style="Dotted", lineWidth=1)
         self.add_plot(max_1d, "MAX_1D","#009266FF", "main", style="Solid", lineWidth=1)
 
@@ -63,24 +69,28 @@ class TradeStrategyIB(SmartStrategy):
    
         
         last = dataframe.iloc[local_index]
-        try:
-            vol_day = last["vol_day"]           
-        except Exception as e:  
-             logger.error(f"Error calculating vol_day for {symbol} at index {local_index}: \n{dataframe.tail(10)}")    
+        vol_day = last["quote_day_volume"]           
+       
+        # META
+        vol_diff = last["base_volume"]     
+        vol_quote_diff = last["quote_volume"]     
 
+        await self.set_property(symbol,{"volume_diff":vol_diff, "volume_diff_quote" : vol_quote_diff})
 
+        ###
+        
         if vol_day > self.volume_min_filter:
             
             prev = dataframe.iloc[local_index-1]
             prev2 = dataframe.iloc[local_index-2]
 
-            vol_sma = last["vol_sma"]    
+            #vol_sma = last["vol_sma"]    
             MAX_1H = last["MAX_1H"]    
             MAX_1D = last["MAX_1D"]    
             
             df_15m= self.df("15m",symbol)
             
-            max_1w = df_15m.iloc[-1]["MAX_1W"]
+           # max_1w = df_15m.iloc[-1]["MAX_1W"]
 
             #gain2 =  last["gain"] 
             gain = (last["close"] - prev["close"]) / prev["close"] * 100    
@@ -94,9 +104,9 @@ class TradeStrategyIB(SmartStrategy):
             if gain >= 2:
                    await self.add_marker(symbol,"SPOT",f"Gain {gain:.1f}",f"Gain {gain:.1f}","#F6F7F86F","square",position ="atPriceTop")
 
-            if last["close"] > max_1w and not self.has_meta(symbol,"max_1w" ):
-                   self.set_meta(symbol, {"max_1w":True})
-                   await self.add_marker(symbol,"SPOT",f"MAX 1W",f"MAX 1W","#BB9A086C","square",position ="atPriceTop")
+           # if last["close"] > max_1w and not self.has_meta(symbol,"max_1w" ):
+           #        self.set_meta(symbol, {"max_1w":True})
+           #        await self.add_marker(symbol,"SPOT",f"MAX 1W",f"MAX 1W","#BB9A086C","square",position ="atPriceTop")
            
             elif MAX_1D > prev["MAX_1D"]:
                    await self.add_marker(symbol,"SPOT",f"MAX 1D",f"MAX 1D","#08BB356D","square",position ="atPriceTop")
@@ -107,3 +117,4 @@ class TradeStrategyIB(SmartStrategy):
             #vol_perc =  (last["quote_volume"]- vol_sma) /vol_sma * 100
             #if gain>0 and vol_perc>100:
             #       await self.add_marker(symbol,"SPOT",f"VOL>{vol_perc:.1f}%",f"VOL>{vol_perc:.1f}%","#BB089D6C","square",position ="atPriceBottom")
+

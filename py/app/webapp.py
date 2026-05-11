@@ -23,7 +23,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from ib_insync import *
 from news_service import NewService,IB_NewService
-from utils import convert_json
+from utils import convert_json,PublicIPMonitor
 from rich.console import Console
 from rich.table import Table
 from rich.live import Live
@@ -52,7 +52,7 @@ from market import *
 from utils import datetime_to_unix_ms,sanitize,floor_ts
 from company_loaders import *
 from renderpage import WSManager
-from order import Binance_OrderManager
+from binance_order import Binance_OrderManager
 from ib_order import IB_OrderManager
 from balance import Balance
 from order_task import OrderTaskManager
@@ -60,6 +60,7 @@ from trade_manager import TradeManager
 #from reports.event_manager import EventManager
 from reports.report_manager import ReportManager
 from deep_translator import GoogleTranslator
+from telegram import send_telegram_message
 
 from reports.db_dataframe import *
 from props_manager import PropertyManager
@@ -148,9 +149,11 @@ else:
 ws_manager = WSManager()
 ws_manager_orders = WSManager()
 
+render_page = RenderPage(ws_manager,ws_manager_orders)
+
 #OrdskManager.ws = ws_manager_orders
 Balance.ws = ws_manager_orders
-propManager = PropertyManager()
+propManager = PropertyManager(render_page)
 propManager.set("system.mode","BINANCE" if BINANCE_MODE else "IB")
 
 client = MuloLiveClient(DB_FILE,config,propManager)
@@ -179,7 +182,7 @@ db = DBDataframe(config,client)
 report = ReportManager(config,client,db)
 #event_manager = EventManager(config,report)
 tradeManager = TradeManager(config,client,propManager)
-render_page = RenderPage(ws_manager,ws_manager_orders)
+
 #event_manager.render_page=render_page
 report.render_page=render_page
 strategy = StrategyManager(config,db,client,render_page, orderManager)
@@ -887,16 +890,16 @@ async def get_orders(start: Optional[str] = None):
         start = today_start.isoformat().replace("T"," ")
     try:
         # Query per ottenere l'ultima riga per ogni trade_id con timestamp >= dt_start
-        query = """
+        query = f"""
             SELECT
                 *,
                 UNIX_TIMESTAMP(timestamp) AS unix_time
-            FROM ib_orders
+            FROM  {orderManager.order_table}
 
             WHERE id IN (
 
                 SELECT MAX(id)
-                FROM ib_orders
+                FROM  {orderManager.order_table}
 
                 WHERE timestamp >= %s
                 AND event_type = 'STATUS'
@@ -1082,7 +1085,7 @@ async def get_events(limit, types:str    ):
 
         query = f"""
             SELECT *
-            FROM events
+            FROM  {client.event_table}
 
             WHERE source IN ({placeholders})
             -- AND ds_timestamp >= datetime('now', 'start of day')
@@ -1123,7 +1126,7 @@ async def get_strategy(limit, types:str    ):
 
         query = f"""
             SELECT *
-            FROM events
+            FROM  {client.event_table}
 
             WHERE source IN ({placeholders})
             AND ds_timestamp >= CURDATE()
@@ -1670,6 +1673,14 @@ async def ws_tickers(ws: WebSocket):
 
 ##################################################
 
+async def on_ip_changed(new_ip, old_ip):
+
+    logger.info(f"IP cambiato!")
+    logger.info(f"Vecchio: {old_ip}")
+    logger.info(f"Nuovo : {new_ip}")
+
+    send_telegram_message(f"IP cambiato!\nVecchio: {old_ip}\nNuovo : {new_ip}"  )
+
 
 #############   
 
@@ -1784,10 +1795,17 @@ if __name__ =="__main__":
                # await event_manager.bootstrap()
 
                 await strategy.bootstrap()
-                
-              
 
                 await newService.bootstrap()
+
+                monitor = PublicIPMonitor(
+                    on_ip_changed=on_ip_changed,
+                    interval_seconds=600  # 10 minuti
+                )
+                current_ip = await monitor.get_public_ip()
+                monitor.start()
+
+                propManager.set("public_ip", current_ip ) 
 
                 logger.info("BOOT DONE")
 

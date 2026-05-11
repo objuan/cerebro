@@ -54,7 +54,7 @@ import { ref, onMounted, onUnmounted,onBeforeUnmount,nextTick,watch } from 'vue'
 import BackChartWidget from './BackChartWidget.vue';
 import BackController from './BackController.vue';
 import TradeConsole from '../TradeConsole.vue';
-
+import { v4 as uuidv4 } from "uuid";
 
 import { computed } from 'vue'; // toRaw
 import { staticStore } from '@/components/js/staticStore.js';
@@ -134,7 +134,7 @@ const onChangeLayouts = async () => {
        let tf =  staticStore.get( get_layout_key(`${grid.value}.${(i+1)}.timeframe`),"1m")
         
        newCells.push({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         number: i+1,          // posizione nella griglia (0 → n-1)
         plot_config: {},
         timeframe:tf

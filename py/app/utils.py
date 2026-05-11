@@ -5,6 +5,8 @@ import re
 import logging
 import asyncio
 import inspect
+import aiohttp
+import threading
 
 logger = logging.getLogger()
 
@@ -341,3 +343,113 @@ def dict_to_paths(data, prefix=""):
 
     return result
 
+##################
+
+
+class PublicIPMonitor:
+
+    def __init__(self, on_ip_changed, interval_seconds=600):
+
+        self.on_ip_changed = on_ip_changed
+        self.interval = interval_seconds
+
+        self.current_ip = None
+
+        self.running = False
+
+        self.thread = None
+        self.loop = None
+
+    async def get_public_ip(self):
+
+        services = [
+            "https://api.ipify.org",
+            "https://checkip.amazonaws.com",
+            "https://icanhazip.com"
+        ]
+
+        timeout = aiohttp.ClientTimeout(total=10)
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+
+            for url in services:
+
+                try:
+
+                    async with session.get(url) as response:
+
+                        if response.status == 200:
+
+                            ip = (await response.text()).strip()
+
+                            if ip:
+                                return ip
+
+                except Exception as e:
+                    logger.warning(f"Errore IP service {url}: {e}")
+
+        raise Exception("Impossibile ottenere IP pubblico")
+
+    async def monitor_loop(self):
+
+        self.current_ip = await self.get_public_ip()
+
+        logger.info(f"IP iniziale: {self.current_ip}")
+
+        while self.running:
+
+            try:
+
+                await asyncio.sleep(self.interval)
+
+                new_ip = await self.get_public_ip()
+
+                if new_ip != self.current_ip:
+
+                    old_ip = self.current_ip
+
+                    self.current_ip = new_ip
+
+                    logger.warning(
+                        f"IP cambiato: {old_ip} -> {new_ip}"
+                    )
+
+                    await self.on_ip_changed(
+                        new_ip,
+                        old_ip
+                    )
+
+            except Exception:
+                logger.exception("Errore monitor IP")
+
+    def _thread_target(self):
+
+        self.loop = asyncio.new_event_loop()
+
+        asyncio.set_event_loop(self.loop)
+
+        self.loop.run_until_complete(
+            self.monitor_loop()
+        )
+
+    def start(self):
+
+        if self.running:
+            return
+
+        self.running = True
+
+        self.thread = threading.Thread(
+            target=self._thread_target,
+            daemon=True
+        )
+
+        self.thread.start()
+
+        logger.info("IP Monitor thread avviato")
+
+    def stop(self):
+
+        self.running = False
+
+        logger.info("IP Monitor fermato")

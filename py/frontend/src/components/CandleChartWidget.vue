@@ -543,7 +543,7 @@ async function handleRefresh (resetWindow )
   try {
     if (!resetWindow && !initialized) return
 
-    console.log("handleRefresh ", resetWindow);
+    //console.log("handleRefresh ", resetWindow);
 
     clearStrategyIndicators(context())
 
@@ -782,7 +782,7 @@ async function handleRefresh (resetWindow )
           
       }
       initialized=true;
-     console.log("handleRefresh DONE")
+     //console.log("handleRefresh DONE")
     }
     else
         console.log("empty ");

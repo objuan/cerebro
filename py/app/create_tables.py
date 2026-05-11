@@ -173,7 +173,7 @@ cur.execute("""
         ON ib_scan_watch(symbol);
     """)
 
-
+"""
 # Crea la tabella ib_orders se non esiste
 cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -185,6 +185,7 @@ cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
     data TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 )''')
+"""
 
 
 cur.execute('''CREATE TABLE IF NOT EXISTS ib_order_commissions (
@@ -254,6 +255,7 @@ CREATE TABLE IF NOT EXISTS trade_marker (
 )
 """)
 
+'''
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -267,7 +269,7 @@ CREATE TABLE IF NOT EXISTS  events (
     
 );
             """)
-
+'''
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  black_list (

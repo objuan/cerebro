@@ -73,29 +73,32 @@ def get_binance_base_data(symbol):
 ######################
 
 def get_market_data(symbol):
+    try:
+        base = symbol.replace("USDC", "")
 
-    base = symbol.replace("USDC", "")
+        url = (
+            "https://min-api.cryptocompare.com/data/"
+            f"pricemultifull?fsyms={base}&tsyms=USDC"
+        )
 
-    url = (
-        "https://min-api.cryptocompare.com/data/"
-        f"pricemultifull?fsyms={base}&tsyms=USDC"
-    )
+        data = requests.get(url).json()
+        #print(data)
+        #raw = data["Data"][0]["RAW"]["USDC"]
+        raw = data["RAW"][base]["USDC"]
 
-    data = requests.get(url).json()
-    #print(data)
-    #raw = data["Data"][0]["RAW"]["USDC"]
-    raw = data["RAW"][base]["USDC"]
+        #print(raw)
 
-    #print(raw)
-
-    return {
-        "symbol" : symbol,
-        "name": symbol,
-       # "name": data["Data"][0]["CoinInfo"]["FullName"],
-        "price": raw["PRICE"],
-        "market_cap": raw["MKTCAP"],
-        "total_supply": raw["SUPPLY"]
-    }
+        return {
+            "symbol" : symbol,
+            "name": symbol,
+        # "name": data["Data"][0]["CoinInfo"]["FullName"],
+            "price": raw["PRICE"],
+            "market_cap": raw["MKTCAP"],
+            "total_supply": raw["SUPPLY"]
+        }
+    except:
+        logger.error(f"Error fetching market data for {symbol}", exc_info=True)
+        return None 
 
 '''
 

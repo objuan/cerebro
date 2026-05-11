@@ -228,7 +228,14 @@ class Balance:
 
                             #logger.info(balances)
                             await Balance.update(symbol,{"symbol": symbol, "position":pos, "avgCost":0})
-                    
+
+                            if symbol =="USDC":
+                                Balance.cash_usd = pos
+
+                                def get_cash_usd ():
+                                    return Balance.cash_usd 
+                                Balance.props.add_computed("account.cash_usd", get_cash_usd)
+                                        
                     '''
                     bsm = BinanceSocketManager(client)
 
@@ -240,9 +247,10 @@ class Balance:
                             logger.info(msg)
                     '''
                             
-                    #await client.close_connection()
+                    await client.close_connection()
                 except:
                     logger.error("",exc_info=True)
+                    exit(-1)
 
         else:
             if  Balance.run_mode  != "sym" and Balance.ib:
@@ -295,6 +303,7 @@ class Balance:
    
         if "position" in data :
             await Balance.positionMap[symbol].set("position",data["position"])
+        
      
         #if "marketPrice" in data and data["marketPrice"]:
         #    Balance.positionMap[symbol].marketPrice = data["marketPrice"]
@@ -304,7 +313,6 @@ class Balance:
     async def onUpdatePortfolio(portfoglio : PortfolioItem):
         #logger.info(f"onUpdatePortfolio: {portfoglio}")
 
-      
         msg = {"type": "UPDATE_PORTFOLIO", "symbol" : portfoglio.contract.symbol , "position" : portfoglio.position, "marketPrice": portfoglio.marketPrice, "marketValue" : portfoglio.marketValue}
         await Balance.update(portfoglio.contract.symbol,msg)
         if Balance.ws:
@@ -352,6 +360,11 @@ class Balance:
             Balance.cash_eur = float(value.value)
             if Balance.ws:
                 await Balance.ws.broadcast({"type":"props", "path": "account.cash_eur", "value":Balance.cash_eur } )
+    
+    async def onUSDChanged():
+        logger.info(f"propagate cash_usd {Balance.cash_usd}") 
+
+        await Balance.props.renderPage.send({"type":"props", "path": "account.cash_usd", "value":Balance.cash_usd } )
 
 ########################################
 
