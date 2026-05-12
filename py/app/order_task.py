@@ -21,6 +21,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 #conn = sqlite3.connect(DB_FILE, isolation_level=None)
+'''
 conn = pymysql.connect(
                 host="192.168.1.100",
                 user="root",
@@ -30,6 +31,7 @@ conn = pymysql.connect(
                 charset="utf8mb4",
             )
 cur = conn.cursor()
+'''
 
 logging.getLogger("ib_insync").setLevel(logging.WARNING)
 
@@ -48,7 +50,7 @@ class OrderTaskManager:
     async def bootstrap():
         logger.info("ORDER BOOT")
 
-        cur.execute("""UPDATE task_orders set status='BOOT_CANC' 
+        OrderTaskManager.client.execute("""UPDATE task_orders set status='BOOT_CANC' 
             WHERE id IN (
                 SELECT MAX(o.id)
                 FROM task_orders o
@@ -57,7 +59,7 @@ class OrderTaskManager:
             AND status in ('READY','STEP') """)
         
 
-        df = pd.read_sql_query("""SELECT *
+        df = OrderTaskManager.client.get_df("""SELECT *
             FROM task_orders
             WHERE id IN (
                 SELECT MAX(id)
@@ -65,7 +67,7 @@ class OrderTaskManager:
                 GROUP BY task_id
             )
             AND status ='READY' 
-            """, conn)
+            """)
         OrderTaskManager.task_orders=[]
         for row in df.to_dict("records"):
             data = OrderTaskManager.get_task_order(row)
@@ -220,10 +222,10 @@ class OrderTaskManager:
         order["cmd"] = "ABORT"
         
     async def push_state(order,status):
-        cur.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
+        OrderTaskManager.client.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
                                         VALUES (%s,%s, %s, %s, %s, %s,%s)''',
                                     ( order["task_id"],order["symbol"],status,order["step"], json.dumps(order["data"]),time.time(),-1))
-        conn.commit()
+       # conn.commit()
 
         logger.info(f">>> {order}")
         await OrderTaskManager.client.send_task_order(order)
@@ -247,11 +249,11 @@ class OrderTaskManager:
     ################################
 
     async def single(symbol,timeframe):
-        df = pd.read_sql_query(f"""
+        df = OrderTaskManager.client.get_df(f"""
             SELECT  symbol, timeframe,  data
             FROM trade_marker
             WHERE symbol = '{symbol}' AND timeframe = '{timeframe}'
-        """, conn)
+        """)
         if (len(df) == 0):
             raise HTTPException(
                 status_code=400,
@@ -293,11 +295,11 @@ class OrderTaskManager:
         task = await OrderTaskManager.create_task(symbol, actions)
 
     async def tp_sl(symbol,timeframe):
-        df = pd.read_sql_query(f"""
+        df = OrderTaskManager.client.get_df(f"""
             SELECT  symbol, timeframe,  data
             FROM trade_marker
             WHERE symbol = '{symbol}' AND timeframe = '{timeframe}'
-        """, conn)
+        """)
         if (len(df) == 0):
             raise HTTPException(
                 status_code=400,
@@ -340,11 +342,11 @@ class OrderTaskManager:
         task = await OrderTaskManager.create_task(symbol, actions)
        
     async def bracket(symbol,timeframe):
-        df = pd.read_sql_query(f"""
+        df = OrderTaskManager.client.get_df(f"""
             SELECT  symbol, timeframe,  data
             FROM trade_marker
             WHERE symbol = '{symbol}' AND timeframe = '{timeframe}'
-        """, conn)
+        """)
         if (len(df) == 0):
             raise HTTPException(
                 status_code=400,
@@ -398,17 +400,17 @@ class OrderTaskManager:
 
         unix_time = time.time()
         task_id =1
-        df = pd.read_sql_query("SELECT MAX(task_id) as task_id FROM task_orders", conn)
+        df = OrderTaskManager.client.get_df("SELECT MAX(task_id) as task_id FROM task_orders")
         if not pd.isna( df["task_id"].max()):
             task_id = int(df.iloc[0][0])+1
 
-        cur.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
+        lastrowid = OrderTaskManager.client.execute('''INSERT INTO task_orders (task_id, symbol, status,step,  data, timestamp,trade_id)
                     VALUES (%s,%s, %s, %s, %s, %s,%s)''',
                 (task_id,symbol,"READY", 1, json.dumps(actions),unix_time,-1))
         
         #conn.commit()
 
-        df = pd.read_sql_query("SELECT * FROM task_orders WHERE id = "+str(cur.lastrowid), conn)
+        df = OrderTaskManager.client.get_df("SELECT * FROM task_orders WHERE id = "+str(lastrowid))
         order=None
         for row in df.to_dict("records"):
             order = OrderTaskManager.get_task_order(row)

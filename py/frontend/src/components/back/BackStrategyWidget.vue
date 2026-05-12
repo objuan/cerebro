@@ -38,6 +38,7 @@
           <option value="30s">30s</option>
           <option value="1m">1m</option>
           <option value="5m">5m</option>
+          <option value="15m">15m</option>
           <option value="1h">1h</option>
           <option value="1d">1d</option>
         </select>

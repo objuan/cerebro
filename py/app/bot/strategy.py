@@ -100,7 +100,7 @@ class Strategy:
                 for ind in inds:
                     try:
                         d = self.df(tf)
-                        logger.info(f"_fill_indicators {ind.__class__} {timeframe} {from_global_index} {filter_symbol} {d.tail(1)}")
+                        #logger.info(f"_fill_indicators {ind.__class__} {timeframe} {from_global_index} {filter_symbol} {d.tail(1)}")
                         ind.applyAll(d,from_global_index,filter_symbol)
                         '''
                         if allMode:

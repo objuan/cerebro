@@ -336,9 +336,14 @@ class LiveManager:
                 symbols = [
                     x.symbol
                     for x in to_remove
-                    if ((datetime.now() - x.start_time).total_seconds() > 60
-                    and not self.fetcher.is_in_white_list(x.symbol))
+                    if (
+                        (datetime.now() - x.start_time).total_seconds() > 60
+                        and not self.fetcher.is_in_white_list(x.symbol)
+                        and not self.fetcher.is_last_trade_buy(x.symbol)
+                    )
                 ]
+                # check order
+                last_trade = self.fetcher.get_last_trade()
 
                 logger.info(f"REMOVE LAST symbols {symbols}")
 

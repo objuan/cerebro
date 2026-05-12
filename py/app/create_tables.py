@@ -140,7 +140,7 @@ cur.execute("""
 
 cur.execute("""
        CREATE TABLE IF NOT EXISTS ib_day_watch (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         profile TEXT,
         symbol TEXT,
         date  DATE,
@@ -158,7 +158,7 @@ cur.execute("""
 
 cur.execute("""
        CREATE TABLE IF NOT EXISTS ib_scan_watch (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         profile TEXT,
         symbol TEXT,
         ts_enter INTEGER DEFAULT (strftime('%s','now')),           
@@ -176,7 +176,7 @@ cur.execute("""
 """
 # Crea la tabella ib_orders se non esiste
 cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     trade_id TEXT,
     symbol TEXT,
     side TEXT,
@@ -189,7 +189,7 @@ cur.execute('''CREATE TABLE IF NOT EXISTS ib_orders (
 
 
 cur.execute('''CREATE TABLE IF NOT EXISTS ib_order_commissions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     trade_id TEXT,
     symbol TEXT,
     pnl REAL,
@@ -203,7 +203,7 @@ cur.execute("""
     """)
 
 cur.execute('''CREATE TABLE IF NOT EXISTS task_orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     task_id INT,
     symbol TEXT,
     status TEXT, 
@@ -222,7 +222,7 @@ cur.execute("""
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS chart_lines (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     symbol TEXT NOT NULL,
     timeframe TEXT NOT NULL,
     guid TEXT NOT NULL,
@@ -235,7 +235,7 @@ CREATE TABLE IF NOT EXISTS chart_lines (
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS chart_indicator (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name TEXT NOT NULL,
     data TEXT NOT NULL
 )
@@ -248,7 +248,7 @@ ON chart_indicator(name);
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS trade_marker (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     symbol TEXT NOT NULL,
     timeframe TEXT NOT NULL,
     data TEXT NOT NULL
@@ -258,7 +258,7 @@ CREATE TABLE IF NOT EXISTS trade_marker (
 '''
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     source VARCHAR(255),
     type VARCHAR(255),
     name VARCHAR(255),
@@ -273,7 +273,7 @@ CREATE TABLE IF NOT EXISTS  events (
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  black_list (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     symbol VARCHAR(255),
     error TEXT,
     provider_disable INT,
@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS  black_list (
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  watch_list (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255),
     type VARCHAR(255),
     symbol VARCHAR(255),
@@ -297,7 +297,7 @@ CREATE TABLE IF NOT EXISTS  watch_list (
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  news (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     guid VARCHAR(255),
     provider VARCHAR(255),
     symbol VARCHAR(255),
@@ -319,7 +319,7 @@ ON news (provider, symbol, guid);""")
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  back_profile (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255),
     data TEXT
 );
@@ -332,18 +332,17 @@ ON back_profile (name);""")
 
 
 cur.execute("""
-CREATE TABLE IF NOT EXISTS  back_session (
- id INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS back_session (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     strategy VARCHAR(255),
     dt_from TEXT,
-    dt_to  TEXT,
-    in_data TEXT,
-    trades TEXT,       
-    markers TEXT,       
-    indicators TEXT,   
-    script TEXT,   
+    dt_to TEXT,
+    in_data LONGTEXT,
+    trades LONGTEXT,
+    markers LONGTEXT,
+    indicators LONGBLOB,
+    script LONGTEXT,
     ds_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  
 );
             """)
 
@@ -354,7 +353,7 @@ ON back_session (strategy,dt_from,dt_to);""")
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS  ai_trainingset (
- id INTEGER PRIMARY KEY AUTOINCREMENT,
+ id INT AUTO_INCREMENT PRIMARY KEY,
     symbol VARCHAR(255),
     live CHAR(1),
     gain REAL,

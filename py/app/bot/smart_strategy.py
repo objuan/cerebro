@@ -539,6 +539,9 @@ class SmartStrategy(Strategy):
 
                 if price * quantity > usd:
                     logger.info(f"NOT ENOUGH CASH TO BUY {symbol} price {price} quantity {quantity} cash_usd {usd}")
+                    if self.telegram_order_messages:
+                        send_telegram_message(f"NOT ENOUGH CASH TO BUY {symbol} price {price} quantity {quantity} cash_usd {usd}")
+
                     return    
 
 
@@ -583,16 +586,23 @@ class SmartStrategy(Strategy):
 
                     await OrderTaskManager.cancel_orderBySymbol(symbol)
 
-                    coin = symbol.replace("USDT","")
+                    coin = symbol.replace("USDC","")
                     pos = Balance.get_position(coin)
                     if (pos and pos.position>0):
-                        logger.info(f"SELL ALL {symbol} {pos.position} ")
+
+                        quantity = pos.position
+                        last_trade = self.orderManager.getLastTrade(symbol)
+                        if last_trade:
+                            quantity = self.buyQuantity(symbol)
+                            logger.info(f"SELL {symbol} last_trade {last_trade.to_dict()}")
+
+                        logger.info(f"SELL {symbol} {quantity} ")
                         #ret = await self.orderManager.smart_sell_limit(symbol,pos.position, self.client.getTicker(symbol))
-                        await self.orderManager.smart_sell_market(symbol,pos.position, None)
+                        await self.orderManager.smart_sell_market(symbol,quantity, None)
                         if self.telegram_order_messages:
                             send_telegram_message(f"SELL {symbol} {datetime.fromtimestamp(timestamp/1000)} at: {price} {label}")
                     else:
-                        Warning(f"SELL {symbol} no position to sell {coin} {pos}")             
+                        logger.warning(f"SELL {symbol} no position to sell {coin} {pos}")             
 
                 #    await self.send_event(symbol, "SELL", f"SELL",f"SELL",color="#FF0404", ring="news")
                 return trade
@@ -619,6 +629,27 @@ class SmartStrategy(Strategy):
         else:
            return self._book.getCurrentTrade(symbol)
         
+    def buyQuantity(self,symbol):
+        if not self.bootstrapMode and not self.backtestMode:
+                if self.has_meta(symbol, "last_trade"):
+                    #logger.info(f"BUYGAIN has_meta {symbol} last_trade {self.get_meta(symbol, 'last_trade').to_dict()}")    
+                    last_trade : PositionTrade = self.get_meta(symbol, "last_trade")
+                    if not last_trade.isClosed():
+                        q= 0.0
+                        for op in last_trade.list:
+                            if op.side == "BUY":
+                                q+= op.size
+                        return q
+                    else:
+                        return None
+                else:
+                    return None   
+        else:
+            if self._book.hasCurrentTrade(symbol):
+                return self._book.buy_quantity(symbol)
+            else:
+                return None
+            
     def buyGain(self,symbol,close):
         if not self.bootstrapMode and not self.backtestMode:
                 if self.has_meta(symbol, "last_trade"):

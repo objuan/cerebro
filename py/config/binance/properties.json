@@ -7,12 +7,12 @@
     "day_balance_USD": 1000
   },
   "home": {
-    "grid": "1_1"
+    "grid": "1_2"
   },
   "chart": {
     "1": {
       "grid": "2_2",
-      "symbol": "BONKUSDC",
+      "symbol": "SAGAUSDC",
       "indicator": {
         "1m": "primo",
         "10s": "N",
@@ -61,11 +61,12 @@
     },
     "2": {
       "grid": "2_2",
-      "symbol": "KITEUSDC",
+      "symbol": "MOVEUSDC",
       "indicator": {
         "1m": "SMA",
         "10s": "aa",
-        "5m": "SMA"
+        "5m": "primo",
+        "15m": "primo"
       },
       "1_1": {
         "1": {
@@ -91,7 +92,8 @@
           "timeframe": "1d"
         },
         "1": {
-          "timeframe": "5m"
+          "timeframe": "5m",
+          "legend": false
         },
         "4": {
           "timeframe": "15m",
@@ -132,12 +134,12 @@
       }
     },
     "start_len": {
-      "1m": 30.425975576981045,
-      "5m": 32.881076949867975,
+      "1m": 33.83677291791969,
+      "5m": 519.8834947839157,
       "10s": 164.52354823959763,
-      "1d": 222.78785444153417,
+      "1d": 330.21696728680377,
       "30s": 24.27980041338367,
-      "15m": 124.53409142495809
+      "15m": 82.7723451207969
     }
   },
   "event": {
@@ -883,6 +885,9 @@
       "quantity": 100
     },
     "LUNCUSDC": {
+      "quantity": 100
+    },
+    "JUPUSDC": {
       "quantity": 100
     }
   },

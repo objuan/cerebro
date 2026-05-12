@@ -22,7 +22,7 @@ from order_book import *
 
 
 
-class TradeStrategyIB15(SmartStrategy):
+class TradeStrategyIB15_info(SmartStrategy):
 
     async def on_start(self):
         self.min_day_volume= self.params["min_day_volume"]
@@ -71,18 +71,6 @@ class TradeStrategyIB15(SmartStrategy):
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
 
-        #########################
-        if self.bootstrapMode and self.orderManager:
-            if not self.has_meta("__trade","init"):
-                self.set_meta("__trade", {"init": True})   
-                history =  self.orderManager.getTradeHistory(None)
-                for trade in history:
-                    if not trade.isClosed():
-                        self.set_meta( trade.symbol, {"last_trade":trade})   
-                        logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
-            return
-        
-
         ####################################
         
         if not self.bootstrapMode:
@@ -108,27 +96,35 @@ class TradeStrategyIB15(SmartStrategy):
         vwap_perc = last["vwap_perc"]
         trend_pos =  last["vwap_pos"]
         
+        gain =  (price - prev["close"]) / prev["close"] * 100
+        
+        if not self.has_meta(symbol,"ai"): 
+            self.set_meta(symbol,{"ai":{ "state": "WAITING"}})
+        ai = self.get_meta(symbol,"ai")   
+
+
         if not self.hasCurrentTrade(symbol):
             #if vwap_perc - prev["vwap_perc"] > 1 and trend_pos > 90:
             if max_1w > prev["max_1w"] and trend > 10 :   
-                q = self.get_quantity( self.loss_by_trade, price    )
+                await self.add_marker(symbol,"SPOT",f"MAX 1W",f"MAX 1W","#0861BB6E","square",position ="atPriceTop",ring="")
 
-                await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
+            if ai["state"] =="WAITING":
+                if gain > 4  and trend > 5 :   
+                    await self.add_marker(symbol,"SPOT",f"GAIN {gain:.1f}",f"GAIN {gain:.1f}","#0861BB6E","square",position ="atPriceTop",ring="")
 
-        if self.hasCurrentTrade(symbol):
-            gain,ts,pnl = self.buyGain(symbol, last["close"]) 
-            self.set_current_price(symbol, last["close"])   
-            dt = int(dataframe.iloc[local_index]["timestamp"])
-            time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000   
-            
-            if time_elapsed_secs > 60*15:
-                if gain < 1 and time_elapsed_secs > self.drop_time_secs:
-                    await  self.sell(symbol, dt, last["close"], f"TM {gain:.1f}%"  )
-                elif  gain >self.gain_perc:
-                    await  self.sell(symbol, dt, last["close"], f"TP{gain:.1f}%"  )
-            
-                elif  gain < -self.gain_perc/2:
-                    await  self.sell(symbol, dt, last["close"], f"SL {gain:.1f}%"  )
-                 
-            #if trend_pos < 50 :
-            #    await self.sell( symbol, int(last["timestamp"]), price,  "SL" ) 
+                    ai["state"] = "DOWN"
+                    ai["close"] = price 
+                    ai["open"] = last["open"] 
+                    ai["signal"] = last["open"] + (ai["close"]- last["open"]) * 0.3
+
+            if ai["state"] =="DOWN":
+                if price < ai["signal"]:
+                    ai["state"] = "UP"
+
+            if ai["state"] =="UP":
+                if price > ai["close"]:
+                    ai["state"] = "BUY"
+                    
+                    await self.add_marker(symbol,"UP !!!",f"UP !!!",f"GAIN {gain:.1f}","#0861BB6E","square",position ="atPriceTop",ring="")
+
+                    ai["state"] = "WAITING"

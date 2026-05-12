@@ -1,5 +1,5 @@
 import logging
-
+import gzip
 
 if __name__ =="__main__":
     import sys
@@ -58,6 +58,7 @@ from utils import *
 from reports.report_manager import ReportManager
 from bot.backtest_db import *
 
+'''
 conn = pymysql.connect(
                 host="192.168.1.100",
                 user="root",
@@ -66,6 +67,7 @@ conn = pymysql.connect(
                 autocommit=True,
                 charset="utf8mb4",
             )
+'''
 
 class BacktestManager:
     params : Dict
@@ -240,6 +242,10 @@ class BacktestManager:
         #logger.info(f"inds {len(inds)}")   
         
         if saveResults:
+            inds = gzip.compress(
+                 json.dumps(inds).encode("utf-8")
+            )
+            
             self.client.execute("""
                 INSERT INTO back_session (strategy,dt_from,dt_to, in_data, trades,markers,indicators,script,ds_timestamp)
             VALUES (%s, %s, %s, %s,%s, %s, %s,%s,%s)
@@ -247,7 +253,7 @@ class BacktestManager:
                 json.dumps(self.inData.to_dict()), 
                 json.dumps(trades),
                 json.dumps(markers.to_dict(orient="records")) if markers is not None else None   , 
-                json.dumps(inds)  , 
+                inds , 
                 script, datetime.now(tz=ZoneInfo("Europe/Rome")).strftime("%Y-%m-%d %H:%M:%S"))
             )
 
@@ -272,7 +278,7 @@ class BacktestManager:
         
         #conn = sqlite3.connect(DB_FILE)
         query = f""" SELECT * from back_profile"""
-        df = pd.read_sql_query(query, conn)
+        df = self.client.get_df(query)
         df = df.iloc[::-1].reset_index(drop=True)
         #conn.close()    
         return df 
@@ -289,7 +295,7 @@ class BacktestManager:
 
         #logger.info(f"SYM BOOT TIME {self.sym_start_time}")
         if timeframe not in "1m":
-            df = self.client.history_data(symbols,timeframe,since=since,limit=999999)
+            df = self.client.history_data(symbols,timeframe,since=since,limit=99999999)
         else:
             query = f"""
                         SELECT *
@@ -302,7 +308,7 @@ class BacktestManager:
             #logger.info(f"query {query}")        
             #print("query",query)
 
-            df = pd.read_sql_query(query, conn)
+            df = self.client.get_df(query)
             
             df = df.iloc[::-1].reset_index(drop=True)
        # conn.close()    
@@ -322,7 +328,7 @@ class BacktestManager:
                     
         #print("query",query)
 
-        df = pd.read_sql_query(query, conn)
+        df = self.client.get_df(query)
         df = df.iloc[::-1].reset_index(drop=True) 
         return df 
     
@@ -337,7 +343,7 @@ class BacktestManager:
                     AND timestamp >= {unix_min}
                     AND timestamp <= {unix_max}
                     """
-        df = pd.read_sql_query(query, conn)
+        df = self.client.get_df(query)
         df = df.iloc[::-1].reset_index(drop=True)
           
         return df 
@@ -395,7 +401,7 @@ class BacktestManager:
                     
         #print("query",query)
 
-        df = pd.read_sql_query(query, conn)
+        df = self.client.get_df(query)
         df = df.iloc[::-1].reset_index(drop=True)
         #conn.close()    
         return df 
@@ -404,7 +410,7 @@ class BacktestManager:
     
     def save_profile(self,name,data):
         #conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
+        #cursor = conn.cursor()
 
         query = """
         INSERT INTO back_profile (
@@ -421,7 +427,7 @@ class BacktestManager:
             data = VALUES(data)
         """
 
-        cursor.execute(query, (name, json.dumps(data)))
+        self.client.execute(query, (name, json.dumps(data)))
        #conn.commit()
         #conn.close()
 
@@ -433,8 +439,8 @@ class BacktestManager:
 
     async def get_history(self,strategy,dt_from,dt_to):
        # conn = sqlite3.connect(DB_FILE)
-        query = f""" SELECT * from back_session where strategy='{strategy}' and dt_from >= '{dt_from}' and dt_to <= '{dt_to}' order by ds_timestamp desc limit 5"""
-        df = pd.read_sql_query(query, conn)
+        query = f"""  SELECT id,strategy,dt_from,dt_to, in_data,trades,to_char(ds_timestamp) as ds_timestamp from back_session where strategy='{strategy}' and dt_from >= '{dt_from}' and dt_to <= '{dt_to}' order by ds_timestamp desc limit 5"""
+        df = self.client.get_df(query)
         #logger.info(f"get_history {query} {df}")
 
         df = df.iloc[::-1].reset_index(drop=True)
@@ -445,8 +451,10 @@ class BacktestManager:
         arr={}
        
         #conn = sqlite3.connect(DB_FILE)
-        query = f""" SELECT * from back_session where id={history_id} """
-        df = pd.read_sql_query(query, conn)
+        query = f""" SELECT script from back_session where id={history_id} """
+        df = self.client.get_df(query)
+        # decomprime la colonna indicators
+
         df = df.iloc[::-1].reset_index(drop=True)
        # conn.close()  
 
@@ -457,7 +465,14 @@ class BacktestManager:
        
        # conn = sqlite3.connect(DB_FILE)
         query = f""" SELECT * from back_session where id={history_id} """
-        df = pd.read_sql_query(query, conn)
+        df = self.client.get_df(query)
+        # decomprime la colonna indicators
+        df["indicators"] = df["indicators"].apply(
+            lambda x: json.loads(
+                gzip.decompress(x).decode("utf-8")
+            ) if x is not None else None
+        )
+        #print(df["indicators"].iloc[0])
         df = df.iloc[::-1].reset_index(drop=True)
         #conn.close()   
 
@@ -470,7 +485,8 @@ class BacktestManager:
         except:
             markers = []
 
-        inds = json.loads(df["indicators"].iloc[0])
+        #inds = json.loads(df["indicators"].iloc[0])
+        inds = df["indicators"].iloc[0]
 
         for ind in inds:
             ind["data"] = [x for x in ind["data"] if x["symbol"] == symbol]
@@ -522,7 +538,11 @@ if __name__ =="__main__":
 
         dates = ["2026-05-04","2026-05-05","2026-05-03"]
         #dates = ["2026-05-04","2026-05-05","2026-05-03","2026-05-02","2026-05-01"]
-        dates = ["2026-05-05"]#,"2026-05-05","2026-05-03","2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
+        dates = ["2026-05-01"]#,"2026-05-05","2026-05-03","2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
+
+        #a = manager.get_symbol_history(1,"OSMOUSDC")
+        #print(a)
+        #exit(1)
 
         for max_back_steps in [4*24*7]:# 4*24*7,4*24*3,4*24*1]: #15
         #for max_back_steps in [12*24*7,12*24*7,12*24*3,12*24*1]: #5
@@ -576,11 +596,11 @@ if __name__ =="__main__":
                                     "badgetUSD": 1000,
                                     "symbols": s_list,
                                     "dt_from" :f"{date} 00:00:00", #f"{date_1} 2:00:00", # UTC format
-                                    "dt_to": "2026-05-09 23:59:00",
+                                    "dt_to": "2026-05-11 23:59:00",
                                     #"dt_from": f"{date_1} 2:00:00", # UTC format
                                     #"dt_to": f"{date} 23:59:00",
-                                     "module" : "strategies.back_strategy_BI_15",
-                                     "class" : "BackStrategyIB15",
+                                     "module" : "strategies.back_strategy_BI_15_2",
+                                     "class" : "BackStrategyIB15_2",
                                   #  "module" : "strategies.back_strategy_10s_orig",
                                   #  "class": "BackStrategy10s_Orig",
                                     "pre_scan": {
@@ -603,7 +623,7 @@ if __name__ =="__main__":
 
                                 daily_trades = defaultdict(list)
 
-                                trades = await manager.start( saveResults=False)
+                                trades = await manager.start( saveResults=True)
                                # Raggruppa trades per giorno
                                 for t in trades:
 

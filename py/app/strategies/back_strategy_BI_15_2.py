@@ -21,8 +21,10 @@ from reports.report_manager import ReportManager
 from order_book import *
 
 
+ 
 
-class TradeStrategyIB15(SmartStrategy):
+
+class BackStrategyIB15_2(SmartStrategy):
 
     async def on_start(self):
         self.min_day_volume= self.params["min_day_volume"]
@@ -31,7 +33,7 @@ class TradeStrategyIB15(SmartStrategy):
         #self.trade_last_hh= self.params["trade_last_hh"]
         self.gain_perc = self.params["gain_perc"]
         self.drop_time_secs= self.params["drop_time_secs"]
-        self.loss_by_trade=30
+        self.loss_by_trade=10
 
     def populate_indicators(self) :
       
@@ -40,6 +42,7 @@ class TradeStrategyIB15(SmartStrategy):
         #vol_day= self.addIndicator(self.timeframe,SUM("vol_day","quote_volume",1440))
         vol_day= self.addIndicator(self.timeframe,COPY("vol_day","quote_day_volume"))
         gain_day= self.addIndicator(self.timeframe,COPY("gain_day","day_gain"))
+        self.addIndicator(self.timeframe,SMA("sma_25","close",25))
 
         self.addIndicator(self.timeframe,TRADE_DATE("date"))
         vwap = self.addIndicator(self.timeframe, VWAPBands("vwap","vwap_up","vwap_down","vwap_perc","vwap_pos","close","quote_volume"))
@@ -55,7 +58,7 @@ class TradeStrategyIB15(SmartStrategy):
         self.add_plot(max_1w, "max_1w","#926B00FF", "main",style="Dotted", lineWidth=1)
 
         #self.add_plot(rsi, "rsi","#0318d3", "sub1", style="Solid", lineWidth=1)
-        #self.add_plot(vwap_trend, "thread","#0318d3","sub1", "vwap_trend" ,style="Solid", lineWidth=1)
+        self.add_plot(vwap_trend, "thread","#0318d3","sub1", "vwap_trend" ,style="Solid", lineWidth=1)
         #self.add_plot(vwap_trend, "thread sign","#1bd303","sub1","vwap_trend_sign", style="Solid", lineWidth=1)
         
         self.add_plot(vwap, "vwap_perc","#1bd303","sub1","vwap_perc", style="Solid", lineWidth=1)
@@ -63,28 +66,13 @@ class TradeStrategyIB15(SmartStrategy):
 
         #self.add_plot(vol_day, "vol_day","#d30337","sub1","vol_day", style="Solid", lineWidth=1)
         self.add_plot(gain_day, "gain_day","#0311d3","sub1","gain_day", style="Solid", lineWidth=1)
-        self.add_plot(vol_day, "vol_day","#0311d3","sub1","vol_day", style="Solid", lineWidth=1)
         
       
      
-        
+    
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
 
-        #########################
-        if self.bootstrapMode and self.orderManager:
-            if not self.has_meta("__trade","init"):
-                self.set_meta("__trade", {"init": True})   
-                history =  self.orderManager.getTradeHistory(None)
-                for trade in history:
-                    if not trade.isClosed():
-                        self.set_meta( trade.symbol, {"last_trade":trade})   
-                        logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
-            return
-        
-
-        ####################################
-        
         if not self.bootstrapMode:
             logger.info(f"\n{dataframe.tail(1)}") 
 
@@ -101,19 +89,39 @@ class TradeStrategyIB15(SmartStrategy):
         vol = last["quote_volume"]
         vwap = last["vwap"]
         vwap_down = last["vwap_down"]
+        sma_25 = last["sma_25"]
         
         trend =  last["vwap_trend"] * last["vwap_trend_sign"]
         last_trend =  prev["vwap_trend"] * prev["vwap_trend_sign"]
         
         vwap_perc = last["vwap_perc"]
         trend_pos =  last["vwap_pos"]
+
+        gain =  (price - prev["close"]) / prev["close"] * 100
+        v_gain =  (vol - prev["vol_day"]) / prev["vol_day"] * 100
         
+        if not self.has_meta(symbol,"ai"): 
+            self.set_meta(symbol,{"ai":{ "state": "WAITING"}})
+        ai = self.get_meta(symbol,"ai")   
+
         if not self.hasCurrentTrade(symbol):
             #if vwap_perc - prev["vwap_perc"] > 1 and trend_pos > 90:
-            if max_1w > prev["max_1w"] and trend > 10 :   
-                q = self.get_quantity( self.loss_by_trade, price    )
+            if ai["state"] =="WAITING":
+                if gain > 5  and trend > 5 :   
+                    ai["state"] = "DOWN"
+                    ai["close"] = price 
+                    ai["open"] = last["open"] 
+                    ai["signal"] = last["open"] + (ai["close"]- last["open"]) * 0.3
 
-                await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
+            if ai["state"] =="DOWN":
+                if price < ai["signal"]:
+                    ai["state"] = "UP"
+
+            if ai["state"] =="UP":
+                if price > ai["close"]:
+                    ai["state"] = "BUY"
+                    q = self.get_quantity( self.loss_by_trade, price    )
+                    await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
 
         if self.hasCurrentTrade(symbol):
             gain,ts,pnl = self.buyGain(symbol, last["close"]) 
@@ -123,12 +131,19 @@ class TradeStrategyIB15(SmartStrategy):
             
             if time_elapsed_secs > 60*15:
                 if gain < 1 and time_elapsed_secs > self.drop_time_secs:
-                    await  self.sell(symbol, dt, last["close"], f"TM {gain:.1f}%"  )
+                    await  self.sell(symbol, dt, last["close"], f"TIME"  )
+                    ai["state"] = "WAITING"
+                
+                if price < sma_25:
+                    await  self.sell(symbol, dt, last["close"], f"TP"  )
+                    ai["state"] = "WAITING"
+                '''
                 elif  gain >self.gain_perc:
-                    await  self.sell(symbol, dt, last["close"], f"TP{gain:.1f}%"  )
+                    await  self.sell(symbol, dt, last["close"], f"TP"  )
             
                 elif  gain < -self.gain_perc/2:
-                    await  self.sell(symbol, dt, last["close"], f"SL {gain:.1f}%"  )
+                    await  self.sell(symbol, dt, last["close"], f"SL"  )
+                '''
                  
             #if trend_pos < 50 :
             #    await self.sell( symbol, int(last["timestamp"]), price,  "SL" ) 

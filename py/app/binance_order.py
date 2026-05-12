@@ -25,6 +25,7 @@ from binance import AsyncClient, BinanceAPIException,BinanceSocketManager
 from mulo_live_client import MuloLiveClient
 import pymysql
 from order import *
+from telegram import send_telegram_message
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -190,8 +191,8 @@ class Binance_OrderManager(OrderManager):
         self.lastTradeMap = {}
 
         self.coin_info = {}
+        self.telegram_order_messages = client.config["general"]["telegram_order_messages"]
         
-
      
     async def bootstrap(self,ib):
         OrderManager.ib = ib     
@@ -224,6 +225,11 @@ class Binance_OrderManager(OrderManager):
         self.client.execute(f"""
             CREATE INDEX IF NOT EXISTS  ib_{self.order_table}
             ON {self.order_table}(trade_id)
+            """)
+        
+        self.client.execute(f"""
+            CREATE INDEX IF NOT EXISTS  is_{self.order_table}
+            ON {self.order_table}(symbol)
             """)
 
         self.manager=None
@@ -436,8 +442,10 @@ class Binance_OrderManager(OrderManager):
                     trade =  await self.create_order(symbol, op, order_type, totalQuantity, formatted_price)
 
                     if not trade:
-                         logger.info("Error Exit")
-                         return
+                         #logger.info("Error Exit")
+                         return  {"reqId" : 0, "errorCode": -1, "errorString": "ERROR"} 
+                    
+                         # return
                     
                     attempt=attempt+1
                     
@@ -552,6 +560,10 @@ class Binance_OrderManager(OrderManager):
             self.lastError = {"symbol" : symbol, "errorCode":  99 , "errorString" :  e.message}
             
             await self.client.send_error_event( self.lastError )
+
+            if self.telegram_order_messages:
+                send_telegram_message(self.lastError)
+
             return None
 
     async def cancel_order(self,orderId):

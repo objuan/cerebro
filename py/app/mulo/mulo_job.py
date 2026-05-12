@@ -164,6 +164,9 @@ class MuloJob:
         self.symbol_to_exchange_map={}
         self.metric_semaphore = asyncio.Semaphore(2)
 
+        mode = self.config["markets"]["BINANCE"]["MODE"]
+        self.order_table = self.config["markets"]["BINANCE"][mode]["order_table"]
+
     def getCurrentZone(self):
         return self.market.getCurrentZone()
     
@@ -1194,7 +1197,20 @@ class MuloJob:
 
             self.cur_exe.execute(sql)
 
-           
+    def is_last_trade_buy(self, symbol):   
+        df = self.get_last_trade(symbol)
+        if len(df)>0:
+            return df.iloc[0]["side"]=="BUY"
+        else:
+            return False
+        
+    def get_last_trade(self, symbol):   
+        df = self.get_df(f'''SELECT * FROM {self.order_table} 
+                                    WHERE  symbol='{symbol}'
+                                    order by id desc LIMIT 1 
+                             ''')
+        return df
+                         
 
     #######################
     

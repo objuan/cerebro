@@ -324,6 +324,7 @@ async def add_referrer_policy(request, call_next):
 ################################
 
 #conn = sqlite3.connect(DB_FILE, isolation_level=None)
+'''
 conn = pymysql.connect(
                 host="192.168.1.100",
                 user="root",
@@ -334,6 +335,7 @@ conn = pymysql.connect(
             )
 
 cur = conn.cursor()
+'''
 
 #cur.execute("PRAGMA journal_mode=WAL;")
 #cur.execute("PRAGMA synchronous=NORMAL;")
@@ -377,7 +379,7 @@ async def ohlc_chart(symbol: str, timeframe: str,  limit: Optional[int] = None):
             if not limit:
                 limit =config["live_service"]["TIMEFRAME_CHART_CANDLES"][timeframe]
              
-                logger.info(f"limit {limit}")
+                #logger.info(f"limit {limit}")
             df:pd.DataFrame = await client.ohlc_data(symbol,timeframe,limit)
             df = df.dropna()
             #logger.info(df)
@@ -909,17 +911,18 @@ async def get_orders(start: Optional[str] = None):
 
             ORDER BY timestamp DESC
         """
-        cur.execute(query, (start,))
-        rows = cur.fetchall()
+        df = client.get_df(query, (start,))
+        #rows = cur.fetchall()
 
         logger.info(f"get orders {start}")
         
         # Ottieni i nomi delle colonne
-        columns = [desc[0] for desc in cur.description]
+        #columns = [desc[0] for desc in cur.description]
         
         # Converti in lista di dizionari
-        data = [dict(zip(columns, row)) for row in rows]
-        
+        #data = [dict(zip(columns, row)) for row in rows]
+        data = df.to_dict(orient="records")
+
         return {"status": "ok", "data": data}
     except Exception as e:
         logger.error("ERROR", exc_info=True)
@@ -999,16 +1002,17 @@ async def get_task_orders(start: Optional[str] = None,
             ORDER BY timestamp DESC
             """
 
-        cur.execute(query, (start,))
-        rows = cur.fetchall()
+        df = client.get_df(query, (start,))
+        #rows = cur.fetchall()
 
         logger.info(f"get task orders {start} {onlyReady}")
         
         # Ottieni i nomi delle colonne
-        columns = [desc[0] for desc in cur.description]
+        #columns = [desc[0] for desc in cur.description]
         
         # Converti in lista di dizionari
-        data = [dict(zip(columns, row)) for row in rows]
+        #data = [dict(zip(columns, row)) for row in rows]
+        data = df.to_dict(orient="records")
         
         return {"status": "ok", "data": data}
     except Exception as e:
@@ -1524,7 +1528,7 @@ async def back_execute():
 
         #await back_manager.load(backData)
 
-        await back_manager.start()
+        await back_manager.start(saveResults=True)
 
         return  {"status": "ko"}   
     except :

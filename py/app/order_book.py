@@ -186,6 +186,14 @@ class OrderBook:
 
         return trade
 
+    def buy_quantity(self, symbol):
+
+        if symbol not in self.position.positions:
+            return None
+       
+        return self.position.positions[symbol]
+
+
     def gain(self, symbol, actual_price):
 
         if symbol not in self.position.positions:

@@ -101,7 +101,7 @@ class TradeStrategyIB(SmartStrategy):
             #if symbol =="ZECUSDC":
             #     logger.info(f"\n{max_1w}")
 
-            if gain >= 2:
+            if gain >= 1:
                    await self.add_marker(symbol,"SPOT",f"Gain {gain:.1f}",f"Gain {gain:.1f}","#F6F7F86F","square",position ="atPriceTop")
 
            # if last["close"] > max_1w and not self.has_meta(symbol,"max_1w" ):
@@ -111,8 +111,8 @@ class TradeStrategyIB(SmartStrategy):
             elif MAX_1D > prev["MAX_1D"]:
                    await self.add_marker(symbol,"SPOT",f"MAX 1D",f"MAX 1D","#08BB356D","square",position ="atPriceTop")
             
-            elif MAX_1H > prev["MAX_1H"]:
-                   await self.add_marker(symbol,"SPOT",f"MAX 2H",f"MAX 2H","#0861BB6E","square",position ="atPriceTop",ring="")
+            #elif MAX_1H > prev["MAX_1H"]:
+            #       await self.add_marker(symbol,"SPOT",f"MAX 2H",f"MAX 2H","#0861BB6E","square",position ="atPriceTop",ring="")
 
             #vol_perc =  (last["quote_volume"]- vol_sma) /vol_sma * 100
             #if gain>0 and vol_perc>100:

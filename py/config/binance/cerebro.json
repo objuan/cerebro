@@ -16,7 +16,13 @@
 	"markets":
 	{
 		"BINANCE":{
-			"MODE" : "PROD",
+			"MODE" : "PAPER",
+			"PROD_LOCAL":{
+				"API_KEY" : "2GIIXuCtOEFqA9lihM7I0NWEcqvS3N1YPRLRYTOTEzK5wf7EJMoYtsLZaXZBi75q",
+				"API_SECRET": "vzOYsooxAoC3df8sJNcBKHlfsb1MC6mKIJlne1c7ZMFYEm3j6fbzBn5mgCqAd90w",
+				"order_table" : "live_loc_order",
+				"event_table" : "live_loc_event"
+			},
 			"PROD":{
 				"API_KEY" : "2GIIXuCtOEFqA9lihM7I0NWEcqvS3N1YPRLRYTOTEzK5wf7EJMoYtsLZaXZBi75q",
 				"API_SECRET": "vzOYsooxAoC3df8sJNcBKHlfsb1MC6mKIJlne1c7ZMFYEm3j6fbzBn5mgCqAd90w",
@@ -64,7 +70,7 @@
                     "volume_min_filter" :1000000
 
 				}
-			},		
+			},	
 				{
 			   "module": "trade_strategy_IB_15",
 				"class" : "TradeStrategyIB15",
@@ -79,12 +85,27 @@
                      "max_back_steps" : 672
 
 				}
+			},			
+				{
+			   "module": "trade_strategy_IB_15_info",
+				"class" : "TradeStrategyIB15_info",
+				"timeframe" : "15m",
+				"enabled" : true,
+				"scope" : "LIVE",
+				"params" :
+				{
+                   "gain_perc" : 10,
+                    "min_day_volume" :500000,
+                    "drop_time_secs" :14400,
+                     "max_back_steps" : 672
+
+				}
 			},		
 		{
-			   "module": "back_strategy_BI_15",
-				"class" : "BackStrategyBinance1",
+			   "module": "back_strategy_BI_15_2",
+				"class" : "BackStrategyIB15_2",
 				"timeframe" : "15m",
-				"enabled" : false,
+				"enabled" : true,
 				"scope" : "BACK",
 				"params" :
 				{
