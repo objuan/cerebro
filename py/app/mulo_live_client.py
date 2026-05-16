@@ -55,9 +55,9 @@ class MuloLiveClient:
             "mysql+pymysql://root:alice@192.168.1.100/binance",
 
             connect_args={
-                "connect_timeout": 60,   # timeout connessione
-                "read_timeout": 60,      # timeout lettura
-                "write_timeout": 60      # timeout scrittura
+                "connect_timeout": 120,   # timeout connessione
+                "read_timeout": 120,      # timeout lettura
+                "write_timeout": 120      # timeout scrittura
             },
             
             pool_size=10,
@@ -559,7 +559,7 @@ class MuloLiveClient:
         #conn.close()     
         return df
 
-    def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, limit: int = 1000):
+    def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, to : int=None, limit: int = 9999999):
 
         if len(symbols) == 0:
             logger.error("symbol empty !!!")
@@ -599,7 +599,10 @@ class MuloLiveClient:
                     LIMIT {limit}"""
                     
             if since:
-                query = query.replace("[SINCE]",f"and timestamp>= {since}")
+                if to:
+                    query = query.replace("[SINCE]",f"and timestamp>= {since} and timestamp<= {to}")
+                else:
+                    query = query.replace("[SINCE]",f"and timestamp>= {since}")
             else:
                 query = query.replace("[SINCE]",f"")
 
@@ -1086,6 +1089,7 @@ class MuloLiveClient:
         conn = self.engine.raw_connection()
 
         try:
+                conn.ping(reconnect=True)
                 #with self.engine.raw_connection() as conn:
                 
                 #self.conn.ping(reconnect=True)
@@ -1104,9 +1108,18 @@ class MuloLiveClient:
                 return line_id
         except Exception as e:  
             logger.error(f"DB ERROR: {sql}\n{e}")
+            try:
+                if conn:
+                    conn.rollback()
+            except:
+                pass
             return None 
         finally:
-            conn.close()
+            try:
+                if conn:
+                    conn.close()
+            except:
+                pass
     
     async def send_cmd(self, rest_point, msg=None):
         '''

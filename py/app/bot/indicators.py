@@ -575,10 +575,14 @@ class GAIN(Indicator):
         dest = dataframe[self.target_col].to_numpy()
         source = dataframe[self.source].to_numpy()
 
-        for i_idx in range(from_local_index,len(symbol_idx) ):
+        start = max(from_local_index,self.timeperiod)
+        for i_idx in range(start,len(symbol_idx) ):
             prev = source[symbol_idx[max(0,i_idx -self.timeperiod )]]
             current = source[symbol_idx[i_idx]]
-            dest[symbol_idx[i_idx]] = 100.0 * (current-prev ) / prev
+            if prev>0:
+                    dest[symbol_idx[i_idx]] = 100.0 * (current-prev ) / prev
+            else:
+                 dest[symbol_idx[i_idx]] =0
 
 
 class DIFF(Indicator):

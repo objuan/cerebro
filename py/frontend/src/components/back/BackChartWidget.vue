@@ -549,6 +549,7 @@ async function handleRefresh (resetWindow)
 
     const data = await send_get("/back/ohlc_chart", {"symbol": currentSymbol.value, 
         "timeframe": currentTimeframe.value,
+        "history_id": backTest.history ? backTest.history.id : null,
         "backTime" : backTime.value});
 
    // console.log("response",data)

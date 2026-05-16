@@ -209,7 +209,7 @@ class Balance:
                 API_KEY = Balance.config["markets"]["BINANCE"][mode]["API_KEY"]
                 API_SECRET = Balance.config["markets"]["BINANCE"][mode]["API_SECRET"]
 
-                #logger.info(f"BINANCE API_KEY: {API_KEY}")
+                logger.info(f"BINANCE API_KEY: {API_KEY}")
                 try:
                     client = await AsyncClient.create(API_KEY, API_SECRET,  testnet=mode=="PAPER")
 
@@ -222,9 +222,13 @@ class Balance:
                     }
                     '''
                     for b in account["balances"]:
+
+                        #logger.info(f"balance: {b}")    
                         if float(b["free"]) > 0 or float(b["locked"]) > 0:
                             symbol =  b["asset"]
                             pos = float(b["free"]) + float(b["locked"])
+
+                            #logger.info(f"balance: {b}")    
 
                             #logger.info(balances)
                             await Balance.update(symbol,{"symbol": symbol, "position":pos, "avgCost":0})
@@ -383,9 +387,9 @@ if __name__ =="__main__":
         b = Balance(config,None, None)
         await Balance.bootstrap()
 
-        #logger.info(Balance.to_dict())
+        logger.info(Balance.to_dict())
     
         while True:
-            asyncio.sleep(1)
+            await asyncio.sleep(1)
 
     asyncio.run(main())

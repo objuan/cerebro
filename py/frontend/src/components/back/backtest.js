@@ -54,6 +54,7 @@ export const backTest = reactive({
                
                 this.inData.badgetUSD  = data.badgetUSD
                 this.inData.symbols  = data.symbols
+                
                 this.inData.dt_to  = data.dt_to
                 this.inData.dt_from  = data.dt_from
                 this.inData.date  = data.date
@@ -105,12 +106,14 @@ export const backTest = reactive({
         })
     },
     selectHistory(history){
-       // console.log("history",history.trades)    
+        console.log("history",history.trades)    
         this.history = history
-        this.in_data = JSON.parse(history.in_data)
+        this.history_data = JSON.parse(history.in_data)
         this.trades =history.trades
         self.script =null;
-
+        this.history_symbols = this.history_data["symbols"]
+        
+        console.log(history.id,this.history_symbols);
         //this.in_params = JSON.parse(history.in_data)
      
 

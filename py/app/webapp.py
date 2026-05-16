@@ -1409,13 +1409,28 @@ async def back_start(data):
    pass
 
 @app.get("/back/ohlc_chart")
-async def back_ohlc_chart(symbol: str, timeframe: str, backTime):
+async def back_ohlc_chart(symbol: str, timeframe: str,history_id, backTime):
     try:
-        if not back_manager.db:
-              return JSONResponse({})
+        #if not back_manager.db:
+        #      return JSONResponse({})
         
-        df1 = back_manager.db.full_dataframe(timeframe, symbol)
+        query = f""" SELECT dt_from,dt_to from back_session where id={history_id} """
+        df = client.get_df(query)
+        if len(df)==0:
+            return JSONResponse({})
+        
+        
+        dt_from = datetime.strptime(df.iloc[0]["dt_from"], "%Y-%m-%d %H:%M:%S")
+        dt_to = datetime.strptime(df.iloc[0]["dt_to"], "%Y-%m-%d %H:%M:%S")
+        #start_of_day = datetime.combine(dt_from.date(), datetime.min.time())
+        #end_of_day = datetime.combine(dt_to.date(), datetime.max.time())
+        unix_min = int(dt_from.timestamp())*1000
+        unix_max = int(dt_to.timestamp())*1000
+    
+        df1= client.history_data([symbol],timeframe,since= unix_min,to= unix_max )
+        #df1 = back_manager.db.full_dataframe(timeframe, symbol)
         #logger.info(f"backTime {backTime}")
+        logger.info(f"df1 {df1}")
 
         if backTime =="null":
             backTime = None
@@ -1495,7 +1510,7 @@ async def back_select_profile(name):
 
     backData = back_manager.get_profile_data(name)  
     logger.info(f"load  DATA { backData.to_dict()}")
-    await back_manager.load(backData)
+    await back_manager.select(backData)
 
     return {"status": "ok"}
 
@@ -1588,10 +1603,10 @@ async def back_currentTime(strategy,date):
             date_obj.date(),
             datetime.max.time().replace(microsecond=0)
         )
-        logger.error("1")            
+        #logger.error("1")            
 
-        ret = await back_manager.get_history(strategy,start_of_day,end_of_day)
-        logger.error("2")            
+        ret = await back_manager.get_history_by_date(strategy,date)
+        #logger.error("2")            
         return JSONResponse(ret.to_dict(orient="records"))
 
 @app.get("/back/history/indicators")      

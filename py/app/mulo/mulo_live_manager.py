@@ -343,7 +343,7 @@ class LiveManager:
                     )
                 ]
                 # check order
-                last_trade = self.fetcher.get_last_trade()
+             
 
                 logger.info(f"REMOVE LAST symbols {symbols}")
 

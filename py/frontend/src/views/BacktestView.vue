@@ -8,23 +8,41 @@
     
     <main class="main-columns">
 
-      <div class="items-container" v-if="backTest.inData">
+       <div class="items-container" v-if="backTest.inData && !backTest.history">
           <div
             v-for="item in backTest.inData.symbols"
             :key="item.symbol"
             class="card ticket-card"
           >
-            <div 
-              v-if="!backTest.history || (backTest.history && backTest.getTradeCount(item.symbol)>0 )"
-              class="card-body p-2 d-flex justify-content-between align-items-center">
-
+            <div class="card-body p-2 d-flex justify-content-between align-items-center">
                 <div class="fw-bold">
                     <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item.symbol)">
                           {{ item.symbol }}
                           
                     </a>
+                   
+                </div>
+              </div>
+          </div>
+        </div>
+
+      <div class="items-container" v-if="backTest.inData && backTest.history">
+          <div
+            v-for="item in backTest.history_symbols"
+            :key="item"
+            class="card ticket-card"
+          >
+            <div
+              v-if="backTest.getTradeCount(item)>0"
+              class="card-body p-2 d-flex justify-content-between align-items-center">
+                
+                <div class="fw-bold">
+                    <a href="#" class="text-blue-600 hover:underline" @click.prevent="onSymbolClick(item)">
+                          {{ item }}
+                          
+                    </a>
                     <div v-if="backTest.history">
-                          {{backTest.getTradeCount(item.symbol)}}
+                          {{backTest.getTradeCount(item)}}
                     </div>
 
                 </div>

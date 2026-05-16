@@ -54,7 +54,7 @@
                 <div v-if="selectedTrade && symbol" style="background-color: aquamarine;">
                    {{selectedTrade.ds_timestamp}} {{symbol}}  <button @click="open_script()">Script</button>
 <br>
-                   {{ backTest.in_data.params }}
+                   {{ backTest.history_data.params }}
 
                    <table style="width: 100%;">
                     <tr>

@@ -51,8 +51,8 @@
 			   "module": "trade_strategy_IB",
 				"class" : "TradeStrategyIB",
 				"timeframe" : "1m",
-				"enabled" : true,
-				"scope" : "PAPER",
+				"enabled" : false,
+				"scope" : "LIVE",
 				"params" :
 				{
                     "volume_min_filter" :1000000
@@ -90,7 +90,7 @@
 			   "module": "trade_strategy_IB_15_info",
 				"class" : "TradeStrategyIB15_info",
 				"timeframe" : "15m",
-				"enabled" : true,
+				"enabled" : false,
 				"scope" : "LIVE",
 				"params" :
 				{
@@ -102,15 +102,15 @@
 				}
 			},		
 		{
-			   "module": "back_strategy_BI_15_2",
-				"class" : "BackStrategyIB15_2",
+			   "module": "back_strategy_BI_15_3",
+				"class" : "BackStrategyIB15_3",
 				"timeframe" : "15m",
 				"enabled" : true,
 				"scope" : "BACK",
 				"params" :
 				{
-				 "gain_perc" : 10,
-                    "min_day_volume" :1000000,
+				 "gain_perc" : 15,
+                    "min_day_volume" :500000,
                     "drop_time_secs" :14400,
                      "max_back_steps" : 672
 

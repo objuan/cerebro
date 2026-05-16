@@ -21,10 +21,7 @@ from reports.report_manager import ReportManager
 from order_book import *
 
 
- 
-
-
-class BackStrategyIB15_2(SmartStrategy):
+class BackStrategyIB15_3(SmartStrategy):
 
     async def on_start(self):
         self.min_day_volume= self.params["min_day_volume"]
@@ -107,18 +104,24 @@ class BackStrategyIB15_2(SmartStrategy):
         if not self.hasCurrentTrade(symbol):
             #if vwap_perc - prev["vwap_perc"] > 1 and trend_pos > 90:
             if ai["state"] =="WAITING":
-                if gain > self.gain_perc  and trend > 5 :   
+                if trend_pos > 90  and trend > 5 :   
                     ai["state"] = "DOWN"
                     ai["close"] = price 
                     ai["open"] = last["open"] 
                     ai["signal"] = last["open"] + (ai["close"]- last["open"]) * 0.5
 
             if ai["state"] =="DOWN":
-                if price < ai["signal"]:
+                if trend_pos <=55:
+                    ai["state"] = "MID"
+
+            if ai["state"] =="MID":
+                if trend_pos >=60:
                     ai["state"] = "UP"
+                if trend_pos <=50:
+                    ai["state"] = "WAITING"
 
             if ai["state"] =="UP":
-                if price > ai["close"]:
+                #if price > ai["close"]:
                     ai["state"] = "BUY"
                     q = self.get_quantity( self.loss_by_trade, price    )
                     await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
@@ -134,10 +137,23 @@ class BackStrategyIB15_2(SmartStrategy):
                     await  self.sell(symbol, dt, last["close"], f"TIME"  )
                     ai["state"] = "WAITING"
                 
+                if ai["state"] =="BUY":
+                    if trend_pos > 90:
+                       ai["state"] = "UP_UP"
+                    else:
+                        if trend_pos < 50:
+                            await  self.sell(symbol, dt, last["close"], f"SL"  )
+
+                elif ai["state"] =="UP_UP":
+                    if trend_pos < 80:
+                          await  self.sell(symbol, dt, last["close"], f"TP"  )
+                          ai["state"] = "WAITING"
+
+                '''
                 if price < sma_25:
                     await  self.sell(symbol, dt, last["close"], f"TP"  )
                     ai["state"] = "WAITING"
-                '''
+                
                 elif  gain >self.gain_perc:
                     await  self.sell(symbol, dt, last["close"], f"TP"  )
             

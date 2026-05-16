@@ -591,10 +591,10 @@ class SmartStrategy(Strategy):
                     if (pos and pos.position>0):
 
                         quantity = pos.position
-                        last_trade = self.orderManager.getLastTrade(symbol)
-                        if last_trade:
-                            quantity = self.buyQuantity(symbol)
-                            logger.info(f"SELL {symbol} last_trade {last_trade.to_dict()}")
+                        #last_trade = self.orderManager.getLastTrade(symbol)
+                        #if last_trade:
+                        #    quantity = self.buyQuantity(symbol)
+                        #    logger.info(f"SELL {symbol} last_trade {last_trade.to_dict()}")
 
                         logger.info(f"SELL {symbol} {quantity} ")
                         #ret = await self.orderManager.smart_sell_limit(symbol,pos.position, self.client.getTicker(symbol))
