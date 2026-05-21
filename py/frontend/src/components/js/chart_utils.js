@@ -27,8 +27,8 @@ export function clearStrategyIndicators(context){
   //createSeriesMarkers(context.series, []);
 }
 
-export async  function updateBackIndicators(context,symbol, history_id){
-  let params = {"symbol":symbol,"history_id":history_id  }
+export async  function updateBackIndicators(context,symbol,timeframe, history_id){
+  let params = {"symbol":symbol,"timeframe":timeframe,"history_id":history_id  }
 
   const  strat_response = await send_get(`/back/history/indicators`,params);
 

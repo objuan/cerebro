@@ -100,13 +100,43 @@
                      "max_back_steps" : 672
 
 				}
-			},		
-		{
-			   "module": "back_strategy_BI_15_3",
-				"class" : "BackStrategyIB15_3",
-				"timeframe" : "15m",
+			},	
+			{
+			   "module": "back_strategy_BI_marcov",
+				"class" : "BackStrategyIB_marcov",
 				"enabled" : true,
 				"scope" : "BACK",
+				"timeframe" : "1h",
+				"params" :
+				{
+				 "gain_perc" : 15,
+                    "min_day_volume" :500000,
+                    "drop_time_secs" :14400,
+                     "max_back_steps" : 672
+
+				}
+			},		
+		{
+			   "module": "back_strategy_BI_15_4",
+				"class" : "BackStrategyIB15_4",
+				"enabled" : false,
+				"scope" : "BACK",
+				"timeframe" : "1m",
+				"params" :
+				{
+				 "gain_perc" : 15,
+                    "min_day_volume" :500000,
+                    "drop_time_secs" :14400,
+                     "max_back_steps" : 672
+
+				}
+			},	
+			{
+			   "module": "back_strategy_BI_1H",
+				"class" : "BackStrategyIB_1H",
+				"enabled" : false,
+				"scope" : "BACK",
+				"timeframe" : "1h",
 				"params" :
 				{
 				 "gain_perc" : 15,

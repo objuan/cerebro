@@ -1174,6 +1174,18 @@ class MuloJob:
                             profile,symbol)
                         )
     
+    def reset_day_symbol(self):
+        ts = int(time.time())
+        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+          
+        sql = f"""
+                            UPDATE ib_scan_watch SET ts_exit= {ts}, ds_exit='{dt}', closed=1
+                            WHERE ts_exit is NULL
+                        """
+        logger.info(f"RESET  WATCH SYMBOL {sql}")
+
+        self.cur_exe.execute(sql)
+
     def del_day_symbol(self,symbol):
         logger.info(f"REMOVE SYMBOL {symbol}")
         df = self.get_df(

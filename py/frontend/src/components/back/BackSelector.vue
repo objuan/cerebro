@@ -24,7 +24,15 @@
       <button @click="openPicker" class="btn btn-success">
         📅 
       </button> 
-
+        Back Days
+        <input
+         type="number"
+            step="1"
+            class="form-control form-control-sm"
+            style="width: 90px"
+            v-model.number="dateGGInput"
+          />
+    
     </div>
   <!--    -->
 
@@ -74,6 +82,7 @@ const dateInput = ref(null)
 //const symbolList = ref([])
 //const symbolMap = ref(null)
 const profile_name = ref(null)
+const dateGGInput = ref(2)
 
 
 //let profiles = null
@@ -94,6 +103,10 @@ function openPicker() {
 watch(selectedDate, (newDate) => {
   //staticStore.set("back.history.date", newDate)
   fetchHistory(newDate)
+})
+
+watch(dateGGInput, () => {
+    backTest.inData.backDays = dateGGInput.value
 })
 
 // =========================
@@ -122,6 +135,7 @@ async function fetchHistory(date) {
   //symbolMap.value.setup(pdata)
   //backTest.setDate(date)
   backTest.inData.date= selectedDate.value 
+  backTest.inData.backDays = dateGGInput.value
   backTest.inData.symbols =  pdata
   await backTest.updateHistoryList()
    
@@ -160,6 +174,8 @@ onMounted(async  () => {
       console.log("data",backTest.inData)
 
       selectedDate.value = backTest.inData.date
+      dateGGInput.value = backTest.inData.backDays
+
      // symbolList.value = backTest.inData.symbols
 
       await send_get("/back/enabled",{"enable": true})

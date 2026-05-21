@@ -21,7 +21,7 @@ from reports.report_manager import ReportManager
 from order_book import *
 
 
-class BackStrategyIB15_3(SmartStrategy):
+class BackStrategyIB15_4(SmartStrategy):
 
     async def on_start(self):
         self.min_day_volume= self.params["min_day_volume"]
@@ -29,6 +29,7 @@ class BackStrategyIB15_3(SmartStrategy):
         self.gain_2_perc= 2#self.params["gain_2_perc"]
         #self.trade_last_hh= self.params["trade_last_hh"]
         self.gain_perc = self.params["gain_perc"]
+        self.max_wperc = self.params["max_wperc"]
         self.drop_time_secs= self.params["drop_time_secs"]
         self.loss_by_trade=100
 
@@ -79,10 +80,13 @@ class BackStrategyIB15_3(SmartStrategy):
         if not self.bootstrapMode:
             logger.info(f"\n{dataframe.tail(1)}") 
 
+        if local_index < 25:
+            return
+        
         last = dataframe.iloc[local_index]
         vol_day = last["vol_day"]    
         gain_day = last["gain_day"] 
-        if not self.hasCurrentTrade(symbol)  and (vol_day < self.min_day_volume or gain_day < 1):
+        if not self.hasCurrentTrade(symbol) and (vol_day < self.min_day_volume or gain_day < -2):
              return
 
         prev = dataframe.iloc[local_index-1]
@@ -106,12 +110,14 @@ class BackStrategyIB15_3(SmartStrategy):
         vwap_perc_gain =  ( last["vwap_perc"] - prev["vwap_perc"]) / prev["vwap_perc"] * 100
         
         if not self.has_meta(symbol,"ai"): 
-            self.set_meta(symbol,{"ai":{ "state": "WAITING"}})
+            self.set_meta(symbol,{"ai":{ "state": "WAITING","MAX_GAIN": 0}})
         ai = self.get_meta(symbol,"ai")   
 
         if not self.hasCurrentTrade(symbol):
             #if price > sma_25 and vwap_perc > 95 and gain > 1 and vol  >  sma_vol* 5:
-            if vwap_perc>95 and vwap_perc_gain > 0.5: #and vwap_perc> 5 and vwap_perc_gain > 1 and vol  >  sma_vol* 2:
+            #if vwap_perc>95 : #and vwap_perc> 5 and vwap_perc_gain > 1 and vol  >  sma_vol* 2:
+            if  vwap_perc<=self.max_wperc and trend_pos>100:
+                ai["MAX_GAIN"]=-9999
                 q = self.get_quantity( self.loss_by_trade, price    )
                 await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
 
@@ -121,8 +127,18 @@ class BackStrategyIB15_3(SmartStrategy):
             dt = int(dataframe.iloc[local_index]["timestamp"])
             time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000   
             
+            ai["MAX_GAIN"] = max(ai["MAX_GAIN"], gain)
+            loss_max_gain = ai["MAX_GAIN"]-gain 
+
+            #logger.info(f'{symbol} max { ai["MAX_GAIN"] } gain {gain} loss_max_gain {loss_max_gain}')    
             #if time_elapsed_secs > 60*15:
-            if True:
+            if gain < -1:
+                 await  self.sell(symbol, dt, last["close"], f"SL"  )
+
+            if gain >self.gain_perc and loss_max_gain > 1:
+                await  self.sell(symbol, dt, last["close"], f"TP"  )
+
+            if False:
                 if gain < 1 and time_elapsed_secs > self.drop_time_secs:
                     await  self.sell(symbol, dt, last["close"], f"TIME"  )
                     ai["state"] = "WAITING"

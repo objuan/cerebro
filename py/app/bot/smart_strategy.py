@@ -224,7 +224,7 @@ class SmartStrategy(Strategy):
 
     def get_quantity(self,loss_by_trade,price):
         #sl_price = price - price / 100 * self.gain_perc
-        return int(loss_by_trade  / price )
+        return float(loss_by_trade  / price )
 
     '''
     ring: [default, alarm, chime, alert1, new_symbol, news ]

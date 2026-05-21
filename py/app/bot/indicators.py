@@ -1183,251 +1183,91 @@ class VWAP_OLD(Indicator):
             dataframe.loc[group.index[start_pos:], self.target_col] = \
                 vwap_full.iloc[start_pos:].values
         '''
-        
+##########################
 
-'''
-        
-class GAIN(Indicator):
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        self.source_col=source_col
-        self.target_col=target_col
-        self.timeperiod=timeperiod
+class AVP(Indicator):
 
-    def apply(self,dataframe : pd.DataFrame, from_global_index=0):
-        
-       # logger.info(f"GAIN \n{dataframe.tail(30)}")
+    def __init__(
+        self,
+        target_col_prefix:str,
+        price_source:str,
+        volume_source:str,
+        window:int,
+        steps:int,
+        min_price=None,
+        max_price=None
+    ):
 
-        #dataframe[self.target_col]  =  ((dataframe[self.source_col] - dataframe[self.source_col].shift(self.timeperiod)) / dataframe[self.source_col].shift(self.timeperiod))* 100
-        dataframe[self.target_col] = (
-            dataframe
-                .groupby("symbol")[self.source_col]
-                .transform(
-                    lambda s: ((s - s.shift(self.timeperiod)) / s.shift(self.timeperiod)) * 100
-                )
-        )
-       # logger.info(f"GAIN AFTER \n{dataframe.tail(30)}")
-'''
-'''
-class AVG(Indicator):
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.timeperiod=timeperiod
+        self.price_source = price_source
+        self.volume_source = volume_source
 
-    def apply(self,dataframe : pd.DataFrame, from_global_index=0):
-        #logger.info(f"GAIN \n{dataframe}")
-     
-        #dataframe[self.target_col]  =  ((dataframe[self.source_col] - dataframe[self.source_col].shift(self.timeperiod)) / dataframe[self.source_col].shift(self.timeperiod))* 100
-        
-        dataframe[self.target_col] = (
-                dataframe
-                .groupby("symbol")[self.source_col]
-                .transform(lambda s: s.rolling(self.timeperiod, min_periods=self.timeperiod).mean())
-        )
-      
+        self.window = window
+        self.steps = steps
 
-class FLOAT(Indicator):
-    def __init__(self,target_col):
-        super().__init__([target_col])
-        self.target_col=target_col
-        self.cache = {}
+        self.min_price = min_price
+        self.max_price = max_price
 
-    def apply(self,dataframe : pd.DataFrame, from_global_index=0):
-        #logger.info(f"GAIN \n{dataframe}")
-     
-        symbols = dataframe["symbol"].unique().tolist()
-        #logger.info(f"FLOAT \n{symbols}")
+        self.target_cols = [
+            f"{target_col_prefix}_{i}"
+            for i in range(steps)
+        ]
 
-        for symbol in symbols:
-            if not symbol in self.cache:
-                 #logger.info(f"get_fundamentals {self.client.get_fundamentals_dict(symbol)}")
-                 self.cache[symbol] = self.client.get_fundamentals_dict(symbol)["float"]
+        super().__init__(self.target_cols)
 
-        dataframe[self.target_col] = dataframe["symbol"].map(self.cache)
+    def compute_fast(
+        self,
+        symbol,
+        dataframe: pd.DataFrame,
+        symbol_idx,
+        from_local_index
+    ):
 
+        prices = dataframe[self.price_source].to_numpy()
+        volumes = dataframe[self.volume_source].to_numpy()
 
-class SORT_POS(Indicator):
-    def __init__(self,target_col, source_col):
-        super().__init__([target_col])
-        self.target_col=target_col
-        self.source_col=source_col
-        self.cache = {}
+        targets = [
+            dataframe[col].to_numpy()
+            for col in self.target_cols
+        ]
 
-    def apply(self,dataframe : pd.DataFrame, from_global_index=0):
-        #logger.info(f"GAIN \n{dataframe}")
-       # 1️⃣ ultima riga per symbol (preserva indice)
-        last_rows = (
-            dataframe
-            .sort_index()
-            .groupby("symbol")
-            .tail(1)
-        )
-        # 2️⃣ ordina per source_col e crea rank (1 = migliore)
-        last_rows = last_rows.sort_values(self.source_col, ascending=False)
-        last_rows[self.target_col] = range(1, len(last_rows) + 1)
+        start = max(from_local_index, self.window)
 
-        # 3️⃣ mappa symbol -> rank
-        rank_map = last_rows.set_index("symbol")[self.target_col].to_dict()
+        for i_idx in range(start, len(symbol_idx)):
 
-        # 4️⃣ assegna a TUTTE le righe
-        dataframe[self.target_col] = dataframe["symbol"].map(rank_map)
+            # indice dataframe corrente
+            current_df_idx = symbol_idx[i_idx]
 
-        #logger.info(f"rank_map \n{rank_map}")
-        #logger.info(f"SORT_POS \n{dataframe}")
+            # finestra locale simbolo
+            window_symbol_idx = symbol_idx[
+                i_idx - self.window:i_idx + 1
+            ]
 
-class VWAP_PERC(Indicator):
-  
-  def __init__(self,target_col):
-        super().__init__([target_col])
-        self.target_col=target_col
-    
-  def compute(self, dataframe, group, start_pos):
-        
-        close = group["close"]
-        vwap = group["vwap"]
-        vwap_up = group["vwap_up"]
-        vwap_down = group["vwap_down"]
+            prices_window = prices[window_symbol_idx]
+            volumes_window = volumes[window_symbol_idx]
 
-        band_h = vwap_up-vwap_down
-        close_perc = 100* (close - vwap_down) / band_h
+            # range prezzo dinamico
+            if self.min_price is None:
+                pmin = prices_window.min()
+            else:
+                pmin = self.min_price
 
-        dataframe.loc[group.index, self.target_col] = close_perc
+            if self.max_price is None:
+                pmax = prices_window.max()
+            else:
+                pmax = self.max_price
 
-        gain = close_perc - close_perc.shift(1)
+            if pmax <= pmin:
+                continue
 
-        dataframe.loc[group.index, self.target_col + "_gain"] = gain
-
-        variance = ((band_h) / vwap_down) * 100
-
-        dataframe.loc[group.index, self.target_col + "_var"] = variance
-
-############
+            # histogram volume profile
+            hist, _ = np.histogram(
+                prices_window,
+                bins=self.steps,
+                range=(pmin, pmax),
+                weights=volumes_window
+            )
 
 
-class DIFF(Indicator):
-  
-    def __init__(self,target_col, source1_col:str, source2_col:str):
-        super().__init__([target_col])
-        self.source1_col=source1_col
-        self.target_col=target_col
-        self.source2_col=source2_col
-
-    def compute(self, dataframe, group, start_pos):
-        
-        diff = group[self.source1_col] + group[self.source2_col] 
-
-        if start_pos == 0:
-            dataframe.loc[group.index, self.target_col] = diff.values
-        else:
-            dataframe.loc[group.index[start_pos:], self.target_col] = \
-                diff.iloc[start_pos:].values
-############
-
-
-class GAIN(Indicator):
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.timeperiod=timeperiod
-
-    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
-
-        close = group[self.source_col]
-
-        if from_local_index == 0:
-            gain = (close - close.shift(self.timeperiod)) / close.shift(self.timeperiod) * 100
-            dataframe.loc[group.index, self.target_col] = gain.values
-            return
-
-        warmup = max(0, from_local_index - self.timeperiod)
-
-        sub = group.iloc[warmup:].copy()
-
-        gain = (sub[self.source_col] - sub[self.source_col].shift(self.timeperiod)) / \
-            sub[self.source_col].shift(self.timeperiod) * 100
-
-        dataframe.loc[sub.index[from_local_index - warmup:], self.target_col] = \
-            gain.iloc[from_local_index - warmup:].values       
-        
-class SMA_INT(Indicator):
-  
-    def __init__(self,target_col, source_col:str, timeperiod:int):
-        super().__init__([target_col])
-        self.source_col=source_col
-        self.target_col=target_col
-        self.window=timeperiod
-        self.slope_col = f"{target_col}_slope"
-
-
-    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
-        
-        warmup = max(0, from_local_index - self.window + 1)
-
-        sub = group.iloc[warmup:].copy()
-
-        sma = sub[self.source_col].rolling(window=self.window).mean()
-
-         # derivata discreta (pendenza)
-        #slope = sma.diff()
-        
-
-        #logger.info(f"sub {sub}")
-
-        idx_slice = sub.index[from_local_index - warmup:]
-
-        #logger.info(f"idx_slice {idx_slice}")
-
-        dataframe.loc[idx_slice, self.target_col] = \
-            sma.iloc[from_local_index - warmup:].values
-            
-        #dataframe.loc[idx_slice, self.slope_col] = \
-        #    slope.iloc[start_pos - warmup:].values
-
-class MAX_LIMIT(Indicator):
-  
-    def __init__(self,target_col, timeperiod:int, outlier_std=2):
-        super().__init__([target_col])
-        self.target_col=target_col
-        self.window=timeperiod
-        self.outlier_std = outlier_std
-
-    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
-
-        #logger.info(f"compute {symbol} idx {from_local_index} #{len(group)}" )
-
-        warmup = max(0, from_local_index - self.window + 1)
-
-        #gli indici restano quelli del dataframe originale.
-        sub = group.iloc[warmup:]
-
-        m = sub["high"].rolling(window=self.window).max()
-
-        start = from_local_index - warmup
-
-        idx = sub.index[start:]
-
-        #logger.info(f"{symbol} idx {idx}" )
-
-        dataframe.loc[idx, self.target_col] = m.iloc[start:].values   
-
-class DIFF_PERC(Indicator):
-  
-    def __init__(self,target_col, source_base:str, source_signal:str):
-        super().__init__([target_col])
-        self.source_base=source_base
-        self.target_col=target_col
-        self.source_signal=source_signal
-
-    def compute(self, symbol, dataframe: pd.DataFrame, group: pd.DataFrame, from_local_index):
-        
-        warmup = max(0, from_local_index )
-        sub = group.iloc[warmup:]
-
-        diff = 100 * (sub[self.source_signal] - sub[self.source_base] ) / sub[self.source_base]
-
-        start = from_local_index - warmup
-        idx = sub.index[start:]
-        dataframe.loc[idx, self.target_col] = diff.iloc[start:].values  
-'''
+            # scrittura bucket
+            #for bucket in range(self.steps):
+            #    targets[bucket][current_df_idx] = hist[bucket]

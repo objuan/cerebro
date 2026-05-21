@@ -42,7 +42,7 @@
                           
                     </a>
                     <div v-if="backTest.history">
-                          {{backTest.getTradeCount(item)}}
+                          {{backTest.getTradeCount(item)}}   ({{backTest.getGain(item).toFixed(1)}} %)
                     </div>
 
                 </div>

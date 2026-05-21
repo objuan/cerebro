@@ -21,38 +21,6 @@ from reports.report_manager import ReportManager
 from order_book import *
 
 
-
-class LOW_SUCC(Indicator):
-    def __init__(self, target):
-        super().__init__([target])
-        self.target=target
-        self.cum_count = {}   
-      
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
-      
-        dest = dataframe[self.target].to_numpy()
-        signal = dataframe["low"].to_numpy()
-
-        start = max(0, from_local_index)
-     
-        if symbol not in self.cum_count:
-            self.cum_count[symbol] = 0
-
-        for i_idx in range(start, len(symbol_idx)):
-            idx = symbol_idx[i_idx]
-            if idx > 0:
-                ok = signal[idx] >signal[symbol_idx[i_idx-1]]
-                if ok:
-                    self.cum_count[symbol]+=1
-                else:
-                    self.cum_count[symbol]=0
-
-                dest[idx] = self.cum_count[symbol]
-            else:
-                self.cum_count[symbol]=0
-                dest[idx] = 0
-
-
 class BackStrategyIB15_moment(SmartStrategy):
 
     async def on_start(self):
@@ -60,7 +28,7 @@ class BackStrategyIB15_moment(SmartStrategy):
         self.max_back_steps= self.params["max_back_steps"]
         self.gain_2_perc= 2#self.params["gain_2_perc"]
         #self.trade_last_hh= self.params["trade_last_hh"]
-        self.gain_perc = 3#self.params["gain_perc"]
+        self.gain_perc = self.params["gain_perc"]
         self.drop_time_secs= self.params["drop_time_secs"]
         self.loss_by_trade=100
 
@@ -71,59 +39,45 @@ class BackStrategyIB15_moment(SmartStrategy):
         #vol_day= self.addIndicator(self.timeframe,SUM("vol_day","quote_volume",1440))
         vol_day= self.addIndicator(self.timeframe,COPY("vol_day","quote_day_volume"))
         gain_day= self.addIndicator(self.timeframe,COPY("gain_day","day_gain"))
-        sma_25 = self.addIndicator(self.timeframe,SMA("sma_25","close",25))
-        low_succ = self.addIndicator(self.timeframe,LOW_SUCC("low_succ"))
-        
+        self.addIndicator(self.timeframe,SMA("sma_25","close",25))
 
         self.addIndicator(self.timeframe,TRADE_DATE("date"))
         vwap = self.addIndicator(self.timeframe, VWAPBands("vwap","vwap_up","vwap_down","vwap_perc","vwap_pos","close","quote_volume"))
 
         vwap_trend = self.addIndicator(self.timeframe, W_TREND("vwap_trend","vwap_trend_sign","vwap"))
 
-        signal = self.addIndicator(self.timeframe, DIFF_PERC("signal","sma_25","low"))
-
-        ###########
+        #vwap_perc = self.addIndicator(self.timeframe, DIFF_PERC("vwap_perc","vwap","vwap"))
 
         self.add_plot(vwap, "vwap","#a800a0", "main","vwap", style="Solid", lineWidth=1)
         self.add_plot(vwap, "vwap_up","#a800a0", "main","vwap_up", style="Dotted", lineWidth=1)
         self.add_plot(vwap, "vwap_down","#a800a0", "main","vwap_down", style="Dotted", lineWidth=1)
         
-        #self.add_plot(max_1w, "max_1w","#412F00FF", "main",style="Dotted", lineWidth=1)
+        self.add_plot(max_1w, "max_1w","#926B00FF", "main",style="Dotted", lineWidth=1)
 
         #self.add_plot(rsi, "rsi","#0318d3", "sub1", style="Solid", lineWidth=1)
-        #self.add_plot(vwap_trend, "thread","#0318d3","sub1", "vwap_trend" ,style="Solid", lineWidth=1)
+        self.add_plot(vwap_trend, "thread","#0318d3","sub1", "vwap_trend" ,style="Solid", lineWidth=1)
         #self.add_plot(vwap_trend, "thread sign","#1bd303","sub1","vwap_trend_sign", style="Solid", lineWidth=1)
         
-        self.add_plot(vwap, "vwap_perc","#003530","sub1","vwap_perc", style="Solid", lineWidth=1)
-        self.add_plot(vwap, "vwap_pos","#271b5f8f","sub1","vwap_pos", style="Solid", lineWidth=1)
+        self.add_plot(vwap, "vwap_perc","#1bd303","sub1","vwap_perc", style="Solid", lineWidth=1)
+        self.add_plot(vwap, "vwap_pos","#d30337","sub1","vwap_pos", style="Solid", lineWidth=1)
 
-        self.add_plot(vol_day, "vol_day","#d30337","sub1","vol_day", style="Solid", lineWidth=1)
+        #self.add_plot(vol_day, "vol_day","#d30337","sub1","vol_day", style="Solid", lineWidth=1)
         self.add_plot(gain_day, "gain_day","#0311d3","sub1","gain_day", style="Solid", lineWidth=1)
         
-        self.add_plot(signal, "signal","#0311d3","signal","signal", style="Solid", lineWidth=1)
-        
-        self.add_plot(low_succ, "low_succ","#035300","low_succ","low_succ", style="Solid", lineWidth=1)
-        
-    def init_trade_mask(self,symbol):
-
-        df = self.client.get_df("select * from ib_scan_watch where symbol = ? and ts_enter >= ",  (symbol))
-        
-        logger.info(f"... \n{df}")
-
-        pass
-
+      
+     
+    
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
+
         if not self.bootstrapMode:
             logger.info(f"\n{dataframe.tail(1)}") 
 
         last = dataframe.iloc[local_index]
         vol_day = last["vol_day"]    
         gain_day = last["gain_day"] 
-        if not self.hasCurrentTrade(symbol) and (vol_day < self.min_day_volume or gain_day < 0):
+        if (vol_day < self.min_day_volume or gain_day < 1):
              return
-
-        #################
 
         prev = dataframe.iloc[local_index-1]
 
@@ -133,8 +87,6 @@ class BackStrategyIB15_moment(SmartStrategy):
         vwap = last["vwap"]
         vwap_down = last["vwap_down"]
         sma_25 = last["sma_25"]
-        low_succ= last["low_succ"]
-        signal= last["signal"]
         
         trend =  last["vwap_trend"] * last["vwap_trend_sign"]
         last_trend =  prev["vwap_trend"] * prev["vwap_trend_sign"]
@@ -153,29 +105,18 @@ class BackStrategyIB15_moment(SmartStrategy):
         if not self.hasCurrentTrade(symbol):
             if vwap_perc > 5:
 
-                '''
-                if low_succ >=2 and trend_pos > 100:
-                #if low_succ >=4 and signal>0.5 and signal < 3 and  trend_pos > 95:
-                    q = self.get_quantity( self.loss_by_trade, price    )
-                    await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
-                '''
-                '''
-                if ai["state"] =="WAITING" or  ai["state"] =="DOWN":
-                      if trend_pos < 5  and trend < -5 :   
+                if ai["state"] =="WAITING":
+                      if trend_pos > 5  and trend < -5 :   
                         ai["state"] = "DOWN"
                         ai["close"] = price 
                         ai["open"] = last["open"] 
-                        ai["signal"] = last["low"]
-
-                        await self.add_marker(symbol,"SPOT","v","v","#FF0000", value =  last["low"])
+                        ai["signal"] = last["open"] + (ai["close"]- last["open"]) * 0.5
 
                 if ai["state"] =="DOWN":
                     if trend_pos >20:
                         ai["state"] = "BUY"
                         q = self.get_quantity( self.loss_by_trade, price    )
                         await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
-
-                '''
 
                 '''
                 #if vwap_perc - prev["vwap_perc"] > 1 and trend_pos > 90:
@@ -203,48 +144,29 @@ class BackStrategyIB15_moment(SmartStrategy):
                         await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
                 '''
 
-        elif self.hasCurrentTrade(symbol):
+        if self.hasCurrentTrade(symbol):
             gain,ts,pnl = self.buyGain(symbol, last["close"]) 
             self.set_current_price(symbol, last["close"])   
             dt = int(dataframe.iloc[local_index]["timestamp"])
             time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000   
             
-            #logger.info(f"gg {gain}")
-
-            if True:#time_elapsed_secs > 4*15:
+            if time_elapsed_secs > 60*15:
+                if gain < 1 and time_elapsed_secs > self.drop_time_secs:
+                    await  self.sell(symbol, dt, last["close"], f"TIME"  )
+                    ai["state"] = "WAITING"
                 
-                if  gain >self.gain_perc:
-                    await  self.sell(symbol, dt, last["close"], f"TP"  )
-            
-                elif  gain < -self.gain_perc/2:
-                    await  self.sell(symbol, dt, last["close"], f"SL"  )
-
-                '''
-                elif  price < sma_25:
-                    await  self.sell(symbol, dt, last["close"], f"TP"  )
-                '''
-            
-                   #if gain < 1 and time_elapsed_secs > self.drop_time_secs:
-                #    await  self.sell(symbol, dt, last["close"], f"TIME"  )
-                #    ai["state"] = "WAITING"
-                #logger.info(f"kkK {price} { ai['signal']}")
-
-                '''
-                if price < ai["signal"]:
-                           ## logger.info("kkK")
+                if ai["state"] =="BUY":
+                    if trend_pos > 50:
+                       ai["state"] = "UP_UP"
+                    else:
+                        if trend_pos < 0:
                             ai["state"] = "WAITING"
                             await  self.sell(symbol, dt, last["close"], f"SL"  )
 
-
-                elif ai["state"] =="BUY":
-                    if trend_pos > 50:
-                        ai["state"] = "UP_UP"
-    
                 elif ai["state"] =="UP_UP":
-                    if trend_pos < prev["vwap_pos"]   and  trend_pos > 50:
+                    if trend_pos < prev["vwap_pos"]:
                           await  self.sell(symbol, dt, last["close"], f"TP"  )
                           ai["state"] = "WAITING"
-                '''
 
                 '''
                 if price < sma_25:

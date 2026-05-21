@@ -82,7 +82,7 @@ def get_market_data(symbol):
         )
 
         data = requests.get(url).json()
-        #print(data)
+        print(data)
         #raw = data["Data"][0]["RAW"]["USDC"]
         raw = data["RAW"][base]["USDC"]
 
@@ -100,10 +100,25 @@ def get_market_data(symbol):
         logger.error(f"Error fetching market data for {symbol}", exc_info=True)
         return None 
 
-'''
 
-symbol = "CFGUSDC"
+if __name__ =="__main__":
 
-print(get_market_data(symbol))
-'''
+    #############
+    # Rotazione: max 5 MB, tieni 5 backup
+  
+    # Console
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - " "[%(filename)s:%(lineno)d] \t%(message)s")
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+   
+    symbol = "PAXGUSDC"
+
+    print(get_market_data(symbol))
+
+
+  
+
 

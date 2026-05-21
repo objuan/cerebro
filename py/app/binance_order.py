@@ -58,11 +58,54 @@ class BinanceClientManager:
 
         self.lock = asyncio.Lock()
 
+        # offset ms tra clock locale e server Binance
+        self.time_offset = 0
+
+        # ultimo sync timestamp
+        self.last_time_sync = 0
+
+        # refresh offset ogni 5 minuti
+        self.time_sync_interval = 300
+
+    async def sync_time(self):
+
+        if self.binance_client is None:
+            return
+
+        try:
+
+            server_time_data = await self.binance_client.get_server_time()
+
+            server_time = server_time_data["serverTime"]
+
+            local_time = int(time.time() * 1000)
+
+            self.time_offset = server_time - local_time
+
+            self.last_time_sync = time.time()
+
+            logger.info(
+                f"Time sync Binance OK "
+                f"offset={self.time_offset}ms"
+            )
+
+        except Exception:
+            logger.exception("Errore sincronizzazione tempo Binance")
+
+    async def ensure_time_sync(self):
+
+        now = time.time()
+
+        if (
+            now - self.last_time_sync
+            > self.time_sync_interval
+        ):
+            await self.sync_time()
+
     async def connect(self):
 
         async with self.lock:
 
-            # evita doppia connessione
             if self.binance_client is not None:
                 return
 
@@ -77,7 +120,8 @@ class BinanceClientManager:
                 }
             )
 
-            await self.binance_client.ping()
+            # sync tempo iniziale
+            await self.sync_time()
 
             logger.info("Binance connesso")
 
@@ -107,6 +151,8 @@ class BinanceClientManager:
                 }
             )
 
+            await self.sync_time()
+
             await self.binance_client.ping()
 
             logger.info("Riconnessione completata")
@@ -122,7 +168,12 @@ class BinanceClientManager:
                 if self.binance_client is None:
                     await self.connect()
 
-                method = getattr(self.binance_client, method_name)
+                await self.ensure_time_sync()
+
+                method = getattr(
+                    self.binance_client,
+                    method_name
+                )
 
                 return await method(**kwargs)
 
@@ -134,7 +185,8 @@ class BinanceClientManager:
             ) as e:
 
                 logger.warning(
-                    f"Errore rete Binance [{method_name}] "
+                    f"Errore rete Binance "
+                    f"[{method_name}] "
                     f"tentativo {attempt+1}: {e}"
                 )
 
@@ -143,22 +195,37 @@ class BinanceClientManager:
             except BinanceAPIException as e:
 
                 logger.error(
-                    f"Errore API Binance [{method_name}] "
+                    f"Errore API Binance "
+                    f"[{method_name}] "
                     f"{e.code} {e.message}"
                 )
+
+                # timestamp ahead/behind
+                if e.code == -1021:
+
+                    logger.warning(
+                        "Timestamp Binance fuori sync"
+                    )
+
+                    await self.sync_time()
+
+                    # retry immediato
+                    continue
 
                 raise
 
             except Exception:
 
                 logger.exception(
-                    f"Errore inatteso Binance [{method_name}]"
+                    f"Errore inatteso Binance "
+                    f"[{method_name}]"
                 )
 
                 await self.reconnect()
 
         raise ConnectionError(
-            f"Falliti tutti i retry Binance [{method_name}]"
+            f"Falliti tutti i retry Binance "
+            f"[{method_name}]"
         )
 
     async def close(self):
@@ -169,7 +236,9 @@ class BinanceClientManager:
                 await self.binance_client.close_connection()
 
             except Exception:
-                logger.exception("Errore chiusura Binance")
+                logger.exception(
+                    "Errore chiusura Binance"
+                )
 
 ###############################
 
@@ -486,7 +555,8 @@ class Binance_OrderManager(OrderManager):
                     symbol=symbol,
                     side=side,
                     type="MARKET",
-                    quantity=quantity
+                    quantity=quantity,
+                    recvWindow=5000
                 )
 
             else:
@@ -510,7 +580,8 @@ class Binance_OrderManager(OrderManager):
                     type="LIMIT",
                     quantity=quantity,
                     price = price,
-                    timeInForce="GTC")
+                    timeInForce="GTC",
+                       recvWindow=5000)
                 '''
                 order = await self.binance_client.create_order(
                     symbol=symbol,
@@ -562,7 +633,7 @@ class Binance_OrderManager(OrderManager):
             await self.client.send_error_event( self.lastError )
 
             if self.telegram_order_messages:
-                send_telegram_message(self.lastError)
+                send_telegram_message(f"ERROR: {symbol} { e.message}")
 
             return None
 

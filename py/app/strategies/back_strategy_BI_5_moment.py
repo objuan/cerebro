@@ -53,7 +53,7 @@ class LOW_SUCC(Indicator):
                 dest[idx] = 0
 
 
-class BackStrategyIB15_moment(SmartStrategy):
+class BackStrategyIB5_moment(SmartStrategy):
 
     async def on_start(self):
         self.min_day_volume= self.params["min_day_volume"]
@@ -117,10 +117,13 @@ class BackStrategyIB15_moment(SmartStrategy):
         if not self.bootstrapMode:
             logger.info(f"\n{dataframe.tail(1)}") 
 
+        if local_index < 25:
+            return
+        
         last = dataframe.iloc[local_index]
         vol_day = last["vol_day"]    
         gain_day = last["gain_day"] 
-        if not self.hasCurrentTrade(symbol) and (vol_day < self.min_day_volume or gain_day < 0):
+        if not self.hasCurrentTrade(symbol) and (vol_day < self.min_day_volume or gain_day < 1):
              return
 
         #################
@@ -141,6 +144,7 @@ class BackStrategyIB15_moment(SmartStrategy):
         
         vwap_perc = last["vwap_perc"]
         trend_pos =  last["vwap_pos"]
+        trend_pos_low =  (last["low"] - last["vwap_down"]) / (last["vwap_up"] - last["vwap_down"]) * 100
 
         gain =  (price - prev["close"]) / prev["close"] * 100
         v_gain =  (vol - prev["vol_day"]) / prev["vol_day"] * 100
@@ -151,57 +155,25 @@ class BackStrategyIB15_moment(SmartStrategy):
 
         
         if not self.hasCurrentTrade(symbol):
-            if vwap_perc > 5:
 
-                '''
-                if low_succ >=2 and trend_pos > 100:
-                #if low_succ >=4 and signal>0.5 and signal < 3 and  trend_pos > 95:
-                    q = self.get_quantity( self.loss_by_trade, price    )
-                    await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
-                '''
-                '''
-                if ai["state"] =="WAITING" or  ai["state"] =="DOWN":
-                      if trend_pos < 5  and trend < -5 :   
-                        ai["state"] = "DOWN"
+            if (ai["state"] =="WAITING" and trend >60) or  ai["state"] =="MID":
+                      if abs(trend_pos_low-50) < 2   :   
+                        ai["state"] = "MID"
                         ai["close"] = price 
                         ai["open"] = last["open"] 
-                        ai["signal"] = last["low"]
+                        ai["low"] = last["low"]
+                        ai["high"] = last["high"]
 
                         await self.add_marker(symbol,"SPOT","v","v","#FF0000", value =  last["low"])
 
-                if ai["state"] =="DOWN":
-                    if trend_pos >20:
-                        ai["state"] = "BUY"
-                        q = self.get_quantity( self.loss_by_trade, price    )
-                        await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
-
-                '''
-
-                '''
-                #if vwap_perc - prev["vwap_perc"] > 1 and trend_pos > 90:
-                if ai["state"] =="WAITING":
-                    if trend_pos > 90  and trend > 5 :   
-                        ai["state"] = "DOWN"
-                        ai["close"] = price 
-                        ai["open"] = last["open"] 
-                        ai["signal"] = last["open"] + (ai["close"]- last["open"]) * 0.5
-
-                if ai["state"] =="DOWN":
-                    if trend_pos <=55:
-                        ai["state"] = "MID"
-
-                if ai["state"] =="MID":
-                    if trend_pos >=60:
-                        ai["state"] = "UP"
-                    if trend_pos <=50:
+            if ai["state"] =="MID":
+                    #if trend_pos >70  and vol > 10000 :
+                    if trend_pos <50:
                         ai["state"] = "WAITING"
-
-                if ai["state"] =="UP":
-                    #if price > ai["close"]:
+                    elif price > last["open"] and trend_pos>=60: #price > ai["high"]
                         ai["state"] = "BUY"
                         q = self.get_quantity( self.loss_by_trade, price    )
                         await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
-                '''
 
         elif self.hasCurrentTrade(symbol):
             gain,ts,pnl = self.buyGain(symbol, last["close"]) 
@@ -213,12 +185,14 @@ class BackStrategyIB15_moment(SmartStrategy):
 
             if True:#time_elapsed_secs > 4*15:
                 
+                '''
                 if  gain >self.gain_perc:
                     await  self.sell(symbol, dt, last["close"], f"TP"  )
             
                 elif  gain < -self.gain_perc/2:
                     await  self.sell(symbol, dt, last["close"], f"SL"  )
 
+                '''
                 '''
                 elif  price < sma_25:
                     await  self.sell(symbol, dt, last["close"], f"TP"  )
@@ -235,17 +209,16 @@ class BackStrategyIB15_moment(SmartStrategy):
                             ai["state"] = "WAITING"
                             await  self.sell(symbol, dt, last["close"], f"SL"  )
 
-
                 elif ai["state"] =="BUY":
-                    if trend_pos > 50:
-                        ai["state"] = "UP_UP"
-    
-                elif ai["state"] =="UP_UP":
-                    if trend_pos < prev["vwap_pos"]   and  trend_pos > 50:
-                          await  self.sell(symbol, dt, last["close"], f"TP"  )
+                    if trend_pos > 95:
+                        ai["state"] = "UP"
+
+                elif ai["state"] =="UP":
+                    if signal <-1:
+                          await  self.sell(symbol, dt, last["close"], f"TP1"  )
                           ai["state"] = "WAITING"
                 '''
-
+               
                 '''
                 if price < sma_25:
                     await  self.sell(symbol, dt, last["close"], f"TP"  )

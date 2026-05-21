@@ -362,8 +362,9 @@ def on_news(symbol, news_list):
 
 @app.get("/")
 def index():
-    with open("static/index.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(f.read())
+    #with open("static/index.html", "r", encoding="utf-8") as f:
+    #    return HTMLResponse(f.read())
+    return HTMLResponse("OK")
     
 @app.get("/health")
 def health():
@@ -1422,15 +1423,21 @@ async def back_ohlc_chart(symbol: str, timeframe: str,history_id, backTime):
         
         dt_from = datetime.strptime(df.iloc[0]["dt_from"], "%Y-%m-%d %H:%M:%S")
         dt_to = datetime.strptime(df.iloc[0]["dt_to"], "%Y-%m-%d %H:%M:%S")
+
+        if timeframe =="1d":
+            dt_from = dt_to -  timedelta(days=30*4)
+
         #start_of_day = datetime.combine(dt_from.date(), datetime.min.time())
         #end_of_day = datetime.combine(dt_to.date(), datetime.max.time())
         unix_min = int(dt_from.timestamp())*1000
         unix_max = int(dt_to.timestamp())*1000
-    
+        
+     
+
         df1= client.history_data([symbol],timeframe,since= unix_min,to= unix_max )
         #df1 = back_manager.db.full_dataframe(timeframe, symbol)
         #logger.info(f"backTime {backTime}")
-        logger.info(f"df1 {df1}")
+        #logger.info(f"df1 {df1}")
 
         if backTime =="null":
             backTime = None
@@ -1480,36 +1487,8 @@ async def back_select_profile(name):
     global back_profile_name
     back_profile_name= name
 
-    '''
-    back_profile_name= name
-    df = back_manager.back_profiles(  )
-    sdata = df[df["name"]== name].iloc[0]["data"]
-    logger.info(f"SELECT DATA { sdata}")
-    data = json.loads(sdata)
-
-    date_obj = datetime.strptime(data["date"], "%Y-%m-%d")
-     # inizio giorno
-    start_of_day = datetime.combine(date_obj.date(), datetime.min.time())
-    # fine giorno
-    end_of_day = datetime.combine(date_obj.date(), datetime.max.time())
-    unix_min = int(start_of_day.timestamp())*1000
-    unix_max = int(end_of_day.timestamp())*1000
-    
-    backData.symbols = [ x["symbol"] for  x in data["symbols"]]
-
-    backData.dt_from = start_of_day.strftime("%Y-%m-%d %H:%M:%S")
-    backData.dt_to =end_of_day.strftime("%Y-%m-%d %H:%M:%S")
-    if  data["module"].startswith("strategies."):
-        backData.module = data["module"]
-    else:
-        backData.module = "strategies."+data["module"].strip()
-    backData.className = data["class"]
-    backData.timeframe = data["tf"]
-    backData.params = data["params"]
-    '''
-
     backData = back_manager.get_profile_data(name)  
-    logger.info(f"load  DATA { backData.to_dict()}")
+    #logger.info(f"load  DATA { backData.to_dict()}")
     await back_manager.select(backData)
 
     return {"status": "ok"}
@@ -1556,7 +1535,7 @@ async def back_execute_symbol(symbol:str):
         backData = back_manager.get_profile_data(back_profile_name) 
         backData.symbols = [symbol]
         await back_manager.load(backData)
-        await back_manager.start()
+        await back_manager.start(saveResults=True)
         return  {"status": "ko"}   
     except :
         logger.error("ERROR", exc_info=True)
@@ -1567,7 +1546,7 @@ async def back_get_symbols(date:str):
     try:
      
 
-        df = back_manager.back_symbols(date)
+        df = back_manager.back_symbols(date,1)
         
         return JSONResponse(df.to_dict(orient="records"))
     except:
@@ -1610,10 +1589,10 @@ async def back_currentTime(strategy,date):
         return JSONResponse(ret.to_dict(orient="records"))
 
 @app.get("/back/history/indicators")      
-def back_indicators(symbol,history_id):
+def back_indicators(symbol,timeframe,history_id):
 
     try:
-        df = back_manager.get_history_indicators(symbol,history_id)
+        df = back_manager.get_history_indicators(symbol,timeframe,history_id)
         return JSONResponse(df)
     except:
         logger.error(df)

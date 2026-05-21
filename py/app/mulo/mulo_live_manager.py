@@ -221,6 +221,8 @@ class LiveManager:
         self.sym_time=0
         self.sym_start_time=0
         self.sym_speed = float(1)
+
+        self.fetcher.reset_day_symbol()
   
     
         def onError( reqId, errorCode, errorString, contract):

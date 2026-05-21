@@ -341,7 +341,7 @@ class DBDataframe_TimeFrame:
 
                 new_row = df.iloc[[-1]].reindex(columns=self.df.columns)
 
-                logger.info(f" new_row {new_row}")
+                #logger.info(f" new_row {new_row}")
 
                 self.df = pd.concat([self.df, new_row], ignore_index=True)
 

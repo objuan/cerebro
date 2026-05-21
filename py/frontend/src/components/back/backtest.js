@@ -26,6 +26,7 @@ export const backTest = reactive({
         this.inData = new BacktestIn()
     },
     async save(){
+        console.log("save",this.inData)
        await  send_post("/back/profile/save", {"name": this.profileName,
              "data":this.inData  })
     },
@@ -58,6 +59,7 @@ export const backTest = reactive({
                 this.inData.dt_to  = data.dt_to
                 this.inData.dt_from  = data.dt_from
                 this.inData.date  = data.date
+                this.inData.backDays  = data.backDays
                 this.inData.tf  = data.tf
                 this.inData.class  = data.class
                 this.inData.module  = data.module
@@ -150,6 +152,14 @@ export const backTest = reactive({
                 arr.push(trade) 
         }); 
         return arr    
+    },
+     getGain(symbol){
+        let gain = 0
+        this.trades.forEach(trade => {
+            if (trade.symbol == symbol)
+                gain+= trade.gain
+        }); 
+        return gain    
     },
     async getStrategyScript(){  
         if (!self.script )
