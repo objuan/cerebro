@@ -7,6 +7,7 @@ from strategies.strategy_utils import StrategyUtils
 from company_loaders import *
 from collections import deque
 import talib.abstract as ta
+from scipy.signal import savgol_filter
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,255 @@ class Indicator:
                     #start_pos = group.index.get_indexer(group[mask].index)[0]
 
                 self.apply(symbol, dataframe, group, from_global_index)
-        
+
+############################
+# 
+
+
+class CURVA(Indicator):
+
+    def __init__(self, target, source):
+        super().__init__([target])
+
+        self.target = target
+        self.source = source
+
+    def compute_fast(
+        self,
+        symbol,
+        dataframe: pd.DataFrame,
+        symbol_idx,
+        from_local_index
+    ):
+
+        # array numpy
+        dest = dataframe[self.target].to_numpy()
+        source = dataframe[self.source].to_numpy()
+
+        # servono almeno 3 punti
+        start = max(2, from_local_index)
+
+        # seconda derivata discreta
+        #
+        # f''(x) = f(x) - 2f(x-1) + f(x-2)
+        #
+        for i_idx in range(start, len(symbol_idx)):
+
+            idx0 = symbol_idx[i_idx]
+            idx1 = symbol_idx[i_idx - 1]
+            idx2 = symbol_idx[i_idx - 2]
+
+            dest[idx0] = 1000* (
+                source[idx0]
+                - 2.0 * source[idx1]
+                + source[idx2]
+            )
+
+
+class ANGLE(Indicator):
+
+    def __init__(
+        self,
+        target,
+        source,
+        scale=1.0,
+        degrees=True
+    ):
+        super().__init__([target])
+
+        self.target = target
+        self.source = source
+
+        # amplifica/riduce sensibilità
+        self.scale = scale
+
+        # True -> gradi
+        # False -> radianti
+        self.degrees = degrees
+
+    def compute_fast(
+        self,
+        symbol,
+        dataframe: pd.DataFrame,
+        symbol_idx,
+        from_local_index
+    ):
+
+        # numpy arrays
+        dest = dataframe[self.target].to_numpy()
+        source = dataframe[self.source].to_numpy()
+
+        # serve almeno 1 punto precedente
+        start = max(1, from_local_index)
+
+        for i_idx in range(start, len(symbol_idx)):
+
+            idx0 = symbol_idx[i_idx]
+            idx1 = symbol_idx[i_idx - 1]
+
+            # derivata discreta
+            dy = source[idx0] - source[idx1]
+
+            # asse tempo -> dx = 1 candela
+            dx = 0.0001
+
+            # slope
+            slope = (dy / dx) * self.scale
+
+            # angolo
+            angle = np.arctan(slope)
+
+            # conversione
+            if self.degrees:
+                angle = np.degrees(angle)
+
+            dest[idx0] = angle
+
+'''
++1% ≈ ~45°
++0.5% ≈ ~26°
+-1% ≈ ~-45°
+'''
+class ANGLE_PERC(Indicator):
+
+    def __init__(
+        self,
+        target,
+        source,
+        scale=100.0,
+        degrees=True
+    ):
+        super().__init__([target])
+
+        self.target = target
+        self.source = source
+
+        # sensibilità
+        self.scale = scale
+
+        # output in gradi
+        self.degrees = degrees
+
+    def compute_fast(
+        self,
+        symbol,
+        dataframe: pd.DataFrame,
+        symbol_idx,
+        from_local_index
+    ):
+
+        # numpy arrays
+        dest = dataframe[self.target].to_numpy()
+        source = dataframe[self.source].to_numpy()
+
+        # almeno un punto precedente
+        start = max(1, from_local_index)
+
+        for i_idx in range(start, len(symbol_idx)):
+
+            idx0 = symbol_idx[i_idx]
+            idx1 = symbol_idx[i_idx - 1]
+
+            prev = source[idx1]
+            curr = source[idx0]
+
+            # protezione
+            if prev == 0 or np.isnan(prev) or np.isnan(curr):
+                dest[idx0] = 0.0
+                continue
+
+            # variazione percentuale
+            #
+            # +0.01 = +1%
+            #
+            dy_pct = (
+                (curr - prev) / prev
+            )
+
+            # asse tempo
+            dx = 1.0
+
+            # slope percentuale
+            slope = (dy_pct / dx) * self.scale
+
+            # angolo
+            angle = np.arctan(slope)
+
+            # conversione
+            if self.degrees:
+                angle = np.degrees(angle)
+
+            dest[idx0] = angle
+
+class SMOOTH(Indicator):
+
+    def __init__(
+        self,
+        target,
+        source,
+        window=11,
+        polyorder=3
+    ):
+        super().__init__([target])
+
+        self.target = target
+        self.source = source
+
+        # finestra smoothing
+        # deve essere dispari
+        self.window = window
+
+        # grado polinomio
+        self.polyorder = polyorder
+
+    def compute_fast(
+        self,
+        symbol,
+        dataframe: pd.DataFrame,
+        symbol_idx,
+        from_local_index
+    ):
+
+        # numpy arrays
+        dest = dataframe[self.target].to_numpy()
+        source = dataframe[self.source].to_numpy()
+
+        idxs = np.array(symbol_idx)
+
+        if len(idxs) < self.window:
+            return
+
+        # dati simbolo
+        y = source[idxs]
+
+        # finestra dispari obbligatoria
+        win = self.window
+
+        if win % 2 == 0:
+            win += 1
+
+        # sicurezza
+        win = min(win, len(y))
+
+        if win <= self.polyorder:
+            return
+
+        # smoothing Savitzky-Golay
+        smooth = savgol_filter(
+            y,
+            window_length=win,
+            polyorder=self.polyorder
+        )
+
+        # scrittura incrementale
+        start = max(0, from_local_index)
+
+        for i_idx in range(start, len(idxs)):
+
+            idx = idxs[i_idx]
+
+            dest[idx] = smooth[i_idx]
+
  
  #################################
 

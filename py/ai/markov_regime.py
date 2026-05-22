@@ -683,6 +683,6 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     #sys.argv = ["","--ticker","NVDA", "--years","1","--window","20","--window","20"]
-    sys.argv = ["","--ticker","ACTUSDC", "--years","1","--window","20","--window","20"]
+    sys.argv = ["","--ticker","XRPUSDC", "--years","1","--window","20","--window","20"]
 
     sys.exit(main())

@@ -9,7 +9,6 @@ from zoneinfo import ZoneInfo
 from market import Market
 from collections import defaultdict
 import math
-from hmmlearn.hmm import GaussianHMM
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +19,67 @@ from utils import *
 from reports.report_manager import ReportManager
 
 from order_book import *
-
+from hmmlearn.hmm import GaussianHMM
 
  
+
 class Markov:
     def __init__(self):
         self.matrices = {}
 
+    def build(self, df):
+
+        df = df.copy()
+        n = 20
+        # features per ogni symbol
+        df["return"] = (
+            df.groupby("symbol")["close"]
+            .pct_change()
+        )
+
+        hmm_states=[]
+        for symbol, group in df.groupby("symbol"):
+
+            n = 20
+            g = group.copy()
+
+            # somma dei ritorni precedenti
+            rolling_gain = (
+                        g["return"]
+                        .rolling(window=n)
+                        .sum()
+            )
+                    
+            g["HMM_STATE"] = 0
+            g["state"] = "STAND"
+
+            g.loc[rolling_gain >= 0.05, "HMM_STATE"] = 2
+            g.loc[rolling_gain <= -0.05, "HMM_STATE"] = 1
+
+            g.loc[rolling_gain >= 0.05, "state"] = "BULL"
+            g.loc[rolling_gain <= -0.05, "state"] = "BEAR"
+
+            hmm_states.append(g)
+
+            #logger.info(f"{symbol} \n{g.tail(20)}")
+
+        #logger.info(f"\n{hmm_states}")
+        
+        # merge finale
+        result = pd.concat(hmm_states)
+
+        result["next_state"] = (
+            result.groupby("symbol")["state"]
+            .shift(-1)
+        )
+      
+        
+        #logger.info(f"\n{result.tail(60)}")
+        
+        self.df= result
+
     #_hmm_states
-    def build(self, df, n_states=3):
+    def build_full(self, df, n_states=3):
 
         # ordinamento temporale
         #df = self.df.sort_values(
@@ -97,14 +148,15 @@ class Markov:
 
             X = g[features].values
 
+            #logger.info(f"{symbol} {X}")
             ##
-            X = X.dropna().to_numpy(dtype=float).reshape(-1, 1)
+            #X = X.dropna().to_numpy(dtype=float).reshape(-1, 1)
 
             # modello HMM
             model = GaussianHMM(
                 n_components=n_states,
-               # covariance_type="full",
-                covariance_type="diag",
+                covariance_type="full",
+               # covariance_type="diag",
                 n_iter=200,
                 random_state=42
             )
@@ -168,8 +220,11 @@ class Markov:
         # merge finale
         result = pd.concat(hmm_states)
 
-        result["next_state"] = result["state"].shift(-1)
-        
+        result["next_state"] = (
+            result.groupby("symbol")["state"]
+            .shift(-1)
+        )
+
         self.df= result
 
         '''
@@ -184,7 +239,7 @@ class Markov:
             "HMM_STATE"
         ] = result["HMM_STATE"]
         '''
-        logger.info(f"\n{result}")
+        #logger.info(f"\n{result}")
 
        # return self.df
         
@@ -229,18 +284,31 @@ class Markov:
             ]
 
             choices = ["BULL", "BEAR"]
-
+        
             df["state"] = np.select(
                 conditions,
                 choices,
                 default="STAND"
             )
 
+
             df["next_state"] = df["state"].shift(-1)
 
         logger.info(f"\n{df.tail(60)}")
         self.df=df
-    
+
+    def get_state(self,symbol, current_ts):
+        dt = datetime.utcfromtimestamp(current_ts/1000)
+        prev = dt - timedelta(days=1)
+        prev_ts = int(prev.timestamp())*1000
+
+        #print(prev_ts)
+        find = self.df[self.df["timestamp"] < prev_ts].tail(1)
+        if not find.empty:
+            return find.iloc[0]["HMM_STATE"]
+        else:
+            return 0
+
     def get_chain_matrix(self,symbol, current_ts):
 
         dt = datetime.utcfromtimestamp(current_ts/1000)
@@ -265,6 +333,7 @@ class Markov:
         )
 
         return matrix
+    
     
     def get_diagonal(self,symbol, current_ts):
         matrix = self.get_chain_matrix(  symbol,current_ts )
@@ -318,19 +387,62 @@ class Markov:
             logger.info(f"symbol {symbol} {self.matrices[symbol] }")
 
 
-class BackStrategyIB_marcov(SmartStrategy):
+class MarkovIndicator(Indicator):
+    def __init__(self, target,target_prob, markov):
+        super().__init__([target,target_prob])
+        self.target=target
+        self.target_prob=target_prob
+        self.markov=markov
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
+        # 1. Riferimenti agli array numpy per le performance ⚡
+        dest = dataframe[self.target].to_numpy()
+        dest_prob = dataframe[self.target_prob].to_numpy()
+        timestamp = dataframe["timestamp"].to_numpy()
+
+        # 2. Definiamo il range di calcolo
+        # Partiamo da from_local_index per non ricalcolare il passato
+        start = max(0, from_local_index)
+        
+     
+        #logger.info(f"{new_dates}")
+        # 4. Assegnazione incrementale
+        for i, i_idx in enumerate(range(start, len(symbol_idx))):
+            idx = symbol_idx[i_idx]
+            #print(timestamp[idx])
+            v = self.markov.get_state(symbol,timestamp[idx])
+            #print(v)
+            if v == 1:
+                dest[idx] = -1
+            elif v == 2:
+                dest[idx] = 1
+            else:
+                dest[idx] = 0
+
+            
+            d_markov = self.markov.get_diagonal(symbol,timestamp[idx])
+
+            
+
+            prob=0
+            if "BULL" in d_markov :
+                #logger.info(d_markov)
+                prob = float(d_markov["BULL"] -  d_markov["BEAR"] if "BEAR" in d_markov else 0) 
+            elif "BEAR" in d_markov :
+                #logger.info(d_markov)
+                prob = float(-d_markov["BEAR"]  )
+
+            dest_prob[idx] = prob
+            
+
+
+class BackStrategyIB_1D(SmartStrategy):
 
     async def on_start(self):
-        self.min_day_volume= self.params["min_day_volume"]
-        self.max_back_steps= self.params["max_back_steps"]
-        self.gain_2_perc= 2#self.params["gain_2_perc"]
-        #self.trade_last_hh= self.params["trade_last_hh"]
-        self.gain_perc = self.params["gain_perc"]
-        self.drop_time_secs= self.params["drop_time_secs"]
-        self.loss_by_trade=10
+        pass
 
     def populate_indicators(self) :
-        
+
         symbols = self.df_map[self.timeframe]["symbol"].unique().tolist()
         ts = self.df_map[self.timeframe].tail(1)["timestamp"].iloc[0]
         since=ts - 1000 * 60*60*24 * (20+140)
@@ -338,47 +450,22 @@ class BackStrategyIB_marcov(SmartStrategy):
 
         h = self.client.history_data(symbols,"1d",since=since)
 
-        #logger.info(f"\n{h}")
-        #for symbol in symbols:
-        #    logger.info(f"symbol { symbol}")
-
+        logger.info(f"\n{h}")
         self.markov = Markov()
         self.markov.build(h)
-        #elf.markov.dump()
 
-        ############
+        max_1w= self.addIndicator(self.timeframe,MAX("max_1w","close", 7))
 
-        max_1w= self.addIndicator(self.timeframe,MAX("max_1w","close", self.max_back_steps))
+        m = self.addIndicator(self.timeframe, MarkovIndicator("markov", "markov_prob", self.markov))
 
-        #vol_day= self.addIndicator(self.timeframe,SUM("vol_day","quote_volume",1440))
-        vol_day= self.addIndicator(self.timeframe,COPY("vol_day","quote_day_volume"))
-        gain_day= self.addIndicator(self.timeframe,COPY("gain_day","day_gain"))
-        sma_25= self.addIndicator(self.timeframe,SMA("sma_25","close",25))
 
-        self.addIndicator(self.timeframe,TRADE_DATE("date"))
-        vwap = self.addIndicator(self.timeframe, VWAPBands("vwap","vwap_up","vwap_down","vwap_perc","vwap_pos","close","quote_volume"))
+        self.add_plot(m, "markov","#0311d3","sub1","markov", style="Solid", lineWidth=1)
+        self.add_plot(m, "markov_prob","#6b0020","sub1","markov_prob", style="Solid", lineWidth=1)
 
-        vwap_trend = self.addIndicator(self.timeframe, W_TREND("vwap_trend","vwap_trend_sign","vwap"))
-
-        #vwap_perc = self.addIndicator(self.timeframe, DIFF_PERC("vwap_perc","vwap","vwap"))
-
-        self.add_plot(vwap, "vwap","#a800a0", "main","vwap", style="Solid", lineWidth=1)
-        self.add_plot(vwap, "vwap_up","#a800a0", "main","vwap_up", style="Dotted", lineWidth=1)
-        self.add_plot(vwap, "vwap_down","#a800a0", "main","vwap_down", style="Dotted", lineWidth=1)
         
-        self.add_plot(max_1w, "max_1w","#926B00FF", "main",style="Dotted", lineWidth=1)
+        #self.add_plot(max_1w, "max_1w","#610000FF", "main",style="Dotted", lineWidth=1)
 
-        #self.add_plot(rsi, "rsi","#0318d3", "sub1", style="Solid", lineWidth=1)
-        #self.add_plot(vwap_trend, "thread","#0318d3","sub1", "vwap_trend" ,style="Solid", lineWidth=1)
-        #self.add_plot(vwap_trend, "thread sign","#1bd303","sub1","vwap_trend_sign", style="Solid", lineWidth=1)
-        
-        self.add_plot(vwap, "vwap_perc","#1bd303","sub1","vwap_perc", style="Solid", lineWidth=1)
-        self.add_plot(vwap, "vwap_pos","#d30337","sub1","vwap_pos", style="Solid", lineWidth=1)
-
-        #self.add_plot(vol_day, "vol_day","#d30337","sub1","vol_day", style="Solid", lineWidth=1)
-        self.add_plot(gain_day, "gain_day","#0311d3","sub1","gain_day", style="Solid", lineWidth=1)
-        
-      
+        pass
      
         
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
@@ -387,78 +474,7 @@ class BackStrategyIB_marcov(SmartStrategy):
         if not self.bootstrapMode:
             logger.info(f"\n{dataframe.tail(1)}") 
 
-        if local_index < 2:
-            return
-        
-        
-        if not self.has_meta(symbol,"ai"): 
-            self.set_meta(symbol,{"ai":{ "STATE": "WAITING","MAX_GAIN": 0}})
-        ai = self.get_meta(symbol,"ai")   
-
-
         last = dataframe.iloc[local_index]
-        vol_day = last["vol_day"]    
-        gain_day = last["gain_day"] 
-        sma_25= last["sma_25"] 
-        if not self.hasCurrentTrade(symbol)  and ai["STATE"] == "WAITING" and (vol_day < self.min_day_volume):# or gain_day < 0
-             return
 
-        prev = dataframe.iloc[local_index-1]
-
-        #markov = self.markov.get_chain_matrix(symbol,last["timestamp"] )
-        #logger.info(f"symbol {symbol} {last['datetime']} \n{markov }")
-        markov = self.markov.get_diagonal(symbol,last["timestamp"] )
-
-        
-        #logger.info(f"symbol {symbol} {last['datetime']} \n{markov }")
-
-        max_1w = last["max_1w"]
-        price = last["close"]
-        vol = last["quote_volume"]
-        vwap = last["vwap"]
-        vwap_down = last["vwap_down"]
-        
-        trend =  last["vwap_trend"] * last["vwap_trend_sign"]
-        last_trend =  prev["vwap_trend"] * prev["vwap_trend_sign"]
-        
-        vwap_perc = last["vwap_perc"]
-        trend_pos =  last["vwap_pos"]
-
-        gain_last = (price - prev["close"]) / prev["close"]*100
-        gain_v = (vol - prev["quote_volume"]) / prev["quote_volume"]*100
-        
-        day = str(last["datetime"].date())
-        if not "day_prob" in ai or ai["day_prob"] != day:
-            prob=0
-            if "BULL" in markov:
-                prob = float(markov["BULL"] -  markov["BEAR"] if "BEAR" in markov else 0) 
-            ai["day_prob"]  = prob
-            
-        await self.add_marker(symbol,"SPOT", f"{prob:.1f}",f"{prob:.1f}","#FF0000") 
-       
-
-        if not self.hasCurrentTrade(symbol):
-                     
-            if ai["day_prob"] > 0.5 and gain_day>0 and trend_pos > 50 and price > last["open"]:
-                
-                if not "day" in ai or ai["day"] != day:
-                    ai["day"] = day
-                    await self.add_marker(symbol,"SPOT", f"{day}",f"{day}","#FF0000") 
-       
-                    q = self.get_quantity( self.loss_by_trade, price    )
-                    await self.buy( symbol, int(last["timestamp"]),price,  q, f"BUY {prob:.1f}" )
-
-        elif self.hasCurrentTrade(symbol):
-
-            gain,ts,pnl = self.buyGain(symbol, last["close"]) 
-            self.set_current_price(symbol, last["close"])   
-            dt = int(dataframe.iloc[local_index]["timestamp"])
-            time_elapsed_secs = (int(last["timestamp"]) - ts) / 1000   
-
-            if gain <-1:
-                await  self.sell(symbol, dt, last["close"], f"SL"  )
-                ai["STATE"] = "WAITING"  
-
-            if last["low"] < prev["low"]:
-                await  self.sell(symbol, dt, last["close"], f"TP"  )
-                ai["STATE"] = "WAITING"  
+        if symbol == "EDEN ":
+            logger.info(f"\n{last}")

@@ -47,6 +47,20 @@
 	},
 	
 	"stategies":[
+	
+			{
+			   "module": "trade_strategy_BI_1D",
+				"class" : "BackStrategyIB_1D",
+				"timeframe" : "1d",
+				"enabled" : false,
+				"scope" : "LIVE",
+				"params" :
+				{
+                    "volume_min_filter" :1000000
+
+				}
+			},	
+
 			{
 			   "module": "trade_strategy_IB",
 				"class" : "TradeStrategyIB",
@@ -102,8 +116,8 @@
 				}
 			},	
 			{
-			   "module": "back_strategy_BI_marcov",
-				"class" : "BackStrategyIB_marcov",
+			   "module": "back_strategy_BI_1H",
+				"class" : "BackStrategyIB_1H",
 				"enabled" : true,
 				"scope" : "BACK",
 				"timeframe" : "1h",

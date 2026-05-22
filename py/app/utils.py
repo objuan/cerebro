@@ -20,6 +20,7 @@ SECONDS_TO_TIMEFRAME = {
     3600 : "1h",
     3600*2 : "2h",
     3600*3: "3h",
+    3600*24: "1d",
 }
 
 TIMEFRAME_SECONDS = {
