@@ -41,7 +41,7 @@ from mulo.mulo_job import MuloJob,since_to_durationStr
 from mulo.mulo_scanner import Scanner
 from mulo.mulo_candle_updater import MuloCandleUpdater
 
-intervals = [10,  60, 300,900]  # seconds for 10s, 30s, 1m, 5m
+intervals = [10,  60, 60*5,60*15, 60*60]  # seconds for 10s, 30s, 1m, 5m
 #intervals = [10]  # seconds for 10s, 30s, 1m, 5m
 #use_display = True
 

@@ -137,7 +137,8 @@ live = None
 
 @app.get("/symbols")
 async def get_symbols():
-    return {"status": "ok" , "data": [ x.symbol for x in live.ordered_tickers()]}
+    #return {"status": "ok" , "data": [ x.symbol for x in live.ordered_tickers()]}
+    return {"status": "ok" , "data":live.symbols}
 
 @app.get("/tickers")
 async def get_tickers():

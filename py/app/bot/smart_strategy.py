@@ -524,7 +524,7 @@ class SmartStrategy(Strategy):
 
         if True:   
             #if not self.buyMap[symbol]:
-            self._book.long(symbol, timestamp, price, quantity,label)
+            self._book.long(symbol, timestamp, price, quantity,label,len(self.slot_buffer))
              
             if symbol not in self.slot_buffer:
                 self.slot_buffer[symbol] = timestamp

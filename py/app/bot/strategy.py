@@ -150,6 +150,8 @@ class Strategy:
 
         for tf, db_df in self.db_df_map.items():
             self._fill_indicators(tf,0,None)
+
+            #logger.debug(f"REGISTER {tf} {len(db_df.df)}")
             db_df.on_df_last_added+= self.on_df_last_added
 
         #for tf,df in self.df_map.items():
@@ -267,8 +269,8 @@ class Strategy:
  
     async def on_df_last_added(self, tf, new_symbol, new_row):
 
-
-        #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} {new_symbol} #{len(new_row)} \n{new_row.tail(5)}")
+        #if (tf=="1h"):
+        #    logger.info(f"=== {self.__class__} >> on_df_last_added {tf} {new_symbol} #{len(new_row)} \n{new_row.tail(5)}")
 
       
         async with self.sem:

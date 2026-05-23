@@ -19,6 +19,7 @@ else:
     DB_FILE = "db/binance.db"
     CONFIG_FILE = "config/binance/cerebro.json"
     PROPS_FILE = "config/binance/properties.json"
+    BACK_CONFIG_FILE= "config/binance/back_sessions.json"
 
 
 logger = logging.getLogger(__name__)

@@ -833,6 +833,22 @@ class GAIN(Indicator):
             else:
                  dest[symbol_idx[i_idx]] =0
 
+class MULT(Indicator):
+  
+    def __init__(self,target_col, source:str, mult):
+        super().__init__([target_col])
+        self.source=source
+        self.target_col=target_col
+        self.mult=mult
+
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx ,from_local_index):
+        
+        dest = dataframe[self.target_col].to_numpy()
+        source = dataframe[self.source].to_numpy()
+
+        for i_idx in range(from_local_index,len(symbol_idx) ):
+            dest[symbol_idx[i_idx]] = source[symbol_idx[i_idx]] * self.mult
+
 
 class DIFF(Indicator):
   

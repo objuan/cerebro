@@ -119,14 +119,31 @@
 			   "module": "back_strategy_BI_1H",
 				"class" : "BackStrategyIB_1H",
 				"enabled" : true,
+				"scope" : "LIVE",
+				"timeframe" : "1h",
+				"params" :
+				{
+				     "min_day_volume" :0,
+                    "stop_loss" :-5,
+					"smooth_thresold": 30,
+					"smooth_trend_inc" : 3
+
+
+				}
+			},		
+				{
+			   "module": "back_strategy_BI_1H",
+				"class" : "BackStrategyIB_1H",
+				"enabled" : true,
 				"scope" : "BACK",
 				"timeframe" : "1h",
 				"params" :
 				{
-				 "gain_perc" : 15,
-                    "min_day_volume" :500000,
-                    "drop_time_secs" :14400,
-                     "max_back_steps" : 672
+				      "min_day_volume" :0,
+                    "stop_loss" :-5,
+					"smooth_thresold": 30,
+					"smooth_trend_inc" : 3
+
 
 				}
 			},		
@@ -145,21 +162,7 @@
 
 				}
 			},	
-			{
-			   "module": "back_strategy_BI_1H",
-				"class" : "BackStrategyIB_1H",
-				"enabled" : false,
-				"scope" : "BACK",
-				"timeframe" : "1h",
-				"params" :
-				{
-				 "gain_perc" : 15,
-                    "min_day_volume" :500000,
-                    "drop_time_secs" :14400,
-                     "max_back_steps" : 672
-
-				}
-			},			
+			
 		{
 			   "module": "meta_strategy",
 				"class" : "MetaStrategy",

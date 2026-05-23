@@ -92,7 +92,7 @@ class DBDataframe_TimeFrame:
         self.TIMEFRAME_CHART_CANDLES =main_df.config["live_service"]["TIMEFRAME_CHART_CANDLES"]  
 
         self.client.on_symbols_update += self._on_symbols_update
-        if timeframe in ["1m", "5m", "15m", "10s"]:
+        if timeframe in ["1m", "5m", "15m", "1h","10s"]:
             self.client.on_full_candle_receive += self.mulo_on_candle_receive
         else:
             self.db_1m = main_df.db_dataframe("1m")
@@ -207,10 +207,11 @@ class DBDataframe_TimeFrame:
         symbol = row_data["symbol"]
         ts = int(row_data["timestamp"])
 
-        #if self.timeframe in [ "5m", "15m"]:
-        #    logger.info(f"DB on_candle_receive {self.timeframe} {row_data}")
+        #  if self.timeframe in [  "1h"]:
+        #       logger.info(f"DB on_candle_receive {self.timeframe} {row_data}")
 
         if symbol not in self.last_index_by_symbol:
+            logger.warning(f"DISCARD {symbol}")
             return
         
         last_idx = self.last_index_by_symbol[symbol]
@@ -225,21 +226,24 @@ class DBDataframe_TimeFrame:
 
             last_ts = int(self.df.at[last_idx, "timestamp"])
 
-
+        # if self.timeframe in [  "1h"]:
+        #      logger.info(f"{ts} {last_ts}")
         # ---- CASO NORMALE ----
         if ts > last_ts:
             try:
                 new_row = self.df.loc[last_idx].copy()
                 new_row.update(row_data)
 
-                #logger.info(f"========== APPEND {self.timeframe} \n{row_data} \n{new_row}==========")
+                #if self.timeframe in [  "1h"]:
+                #    logger.info(f"========== APPEND {self.timeframe} \n{row_data} \n{new_row}==========")
             
 
                 new_idx = self.df.index.max() + 1
                 self.df.loc[new_idx] = new_row
                 self.last_index_by_symbol[symbol] = new_idx
 
-                #logger.info(f">>  {self.df}")
+                #if self.timeframe in [  "1h"]:
+                #    logger.info(f">>  {self.df}")
 
                 await self.on_row_added(row_data)
                 
@@ -288,7 +292,7 @@ class DBDataframe_TimeFrame:
 
     async def mulo_on_candle_receive(self, ticker):
         try:
-            #if ticker["tf"] != "1m" and ticker["tf"] != "10s":
+            #if ticker["tf"] == "1h":
             #    logger.info(f"DB on_candle_receive {ticker} {self.timeframe}")
 
             if ticker["tf"] == self.timeframe:
@@ -478,6 +482,7 @@ class DBDataframe:
             await self.db_dataframe("1m").bootstrap()
             await self.db_dataframe("5m").bootstrap()
             await self.db_dataframe("15m").bootstrap()
+            await self.db_dataframe("1h").bootstrap()
             await self.db_dataframe("1d").bootstrap()
         except:
             logger.error("BOOT ERROR" , exc_info=True)

@@ -76,8 +76,8 @@ class BackStrategyIB15_3(SmartStrategy):
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
         
 
-        if not self.bootstrapMode:
-            logger.info(f"\n{dataframe.tail(1)}") 
+        #if not self.bootstrapMode:
+        #    logger.info(f"\n{dataframe.tail(1)}") 
 
         last = dataframe.iloc[local_index]
         vol_day = last["vol_day"]    

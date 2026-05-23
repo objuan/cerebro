@@ -51,10 +51,11 @@ class Position:
         self.budget = budget
         self.positions = {}
         self.entry_price = {}
+        self.entry_slots = {}
         self.entry_dt = {}
         self.cur_price = {}
 
-    def open_long(self, symbol, datetime,price, quantity):
+    def open_long(self, symbol, datetime,price, quantity,slots):
 
         cost = price * quantity
 
@@ -66,12 +67,13 @@ class Position:
 
         self.positions[symbol] = self.positions.get(symbol, 0) + quantity
         self.entry_price[symbol] = price
+        self.entry_slots[symbol] = slots
         self.entry_dt[symbol] = datetime
         self.cur_price[symbol] = price
 
         return True
 
-    def open_short(self, symbol, datetime, price, quantity):
+    def open_short(self, symbol, datetime, price, quantity,slots):
 
         gain = price * quantity
 
@@ -79,6 +81,7 @@ class Position:
 
         self.positions[symbol] = self.positions.get(symbol, 0) - quantity
         self.entry_price[symbol] = price
+        self.entry_slots[symbol] = price
         self.entry_dt[symbol] = datetime
         self.cur_price[symbol] = price
 
@@ -99,9 +102,10 @@ class Position:
             pnl = (entry - price) * abs(qty)
 
         self.budget += abs(qty) * price
-
+      
         self.positions.pop(symbol)
         self.entry_price.pop(symbol)
+        self.entry_slots.pop(symbol)
         self.entry_dt.pop(symbol)
         self.cur_price.pop(symbol)
         return pnl
@@ -149,19 +153,21 @@ class OrderBook:
     def get_first_trade(self):
         return next(iter(self.currentOrder.values()), None)
     
-    def long(self, symbol, datetime, price, quantity, label):
-        if self.position.open_long(symbol, datetime,float(price), float(quantity)):
+    def long(self, symbol, datetime, price, quantity, label,current_slots):
+        if self.position.open_long(symbol, datetime,float(price), float(quantity),current_slots):
 
             order = Order(symbol,datetime, "long",float(price), float(quantity), label)
+            order.current_slots= current_slots
             self.orders.append(order)
             self.currentOrder[symbol] = order
             return order
 
-    def short(self, symbol, datetime , price, quantity, label):
+    def short(self, symbol, datetime , price, quantity, label,current_slots):
 
-        if self.position.open_short(symbol, datetime, float(price), float(quantity)):
+        if self.position.open_short(symbol, datetime, float(price), float(quantity),current_slots):
 
             order = Order(symbol,datetime, "short",float(price), float(quantity), label)
+            order.current_slots= current_slots
             self.orders.append(order)
             return order
 
@@ -172,11 +178,13 @@ class OrderBook:
 
         qty = self.position.positions[symbol]
         entry = self.position.entry_price[symbol]
+        entry_slots = self.position.entry_slots[symbol]
         entry_datetime = self.position.entry_dt[symbol]
 
         side = "long" if qty > 0 else "short"
 
         trade = Trade(symbol, entry,entry_datetime, float(price),datetime, abs(qty), side)
+        trade.current_slots = entry_slots
 
         self.trades.append(trade)
 

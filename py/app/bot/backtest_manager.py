@@ -1,5 +1,7 @@
 import logging
 import gzip
+import itertools
+import copy
 
 if __name__ =="__main__":
     import sys
@@ -44,7 +46,7 @@ from bot.indicators import Indicator
 from company_loaders import *
 from collections import deque
 from mulo_live_client import MuloLiveClient
-from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC
+from config import DB_FILE,CONFIG_FILE,TF_SEC_TO_DESC,BACK_CONFIG_FILE
 from props_manager import PropertyManager
 import importlib
 from order_book import Trade
@@ -555,6 +557,34 @@ class BacktestManager:
 
 ###############################
 
+
+async def generate_hyper_configs(base_config, callFun):
+
+    base_params = base_config["params"]
+    hyper = base_config["hyper"] if "hyper" in base_config  else None
+
+    if hyper:
+        # nomi parametri hyper
+        keys = hyper.keys()
+
+        # tutte le combinazioni
+        values_product = itertools.product(*(hyper[k] for k in keys))
+
+        for values in values_product:
+
+            # copia params originali
+            params = copy.deepcopy(base_params)
+
+            # sostituisce valori hyper
+            for key, value in zip(keys, values):
+                params[key] = value
+
+            # chiama funzione
+            await callFun(params)
+    else:
+        await callFun(base_params)
+
+
 if __name__ =="__main__":
 
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -564,7 +594,7 @@ if __name__ =="__main__":
     logger.info("init")
     #init_company_db()
 
-    async def main():
+    async def main(class_name, start_date,end_date,save_results):
         render_page = RenderPage(None,None)
         propManager = PropertyManager(None)
         client = MuloLiveClient(DB_FILE,config,propManager)
@@ -574,105 +604,91 @@ if __name__ =="__main__":
         df = client.get_df(f"""SELECT distinct date FROM ib_day_watch""")
     
         all_results= []
-       
 
-        #dates = ["2026-04-01","2026-04-02","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13"
-        #                     ,"2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24"]
+        
+        with open(BACK_CONFIG_FILE, "r", encoding="utf-8") as f:
+            back_config = json.load(f)
 
-        #dates = ["2026-05-03","2026-05-02","2026-05-01","2026-04-30","2026-04-29","2026-04-28"]
+        entry = next(
+            (item for item in back_config["list"] if item["class"] == class_name),
+            None
+        )
 
-        dates = ["2026-05-04","2026-05-05","2026-05-03"]
-        #dates = ["2026-05-04","2026-05-05","2026-05-03","2026-05-02","2026-05-01"]
-        dates = ["2026-05-10"]#,"2026-05-05","2026-05-03","2026-04-30","2026-04-29","2026-04-28","2026-04-27"]
+        if not entry:
+            logger.error(f"class {class_name} not found")
+            exit(-1)
 
-        #a = manager.get_symbol_history(1,"OSMOUSDC")
-        #print(a)
-        #exit(1)
-        end_date = "2026-05-19"
-        for max_back_steps in [4*24*7]:# 4*24*7,4*24*3,4*24*1]: #15
-        #for max_back_steps in [12*24*7,12*24*7,12*24*3,12*24*1]: #5
-            for min_day_volume in [0]:
+        # File di log test
+        log_filename = f"app\\bot\\back_test\\{class_name}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.txt"
 
-                for gain_perc in [3,4,5,6]:
-                    for drop_time_secs in [60*60*4]:#0*60*2,60*60*4,999999999]:
-                        for max_wperc in [2]:  
-                            results= []
-                            summary={}
-                            tot_gain=0.0
+        # Apertura file
+        test_log_file = open(log_filename, "w", encoding="utf-8")
 
-                            #logger.info(f"==============  START  ====================")    
-                            params = {
-                                    
-                                        "gain_perc" : gain_perc,
-                                        "min_day_volume" :min_day_volume,
-                                        "drop_time_secs" :drop_time_secs,
-                                        "max_back_steps" : max_back_steps,
-                                        "max_wperc" : max_wperc
-                                    # "trade_last_hh" : 13,
-                                    # "min_open_gain": min_open_gain,
-                                    # "chain_up_max": chain_up_max
-                                        }
+        def log_info(message):
+            """
+            Scrive sia nel logger standard che nel file di test.
+            """
 
-                            ret = {"params" : params, "results": results,"summary": summary}
-                            all_results.append(ret)
+            # Logger standard
+            logger.info(message)
 
-                            for date in dates:
+            # Scrittura su file
+            test_log_file.write(message + "\n")
+            test_log_file.flush()
 
-                                logger.info(f"=========  PROCESS  {date} ====================")
 
-                                #df = client.get_df(f"""SELECT distinct symbol FROM ib_day_watch
-                                #            WHERE date = '{date}' order by symbol""")
-                                #df = manager.back_symbols(date)
-                                df = manager.back_symbols_from_to(date,end_date)
-                                #df = manager.back_ai_symbols(date)
-                                #df = manager.last_symbols(datetime.strptime(date, "%Y-%m-%d"))  
+        log_info(f"START TEST {class_name} {start_date} {end_date}")
+      
+        params = entry["params"]
+      
+        async def test_work(params):
                             
-                                s_list = df["symbol"].tolist()
-                                #list = list[:80]
+            results= []
+            summary={}
+            tot_gain=0.0
 
-                                ##list = ["IMNN"]
-                                if len(s_list)>0:
+            ret = {"params" : params, "results": results,"summary": summary}
+            all_results.append(ret)
+
+            log_info(f"START WORK {params}")
+
+            df = manager.back_symbols_from_to(start_date,end_date)
+                               
+            s_list = df["symbol"].tolist()
+                 
+            if len(s_list)>0:
                                 
-                                    logger.info(f"STAT PROCESS {s_list}")
+                log_info(f"STAT PROCESS {s_list}")
 
-                                    date_1 = datetime.strptime(date, "%Y-%m-%d")
-                                    giorno_precedente = date_1 - timedelta(days=1)
-                                    date_1 = giorno_precedente.strftime("%Y-%m-%d")
-
-                                    data = {
+                data = {
                                         "badgetUSD": 1000,
                                         "symbols": s_list,
-                                        "dt_from" :f"{date} 00:00:00", #f"{date_1} 2:00:00", # UTC format
+                                        "dt_from" :f"{start_date} 00:00:00", #f"{date_1} 2:00:00", # UTC format
                                         "dt_to": f"{end_date} 23:59:00",
-                                        #"dt_from": f"{date_1} 2:00:00", # UTC format
-                                        #"dt_to": f"{date} 23:59:00",
-                                        # "module" : "strategies.back_strategy_BI_15_moment",
-                                        # "class" : "BackStrategyIB15_moment",
-                                        "module" : "strategies.back_strategy_BI_1H",
-                                        "class": "BackStrategyIB_1H",
+                                        "module" : entry["module"],
+                                        "class": class_name,
                                         "pre_scan": {
                                             "enabled": False,
                                             "min_day_volume": 0
                                         },
                                         "params" :params,
-                                        "timeframe" : "15m"
+                                        "timeframe" : entry["timeframe"]
 
-                                    # "strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+                                    
                                     }
-                                    #"strategy": [{"module": "strategies.back_strategy", "class": "BackStrategy"}]
+                                    
 
-                                    backtest = BacktestIn(data)
+                backtest = BacktestIn(data)
 
-                                    ### solo una volta
-                                    #await manager.download_data(backtest)
+                                 
+                await manager.load(backtest)
 
-                                    await manager.load(backtest)
+                daily_trades = defaultdict(list)
 
-                                    daily_trades = defaultdict(list)
+                trades = await manager.start( saveResults=save_results)
 
-                                    trades = await manager.start( saveResults=False)
-                                # Raggruppa trades per giorno
-                                    for t in trades:
+                # Raggruppa trades per giorno
+                for t in trades:
 
                                         day = datetime.fromtimestamp(
                                             t.exit_datetime/1000
@@ -684,20 +700,25 @@ if __name__ =="__main__":
                                     
 
 
-                                    tot_gain=0.0
-                                    all_w=0
-                                    all_l=0
-                                    tot_pnl=0.0 
+                tot_gain=0.0
+                all_w=0
+                all_l=0
+                tot_pnl=0.0 
+                all_slots = 0
 
-                                    for day, day_trades in daily_trades.items():
+                for day, day_trades in sorted(daily_trades.items()):
 
                                         gain = 0
                                         pnl = 0
                                         w = 0
                                         l = 0
 
-                                        
+                                        slots=0
+
                                         for t in day_trades:
+
+                                            all_slots = max(all_slots ,t.current_slots )
+                                            slots = max(slots ,t.current_slots )
 
                                             g = t.gain()
 
@@ -715,6 +736,7 @@ if __name__ =="__main__":
                                             "pnl": pnl,
                                             "win": w,
                                             "loss": l,
+                                            "slots": slots,
                                             "trades": day_trades,
                                             "num_trades": len(day_trades),
                                             "winrate": (
@@ -722,33 +744,42 @@ if __name__ =="__main__":
                                                 if len(day_trades) > 0 else 0
                                             )
                                         })
+                                        
                                         tot_gain+= gain
                                         tot_pnl+= pnl
                                         all_w += w
                                         all_l += l
 
-                                summary["gain"] = tot_gain
-                                summary["pnl"] = tot_pnl
-                                summary["win"] = all_w
-                                summary["loss"] = all_l
-                                summary["num_trades"] = len(results)
+            summary["gain"] = tot_gain
+            summary["pnl"] = tot_pnl
+            summary["win"] = all_w
+            summary["loss"] = all_l
+            summary["slots"] = all_slots
+            summary["num_trades"] = len(results)
+            
 
+        await generate_hyper_configs(entry, test_work)
 
+      
         ##############
-        logger.info(f"==================================")    
+        log_info(f"==================================")    
         for ret in all_results:
                         results = ret["results"]
                         summary = ret["summary"]
                         params = ret["params"]
 
-                        logger.info(f"=================")    
-                        logger.info(f"{params}")  
+                        log_info(f"=================")    
+                        log_info(f"{params}")  
                         for r in results:   
                             #logger.info(f"{r}")  
-                            logger.info(f"{r['date']} TRADES {len(r['trades'])} pnl:{r['pnl']} win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']}")   
+                            log_info(f"{r['date']} TRADES {len(r['trades'])} pnl:{r['pnl']} win/loss {r['win']}/{r['loss']}  \t\t\tgain:{r['gain']} slots: {r['slots'] }")   
 
-                        logger.info(f"=====")    
-                        logger.info(f"TOT GAIN {summary['gain']}  pnl:{summary['pnl']} win {summary['win']} / {summary['loss']} #{summary['num_trades']}")      
+                        log_info(f"=====")    
+                        log_info(f"TOT GAIN {summary['gain']}  pnl:{summary['pnl']} win {summary['win']} / {summary['loss']} #{summary['num_trades']} slots:{summary['slots']}")      
+        log_info(f"==================================")  
+        script=manager.active_strategy.code
 
+        test_log_file.write(script + "\n")
+        test_log_file.flush()
 
-    asyncio.run(main())
+    asyncio.run(main("BackStrategyIB_1H","2026-05-10","2026-05-21",False))

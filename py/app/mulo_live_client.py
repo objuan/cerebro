@@ -122,7 +122,7 @@ class MuloLiveClient:
                 self.sym_speed = await self.send_cmd("sym/speed")
                 self.sym_start_speed = self.sym_speed
                 logger.info(f"START SYM TIME: {self.sym_time} sp:{self.sym_speed}")
-        await self._on_update_symbols()
+        await self._on_update_symbols(True)
 
     import asyncio
     import json
@@ -175,10 +175,12 @@ class MuloLiveClient:
                          
 
                             new_ticker["tf"] = TF_SEC_TO_DESC[new_ticker["tf"]]
+ 
+                            ## if  mode == "full" and  new_ticker["tf"] in ["1h"]:
+                            #     logger.info(f"1H.. {new_ticker}")
 
-                            #if new_ticker["tf"] in ["5m","15m"]:
-                            #    logger.info(f"{new_ticker}")
-
+                            #if  mode == "full" and  new_ticker["tf"] in ["5m"]:
+                            #    new_ticker["tf"] ="1h"
 
                             new_ticker["ask"] = new_ticker["ask"] if not pd.isna(new_ticker["ask"]) else 0
                             new_ticker["bid"] = new_ticker["bid"] if not pd.isna(new_ticker["bid"]) else 0
@@ -303,10 +305,13 @@ class MuloLiveClient:
         ''' get array '''
         return  self.symbols
     
-    async def _on_update_symbols(self):
+    async def _on_update_symbols(self,fromBoot=False):
         logger.info(f"LIVE >> UPDATE SYMBOLS ..")#MAX:{self.max_symbols}")
 
         try:
+            if not fromBoot:
+                await  asyncio.sleep(3)
+
             new_symbols = await self.send_cmd("symbols")
             _mule_tickers = await self.send_cmd("tickers/info")
 
@@ -643,7 +648,14 @@ class MuloLiveClient:
                     .reset_index()
                 )
 
+              
+                # rimuove ultima candela per ogni symbol
+                df = df.groupby("symbol").apply(lambda x: x.iloc[:-1]).reset_index(drop=True)
+
                 df["timestamp"] = df["datetime"].astype("int64") // 10**6
+
+                ## ultima candela è parziale la devo togliere 
+
                 #df = df.drop(columns=["dt"])
 
                 #logger.info(f".. \n{df}")
