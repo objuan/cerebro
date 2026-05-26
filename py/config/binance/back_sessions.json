@@ -44,11 +44,12 @@
 				"class" : "BackStrategyIB_1H",
 				"enabled" : true,
 				"scope" : "LIVE",
-				"timeframe" : "1h",
+				"timeframe" : "1m",
 				"params" :
 				{
 					 "gain_perc" : 15,
-                    "min_day_volume" :0,
+                    "min_day_gain" :0,
+					"min_day_volume" :100000,
                     "stop_loss" :-5,
 					"smooth_thresold": 30,
 					"smooth_trend_inc" : 3
@@ -56,9 +57,12 @@
 
 				},
 				"hyper":{
-					 "stop_loss" :[-5],
-					 "smooth_thresold" :[20,30,40],
-					 "smooth_trend_inc" :[3]
+					"min_day_gain" : [0],
+					"min_day_volume" : [100000],
+					 "stop_loss" :[2],
+					 "smooth_thresold" :[20],
+					 "smooth_trend_inc" :[3],
+					 "sma" :[20]
 				}
 			}
 	]	

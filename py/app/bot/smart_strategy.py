@@ -600,7 +600,7 @@ class SmartStrategy(Strategy):
                         #ret = await self.orderManager.smart_sell_limit(symbol,pos.position, self.client.getTicker(symbol))
                         await self.orderManager.smart_sell_market(symbol,quantity, None)
                         if self.telegram_order_messages:
-                            send_telegram_message(f"SELL {symbol} {datetime.fromtimestamp(timestamp/1000)} at: {price} {label}")
+                            send_telegram_message(f"SELL {symbol} {datetime.fromtimestamp(timestamp/1000)} at: {price} {label} ")
                     else:
                         logger.warning(f"SELL {symbol} no position to sell {coin} {pos}")             
 
@@ -736,3 +736,35 @@ class SmartStrategy(Strategy):
 
     def setTP(self,symbol, price):
         self.set_meta(symbol,{"TP": price})
+
+    #########
+
+    def init_symbol(self, symbol, last):
+            
+        if self.bootstrapMode and not self.backtestMode:
+            if not self.has_meta(symbol,"__init"):
+                self.set_meta(symbol, {"__init": True})   
+                history =  self.orderManager.getTradeHistory(symbol)
+                if len(history)>0:
+                    #logger.info(f"init {symbol} {history}")
+                    for trade in history:
+                        if not trade.isClosed():
+                            #contrllo posizione
+                          
+                            coin = trade.symbol.replace("USDC","")
+                            logger.info(f"CHECK pos {coin}")
+                            pos = Balance.get_position(coin)
+
+                            value = pos.position * last["close"]
+
+
+                            logger.info(f"Position {pos.position} value {value}")
+
+                            if value > 1:
+                                self.set_meta( trade.symbol, {"last_trade":trade})   
+                                logger.info(f"BOOTSTRAP LAST TRADE {trade.symbol} {trade.isClosed()} {trade.to_dict()}")     
+                            else:
+                                # lo chiudo
+                                 logger.info(f"CLOSE IT")
+                                 self.orderManager.close_order_from_external(symbol,"SELL")
+

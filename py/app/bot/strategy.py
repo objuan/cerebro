@@ -80,9 +80,14 @@ class Strategy:
         return ind
 
     def _fill_symbol_indicators(self,symbol, timeframe, from_local_index:int):
-        #logger.info(f"_fill_indicators {symbol} {timeframe} {from_local_index} ")
+        #if symbol =="MORPHOUSDC":
+        #    logger.info(f"_fill_indicators {symbol} {timeframe} {from_local_index} ")
+
         g_df = self.df(timeframe)
         _df = self.df(timeframe,symbol)
+
+        #if symbol =="MORPHOUSDC":
+        #     logger.info(f"_df \n{_df} ")
 
         for tf, inds in self.indicators.items():  
             if tf == timeframe:
@@ -100,6 +105,7 @@ class Strategy:
                 for ind in inds:
                     try:
                         d = self.df(tf)
+                        
                         #logger.info(f"_fill_indicators {ind.__class__} {timeframe} {from_global_index} {filter_symbol} {d.tail(1)}")
                         ind.applyAll(d,from_global_index,filter_symbol)
                         '''
@@ -146,6 +152,8 @@ class Strategy:
             
     async def start(self):
 
+        logger.info(f"start {self.__class__} tf:{self.timeframe } backtestMode:{self.backtestMode}")
+
         self.populate_indicators( )
 
         for tf, db_df in self.db_df_map.items():
@@ -186,14 +194,16 @@ class Strategy:
         logger.info(f"bootstrap {self.__class__} tf:{self.timeframe } DONE")   
 
     ########
+    # df_tf : DBDataframe_TimeFrame,
 
-    async def on_symbols_update(self, df_tf : DBDataframe_TimeFrame, to_add,to_remove):
-        #logger.info(f"=== {self.__class__} >> on_symbols_update {df_tf.timeframe} add {to_add} del {to_remove}")
+    async def on_symbols_update(self, to_add,to_remove):
+        if len(to_add)>0 or len(to_remove)>0:
+            logger.info(f"=== {self.__class__} >> on_symbols_update add {to_add} del {to_remove}")
         async with self.sem:
             for s in to_remove:
                 for tf, i_df in self.df_map.items():
-                    if tf == df_tf.timeframe:
-                        logger.info(f"DEL {s} FROM \n{df_tf.dataframe(s).tail(10)}")
+                    #if tf == df_tf.timeframe:
+                        logger.info(f"DEL {s} FROM {tf}") #\n{df_tf.dataframe(s).tail(10)}")
 
                         i_df = i_df[i_df["symbol"] != s]
 
@@ -211,22 +221,27 @@ class Strategy:
                         '''
 
             for s in to_add:
+                
                 for tf, db_df in self.db_df_map.items():
-                    if tf == df_tf.timeframe:
+                    #if tf == df_tf.timeframe:
                         #copia i nuovi simboli
                         #self.df_map[tf] = db_df.dataframe().copy()
                         #CHECK
                         df = self.df_map[tf] 
 
-                        logger.info(f"ADDING {tf} ")#\n{df_tf.dataframe(s).tail(20)}" )
+                        logger.info(f"ADDING {s} {tf} ")#\n{df_tf.dataframe(s).tail(20)}" )
 
                         count = len(df[df["symbol"] == s])
                         if count != 0:
                             raise Exception(f"Bad db state !!!! {s} #{count}")
                         
-                        add_df = df_tf.dataframe(s).copy()
+                        add_df = db_df.dataframe(s).copy()
+                        #add_df = df[df["symbol"] == s].copy()
+
                     #logger.info(f"BOOT ADD {tf} \n{add_df.tail(10)}" )
                         df = pd.concat([df, add_df], ignore_index=True)
+                      
+                        #df =db_df.dataframe().copy()
                         self.df_map[tf] = df
 
                         ## BOOTSTRAP
@@ -237,13 +252,14 @@ class Strategy:
                             
                             self.trade_dataframe = group
                             if symbol == s:
+                                logger.info(f"FILL INDICATORs {symbol}  #{len(group)}" )
 
                                 for tf, db_df in self.db_df_map.items():
                                     self._fill_indicators(tf,0,symbol)
                                 # %s%s%s
                                 #db_df.on_df_last_added+= self.on_df_last_added
 
-                                logger.info(f"SMART BOOTSTRAP {symbol}")
+                                logger.info(f"SMART BOOTSTRAP {symbol} #{len(group)}")
                                 idx=0
                                 for global_idx in group.index:
                                     try:
@@ -252,6 +268,7 @@ class Strategy:
                                         idx=idx+1
                                     except:
                                         logger.error(f"trade_symbol_at  {symbol} index {global_idx}" , exc_info=True)
+                                logger.info(f"SMART BOOTSTRAP DONE {symbol}")
                         self.bootstrapMode = old
 
     ########
@@ -270,7 +287,8 @@ class Strategy:
     async def on_df_last_added(self, tf, new_symbol, new_row):
 
         #if (tf=="1h"):
-        #    logger.info(f"=== {self.__class__} >> on_df_last_added {tf} {new_symbol} #{len(new_row)} \n{new_row.tail(5)}")
+        #
+        #logger.info(f"=== {self.__class__} >> on_df_last_added {tf} {new_symbol} #{len(new_row)} \n{new_row.tail(5)}")
 
       
         async with self.sem:
@@ -296,6 +314,8 @@ class Strategy:
                  df_tf = pd.concat([df_tf, new_row])
                  self.df_map[tf] = df_tf
 
+            #if tf =="1h":
+            #logger.info(f"_fill_symbol_indicators {new_symbol}")
 
             self._fill_symbol_indicators( new_symbol, tf,-1)
 

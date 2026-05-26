@@ -4,6 +4,7 @@ import sys
 if __name__ =="__main__":
     sys.argv.append("BINANCE")
 
+import random
 from typing import List
 from fastapi import HTTPException
 from ib_insync import *
@@ -57,6 +58,22 @@ class OrderManager:
 
     async def bootstrap(self,ib):
         pass
+    
+    def close_order_from_external(self, symbol,action):
+        logger.info(f"close_order_from_external {symbol}")
+
+        trade_id =  random.randint(10**9, 10**10 - 1)
+
+        utc_now = datetime.now(timezone.utc).isoformat()
+        log = [ {"time": utc_now, "status": "Filled", "fee": 0 , "message": "", "errorCode": 0}]
+        data = {"trade_id": trade_id, "orderId": trade_id, "symbol": symbol, "exchange": "BINANCE", "action":action, "orderType": "MARKET", "totalQuantity": 0, "lmtPrice": 0.0, "status": "Filled", "filled": True, "remaining": 0.0, "avgFillPrice": 0.011733, "lastFillPrice": 0, "log": log}
+
+        ser = json.dumps(data)
+        
+        self.client.execute(f'''INSERT INTO  {self.order_table} (trade_id, symbol, side,status, event_type, data)
+                    VALUES (%s, %s, %s, %s, %s,%s)''',
+                (trade_id, symbol,action, "Filled","STATUS",ser))
+         
 
     async def _addOrder(self,data,type):
         #data =  trade_to_dict(trade)

@@ -169,6 +169,7 @@ else:
 
 client.newService=newService
 
+
 # FORZA IL LOOP COMPATIBILE PRIMA DI TUTTO
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -187,6 +188,8 @@ tradeManager = TradeManager(config,client,propManager)
 report.render_page=render_page
 strategy = StrategyManager(config,db,client,render_page, orderManager)
 client.render_page=render_page
+client.strategyManager=strategy
+
 orderManager.strategyManager = strategy
 
 back_manager = BacktestManager(config,client,render_page)

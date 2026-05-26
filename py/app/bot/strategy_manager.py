@@ -83,8 +83,8 @@ class StrategyManager:
         self.db = db
         self.render_page=render_page
         self.client = client
-        self.db.on_symbol_added += self.on_symbol_added
-        self.db.on_symbol_removed += self.on_symbol_removed
+        #self.db.on_symbol_added += self.on_symbol_added
+        #self.db.on_symbol_removed += self.on_symbol_removed
         self._modules_cache = {}
            
         strategy_folder = self.config["live_service"]["strategy_folder"]
@@ -228,6 +228,11 @@ class StrategyManager:
 
     #################
 
+    async def on_symbols_update(self,symbols,to_add, to_remove):
+         for strat in self.strategies:
+            await strat["instance"].on_symbols_update(to_add, to_remove)
+
+    '''
     async def on_symbol_added(self, df : DBDataframe_TimeFrame, symbol):
          for strat in self.strategies:
             await strat["instance"].on_symbols_update(df,[symbol],[])
@@ -235,6 +240,7 @@ class StrategyManager:
     async def on_symbol_removed(self,  df : DBDataframe_TimeFrame, symbol):
          for strat in self.strategies:
             await strat["instance"].on_symbols_update(df, [], [symbol])
+    '''
 
     async def on_live_trade_event(self,type, data):
          for strat in self.strategies:

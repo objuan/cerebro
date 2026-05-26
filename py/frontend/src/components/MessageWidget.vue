@@ -7,7 +7,7 @@
     <div class="event-header">
               <div style="max-width: 18px;"> {{ props.icon }}</div>
               <div :class="['time', { 'new-bar': isNew }]">
-                {{ getDate() }}
+                {{ getDateTime() }}
               </div>
               <div class="title">{{ props.title }}</div>
               <div v-if="props.ring!='' && props.ring!=null">🔔</div>
@@ -183,7 +183,15 @@ function process_text(text){
   return {"text":  text, "style":style}
 }
 
-
+function getDateTime(){
+  try{
+  return new Date(props.timestamp).toLocaleString('it-IT')
+  }catch{
+    return props.timestamp;
+  }
+  
+}
+/*
 function getDate(){
   try{
   return new Date(props.timestamp).toLocaleTimeString()
@@ -192,6 +200,7 @@ function getDate(){
   }
   
 }
+*/
 function toggle() {
 
   open.value = !open.value
@@ -320,6 +329,7 @@ watch(() => props.timestamp, () => {
   gap: 4px;
 }
 .time {
+   font-size: 10px;
  font-weight: 600;
  margin-right: auto
 }

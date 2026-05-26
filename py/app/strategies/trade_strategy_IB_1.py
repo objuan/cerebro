@@ -41,6 +41,7 @@ class TradeStrategyIB1(SmartStrategy):
         vol_day= self.addIndicator(self.timeframe,COPY("vol_day","quote_day_volume"))
         gain_day= self.addIndicator(self.timeframe,COPY("gain_day","day_gain"))
 
+
         self.addIndicator(self.timeframe,TRADE_DATE("date"))
         vwap = self.addIndicator(self.timeframe, VWAPBands("vwap","vwap_up","vwap_down","vwap_perc","vwap_pos","close","quote_volume"))
 

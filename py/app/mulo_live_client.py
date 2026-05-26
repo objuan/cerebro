@@ -32,6 +32,7 @@ class MuloLiveClient:
         self.db_file = db_file
         self.ready=False
         self.newService=None
+        self.strategyManager=None
         self.render_page=None
         self.propManager=propManager
         self.config=config
@@ -327,8 +328,9 @@ class MuloLiveClient:
             common = list(set_new & set_old)       # presenti in entrambi
 
             self.symbols = new_symbols
-
-            logger.info(f"<< ADD {to_add} DEL {to_remove}")
+            
+            if len(to_add)>0 or len(to_remove)>0 :
+                logger.info(f"<< ADD {to_add} DEL {to_remove}")
             
             # 1. Rimuovi eventuali simboli da eliminare
             if self.df_fundamentals is not None and len(to_remove) > 0:
@@ -374,75 +376,71 @@ class MuloLiveClient:
                     .to_dict(orient="index")
             )
             '''
-            logger.info(f"Fundamentals \n{len(self.df_fundamentals)}")
+
+            if len(to_add)>0 or len(to_remove)>0 :
+                logger.info(f"Fundamentals \n{len(self.df_fundamentals)}")
                                                 
-            self.sql_symbols = str(self.symbols)[1:-1]
-    
-            #self.tickers = {}
+                self.sql_symbols = str(self.symbols)[1:-1]
+        
+                #self.tickers = {}
 
-            for symbol in to_remove:
-                logger.info(f"REMOVE {symbol}")
-                del self.tickers[symbol]
+                for symbol in to_remove:
+                    logger.info(f"REMOVE {symbol}")
+                    del self.tickers[symbol]
 
-            for ticker in _mule_tickers:
-                ''''
-                t = Ticker( contract= Contract(symbol=s))
-                t.symbol = s
-                t.last_close = await self.last_close(s)
-                t.gain = 0
-                self.tickers[s] =t
-                '''
-                symbol = ticker["symbol"]
-                if symbol in to_add:
-                    #logger.info(f"GET  close {ticker['symbol']}")
+                for ticker in _mule_tickers:
+                    ''''
+                    t = Ticker( contract= Contract(symbol=s))
+                    t.symbol = s
+                    t.last_close = await self.last_close(s)
+                    t.gain = 0
+                    self.tickers[s] =t
+                    '''
+                    symbol = ticker["symbol"]
+                    if symbol in to_add:
+                        #logger.info(f"GET  close {ticker['symbol']}")
 
-                    last_close, ts_last_close=  await self.last_close(ticker["symbol"])
-                    if (last_close == 0): last_close = 0.000001
-                    gain =  ((ticker["last"] - last_close) / last_close) * 100
+                        last_close, ts_last_close=  await self.last_close(ticker["symbol"])
+                        if (last_close == 0): last_close = 0.000001
+                        gain =  ((ticker["last"] - last_close) / last_close) * 100
+                    
+                        self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
+                                            "scan" : str(ticker["scan"]).replace("'","").replace("[","").replace("]",""),
+                                            "gain" : gain, "low":0 ,
+                                            "high":0, 
+                                            "last" : ticker["last"], 
+                                            "volume": 0, "ts" : 0,
+                                            "ask" : 0, 
+                                            "bid":0,
+                                            "day_volume" : ticker["last_volume"],
+                                            "last_close": last_close,
+                                            "ts_last_close": ts_last_close}
+
+                logger.info(f">> tickers {len(self.tickers)}")  
+
+                await self.on_symbols_update(self.symbols,to_add,to_remove)
+
+                await self.strategyManager.on_symbols_update(self.symbols,to_add,to_remove)
+
+                await self.render_page.send({
+                    "type" :"symbols",
+                    "add" : to_add,
+                    "del" : to_remove
+                })
+
+                for symbol in to_add:
+                    await self.send_event("mule",symbol,"NEW ", "","", {"color": "#00b627","ring":"new_symbol"})
+
+                #newss
                 
-                    self.tickers[ticker["symbol"]] = { "symbol": ticker["symbol"], 
-                                        "scan" : str(ticker["scan"]).replace("'","").replace("[","").replace("]",""),
-                                        "gain" : gain, "low":0 ,
-                                        "high":0, 
-                                        "last" : ticker["last"], 
-                                        "volume": 0, "ts" : 0,
-                                        "ask" : 0, 
-                                        "bid":0,
-                                        "day_volume" : ticker["last_volume"],
-                                        "last_close": last_close,
-                                        "ts_last_close": ts_last_close}
-
-            logger.info(f">> tickers {len(self.tickers)}")  
-
-            await self.on_symbols_update(self.symbols,to_add,to_remove)
-
-            await self.render_page.send({
-                "type" :"symbols",
-                "add" : to_add,
-                "del" : to_remove
-            })
-
-            for symbol in to_add:
-                await self.send_event("mule",symbol,"NEW ", "","", {"color": "#00b627","ring":"new_symbol"})
-
-            #newss
-            
-            #await self.scan_for_news(to_add)
-            
-            await self.newService.on_symbols_update(self.symbols,to_add,to_remove)   
-            '''
-            for symbol in to_add:
+                #await self.scan_for_news(to_add)
                 
-                news = await NewService().find(symbol)
-                if news:
-                    await self.send_news(symbol,news)
-            '''
+                await self.newService.on_symbols_update(self.symbols,to_add,to_remove)   
+                
+                for symbol in to_remove:
+                    await self.send_event("mule",symbol,"DEL", "","", {"color": "#ff5084"})
 
-
-            for symbol in to_remove:
-                await self.send_event("mule",symbol,"DEL", "","", {"color": "#ff5084"})
-
-            logger.info(f"UPDATE SYMBOLS DONE {len(self.tickers)}")  
+                logger.info(f"UPDATE SYMBOLS DONE {len(self.tickers)}")  
             
         except Exception as e:
             logger.error(f"Errore in _on_update_symbols", exc_info=True)    
@@ -564,7 +562,7 @@ class MuloLiveClient:
         #conn.close()     
         return df
 
-    def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, to : int=None, limit: int = 9999999):
+    def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, to : int=None, limit: int = 9999999, debug_mode=False):
 
         if len(symbols) == 0:
             logger.error("symbol empty !!!")
@@ -611,7 +609,8 @@ class MuloLiveClient:
             else:
                 query = query.replace("[SINCE]",f"")
 
-            #logger.info(f"QUERY {query}")
+            if debug_mode:
+                logger.info(f"QUERY {query}")
                       
             if timeframe in ['10s','1m','1d']:
                 # sono nel DB
@@ -623,6 +622,9 @@ class MuloLiveClient:
                 #logger.info(f"==========={sql_symbols} {timeframe}===============")
                 # li prendo dalle candele di 1m
                 df = self.get_df(query, params= ("1m",))
+
+                if debug_mode:
+                     logger.info(f"QUERY {len(df)}")
 
                 df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
 
@@ -647,6 +649,9 @@ class MuloLiveClient:
                     .dropna()
                     .reset_index()
                 )
+
+                if debug_mode:
+                     logger.info(f"QUERY {len(df)}")
 
               
                 # rimuove ultima candela per ogni symbol

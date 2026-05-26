@@ -69,6 +69,11 @@ class TradeStrategyIB(SmartStrategy):
    
         
         last = dataframe.iloc[local_index]
+
+
+        if not self.bootstrapMode:
+            logger.info(f".. {symbol} {last['datetime']} ")
+
         vol_day = last["quote_day_volume"]           
        
         # META
