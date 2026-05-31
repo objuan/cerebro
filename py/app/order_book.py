@@ -30,6 +30,8 @@ class Trade:
         self.side = side
 
     def gain(self):
+        if self.entry_price==0:
+            return 0
         return 100.0 * (self.exit_price - self.entry_price) / self.entry_price
     
     def pnl(self):

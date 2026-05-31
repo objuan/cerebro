@@ -562,7 +562,7 @@ class MuloLiveClient:
         #conn.close()     
         return df
 
-    def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, to : int=None, limit: int = 9999999, debug_mode=False):
+    def history_data(self,symbols: List[str], timeframe: str, *, since : int=None, to : int=None, limit: int = 9999999):
 
         if len(symbols) == 0:
             logger.error("symbol empty !!!")
@@ -592,11 +592,14 @@ class MuloLiveClient:
             sql_symbols = str(symbols)[1:-1]
         
             #conn = self.conn#sqlite3.connect(self.db_file)
+            t = '1m'
+            if timeframe in ['10s','1m','1d']:
+                t = timeframe
 
             query = f"""
                     SELECT *
                     FROM ib_ohlc_history
-                    WHERE symbol in ({sql_symbols}) AND timeframe=%s
+                    WHERE symbol in ({sql_symbols}) AND timeframe='{t}'
                     [SINCE]
                     ORDER BY timestamp DESC
                     LIMIT {limit}"""
@@ -609,22 +612,24 @@ class MuloLiveClient:
             else:
                 query = query.replace("[SINCE]",f"")
 
-            if debug_mode:
-                logger.info(f"QUERY {query}")
+            #if debug_mode:
+            #    logger.info(f"QUERY {query}")
                       
             if timeframe in ['10s','1m','1d']:
                 # sono nel DB
-                df = self.get_df(query, params= (timeframe,))
+                df = self.get_df(query)
                 df = df.iloc[::-1].reset_index(drop=True)
                 #logger.info(f"..1 \n{df}")
             else:
 
                 #logger.info(f"==========={sql_symbols} {timeframe}===============")
                 # li prendo dalle candele di 1m
-                df = self.get_df(query, params= ("1m",))
+                df = self.get_df(query)
 
-                if debug_mode:
-                     logger.info(f"QUERY {len(df)}")
+                if len(df) == 0:#debug_mode:
+                     logger.info(f"QUERY {query}")
+
+                logger.info(f"# {len(df)}")
 
                 df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
 
@@ -646,12 +651,13 @@ class MuloLiveClient:
                         "quote_day_volume": "last",
                         "day_gain": "last",
                     })
-                    .dropna()
+                    #.dropna()
+                    .fillna(0)
                     .reset_index()
                 )
 
-                if debug_mode:
-                     logger.info(f"QUERY {len(df)}")
+                if len(df) == 0:
+                     logger.info(f"AFTER ZERO ")
 
               
                 # rimuove ultima candela per ogni symbol

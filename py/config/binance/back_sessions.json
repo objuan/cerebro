@@ -52,17 +52,19 @@
 					"min_day_volume" :100000,
                     "stop_loss" :-5,
 					"smooth_thresold": 30,
-					"smooth_trend_inc" : 3
+					"smooth_trend_inc" : 3,
+					"min_5_volume" : 10000
                      
 
 				},
 				"hyper":{
 					"min_day_gain" : [0],
-					"min_day_volume" : [100000],
+					"min_day_volume" : [1000000],
 					 "stop_loss" :[2],
 					 "smooth_thresold" :[20],
 					 "smooth_trend_inc" :[3],
-					 "sma" :[20]
+					 "sma" :[20],
+					 "min_5_volume" : [0,1000,10000]
 				}
 			}
 	]	

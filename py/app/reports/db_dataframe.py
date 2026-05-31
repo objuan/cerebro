@@ -138,6 +138,16 @@ class DBDataframe_TimeFrame:
         dfs = []
         for symbol in symbols:
              df = self.client.history_data([symbol],  self.timeframe, limit=self.TIMEFRAME_CHART_CANDLES[self.timeframe])
+             if len(df) == 0:
+                  logger.info("Attemp 2")
+                  await asyncio.sleep(1)
+                  df = self.client.history_data([symbol],  self.timeframe, limit=self.TIMEFRAME_CHART_CANDLES[self.timeframe])
+             
+             if len(df) == 0:
+                  logger.info("Attemp 3")
+                  await asyncio.sleep(1)
+                  df = self.client.history_data([symbol],  self.timeframe, limit=self.TIMEFRAME_CHART_CANDLES[self.timeframe])
+
              df["symbol"] = symbol  # utile dopo per filtri
              dfs.append(df)
 

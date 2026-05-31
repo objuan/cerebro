@@ -921,10 +921,12 @@ class SMA_old(Indicator):
                     #logger.info(f"sum {i_idx} {symbol_idx[i_idx]}= {sum}")
                     dest[symbol_idx[i_idx]] =sum
 
+
 class SMA(Indicator):
 
     def __init__(self, target_col, source_col: str, timeperiod: int):
         super().__init__([target_col])
+
         self.source_col = source_col
         self.target_col = target_col
         self.window = timeperiod
@@ -936,26 +938,48 @@ class SMA(Indicator):
 
         w = self.window
 
-        # start corretto per mantenere continuità rolling
-        start = max(0, from_local_index - w + 1)
+        if len(symbol_idx) == 0:
+            return
+
+        # prima esecuzione -> calcolo completo
+        if from_local_index == 0:
+
+            rolling_sum = 0.0
+
+            for i in range(len(symbol_idx)):
+
+                idx = symbol_idx[i]
+
+                rolling_sum += source[idx]
+
+                if i >= w:
+                    rolling_sum -= source[symbol_idx[i - w]]
+
+                current_window = min(i + 1, w)
+
+                dest[idx] = rolling_sum / current_window
+
+            return
+
+        # ---------------------------
+        # aggiornamento incrementale
+        # ---------------------------
+
+        i = from_local_index
+        idx = symbol_idx[i]
+
+        # ricostruisci somma finestra precedente
+        start_window = max(0, i - w + 1)
 
         rolling_sum = 0.0
 
-        for i in range(start, len(symbol_idx)):
+        for j in range(start_window, i + 1):
+            rolling_sum += source[symbol_idx[j]]
 
-            idx = symbol_idx[i]
+        current_window = min(i + 1, w)
 
-            rolling_sum += source[idx]
+        dest[idx] = rolling_sum / current_window
 
-            # rimuove elemento uscito dalla finestra
-            if i >= w:
-                old_idx = symbol_idx[i - w]
-                rolling_sum -= source[old_idx]
-
-            # dimensione finestra reale iniziale
-            current_window = min(i + 1, w)
-
-            dest[idx] = rolling_sum / current_window
 
 class EMA(Indicator):
   
@@ -1067,32 +1091,56 @@ class SUM(Indicator):
 
     def __init__(self, target_col, source_col: str, timeperiod: int):
         super().__init__([target_col])
+
         self.source_col = source_col
         self.target_col = target_col
         self.window = timeperiod
 
-    def compute_fast(self, symbol, dataframe, symbol_idx, from_local_index):
+    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
 
         dest = dataframe[self.target_col].to_numpy()
         source = dataframe[self.source_col].to_numpy()
 
         w = self.window
 
-        start = max(0, from_local_index - w)
+        if len(symbol_idx) == 0:
+            return
+
+        # prima esecuzione -> calcolo completo
+        if from_local_index == 0:
+
+            rolling_sum = 0.0
+
+            for i in range(len(symbol_idx)):
+
+                idx = symbol_idx[i]
+
+                rolling_sum += source[idx]
+
+                if i >= w:
+                    rolling_sum -= source[symbol_idx[i - w]]
+
+                dest[idx] = rolling_sum 
+
+            return
+
+        # ---------------------------
+        # aggiornamento incrementale
+        # ---------------------------
+
+        i = from_local_index
+        idx = symbol_idx[i]
+
+        # ricostruisci somma finestra precedente
+        start_window = max(0, i - w + 1)
 
         rolling_sum = 0.0
 
-        for i in range(start, len(symbol_idx)):
+        for j in range(start_window, i + 1):
+            rolling_sum += source[symbol_idx[j]]
 
-            idx = symbol_idx[i]
+        dest[idx] = rolling_sum 
 
-            rolling_sum += source[idx]
-
-            if i >= w:
-                old_idx = symbol_idx[i - w]
-                rolling_sum -= source[old_idx]
-
-            dest[idx] = rolling_sum
 
 class MAX_ALL(Indicator):
   

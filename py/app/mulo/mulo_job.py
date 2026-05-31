@@ -721,12 +721,14 @@ class MuloJob:
 
                     logger.info(f"end {end}")
                     if not max_ts:
-                        dt_start = datetime.now(timezone.utc) - timedelta(days=7)
+                        dt_start = datetime.now(timezone.utc) - timedelta(days=30)
                         #dt_start = datetime.now().astimezone(timezone.utc) - timedelta(days=1)
                         start = dt_start.strftime('%Y-%m-%d-%H:%M:%S')
                     else:
                         dt_start = datetime.utcfromtimestamp(max_ts / 1000)
                         start = dt_start.strftime('%Y%m%d-%H:%M:%S')
+
+                    logger.info(f"dt_start { dt_start}")
 
                     klines = self.get_klines_batch(
                         symbol=symbol,
@@ -741,6 +743,9 @@ class MuloJob:
                         "Close time", "Quote asset volume", "Number of trades",
                         "Taker buy base", "Taker buy quote", "Ignore"
                     ])
+
+                    logger.info(f"#{len(df)}")
+
                     df["Datetime"] = pd.to_datetime(df["Open time"], unit='ms')
                     df["timestamp"] = (df["Open time"] // 1000).astype(int)
 

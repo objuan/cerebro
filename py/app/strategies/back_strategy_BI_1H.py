@@ -22,64 +22,6 @@ from reports.report_manager import ReportManager
 
 from order_book import *
 
-class SMA(Indicator):
-
-    def __init__(self, target_col, source_col: str, timeperiod: int):
-        super().__init__([target_col])
-
-        self.source_col = source_col
-        self.target_col = target_col
-        self.window = timeperiod
-
-    def compute_fast(self, symbol, dataframe: pd.DataFrame, symbol_idx, from_local_index):
-
-        dest = dataframe[self.target_col].to_numpy()
-        source = dataframe[self.source_col].to_numpy()
-
-        w = self.window
-
-        if len(symbol_idx) == 0:
-            return
-
-        # prima esecuzione -> calcolo completo
-        if from_local_index == 0:
-
-            rolling_sum = 0.0
-
-            for i in range(len(symbol_idx)):
-
-                idx = symbol_idx[i]
-
-                rolling_sum += source[idx]
-
-                if i >= w:
-                    rolling_sum -= source[symbol_idx[i - w]]
-
-                current_window = min(i + 1, w)
-
-                dest[idx] = rolling_sum / current_window
-
-            return
-
-        # ---------------------------
-        # aggiornamento incrementale
-        # ---------------------------
-
-        i = from_local_index
-        idx = symbol_idx[i]
-
-        # ricostruisci somma finestra precedente
-        start_window = max(0, i - w + 1)
-
-        rolling_sum = 0.0
-
-        for j in range(start_window, i + 1):
-            rolling_sum += source[symbol_idx[j]]
-
-        current_window = min(i + 1, w)
-
-        dest[idx] = rolling_sum / current_window
-
 
 class TREND_INC(Indicator):
   
@@ -112,6 +54,7 @@ class BackStrategyIB_1H(SmartStrategy):
 
     async def on_start(self):
         self.min_day_volume= self.params["min_day_volume"]
+        self.min_5_volume= self.params["min_5_volume"]
         self.gain_perc = self.params["gain_perc"]
         self.stop_loss = self.params["stop_loss"]
         self.smooth_thresold= self.params["smooth_thresold"]
@@ -133,6 +76,8 @@ class BackStrategyIB_1H(SmartStrategy):
         curva1= self.addIndicator(self.timeframe,GAIN("curva1","sma_25",timeperiod = 1))
         curva= self.addIndicator(self.timeframe,MULT("curva","curva1",100))
 
+        vol_5= self.addIndicator(self.timeframe,SUM("vol_5","quote_volume",5))
+
         smooth= self.addIndicator(self.timeframe,SMOOTH("smooth","curva"))
 
         sma_trend = self.addIndicator(self.timeframe,TREND_LIMIT("sma_trend","smooth")) 
@@ -147,7 +92,9 @@ class BackStrategyIB_1H(SmartStrategy):
 
         self.add_plot(smooth, "smooth","#052500","sub1","smooth", style="Solid", lineWidth=1)
         self.add_plot(sma_trend, "sma_trend","#052500","sub1","sma_trend", style="Solid", lineWidth=1)
-        self.add_plot(sma_trend_inc, "sma_trend_inc","#052500","sub1","sma_trend_inc", style="Solid", lineWidth=1)
+        #self.add_plot(sma_trend_inc, "sma_trend_inc","#052500","sub1","sma_trend_inc", style="Solid", lineWidth=1)
+
+        self.add_plot(vol_5, "vol_5","#052500","sub1","vol_5", style="Solid", lineWidth=1)
         
 
     async def trade_symbol_at(self, symbol:str, dataframe: pd.DataFrame,local_index : int, metadata: dict):
@@ -174,7 +121,9 @@ class BackStrategyIB_1H(SmartStrategy):
         
         if local_index < 1:
             return
-            
+        
+        #########################
+
         if not self.has_meta(symbol,"ai"): 
             self.set_meta(symbol,{"ai":{ "STATE": "WAITING","MAX_GAIN": 0}})
         ai = self.get_meta(symbol,"ai")   
@@ -207,7 +156,8 @@ class BackStrategyIB_1H(SmartStrategy):
         sma_trend_inc =  last["sma_trend_inc"]
         
         sma_smooth =  last["smooth"]
- 
+        vol_5=  last["vol_5"]
+
         #q = self.get_quantity( self.loss_by_trade, price  )  
         #await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )
 
@@ -224,10 +174,10 @@ class BackStrategyIB_1H(SmartStrategy):
                 #19/18	257%
                 if sma_trend_inc>=self.smooth_trend_inc and sma_smooth>self.smooth_thresold:#  and sma_smooth>30:
 
-                    if prev["smooth"]<self.smooth_thresold:
+                    if prev["smooth"]<self.smooth_thresold and vol_5 > self.min_5_volume:
                     #if sma_trend>7 and prev["smooth"]>40:
                     # ai["STATE"] ="DOWN"
-                        logger.info(f"inc: {sma_trend_inc} sma:{sma_smooth} prev:{prev['smooth']}")
+                        #logger.info(f"inc: {sma_trend_inc} sma:{sma_smooth} prev:{prev['smooth']}")
                         #ai["STATE"] = "WAITING"      
                         q = self.get_quantity( self.loss_by_trade, price  )  
                         await self.buy( symbol, int(last["timestamp"]),price,  q, "BUY" )

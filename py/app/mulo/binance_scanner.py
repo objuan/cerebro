@@ -58,7 +58,22 @@ conn = pymysql.connect(
 price_history = {}
 
 def get_day_top_gainers(client,limit=10):
+
+    exchange_info  = client.get_exchange_info()
+
+    
+    active = {
+        s['symbol']
+        for s in exchange_info['symbols']
+        if s['status'] == 'TRADING'
+    }
+
     tickers = client.get_ticker()
+
+    tickers = [
+        t for t in tickers
+        if t['symbol'] in active
+    ]
 
     gainers = []
 
@@ -68,6 +83,7 @@ def get_day_top_gainers(client,limit=10):
         # Considera solo coppie contro USDT (più standard)
         if symbol.endswith("USDC"):
             try:
+                print(t)
                 price_change = float(t['priceChangePercent'])
                 gainers.append((symbol, price_change))
             except:
@@ -216,7 +232,7 @@ async def main():
     #port=config["general"]["ib_port_live"] if live_mode else config["general"]["ib_port_paper"]   
    
     ms = MarketService(config)    
-    scanner = Scanner(client,client,config,ms)
+    scanner = BinanceScanner(client,config,ms)
    
     df_symbols = await scanner.do_scanner( "GAIN")
     

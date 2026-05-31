@@ -53,7 +53,8 @@ class BinanceClientManager:
             total=30,
             connect=10,
             sock_connect=10,
-            sock_read=20
+            sock_read=20,
+
         )
 
         self.lock = asyncio.Lock()
@@ -66,6 +67,7 @@ class BinanceClientManager:
 
         # refresh offset ogni 5 minuti
         self.time_sync_interval = 300
+        self.BINANCE_TIME_OFFSET=0
 
     async def sync_time(self):
 
@@ -84,6 +86,7 @@ class BinanceClientManager:
 
             self.last_time_sync = time.time()
 
+
             logger.info(
                 f"Time sync Binance OK "
                 f"offset={self.time_offset}ms"
@@ -93,7 +96,20 @@ class BinanceClientManager:
             logger.exception("Errore sincronizzazione tempo Binance")
 
     async def ensure_time_sync(self):
+        
+        if self.binance_client is None:
+            return
+          
+        server_time_data = await self.binance_client.get_server_time()
+        server_time = server_time_data["serverTime"]
+        
+        local_time = int(time.time() * 1000)
+        
+        # Calcola il divario e applicalo come offset fisso
+        self.binance_client.timestamp_offset = server_time - local_time
 
+
+        '''
         now = time.time()
 
         if (
@@ -101,6 +117,7 @@ class BinanceClientManager:
             > self.time_sync_interval
         ):
             await self.sync_time()
+        '''
 
     async def connect(self):
 
@@ -117,7 +134,7 @@ class BinanceClientManager:
                 testnet=self.testnet,
                 requests_params={
                     "timeout": self.timeout
-                }
+                },
             )
 
             # sync tempo iniziale
@@ -169,7 +186,7 @@ class BinanceClientManager:
                     await self.connect()
 
                 await self.ensure_time_sync()
-
+             
                 method = getattr(
                     self.binance_client,
                     method_name
@@ -542,6 +559,7 @@ class Binance_OrderManager(OrderManager):
     async def create_order(self,symbol,side,type,quantity, price=0, adjustPrice=False):
         try:
             logger.info(f"CREATE ORDER {symbol} {side} {type} {quantity} at {price}")
+
             if type =="MARKET":
                 '''
                 order = await self.binance_client.create_order(
@@ -556,7 +574,7 @@ class Binance_OrderManager(OrderManager):
                     side=side,
                     type="MARKET",
                     quantity=quantity,
-                    recvWindow=5000
+                    recvWindow=10000
                 )
 
             else:
@@ -574,24 +592,28 @@ class Binance_OrderManager(OrderManager):
                                 price =  math.floor(price / tick_size) * tick_size     
                                 logger.info(f"tickSize:{tick_size} price {old} => {price}")        
 
-                order = await self.manager.safe_request("create_order",
-                    symbol=symbol,
-                    side=side,
-                    type="LIMIT",
-                    quantity=quantity,
-                    price = price,
-                    timeInForce="GTC",
-                       recvWindow=5000)
-                '''
-                order = await self.binance_client.create_order(
-                    symbol=symbol,
-                    side=side,
-                    type="LIMIT",
-                    quantity=quantity,
-                    price = price,
-                    timeInForce="GTC"
-                )
-                '''
+                try:
+                    order = await self.manager.safe_request("create_order",
+                        symbol=symbol,
+                        side=side,
+                        type="LIMIT",
+                        quantity=quantity,
+                        price = price,
+                        timeInForce="GTC",
+                            recvWindow=10000)
+                    '''
+                    order = await self.binance_client.create_order(
+                        symbol=symbol,
+                        side=side,
+                        type="LIMIT",
+                        quantity=quantity,
+                        price = price,
+                        timeInForce="GTC"
+                    )
+                    '''
+                except:
+                    logger.error("ERROR",exc_info=True)
+                    return None
 
             logger.info(order)
 
